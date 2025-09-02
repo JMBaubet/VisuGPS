@@ -1,0 +1,45 @@
+# --- Normalisation des fins de ligne ---
+# Toujours utiliser LF (même sur Windows)
+* text=auto eol=lf
+
+# --- Rust (Tauri) ---
+*.rs     text eol=lf
+*.toml   text eol=lf
+*.lock   text eol=lf
+
+# --- JavaScript / Vue / Frontend ---
+*.js     text eol=lf
+*.ts     text eol=lf
+*.vue    text eol=lf
+*.json   text eol=lf
+*.css    text eol=lf
+*.scss   text eol=lf
+*.html   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+
+# --- Scripts ---
+*.sh     text eol=lf
+*.bat    text eol=crlf
+
+# --- Binaire (ne jamais toucher) ---
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.svg    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.mp4    binary
+*.mp3    binary
+*.exe    binary
+*.dll    binary
+
+# --- OS spécifiques ---
+# Évite les fichiers parasites
+*.DS_Store binary
+Thumbs.db  binary
