@@ -1,0 +1,31 @@
+{
+  "name": "visugps",
+  "version": "1.0.0",
+  "description": "Ce document décrit le projet **VisuGPS**, une application de bureau multiplateforme pour la visualisation 3D de fichiers GPX, axée sur la création d'animations.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tauri": "tauri"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JMBaubet/VisuGPS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JMBaubet/VisuGPS/issues"
+  },
+  "homepage": "https://github.com/JMBaubet/VisuGPS#readme",
+  "dependencies": {
+    "@tauri-apps/api": "^2.8.0",
+    "@turf/turf": "^7.2.0",
+    "mapbox-gl": "^3.14.0",
+    "vue": "^3.5.20",
+    "vuetify": "^3.9.6"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.4"
+  }
+}
