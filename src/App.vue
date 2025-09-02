@@ -1,8 +1,10 @@
 <template>
   <router-view />
+  <MessageContainer />
 </template>
 
 <script setup>
+import MessageContainer from './components/MessageContainer.vue';
 // No script needed for a basic App.vue
 </script>
 

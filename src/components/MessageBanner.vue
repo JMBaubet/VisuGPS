@@ -44,9 +44,13 @@ const typeMap = {
   error: { color: "red-lighten-4", icon: "mdi-alert-circle-outline", progressColor: "error" },
 };
 
-const color = computed(() => typeMap[props.type]?.color || "blue-lighten-4");
-const icon = computed(() => typeMap[props.type]?.icon || "mdi-information-outline");
-const progressColor = computed(() => typeMap[props.type]?.progressColor || "info");
+const alertSettings = computed(() => typeMap[props.type] || typeMap.info);
+
+const icon = computed(() => alertSettings.value.icon);
+const progressColor = computed(() => alertSettings.value.progressColor);
+const textColor = computed(() => alertSettings.value.textColor);
+const backgroundColor = computed(() => alertSettings.value.backgroundColor);
+const alertClass = computed(() => `alert-${props.type}`);
 
 onMounted(() => {
   if (props.duration > 0) {

@@ -14,33 +14,16 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
 import MessageBanner from "./MessageBanner.vue";
+import { useMessageStore } from '../composables/useMessageStore';
 
-const messages = ref([]);
-
-let idCounter = 0;
-
-// Fonction publique pour ajouter un message
-function addMessage({ message, type = "info", duration = 5000 }) {
-  const id = ++idCounter;
-  messages.value.push({ id, message, type, duration });
-  return id;
-}
-
-// Supprimer un message
-function removeMessage(id) {
-  messages.value = messages.value.filter((m) => m.id !== id);
-}
-
-// On expose addMessage au parent (ex: App.vue)
-defineExpose({ addMessage });
+const { messages, removeMessage } = useMessageStore();
 </script>
 
 <style scoped>
 .message-container {
   position: fixed;
-  top: 16px;
+  top: 64px; /* Adjusted from 16px */
   right: 16px;
   z-index: 9999;
   display: flex;

@@ -14,7 +14,9 @@
       {
         "title": "visugps",
         "resizable": true,
-        "maximized": true
+        "maximized": true,
+        "decorations": true,
+        "transparent": false
       }
     ],
     "security": {
