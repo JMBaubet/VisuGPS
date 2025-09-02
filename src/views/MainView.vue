@@ -29,3 +29,4 @@ function notify(message, type, duration) {
   notifier.value.addMessage({ message, type, duration });
 }
 </script>
+

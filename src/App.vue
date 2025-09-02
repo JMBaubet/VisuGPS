@@ -12,4 +12,11 @@ body {
   margin: 0;
   font-family: sans-serif;
 }
+html, body {
+  overflow: hidden;
+}
+html, body, #app, .v-application {
+  height: 100%;
+  overflow: hidden !important; /* empêche le scroll */
+}
 </style>
