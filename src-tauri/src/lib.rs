@@ -1,15 +1,26 @@
 use std::fs;
 use std::path::Path;
+use std::io::{BufReader, BufRead};
 
 #[tauri::command]
 fn read_mapbox_token() -> String {
-    if let Ok(path) = std::env::current_dir() {
-        let env_path = path.join("..").join(".env");
-        if env_path.exists() {
-            dotenvy::from_path(env_path).ok();
+    let env_path_str = "../.env"; // Assuming CWD is src-tauri during dev
+    let key_to_find = "VITE_MAPBOX_TOKEN";
+
+    if let Ok(file) = fs::File::open(env_path_str) {
+        let reader = BufReader::new(file);
+        for line in reader.lines() {
+            if let Ok(l) = line {
+                if l.starts_with(&format!("{} = ", key_to_find)) { // Added space for robustness
+                    return l.trim_start_matches(&format!("{} = ", key_to_find)).to_string();
+                } else if l.starts_with(&format!("{}=", key_to_find)) { // Without space
+                    return l.trim_start_matches(&format!("{}=", key_to_find)).to_string();
+                }
+            }
         }
     }
-    dotenvy::var("VITE_MAPBOX_TOKEN").unwrap_or_default()
+    // If file not found or key not found, return default
+    String::default()
 }
 
 #[tauri::command]

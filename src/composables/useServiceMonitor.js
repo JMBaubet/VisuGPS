@@ -1,13 +1,23 @@
-import { ref, onMounted, onUnmounted, watch } from 'vue'; // Add watch
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { invoke } from '@tauri-apps/api/core'; // Import invoke
 
 export function useServiceMonitor() {
   const serviceStatus = ref('ok'); // 'ok', 'no-internet', 'mapbox-unreachable', 'mapbox-invalid-token'
   const mapboxTokenInvalid = ref(false); // New ref for specific token error
-  const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+  const mapboxToken = ref(null); // Reactive ref for Mapbox token
 
   let intervalId = null;
   const POLLING_INTERVAL_NORMAL = 30000; // 30 seconds
   const POLLING_INTERVAL_FAST = 5000;    // 5 seconds
+
+  const loadMapboxToken = async () => {
+    try {
+      mapboxToken.value = await invoke('read_mapbox_token');
+    } catch (error) {
+      console.error('Failed to read Mapbox token from backend:', error);
+      mapboxToken.value = null; // Ensure it's null on error
+    }
+  };
 
   const checkInternetConnectivity = async () => {
     if (!navigator.onLine) {
@@ -15,7 +25,6 @@ export function useServiceMonitor() {
       return false;
     }
     try {
-      // Try to fetch a small, reliable resource
       await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors' });
       return true;
     } catch (e) {
@@ -26,22 +35,22 @@ export function useServiceMonitor() {
 
   const checkMapboxService = async () => {
     mapboxTokenInvalid.value = false; // Reset specific token error
-    if (!mapboxToken) { // Only check if token is falsy (null, undefined, empty string)
+    if (!mapboxToken.value) {
       serviceStatus.value = 'mapbox-invalid-token';
-      mapboxTokenInvalid.value = true; // Set specific token error
+      mapboxTokenInvalid.value = true;
       return false;
     }
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/London.json?access_token=${mapboxToken}`, { signal: controller.signal });
+      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/London.json?access_token=${mapboxToken.value}`, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           serviceStatus.value = 'mapbox-invalid-token';
-          mapboxTokenInvalid.value = true; // Set specific token error
+          mapboxTokenInvalid.value = true;
         } else {
           serviceStatus.value = 'mapbox-unreachable';
         }
@@ -50,9 +59,9 @@ export function useServiceMonitor() {
       return true;
     } catch (e) {
       if (e.name === 'AbortError') {
-        serviceStatus.value = 'mapbox-unreachable'; // Timeout
+        serviceStatus.value = 'mapbox-unreachable';
       } else {
-        serviceStatus.value = 'mapbox-unreachable'; // Network error
+        serviceStatus.value = 'mapbox-unreachable';
       }
       return false;
     }
@@ -65,10 +74,10 @@ export function useServiceMonitor() {
     const isOnline = await checkInternetConnectivity();
     if (!isOnline) return;
 
+    await loadMapboxToken();
+
     const isMapboxOk = await checkMapboxService();
     if (!isMapboxOk) return;
-
-    // If all checks pass, status remains 'ok'
   };
 
   const startPolling = (interval) => {
@@ -78,9 +87,14 @@ export function useServiceMonitor() {
     intervalId = setInterval(monitorServices, interval);
   };
 
+  const setMapboxToken = (newToken) => {
+    mapboxToken.value = newToken;
+    monitorServices();
+  };
+
   onMounted(() => {
-    monitorServices(); // Initial check
-    startPolling(POLLING_INTERVAL_NORMAL); // Start with normal polling
+    monitorServices();
+    startPolling(POLLING_INTERVAL_NORMAL);
   });
 
   onUnmounted(() => {
@@ -97,5 +111,5 @@ export function useServiceMonitor() {
     }
   });
 
-  return { serviceStatus, mapboxTokenInvalid };
+  return { serviceStatus, mapboxTokenInvalid, setMapboxToken };
 }

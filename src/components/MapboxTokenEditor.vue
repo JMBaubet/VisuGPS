@@ -30,8 +30,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, defineExpose } from 'vue'; // Import defineExpose
 import { invoke } from '@tauri-apps/api/core';
+import { useServiceMonitor } from '../composables/useServiceMonitor';
 
 const token = ref('');
 const dialog = ref(false);
@@ -41,7 +42,8 @@ const snackbarColor = ref('success');
 
 const openDialog = async () => {
   try {
-    token.value = await invoke('read_mapbox_token');
+    const readToken = await invoke('read_mapbox_token');
+    token.value = readToken;
     dialog.value = true;
   } catch (error) {
     showSnackbar(`Erreur lors de la lecture du token: ${error}`, 'error');
@@ -53,8 +55,30 @@ const closeDialog = () => {
 };
 
 const saveToken = async () => {
+  const tokenValue = token.value;
+  const mapboxTokenRegex = /^(pk|sk|tk)\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/;
+
+  if (!mapboxTokenRegex.test(tokenValue)) {
+    showSnackbar('Le format du token Mapbox est invalide. Il doit commencer par "pk.", "sk." ou "tk.", contenir deux points et des caractères Base64URL.', 'error');
+    return;
+  }
+
+  const prefix = tokenValue.substring(0, 3);
+  const tokenLength = tokenValue.length;
+
+  if (prefix === 'pk.' && (tokenLength < 80 || tokenLength > 100)) {
+    showSnackbar('Le token public (pk.) semble avoir une longueur incorrecte (attendu ~90 caractères).', 'error');
+    return;
+  }
+
+  if (prefix === 'sk.' && (tokenLength < 115 || tokenLength > 135)) {
+    showSnackbar('Le token secret (sk.) semble avoir une longueur incorrecte (attendu ~125 caractères).', 'error');
+    return;
+  }
+
   try {
-    await invoke('write_mapbox_token', { token: token.value });
+    await invoke('write_mapbox_token', { token: tokenValue });
+    setMapboxToken(tokenValue);
     showSnackbar('Token sauvegardé avec succès!', 'success');
     closeDialog();
   } catch (error) {
@@ -67,4 +91,19 @@ const showSnackbar = (text, color) => {
   snackbarColor.value = color;
   snackbar.value = true;
 };
+
+const { setMapboxToken } = useServiceMonitor();
+
+// Explicitly expose functions for template access
+defineExpose({
+  openDialog,
+  closeDialog,
+  saveToken,
+  showSnackbar,
+  token, // Expose token ref for v-model
+  dialog, // Expose dialog ref for v-model
+  snackbar, // Expose snackbar ref for v-model
+  snackbarText, // Expose snackbarText ref for v-model
+  snackbarColor // Expose snackbarColor ref for v-model
+});
 </script>
