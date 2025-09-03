@@ -1,78 +1,168 @@
-use std::fs;
-use std::path::Path;
-use std::io::{BufReader, BufRead};
+use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
 
-#[tauri::command]
-fn read_mapbox_token() -> String {
-    let env_path_str = "../.env"; // Assuming CWD is src-tauri during dev
-    let key_to_find = "VITE_MAPBOX_TOKEN";
+use dirs::config_dir;
 
-    if let Ok(file) = fs::File::open(env_path_str) {
-        let reader = BufReader::new(file);
-        for line in reader.lines() {
-            if let Ok(l) = line {
-                if l.starts_with(&format!("{} = ", key_to_find)) { // Added space for robustness
-                    return l.trim_start_matches(&format!("{} = ", key_to_find)).to_string();
-                } else if l.starts_with(&format!("{} =", key_to_find)) { // Without space
-                    return l.trim_start_matches(&format!("{} =", key_to_find)).to_string();
-                }
+// -------------------------------------------------------------------
+// Helpers
+// -------------------------------------------------------------------
+
+const APP_DIR: &str = env!("CARGO_PKG_NAME"); // folder name under user's config dir
+const DEV_ENV_CANDIDATES: [&str; 3] = ["../.env", "./.env", "../../.env"];
+const KEY_FRONTEND: &str = "VITE_MAPBOX_TOKEN"; // used in dev .env
+const KEY_BACKEND: &str = "MAPBOX_TOKEN";       // used in prod config
+
+fn get_config_path() -> Option<PathBuf> {
+    let mut base = config_dir()?;
+    base.push(APP_DIR);
+    if std::fs::create_dir_all(&base).is_err() {
+        return None;
+    }
+    base.push("config.env"); // simple key=value store
+    Some(base)
+}
+
+fn read_kv_file(path: &Path, key: &str) -> Option<String> {
+    let file = std::fs::File::open(path).ok()?;
+    let reader = BufReader::new(file);
+    for line in reader.lines().flatten() {
+        let l = line.trim();
+        if l.is_empty() || l.starts_with('#') { continue; }
+        // Accept KEY=value or KEY = value
+        if let Some(rest) = l.strip_prefix(&(key.to_string() + "=")) {
+            return Some(trim_quotes(rest.trim()).to_string());
+        }
+        if let Some(rest) = l.strip_prefix(&(key.to_string() + " = ")) {
+            return Some(trim_quotes(rest.trim()).to_string());
+        }
+        // Also allow `key = "value"` with any spacing around '='
+        if let Some(eq_idx) = l.find('=') {
+            let (k, v) = l.split_at(eq_idx);
+            if k.trim() == key {
+                return Some(trim_quotes(v[1..].trim()).to_string());
             }
         }
     }
-    // If file not found or key not found, return default
-    String::default()
+    None
 }
 
-#[tauri::command]
-fn write_mapbox_token(token: String) -> Result<(), String> {
-    let env_path_str = "../.env"; // Assuming CWD is src-tauri during dev
-    let key_to_set = "VITE_MAPBOX_TOKEN";
-    
-    let lines: Vec<String> = if Path::new(env_path_str).exists() {
-        fs::read_to_string(env_path_str)
-            .map_err(|e| e.to_string())? 
+fn write_kv_file(path: &Path, key: &str, value: &str) -> Result<(), String> {
+    let mut lines: Vec<String> = if path.exists() {
+        std::fs::read_to_string(path)
+            .map_err(|e| e.to_string())?
             .lines()
-            .map(String::from)
+            .map(|s| s.to_string())
             .collect()
     } else {
         Vec::new()
     };
 
-    let mut new_lines: Vec<String> = Vec::new();
     let mut found = false;
-
-    for line in lines {
-        if line.starts_with(&format!("{} =", key_to_set)) {
-            new_lines.push(format!("{} = {}", key_to_set, token));
+    for l in &mut lines {
+        let trimmed = l.trim_start();
+        if trimmed.starts_with(&(key.to_string() + "=")) || trimmed.starts_with(&(key.to_string() + " =")) {
+            *l = format!("{}={}", key, value);
             found = true;
-        } else {
-            new_lines.push(line);
+            break;
+        }
+        // Also check 'key   =   value'
+        if let Some(eq_idx) = trimmed.find('=') {
+            if trimmed[..eq_idx].trim() == key {
+                *l = format!("{}={}", key, value);
+                found = true;
+                break;
+            }
+        }
+    }
+    if !found {
+        lines.push(format!("{}={}", key, value));
+    }
+    let mut out = lines.join("
+");
+    if !out.ends_with('\n') { out.push('\n'); }
+    std::fs::write(path, out).map_err(|e| e.to_string())
+}
+
+fn trim_quotes(s: &str) -> &str {
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        &s[1..s.len()-1]
+    } else {
+        s
+    }
+}
+
+fn find_dev_env_file() -> Option<PathBuf> {
+    for candidate in DEV_ENV_CANDIDATES {
+        let p = Path::new(candidate);
+        if p.exists() { return Some(p.to_path_buf()); }
+    }
+    None
+}
+
+// -------------------------------------------------------------------
+// Public commands (names preserved for VueJS compatibility)
+// -------------------------------------------------------------------
+
+#[tauri::command]
+fn read_mapbox_token() -> String {
+    // DEV: first try .env so your current workflow keeps working
+    if cfg!(debug_assertions) {
+        if let Some(env_path) = find_dev_env_file() {
+            if let Some(val) = read_kv_file(&env_path, KEY_FRONTEND) {
+                return val;
+            }
+            if let Some(val) = read_kv_file(&env_path, KEY_BACKEND) {
+                return val;
+            }
         }
     }
 
-    if !found {
-        new_lines.push(format!("{} = {}", key_to_set, token));
+    // PROD (or fallback): read persisted config file
+    if let Some(cfg) = get_config_path() {
+        if let Some(val) = read_kv_file(&cfg, KEY_BACKEND) {
+            return val;
+        }
     }
 
-    let new_content = new_lines.join("\n");
-    fs::write(env_path_str, new_content).map_err(|e| e.to_string())
+    String::new() // keep signature; return empty if not found
 }
 
+#[tauri::command]
+fn write_mapbox_token(token: String) -> Result<(), String> {
+    // DEV: if a .env file exists, update it to keep the same DX you had
+    if cfg!(debug_assertions) {
+        if let Some(env_path) = find_dev_env_file() {
+            // Prefer writing frontend key in dev
+            return write_kv_file(&env_path, KEY_FRONTEND, &token);
+        }
+    }
+
+    // PROD (or if no .env): write to app config file
+    if let Some(cfg) = get_config_path() {
+        return write_kv_file(&cfg, KEY_BACKEND, &token);
+    }
+
+    Err("Impossible de déterminer le répertoire de configuration utilisateur".into())
+}
+
+// -------------------------------------------------------------------
+// Tauri entry point
+// -------------------------------------------------------------------
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![read_mapbox_token, write_mapbox_token]) // Removed read_mapbox_username, write_mapbox_username
-    .setup(|app| {
-      if cfg!(debug_assertions) {
-        app.handle().plugin(
-          tauri_plugin_log::Builder::default()
-            .level(log::LevelFilter::Info)
-            .build(),
-        )?;
-      }
-      Ok(())
-    })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![read_mapbox_token, write_mapbox_token])
+        .setup(|app| {
+            if cfg!(debug_assertions) {
+                app.handle().plugin(
+                    tauri_plugin_log::Builder::default()
+                        .level(log::LevelFilter::Info)
+                        .build(),
+                )?;
+            }
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
