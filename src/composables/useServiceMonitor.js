@@ -15,7 +15,7 @@ export function useServiceMonitor() {
       mapboxToken.value = await invoke('read_mapbox_token');
     } catch (error) {
       console.error('Failed to read Mapbox token from backend:', error);
-      mapboxToken.value = null; // Ensure it's null on error
+      mapboxToken.value = null;
     }
   };
 
@@ -44,7 +44,9 @@ export function useServiceMonitor() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/London.json?access_token=${mapboxToken.value}`, { signal: controller.signal });
+      const url = `https://api.mapbox.com/tokens/v2?access_token=${mapboxToken.value}`;
+
+      const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (!response.ok) {
@@ -56,8 +58,19 @@ export function useServiceMonitor() {
         }
         return false;
       }
-      return true;
+
+      const data = await response.json();
+
+      // Check if the response indicates a valid token
+      if (data && data.code === 'TokenValid') {
+        return true;
+      } else {
+        serviceStatus.value = 'mapbox-invalid-token';
+        mapboxTokenInvalid.value = true;
+        return false;
+      }
     } catch (e) {
+      console.error('Fetch error:', e);
       if (e.name === 'AbortError') {
         serviceStatus.value = 'mapbox-unreachable';
       } else {

@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, defineExpose } from 'vue'; // Import defineExpose
+import { ref, defineExpose } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useServiceMonitor } from '../composables/useServiceMonitor';
 
@@ -46,7 +46,7 @@ const openDialog = async () => {
     token.value = readToken;
     dialog.value = true;
   } catch (error) {
-    showSnackbar(`Erreur lors de la lecture du token: ${error}`, 'error');
+    showSnackbar(`Erreur lors de la lecture des informations Mapbox: ${error}`, 'error');
   }
 };
 
@@ -56,6 +56,7 @@ const closeDialog = () => {
 
 const saveToken = async () => {
   const tokenValue = token.value;
+
   const mapboxTokenRegex = /^(pk|sk|tk)\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/;
 
   if (!mapboxTokenRegex.test(tokenValue)) {
@@ -79,10 +80,10 @@ const saveToken = async () => {
   try {
     await invoke('write_mapbox_token', { token: tokenValue });
     setMapboxToken(tokenValue);
-    showSnackbar('Token sauvegardé avec succès!', 'success');
+    showSnackbar('Informations Mapbox sauvegardées avec succès!', 'success');
     closeDialog();
   } catch (error) {
-    showSnackbar(`Erreur lors de la sauvegarde du token: ${error}`, 'error');
+    showSnackbar(`Erreur lors de la sauvegarde des informations Mapbox: ${error}`, 'error');
   }
 };
 
@@ -100,10 +101,10 @@ defineExpose({
   closeDialog,
   saveToken,
   showSnackbar,
-  token, // Expose token ref for v-model
-  dialog, // Expose dialog ref for v-model
-  snackbar, // Expose snackbar ref for v-model
-  snackbarText, // Expose snackbarText ref for v-model
-  snackbarColor // Expose snackbarColor ref for v-model
+  token,
+  dialog,
+  snackbar,
+  snackbarText,
+  snackbarColor
 });
 </script>

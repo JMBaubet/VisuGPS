@@ -13,8 +13,8 @@ fn read_mapbox_token() -> String {
             if let Ok(l) = line {
                 if l.starts_with(&format!("{} = ", key_to_find)) { // Added space for robustness
                     return l.trim_start_matches(&format!("{} = ", key_to_find)).to_string();
-                } else if l.starts_with(&format!("{}=", key_to_find)) { // Without space
-                    return l.trim_start_matches(&format!("{}=", key_to_find)).to_string();
+                } else if l.starts_with(&format!("{} =", key_to_find)) { // Without space
+                    return l.trim_start_matches(&format!("{} =", key_to_find)).to_string();
                 }
             }
         }
@@ -30,7 +30,7 @@ fn write_mapbox_token(token: String) -> Result<(), String> {
     
     let lines: Vec<String> = if Path::new(env_path_str).exists() {
         fs::read_to_string(env_path_str)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())? 
             .lines()
             .map(String::from)
             .collect()
@@ -42,8 +42,8 @@ fn write_mapbox_token(token: String) -> Result<(), String> {
     let mut found = false;
 
     for line in lines {
-        if line.starts_with(&format!("{}=", key_to_set)) {
-            new_lines.push(format!("{}={}", key_to_set, token));
+        if line.starts_with(&format!("{} =", key_to_set)) {
+            new_lines.push(format!("{} = {}", key_to_set, token));
             found = true;
         } else {
             new_lines.push(line);
@@ -51,7 +51,7 @@ fn write_mapbox_token(token: String) -> Result<(), String> {
     }
 
     if !found {
-        new_lines.push(format!("{}={}", key_to_set, token));
+        new_lines.push(format!("{} = {}", key_to_set, token));
     }
 
     let new_content = new_lines.join("\n");
@@ -62,7 +62,7 @@ fn write_mapbox_token(token: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![read_mapbox_token, write_mapbox_token])
+    .invoke_handler(tauri::generate_handler![read_mapbox_token, write_mapbox_token]) // Removed read_mapbox_username, write_mapbox_username
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
