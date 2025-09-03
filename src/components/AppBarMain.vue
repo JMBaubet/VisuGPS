@@ -1,8 +1,12 @@
 <template>
   <v-app-bar app density="compact">
-    <v-app-bar-nav-icon>
-      <v-icon :color="statusIconColor">{{ statusIcon }}</v-icon>
-    </v-app-bar-nav-icon>
+    <v-tooltip text="Etat des services Extérieurs" location="bottom">
+      <template v-slot:activator="{ props }">
+        <v-app-bar-nav-icon v-bind="props">
+          <v-icon :color="statusIconColor">{{ statusIcon }}</v-icon>
+        </v-app-bar-nav-icon>
+      </template>
+    </v-tooltip>
 
     <v-spacer></v-spacer>
 
