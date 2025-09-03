@@ -19,6 +19,7 @@ dist-ssr/
 /src-tauri/release/
 
 # --- Logs & temp ---
+memo.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
