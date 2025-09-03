@@ -8,4 +8,9 @@ export default defineConfig({
     vue(),
     vuetify({ autoImport: true }),
   ],
+  server: {
+    watch: {
+      ignored: ['**/.env'],
+    },
+  },
 })
