@@ -1,11 +1,42 @@
 <template>
-  <router-view />
-  <MessageContainer />
+  <v-app>
+    <AppBarMain v-if="!isSettingsView" />
+    <AppBarSetting v-else />
+    <v-main>
+      <router-view />
+    </v-main>
+    <v-snackbar
+      v-model="snackbar.show"
+      :timeout="snackbar.timeout"
+      :color="snackbar.color"
+      location="bottom right"
+      @update:modelValue="handleSnackbarUpdate"
+    >
+      {{ snackbar.text }}
+      
+    </v-snackbar>
+  </v-app>
 </template>
 
 <script setup>
-import MessageContainer from './components/MessageContainer.vue';
-// No script needed for a basic App.vue
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+import AppBarMain from './components/AppBarMain.vue';
+import AppBarSetting from './components/AppBarSetting.vue';
+import { useMessageStore } from './composables/useMessageStore.js';
+
+const route = useRoute();
+const isSettingsView = computed(() => route.name === 'settings');
+
+const { snackbar, onHidden } = useMessageStore();
+
+const handleSnackbarUpdate = (value) => {
+  if (!value) {
+    // The timeout has finished or the user clicked close
+    // Let the store know it can process the next message
+    onHidden();
+  }
+};
 </script>
 
 <style>

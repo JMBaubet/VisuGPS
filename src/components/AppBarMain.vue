@@ -37,15 +37,15 @@ const { addMessage } = useMessageStore(); // Use the message store
 
 watch(mapboxTokenInvalid, (newValue) => {
   if (newValue) {
-    addMessage({ message: 'Attention : Le token MapBox est invalide !', type: 'warning', duration: 5000 }); // Changed type
+    addMessage('Le token MapBox est invalide !', 'error', 2500)
   }
 });
 
 watch(serviceStatus, (newValue) => {
   if (newValue === 'mapbox-unreachable') {
-    addMessage({ message: 'Attention : Le serveur MapBox ne répond pas !', type: 'warning', duration: 5000 });
+    addMessage('Le serveur MapBox ne répond pas !', 'info', 5000 );
   } else if (newValue === 'no-internet') {
-    addMessage({ message: 'Erreur : Pas de connexion à Internet vérifiez votre Réseau (Wifi).', type: 'error', duration: 10000 });
+    addMessage('Pas de connexion à Internet vérifiez votre Réseau (Wifi).', 'error', 10000 );
   }
 });
 

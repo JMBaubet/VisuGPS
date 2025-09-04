@@ -23,9 +23,7 @@
       </v-card>
     </v-dialog>
 
-    <v-snackbar v-model="snackbar" :timeout="3000" :color="snackbarColor">
-      {{ snackbarText }}
-    </v-snackbar>
+    
   </div>
 </template>
 
@@ -33,12 +31,12 @@
 import { ref, defineExpose } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useServiceMonitor } from '../composables/useServiceMonitor';
+import { useMessageStore } from '../composables/useMessageStore.js';
+
+const { addMessage } = useMessageStore();
 
 const token = ref('');
 const dialog = ref(false);
-const snackbar = ref(false);
-const snackbarText = ref('');
-const snackbarColor = ref('success');
 
 const openDialog = async () => {
   try {
@@ -46,7 +44,7 @@ const openDialog = async () => {
     token.value = readToken;
     dialog.value = true;
   } catch (error) {
-    showSnackbar(`Erreur lors de la lecture des informations Mapbox: ${error}`, 'error');
+    addMessage(`Erreur lors de la lecture des informations Mapbox: ${error}`, 'error');
   }
 };
 
@@ -60,7 +58,7 @@ const saveToken = async () => {
   const mapboxTokenRegex = /^(pk|sk|tk)\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/;
 
   if (!mapboxTokenRegex.test(tokenValue)) {
-    showSnackbar('Le format du token Mapbox est invalide. Il doit commencer par "pk.", "sk." ou "tk.", contenir deux points et des caractères Base64URL.', 'error');
+    addMessage('Le format du token Mapbox est invalide. Il doit commencer par "pk.", "sk." ou "tk.", contenir deux points et des caractères Base64URL.', 'error', 10000);
     return;
   }
 
@@ -68,29 +66,23 @@ const saveToken = async () => {
   const tokenLength = tokenValue.length;
 
   if (prefix === 'pk.' && (tokenLength < 80 || tokenLength > 100)) {
-    showSnackbar('Le token public (pk.) semble avoir une longueur incorrecte (attendu ~90 caractères).', 'error');
+    addMessage('Le token public (pk.) semble avoir une longueur incorrecte (attendu ~90 caractères).', 'error', 5000);
     return;
   }
 
   if (prefix === 'sk.' && (tokenLength < 115 || tokenLength > 135)) {
-    showSnackbar('Le token secret (sk.) semble avoir une longueur incorrecte (attendu ~125 caractères).', 'error');
+    addMessage('Le token secret (sk.) semble avoir une longueur incorrecte (attendu ~125 caractères).', 'error', 5000);
     return;
   }
 
   try {
     await invoke('write_mapbox_token', { token: tokenValue });
     setMapboxToken(tokenValue);
-    showSnackbar('Informations Mapbox sauvegardées avec succès!', 'success');
+    addMessage('Votre token Mapbox a été sauvegardé avec succès !', 'success', 5000);
     closeDialog();
   } catch (error) {
-    showSnackbar(`Erreur lors de la sauvegarde des informations Mapbox: ${error}`, 'error');
+    addMessage(`Erreur lors de la sauvegarde des informations Mapbox: ${error}`, 'error');
   }
-};
-
-const showSnackbar = (text, color) => {
-  snackbarText.value = text;
-  snackbarColor.value = color;
-  snackbar.value = true;
 };
 
 const { setMapboxToken } = useServiceMonitor();
@@ -100,11 +92,7 @@ defineExpose({
   openDialog,
   closeDialog,
   saveToken,
-  showSnackbar,
   token,
-  dialog,
-  snackbar,
-  snackbarText,
-  snackbarColor
+  dialog
 });
 </script>
