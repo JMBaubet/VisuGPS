@@ -108,6 +108,7 @@ const SETTINGS_FILENAME: &str = "settings.json";
 struct Setting {
     nom: String,
     description: String,
+    documentation: Option<String>,
     #[serde(rename = "type")]
     setting_type: String,
     unite: String,

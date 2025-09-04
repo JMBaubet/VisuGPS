@@ -29,6 +29,21 @@
         <span v-else>Paramètre standard</span>
       </v-tooltip>
 
+      <!-- Container for documentation icon -->
+      <div class="reset-button-container mr-2">
+        <v-btn
+          v-if="modelValue.documentation"
+          icon="mdi-book-open-page-variant-outline"
+          variant="text"
+          size="small"
+          color="blue"
+          @click="openDocumentation"
+        >
+          <v-icon>mdi-book-open-page-variant-outline</v-icon>
+          <v-tooltip activator="parent" location="top">Ouvrir la documentation</v-tooltip>
+        </v-btn>
+      </div>
+
       <!-- Fixed-width container for Reset Button -->
       <div class="reset-button-container mr-2">
         <v-btn
@@ -104,6 +119,12 @@ const resetValue = () => {
 const resetToDefault = () => {
   // Set the override value to null, which makes the app use the default value
   editableValue.value = null;
+};
+
+const openDocumentation = () => {
+  if (props.modelValue.documentation) {
+    window.open(props.modelValue.documentation, '_blank', 'noopener,noreferrer');
+  }
 };
 
 const lengthRules = computed(() => {
