@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use dirs::config_dir;
+use serde_json::Value;
 
 // -------------------------------------------------------------------
-// Helpers
+// Helpers for Mapbox Token (existing logic)
 // -------------------------------------------------------------------
 
 const APP_DIR: &str = env!("CARGO_PKG_NAME"); // folder name under user's config dir
@@ -28,14 +31,12 @@ fn read_kv_file(path: &Path, key: &str) -> Option<String> {
     for line in reader.lines().flatten() {
         let l = line.trim();
         if l.is_empty() || l.starts_with('#') { continue; }
-        // Accept KEY=value or KEY = value
         if let Some(rest) = l.strip_prefix(&(key.to_string() + "=")) {
             return Some(trim_quotes(rest.trim()).to_string());
         }
         if let Some(rest) = l.strip_prefix(&(key.to_string() + " = ")) {
             return Some(trim_quotes(rest.trim()).to_string());
         }
-        // Also allow `key = "value"` with any spacing around '='
         if let Some(eq_idx) = l.find('=') {
             let (k, v) = l.split_at(eq_idx);
             if k.trim() == key {
@@ -49,7 +50,7 @@ fn read_kv_file(path: &Path, key: &str) -> Option<String> {
 fn write_kv_file(path: &Path, key: &str, value: &str) -> Result<(), String> {
     let mut lines: Vec<String> = if path.exists() {
         std::fs::read_to_string(path)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| e.to_string())? 
             .lines()
             .map(|s| s.to_string())
             .collect()
@@ -60,12 +61,11 @@ fn write_kv_file(path: &Path, key: &str, value: &str) -> Result<(), String> {
     let mut found = false;
     for l in &mut lines {
         let trimmed = l.trim_start();
-        if trimmed.starts_with(&(key.to_string() + "=")) || trimmed.starts_with(&(key.to_string() + " =")) {
+        if trimmed.starts_with(&(key.to_string() + "=")) || trimmed.starts_with(&(key.to_string() + " = ")) {
             *l = format!("{}={}", key, value);
             found = true;
             break;
         }
-        // Also check 'key   =   value'
         if let Some(eq_idx) = trimmed.find('=') {
             if trimmed[..eq_idx].trim() == key {
                 *l = format!("{}={}", key, value);
@@ -77,14 +77,13 @@ fn write_kv_file(path: &Path, key: &str, value: &str) -> Result<(), String> {
     if !found {
         lines.push(format!("{}={}", key, value));
     }
-    let mut out = lines.join("
-");
+    let mut out = lines.join("\n");
     if !out.ends_with('\n') { out.push('\n'); }
     std::fs::write(path, out).map_err(|e| e.to_string())
 }
 
 fn trim_quotes(s: &str) -> &str {
-    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('v') && s.ends_with('v')) {
         &s[1..s.len()-1]
     } else {
         s
@@ -100,12 +99,79 @@ fn find_dev_env_file() -> Option<PathBuf> {
 }
 
 // -------------------------------------------------------------------
-// Public commands (names preserved for VueJS compatibility)
+// Helpers for Settings (new logic)
+// -------------------------------------------------------------------
+
+const SETTINGS_FILENAME: &str = "settings.json";
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+struct Setting {
+    nom: String,
+    description: String,
+    #[serde(rename = "type")]
+    setting_type: String,
+    unite: String,
+    valeur_par_defaut: Value,
+    valeur_de_surcharge: Option<Value>,
+    valeur_min: Option<Value>,
+    valeur_max: Option<Value>,
+    critique: bool,
+    arbre: String,
+}
+
+// Gets the path to the user's settings.json file, using the same logic as the token management.
+fn get_user_settings_path() -> Result<PathBuf, String> {
+    let mut path = config_dir().ok_or("Failed to get config dir")?;
+    path.push(APP_DIR);
+    if std::fs::create_dir_all(&path).is_err() {
+        return Err("Failed to create app config directory".into());
+    }
+    path.push(SETTINGS_FILENAME);
+    Ok(path)
+}
+
+// Synchronizes the user's settings file with the default one.
+fn sync_settings() -> Result<(), String> {
+    let user_path = get_user_settings_path()?;
+    // Embed the default settings string directly into the binary at compile time.
+    let default_settings_str = include_str!("../settings.default.json");
+
+    let mut default_settings: Vec<Setting> = serde_json::from_str(&default_settings_str).map_err(|e| e.to_string())?;
+
+    let user_settings: Vec<Setting> = if user_path.exists() {
+        let user_settings_str = fs::read_to_string(&user_path).map_err(|e| e.to_string())?;
+        // If file is corrupt, start fresh from default
+        serde_json::from_str(&user_settings_str).unwrap_or_else(|_| Vec::new()) 
+    } else {
+        Vec::new()
+    };
+
+    let user_settings_map: HashMap<String, Setting> = user_settings.into_iter().map(|s| (s.nom.clone(), s)).collect();
+
+    // Iterate through default settings. If a setting exists in user_settings, keep its override value.
+    // Otherwise, add the new default setting.
+    let mut final_settings = Vec::new();
+    for default_setting in default_settings.iter_mut() {
+        let mut final_setting = default_setting.clone();
+        if let Some(user_setting) = user_settings_map.get(&default_setting.nom) {
+            final_setting.valeur_de_surcharge = user_setting.valeur_de_surcharge.clone();
+        }
+        final_settings.push(final_setting);
+    }
+
+    let final_settings_str = serde_json::to_string_pretty(&final_settings).map_err(|e| e.to_string())?;
+    fs::write(user_path, final_settings_str).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+
+// -------------------------------------------------------------------
+// Public commands
 // -------------------------------------------------------------------
 
 #[tauri::command]
 fn read_mapbox_token() -> String {
-    // DEV: first try .env so your current workflow keeps working
     if cfg!(debug_assertions) {
         if let Some(env_path) = find_dev_env_file() {
             if let Some(val) = read_kv_file(&env_path, KEY_FRONTEND) {
@@ -116,33 +182,51 @@ fn read_mapbox_token() -> String {
             }
         }
     }
-
-    // PROD (or fallback): read persisted config file
     if let Some(cfg) = get_config_path() {
         if let Some(val) = read_kv_file(&cfg, KEY_BACKEND) {
             return val;
         }
     }
-
-    String::new() // keep signature; return empty if not found
+    String::new()
 }
 
 #[tauri::command]
 fn write_mapbox_token(token: String) -> Result<(), String> {
-    // DEV: if a .env file exists, update it to keep the same DX you had
     if cfg!(debug_assertions) {
         if let Some(env_path) = find_dev_env_file() {
-            // Prefer writing frontend key in dev
             return write_kv_file(&env_path, KEY_FRONTEND, &token);
         }
     }
-
-    // PROD (or if no .env): write to app config file
     if let Some(cfg) = get_config_path() {
         return write_kv_file(&cfg, KEY_BACKEND, &token);
     }
-
     Err("Impossible de déterminer le répertoire de configuration utilisateur".into())
+}
+
+#[tauri::command]
+fn get_settings() -> Result<String, String> {
+    let path = get_user_settings_path()?;
+    fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn save_settings(settings: Vec<Setting>) -> Result<(), String> {
+    let path = get_user_settings_path()?;
+    let current_settings_str = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut current_settings: Vec<Setting> = serde_json::from_str(&current_settings_str).map_err(|e| e.to_string())?;
+
+    let new_settings_map: HashMap<String, Setting> = settings.into_iter().map(|s| (s.nom.clone(), s)).collect();
+
+    for setting in &mut current_settings {
+        if let Some(new_setting) = new_settings_map.get(&setting.nom) {
+            setting.valeur_de_surcharge = new_setting.valeur_de_surcharge.clone();
+        }
+    }
+
+    let updated_settings_str = serde_json::to_string_pretty(&current_settings).map_err(|e| e.to_string())?;
+    fs::write(path, updated_settings_str).map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // -------------------------------------------------------------------
@@ -152,14 +236,25 @@ fn write_mapbox_token(token: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![read_mapbox_token, write_mapbox_token])
+        .invoke_handler(tauri::generate_handler![
+            read_mapbox_token, 
+            write_mapbox_token,
+            get_settings,
+            save_settings
+        ])
         .setup(|app| {
+            // Initialize settings
+            if let Err(e) = sync_settings() {
+                eprintln!("Failed to sync settings: {}", e);
+            }
+
+            // Logging (existing logic)
             if cfg!(debug_assertions) {
-                app.handle().plugin(
+                let _ = app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
                         .build(),
-                )?;
+                );
             }
             Ok(())
         })

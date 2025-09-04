@@ -1,0 +1,26 @@
+[
+  {
+    "nom": "CouleurMarqueur",
+    "description": "Couleur du marqueur qui se déplace sur la trace.",
+    "type": "color",
+    "unite": "RGBA",
+    "valeur_par_defaut": "rgba(255, 0, 0, 1)",
+    "valeur_de_surcharge": null,
+    "valeur_min": null,
+    "valeur_max": null,
+    "critique": false,
+    "arbre": "Animation"
+  },
+  {
+    "nom": "StyleCarte",
+    "description": "URL du style de la carte Mapbox (par exemple, 'mapbox://styles/mapbox/streets-v11').",
+    "type": "string",
+    "unite": "URL",
+    "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
+    "valeur_de_surcharge": null,
+    "valeur_min": null,
+    "valeur_max": null,
+    "critique": true,
+    "arbre": "Carte"
+  }
+]

@@ -28,6 +28,9 @@ Ce document décrit le projet **VisuGPS**, une application de bureau multiplatef
 * **Turf.js** : Pour l'analyse et le traitement des données géospatiales (calcul de longueur, etc.).
 * **Fichiers JSON** : Utilisés pour la sauvegarde des paramètres d'édition et de configuration.
 
+## 📄 Desciption des fichiers Json
+
+* **Fichier setting.json**
 Le contenu de ce fichier devra pouvoir être modifié via la vue  Paramétrage.vue en dev et en prod. il doit également être livré avec l'application. 
 
 La structure du fichier JSON sera la suivante :
@@ -40,9 +43,9 @@ pour chaque paramètre nous devons avoir les attributs suivant :
 ⦁	La valeur de surcharge. Valeur définie par l'utilisateur pour adapter l'application a ces préférences.
 ⦁	Valeur min : Valeur minimum que peut prendre le paramètre.
 ⦁	Valeur Max : Valeur maximum que peut prendre le paramètre
-⦁	Warning : Booleen pour indiquer à l'utilisateur que la modification de cette valeur peut engendrer des dysfonctionnement de l'application. 
+⦁	Critique : Booleen pour indiquer à l'utilisateur que la modification de cette valeur peut engendrer des dysfonctionnements de l'application. 
 ⦁	Arbre : Une chaine de caractère du type niveau_1/niveau_2/../niveau_n pour regrouper les paramètres en fonction e leur utilisation dans l'application.
-L'utilisateur ne pourra modifier que le champ valeur de surcharge.
+L'utilisateur ne pourra modifier que le champ valeur de surcharge, via la vue Settings.vue
 
 ---
 
