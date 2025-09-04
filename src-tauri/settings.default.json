@@ -2,6 +2,7 @@
   {
     "nom": "CouleurMarqueur",
     "description": "Couleur du marqueur qui se déplace sur la trace.",
+    "documentation": null,
     "type": "color",
     "unite": "RGBA",
     "valeur_par_defaut": "rgba(255, 0, 0, 1)",
@@ -13,7 +14,8 @@
   },
   {
     "nom": "StyleCarteVignette",
-    "description": "URL du style de la carte Mapbox utilisé pour la vignette. \nDoc sur : https://docs.mapbox.com/api/maps/styles/#mapbox-styles.",
+    "description": "URL du style de la carte Mapbox utilisé pour la vignette.",
+    "documentation": "https://docs.mapbox.com/api/maps/styles/#mapbox-styles",
     "type": "string",
     "unite": "URL",
     "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
@@ -26,6 +28,7 @@
   {
     "nom": "StyleCarteEdition",
     "description": "URL du style de la carte Mapbox utilisé lors de l'édition(par exemple, 'mapbox://styles/mapbox/streets-v11').",
+    "documentation": null,
     "type": "string",
     "unite": "URL",
     "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
@@ -38,6 +41,7 @@
   {
     "nom": "StyleCarteVisualisation",
     "description": "URL du style de la carte Mapbox utilisée lors de la visualisation (par exemple, 'mapbox://styles/mapbox/streets-v11').",
+    "documentation": null,
     "type": "string",
     "unite": "URL",
     "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
