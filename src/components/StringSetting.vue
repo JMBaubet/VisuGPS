@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 const props = defineProps({
   modelValue: {
@@ -121,9 +122,9 @@ const resetToDefault = () => {
   editableValue.value = null;
 };
 
-const openDocumentation = () => {
+const openDocumentation = async () => {
   if (props.modelValue.documentation) {
-    window.open(props.modelValue.documentation, '_blank', 'noopener,noreferrer');
+    await openUrl(props.modelValue.documentation);
   }
 };
 
@@ -157,3 +158,4 @@ const lengthRules = computed(() => {
   justify-content: center;
 }
 </style>
+

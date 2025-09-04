@@ -13,4 +13,9 @@ export default defineConfig({
       ignored: ['**/.env'],
     },
   },
+  resolve: {
+    alias: {
+      '@tauri-apps/plugin-opener': 'E:/Loisirs/VisuGPS/node_modules/@tauri-apps/plugin-opener/dist-js/index.js',
+    },
+  },
 })
