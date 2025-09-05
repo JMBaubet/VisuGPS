@@ -7,7 +7,6 @@
           <v-label v-bind="tooltipProps">{{ modelValue.nom }}</v-label>
         </template>
         <div><b>{{ modelValue.nom }}</b></div>
-        <div class="text-caption">{{ modelValue.arbre }}</div>
         <v-divider class="my-2"></v-divider>
         <div>{{ modelValue.description }}</div>
         <div v-if="modelValue.valeur_min != null || modelValue.valeur_max != null" class="mt-2 pt-2 border-t">

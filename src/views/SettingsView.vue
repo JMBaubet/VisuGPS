@@ -56,38 +56,36 @@
                     <template v-slot:append="{ item }">
                       <!-- Display parameters if they exist -->
                       <v-container v-if="item.parametres && item.parametres.length > 0">
-                        <v-row v-for="parametre in item.parametres" :key="parametre.nom">
+                        <v-row v-for="(parametre, index) in item.parametres" :key="parametre.nom">
                           <v-col cols="12">
-                            <v-card outlined class="mb-2">
+                            <v-card outlined class="mb-2" @click.stop flat tile>
                               <v-card-title>{{ parametre.nom }}</v-card-title>
-                              <v-card-subtitle>{{ parametre.description }}</v-card-subtitle>
                               <v-card-text>
                                 <!-- Dynamic input component based on type -->
                                 <StringSetting
                                   v-if="parametre.type === 'string'"
-                                  :label="parametre.nom"
-                                  :model-value="parametre.valeur_par_defaut"
-                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                  :model-value="parametre"
+                                  @update:model-value="item.parametres[index] = $event"
                                 />
                                 <v-checkbox
                                   v-else-if="parametre.type === 'boolean'"
                                   :label="parametre.nom"
                                   :model-value="parametre.valeur_par_defaut"
-                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                  @update:model-value="item.parametres[index].valeur_de_surcharge = $event"
                                 />
                                 <v-text-field
                                   v-else-if="parametre.type === 'number'"
                                   :label="parametre.nom"
                                   type="number"
                                   :model-value="parametre.valeur_par_defaut"
-                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                  @update:model-value="item.parametres[index].valeur_de_surcharge = $event"
                                 />
                                 <v-text-field
                                   v-else-if="parametre.type === 'color'"
                                   :label="parametre.nom"
                                   type="color"
                                   :model-value="parametre.valeur_par_defaut"
-                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                  @update:model-value="item.parametres[index].valeur_de_surcharge = $event"
                                 />
                                 <div v-else class="text-caption text-disabled">
                                   Éditeur pour le type '{{ parametre.type }}' non implémenté.

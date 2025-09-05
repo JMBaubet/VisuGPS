@@ -8,7 +8,12 @@
         "ordre": "1.0",
         "type": "boolean",
         "valeur_par_defaut": true,
-        "description": "Active ou désactive le module d'importation."
+        "description": "Active ou désactive le module d'importation.",
+        "valeur_de_surcharge": null,
+        "valeur_min": null,
+        "valeur_max": null,
+        "critique": false,
+        "documentation": null
       }
     ],
     "children": [
@@ -21,7 +26,12 @@
             "ordre": "1.1.0",
             "type": "string",
             "valeur_par_defaut": "clé_par_defaut",
-            "description": "Clé API pour l'accès Mapbox."
+            "description": "Clé API pour l'accès Mapbox.",
+            "valeur_de_surcharge": null,
+            "valeur_min": null,
+            "valeur_max": null,
+            "critique": false,
+            "documentation": null
           }
         ],
         "children": [
@@ -34,23 +44,50 @@
                 "ordre": "1.1.1.0",
                 "type": "string",
                 "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
-                "description": "Style de carte par défaut."
+                "description": "Style de carte par défaut.",
+                "valeur_de_surcharge": null,
+                "valeur_min": null,
+                "valeur_max": null,
+                "critique": false,
+                "documentation": null
               }
             ],
             "children": [
               {
-                "nom": "CouleurFond",
+                "title": "CouleurFond",
                 "ordre": "1.1.1.1",
-                "type": "color",
-                "valeur_par_defaut": "rgba(255,255,255,1)",
-                "description": "Couleur de fond de la carte."
+                "parametres": [
+                  {
+                    "nom": "CouleurFond",
+                    "ordre": "1.1.1.1",
+                    "type": "color",
+                    "valeur_par_defaut": "rgba(255,255,255,1)",
+                    "description": "Couleur de fond de la carte.",
+                    "valeur_de_surcharge": null,
+                    "valeur_min": null,
+                    "valeur_max": null,
+                    "critique": false,
+                    "documentation": null
+                  }
+                ]
               },
               {
-                "nom": "TailleTexte",
+                "title": "TailleTexte",
                 "ordre": "1.1.1.2",
-                "type": "number",
-                "valeur_par_defaut": 14,
-                "description": "Taille du texte affiché sur la carte."
+                "parametres": [
+                  {
+                    "nom": "TailleTexte",
+                    "ordre": "1.1.1.2",
+                    "type": "number",
+                    "valeur_par_defaut": 14,
+                    "description": "Taille du texte affiché sur la carte.",
+                    "valeur_de_surcharge": null,
+                    "valeur_min": null,
+                    "valeur_max": null,
+                    "critique": false,
+                    "documentation": null
+                  }
+                ]
               }
             ]
           }
@@ -67,7 +104,12 @@
         "ordre": "2.0",
         "type": "boolean",
         "valeur_par_defaut": true,
-        "description": "Active ou désactive l'édition."
+        "description": "Active ou désactive l'édition.",
+        "valeur_de_surcharge": null,
+        "valeur_min": null,
+        "valeur_max": null,
+        "critique": false,
+        "documentation": null
       }
     ],
     "children": [
@@ -80,7 +122,12 @@
             "ordre": "2.1.0",
             "type": "boolean",
             "valeur_par_defaut": false,
-            "description": "Permet le snapping sur les objets existants."
+            "description": "Permet le snapping sur les objets existants.",
+            "valeur_de_surcharge": null,
+            "valeur_min": null,
+            "valeur_max": null,
+            "critique": false,
+            "documentation": null
           }
         ],
         "children": [
@@ -93,16 +140,32 @@
                 "ordre": "2.1.1.0",
                 "type": "number",
                 "valeur_par_defaut": 5,
-                "description": "Tolérance en pixels pour le snapping."
+                "description": "Tolérance en pixels pour le snapping.",
+                "valeur_de_surcharge": null,
+                "valeur_min": null,
+                "valeur_max": null,
+                "critique": false,
+                "documentation": null
               }
             ],
             "children": [
               {
-                "nom": "AfficherDebug",
+                "title": "AfficherDebug",
                 "ordre": "2.1.1.1",
-                "type": "boolean",
-                "valeur_par_defaut": false,
-                "description": "Affiche les informations de débogage lors du snapping."
+                "parametres": [
+                  {
+                    "nom": "AfficherDebug",
+                    "ordre": "2.1.1.1",
+                    "type": "boolean",
+                    "valeur_par_defaut": false,
+                    "description": "Affiche les informations de débogage lors du snapping.",
+                    "valeur_de_surcharge": null,
+                    "valeur_min": null,
+                    "valeur_max": null,
+                    "critique": false,
+                    "documentation": null
+                  }
+                ]
               }
             ]
           }
