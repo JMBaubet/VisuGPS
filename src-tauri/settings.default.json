@@ -10,8 +10,8 @@
     "valeur_min": null,
     "valeur_max": null,
     "critique": false,
-    "arbre": "Animation/mapbox",
-    "ordre": "3.1"
+    "arbre": "Importation/mapbox",
+    "ordre": "1.1"
   },
   {
     "nom": "StyleCarteVignette",
@@ -25,7 +25,7 @@
     "valeur_max": null,
     "critique": true,
     "arbre": "Importation/mapbox",
-    "ordre": "1.1"
+    "ordre": "1.2"
   },
   {
     "nom": "StyleCarteEdition",

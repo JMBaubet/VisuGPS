@@ -91,6 +91,18 @@ const settingsTree = computed(() => {
     return {};
   }
 
+  // Helper function to recursively get the lowest order value for a node or group of nodes.
+  const getOrder = (node) => {
+    if (node.isSetting) {
+      return node.ordre || '999'; // Use node's own order, with a fallback.
+    }
+    // If it's a folder, find the lowest order among its children.
+    if (node.children && node.children.length > 0) {
+      return node.children.map(getOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0];
+    }
+    return '999'; // Default for empty folders.
+  };
+
   const groupedByTopLevel = settings.value.reduce((acc, setting) => {
     const topLevel = setting.arbre.split('/')[0] || 'Général';
     if (!acc[topLevel]) {
@@ -107,7 +119,7 @@ const settingsTree = computed(() => {
     const treeItems = [];
     const nodeMap = new Map();
 
-    settingsList.sort((a, b) => a.arbre.localeCompare(b.arbre));
+    settingsList.sort((a, b) => (a.arbre || '').localeCompare(b.arbre || ''));
 
     settingsList.forEach(setting => {
       const pathSegments = setting.arbre.split('/').slice(1);
@@ -138,25 +150,12 @@ const settingsTree = computed(() => {
         title: setting.nom,
         isSetting: true,
         settingIndex: settingIndex,
-        ordre: setting.ordre, // Make ordre local to the node
+        ordre: setting.ordre,
       });
     });
     
     const sortNodesRecursively = (nodes) => {
       nodes.sort((a, b) => {
-        const getOrder = (node) => {
-          if (node.isSetting) {
-            return node.ordre;
-          }
-          const findLowestOrder = (n) => {
-            if (n.isSetting) return n.ordre;
-            if (n.children && n.children.length > 0) {
-              return n.children.map(findLowestOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0];
-            }
-            return '999';
-          };
-          return findLowestOrder(node);
-        };
         const orderA = getOrder(a);
         const orderB = getOrder(b);
         return orderA.localeCompare(orderB, undefined, { numeric: true });
@@ -174,19 +173,10 @@ const settingsTree = computed(() => {
   
   const sortedTopLevelKeys = Object.keys(finalTree).sort((a, b) => {
       const getLowestOrderInTab = (tabItems) => {
-          return tabItems.map(item => {
-              const getOrder = (node) => {
-                  if (node.isSetting) return node.ordre;
-                  if (node.children && node.children.length > 0) {
-                      return node.children.map(getOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0];
-                  }
-                  return '999';
-              };
-              return getOrder(item);
-          }).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0] || '999';
+          return tabItems.map(getOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0] || ['999'];
       };
-      const orderA = getLowestOrderInTab(finalTree[a]);
-      const orderB = getLowestOrderInTab(finalTree[b]);
+      const orderA = getLowestOrderInTab(finalTree[a])[0];
+      const orderB = getLowestOrderInTab(finalTree[b])[0];
       return orderA.localeCompare(orderB, undefined, { numeric: true });
   });
 
