@@ -2,25 +2,47 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::env;
 
 use dirs::config_dir;
 use serde_json::Value;
 
 // -------------------------------------------------------------------
-// Helpers for Mapbox Token (existing logic)
+// Environment and Path Helpers
 // -------------------------------------------------------------------
 
-const APP_DIR: &str = env!("CARGO_PKG_NAME"); // folder name under user's config dir
+const APP_NAME: &str = env!("CARGO_PKG_NAME");
 const DEV_ENV_CANDIDATES: [&str; 3] = ["../.env", "./.env", "../../.env"];
-const KEY_FRONTEND: &str = "VITE_MAPBOX_TOKEN"; // used in dev .env
-const KEY_BACKEND: &str = "MAPBOX_TOKEN";       // used in prod config
+const KEY_FRONTEND: &str = "VITE_MAPBOX_TOKEN";
+const KEY_BACKEND: &str = "MAPBOX_TOKEN";
+const SETTINGS_FILENAME: &str = "settings.json";
+
+// Reads the APP_ENV variable from .env file, defaults to "prod".
+fn get_app_env() -> String {
+    if let Some(env_path) = find_dev_env_file() {
+        dotenvy::from_path(&env_path).ok();
+    }
+    env::var("APP_ENV").unwrap_or_else(|_| "prod".to_string())
+}
+
+// Gets the application's configuration directory based on the environment.
+// e.g., C:\Users\<user>\AppData\Roaming\visuGPS\<env>
+fn get_app_config_dir() -> Result<PathBuf, String> {
+    let mut path = config_dir().ok_or("Failed to get config dir")?;
+    path.push(APP_NAME);
+    path.push(get_app_env());
+    if fs::create_dir_all(&path).is_err() {
+        return Err("Failed to create app config directory".into());
+    }
+    Ok(path)
+}
+
+// -------------------------------------------------------------------
+// Helpers for Mapbox Token
+// -------------------------------------------------------------------
 
 fn get_config_path() -> Option<PathBuf> {
-    let mut base = config_dir()?;
-    base.push(APP_DIR);
-    if std::fs::create_dir_all(&base).is_err() {
-        return None;
-    }
+    let mut base = get_app_config_dir().ok()?;
     base.push("config.env"); // simple key=value store
     Some(base)
 }
@@ -50,7 +72,7 @@ fn read_kv_file(path: &Path, key: &str) -> Option<String> {
 fn write_kv_file(path: &Path, key: &str, value: &str) -> Result<(), String> {
     let mut lines: Vec<String> = if path.exists() {
         std::fs::read_to_string(path)
-            .map_err(|e| e.to_string())? 
+            .map_err(|e| e.to_string())?
             .lines()
             .map(|s| s.to_string())
             .collect()
@@ -99,10 +121,8 @@ fn find_dev_env_file() -> Option<PathBuf> {
 }
 
 // -------------------------------------------------------------------
-// Helpers for Settings (new logic)
+// Helpers for Settings
 // -------------------------------------------------------------------
-
-const SETTINGS_FILENAME: &str = "settings.json";
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct Setting {
@@ -120,13 +140,9 @@ struct Setting {
     arbre: String,
 }
 
-// Gets the path to the user's settings.json file, using the same logic as the token management.
+// Gets the path to the user's settings.json file.
 fn get_user_settings_path() -> Result<PathBuf, String> {
-    let mut path = config_dir().ok_or("Failed to get config dir")?;
-    path.push(APP_DIR);
-    if std::fs::create_dir_all(&path).is_err() {
-        return Err("Failed to create app config directory".into());
-    }
+    let mut path = get_app_config_dir()?;
     path.push(SETTINGS_FILENAME);
     Ok(path)
 }
@@ -142,7 +158,7 @@ fn sync_settings() -> Result<(), String> {
     let user_settings: Vec<Setting> = if user_path.exists() {
         let user_settings_str = fs::read_to_string(&user_path).map_err(|e| e.to_string())?;
         // If file is corrupt, start fresh from default
-        serde_json::from_str(&user_settings_str).unwrap_or_else(|_| Vec::new()) 
+        serde_json::from_str(&user_settings_str).unwrap_or_else(|_| Vec::new())
     } else {
         Vec::new()
     };
@@ -239,7 +255,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init()) // Added plugin initialization
         .invoke_handler(tauri::generate_handler![
-            read_mapbox_token, 
+            read_mapbox_token,
             write_mapbox_token,
             get_settings,
             save_settings
