@@ -1,28 +1,44 @@
-use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::env;
 
 use dirs::config_dir;
-use serde_json::Value;
 
 // -------------------------------------------------------------------
 // Environment and Path Helpers
 // -------------------------------------------------------------------
 
 const APP_NAME: &str = env!("CARGO_PKG_NAME");
-const DEV_ENV_CANDIDATES: [&str; 3] = ["../.env", "./.env", "../../.env"];
+const DEV_ENV_CANDIDATES: [&str; 1] = ["../.env"];
 const KEY_FRONTEND: &str = "VITE_MAPBOX_TOKEN";
 const KEY_BACKEND: &str = "MAPBOX_TOKEN";
 const SETTINGS_FILENAME: &str = "settings.json";
 
 // Reads the APP_ENV variable from .env file, defaults to "prod".
 fn get_app_env() -> String {
-    if let Some(env_path) = find_dev_env_file() {
-        dotenvy::from_path(&env_path).ok();
+    eprintln!("DEBUG: get_app_env() called.");
+    let env_path_option = find_dev_env_file();
+    eprintln!("DEBUG: find_dev_env_file() returned: {:?}", env_path_option);
+
+    if let Some(env_path) = env_path_option {
+        eprintln!("DEBUG: Attempting to load .env from: {:?}", env_path);
+        if dotenvy::from_path(&env_path).is_ok() {
+            eprintln!("DEBUG: .env loaded successfully.");
+        } else {
+            eprintln!("DEBUG: Failed to load .env from: {:?}", env_path);
+        }
+    } else {
+        eprintln!("DEBUG: No .env file path provided by find_dev_env_file().");
     }
-    env::var("APP_ENV").unwrap_or_else(|_| "prod".to_string())
+
+    let app_env_var = env::var("APP_ENV");
+    eprintln!("DEBUG: env::var(\"APP_ENV\") result: {:?}", app_env_var);
+
+    app_env_var.unwrap_or_else(|_| {
+        eprintln!("DEBUG: APP_ENV not found, defaulting to 'prod'.");
+        "prod".to_string()
+    })
 }
 
 // Gets the application's configuration directory based on the environment.
@@ -113,10 +129,13 @@ fn trim_quotes(s: &str) -> &str {
 }
 
 fn find_dev_env_file() -> Option<PathBuf> {
+    eprintln!("DEBUG: find_dev_env_file() called. Current dir: {:?}", env::current_dir());
     for candidate in DEV_ENV_CANDIDATES {
         let p = Path::new(candidate);
+        eprintln!("DEBUG: Checking candidate: {:?} (exists: {})", p, p.exists());
         if p.exists() { return Some(p.to_path_buf()); }
     }
+    eprintln!("DEBUG: No .env file found in candidates.");
     None
 }
 
@@ -124,64 +143,23 @@ fn find_dev_env_file() -> Option<PathBuf> {
 // Helpers for Settings
 // -------------------------------------------------------------------
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-struct Setting {
-    nom: String,
-    description: String,
-    documentation: Option<String>,
-    #[serde(rename = "type")]
-    setting_type: String,
-    unite: String,
-    valeur_par_defaut: Value,
-    valeur_de_surcharge: Option<Value>,
-    valeur_min: Option<Value>,
-    valeur_max: Option<Value>,
-    critique: bool,
-    arbre: String,
-}
-
-// Gets the path to the user's settings.json file.
+// Gets the path to the user\'s settings.json file.
 fn get_user_settings_path() -> Result<PathBuf, String> {
     let mut path = get_app_config_dir()?;
     path.push(SETTINGS_FILENAME);
     Ok(path)
 }
 
-// Synchronizes the user's settings file with the default one.
-fn sync_settings() -> Result<(), String> {
+// Temporarily synchronizes the user\'s settings file with the default one.
+// This function will be replaced later with a more robust solution.
+fn sync_settings_temp() -> Result<(), String> {
     let user_path = get_user_settings_path()?;
-    // Embed the default settings string directly into the binary at compile time.
-    let default_settings_str = include_str!("../settings.default.json");
-
-    let mut default_settings: Vec<Setting> = serde_json::from_str(&default_settings_str).map_err(|e| e.to_string())?;
-
-    let user_settings: Vec<Setting> = if user_path.exists() {
-        let user_settings_str = fs::read_to_string(&user_path).map_err(|e| e.to_string())?;
-        // If file is corrupt, start fresh from default
-        serde_json::from_str(&user_settings_str).unwrap_or_else(|_| Vec::new())
-    } else {
-        Vec::new()
-    };
-
-    let user_settings_map: HashMap<String, Setting> = user_settings.into_iter().map(|s| (s.nom.clone(), s)).collect();
-
-    // Iterate through default settings. If a setting exists in user_settings, keep its override value.
-    // Otherwise, add the new default setting.
-    let mut final_settings = Vec::new();
-    for default_setting in default_settings.iter_mut() {
-        let mut final_setting = default_setting.clone();
-        if let Some(user_setting) = user_settings_map.get(&default_setting.nom) {
-            final_setting.valeur_de_surcharge = user_setting.valeur_de_surcharge.clone();
-        }
-        final_settings.push(final_setting);
+    if !user_path.exists() {
+        let default_settings_str = include_str!("../settings.default.json");
+        fs::write(&user_path, default_settings_str).map_err(|e| e.to_string())?;
     }
-
-    let final_settings_str = serde_json::to_string_pretty(&final_settings).map_err(|e| e.to_string())?;
-    fs::write(user_path, final_settings_str).map_err(|e| e.to_string())?;
-
     Ok(())
 }
-
 
 // -------------------------------------------------------------------
 // Public commands
@@ -209,41 +187,34 @@ fn read_mapbox_token() -> String {
 
 #[tauri::command]
 fn write_mapbox_token(token: String) -> Result<(), String> {
+    eprintln!("DEBUG: write_mapbox_token() called. Token: {}", token);
+    eprintln!("DEBUG: cfg!(debug_assertions) is: {}", cfg!(debug_assertions));
+
     if cfg!(debug_assertions) {
+        eprintln!("DEBUG: In debug_assertions block.");
         if let Some(env_path) = find_dev_env_file() {
+            eprintln!("DEBUG: .env file found at: {:?}", env_path);
             return write_kv_file(&env_path, KEY_FRONTEND, &token);
+        } else {
+            eprintln!("DEBUG: find_dev_env_file() returned None. Falling back to AppData logic.");
         }
+    } else {
+        eprintln!("DEBUG: Not in debug_assertions block. Using AppData logic.");
     }
+
     if let Some(cfg) = get_config_path() {
+        eprintln!("DEBUG: Saving to AppData path: {:?}", cfg);
         return write_kv_file(&cfg, KEY_BACKEND, &token);
     }
+    eprintln!("DEBUG: Failed to determine user config directory.");
     Err("Impossible de déterminer le répertoire de configuration utilisateur".into())
 }
+
 
 #[tauri::command]
 fn get_settings() -> Result<String, String> {
     let path = get_user_settings_path()?;
     fs::read_to_string(path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn save_settings(settings: Vec<Setting>) -> Result<(), String> {
-    let path = get_user_settings_path()?;
-    let current_settings_str = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let mut current_settings: Vec<Setting> = serde_json::from_str(&current_settings_str).map_err(|e| e.to_string())?;
-
-    let new_settings_map: HashMap<String, Setting> = settings.into_iter().map(|s| (s.nom.clone(), s)).collect();
-
-    for setting in &mut current_settings {
-        if let Some(new_setting) = new_settings_map.get(&setting.nom) {
-            setting.valeur_de_surcharge = new_setting.valeur_de_surcharge.clone();
-        }
-    }
-
-    let updated_settings_str = serde_json::to_string_pretty(&current_settings).map_err(|e| e.to_string())?;
-    fs::write(path, updated_settings_str).map_err(|e| e.to_string())?;
-
-    Ok(())
 }
 
 // -------------------------------------------------------------------
@@ -257,12 +228,11 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             read_mapbox_token,
             write_mapbox_token,
-            get_settings,
-            save_settings
+            get_settings
         ])
         .setup(|app| {
             // Initialize settings
-            if let Err(e) = sync_settings() {
+            if let Err(e) = sync_settings_temp() {
                 eprintln!("Failed to sync settings: {}", e);
             }
 

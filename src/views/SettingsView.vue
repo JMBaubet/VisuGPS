@@ -28,37 +28,64 @@
         
         <div v-else>
           <v-card>
-            <v-tabs v-model="activeTab" bg-color="primary" grow>
-              <v-tab v-for="category in Object.keys(settingsTree)" :key="category" :value="category">
-                {{ category }}
-              </v-tab>
-            </v-tabs>
-
-            <v-window v-model="activeTab">
-              <v-window-item 
-                v-for="(category, index) in Object.keys(settingsTree)" 
-                :key="category" 
-                :value="category"
-                class="ma-2"
-              >
-                <v-card-text>
-                  <v-list :opened="openState[index]">
-                    <SettingsTreeItem
-                      v-for="node in settingsTree[category]"
-                      :key="node.id"
-                      :node="node"
-                      :settings="settings"
-                    />
-                  </v-list>
-                </v-card-text>
-              </v-window-item>
-            </v-window>
-          </v-card>
-
-          <v-card class="mt-6">
-            <v-card-title>Token Mapbox</v-card-title>
             <v-card-text>
-                <MapboxTokenEditor />
+              <v-treeview
+                :items="settings"
+                item-key="title"
+                item-text="title"
+                open-on-click
+                activatable
+                return-object
+              >
+                <template v-slot:label="{ item }">
+                  {{ item.title }}
+                </template>
+                <template v-slot:append="{ item }">
+                  <!-- Display parameters if they exist -->
+                  <v-container v-if="item.parametres && item.parametres.length > 0">
+                    <v-row v-for="parametre in item.parametres" :key="parametre.nom">
+                      <v-col cols="12">
+                        <v-card outlined class="mb-2">
+                          <v-card-title>{{ parametre.nom }}</v-card-title>
+                          <v-card-subtitle>{{ parametre.description }}</v-card-subtitle>
+                          <v-card-text>
+                            <!-- Dynamic input component based on type -->
+                            <StringSetting
+                              v-if="parametre.type === 'string'"
+                              :label="parametre.nom"
+                              :model-value="parametre.valeur_par_defaut"
+                              @update:model-value="parametre.valeur_de_surcharge = $event"
+                            />
+                            <v-checkbox
+                              v-else-if="parametre.type === 'boolean'"
+                              :label="parametre.nom"
+                              :model-value="parametre.valeur_par_defaut"
+                              @update:model-value="parametre.valeur_de_surcharge = $event"
+                            />
+                            <v-text-field
+                              v-else-if="parametre.type === 'number'"
+                              :label="parametre.nom"
+                              type="number"
+                              :model-value="parametre.valeur_par_defaut"
+                              @update:model-value="parametre.valeur_de_surcharge = $event"
+                            />
+                            <v-text-field
+                              v-else-if="parametre.type === 'color'"
+                              :label="parametre.nom"
+                              type="color"
+                              :model-value="parametre.valeur_par_defaut"
+                              @update:model-value="parametre.valeur_de_surcharge = $event"
+                            />
+                            <div v-else class="text-caption text-disabled">
+                              Éditeur pour le type '{{ parametre.type }}' non implémenté.
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </v-container>
+                </template>
+              </v-treeview>
             </v-card-text>
           </v-card>
         </div>
@@ -69,156 +96,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue'; // Removed watch
 import { invoke } from '@tauri-apps/api/core';
 import { useMessageStore } from '../composables/useMessageStore.js';
-import SettingsTreeItem from '../components/SettingsTreeItem.vue';
-import StringSetting from '../components/StringSetting.vue';
-import MapboxTokenEditor from '../components/MapboxTokenEditor.vue';
+// Removed SettingsTreeItem import
+import StringSetting from '../components/StringSetting.vue'; // Still needed for parameter types
+// Removed MapboxTokenEditor import (it was commented out in template anyway)
 
 const { addMessage } = useMessageStore();
 
-const settings = ref([]);
-const initialSettings = ref([]);
+const settings = ref([]); // This will now hold the array of top-level nodes
+const initialSettings = ref([]); // Keep for future save logic
 const loading = ref(true);
 const isSaving = ref(false);
 const error = ref(null);
-const activeTab = ref(null);
-const openState = ref([]);
-
-const settingsTree = computed(() => {
-  if (!settings.value || settings.value.length === 0) {
-    return {};
-  }
-
-  // Helper function to recursively get the lowest order value for a node or group of nodes.
-  const getOrder = (node) => {
-    if (node.isSetting) {
-      return node.ordre || '999'; // Use node's own order, with a fallback.
-    }
-    // If it's a folder, find the lowest order among its children.
-    if (node.children && node.children.length > 0) {
-      return node.children.map(getOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0];
-    }
-    return '999'; // Default for empty folders.
-  };
-
-  const groupedByTopLevel = settings.value.reduce((acc, setting) => {
-    const topLevel = setting.arbre.split('/')[0] || 'Général';
-    if (!acc[topLevel]) {
-      acc[topLevel] = [];
-    }
-    acc[topLevel].push(setting);
-    return acc;
-  }, {});
-
-  const finalTree = {};
-
-  for (const topLevel in groupedByTopLevel) {
-    const settingsList = groupedByTopLevel[topLevel];
-    const treeItems = [];
-    const nodeMap = new Map();
-
-    settingsList.sort((a, b) => (a.arbre || '').localeCompare(b.arbre || ''));
-
-    settingsList.forEach(setting => {
-      const pathSegments = setting.arbre.split('/').slice(1);
-      let parentChildren = treeItems;
-      let currentPath = topLevel;
-
-      pathSegments.forEach(segment => {
-        currentPath += `/${segment}`;
-        let node = nodeMap.get(currentPath);
-        if (!node) {
-          node = {
-            id: currentPath,
-            title: segment,
-            children: [],
-          };
-          nodeMap.set(currentPath, node);
-          if (!parentChildren.some(child => child.id === node.id)) {
-            parentChildren.push(node);
-          }
-        }
-        parentChildren = node.children;
-      });
-
-      const settingIndex = settings.value.findIndex(s => s.nom === setting.nom);
-
-      parentChildren.push({
-        id: setting.nom,
-        title: setting.nom,
-        isSetting: true,
-        settingIndex: settingIndex,
-        ordre: setting.ordre,
-      });
-    });
-    
-    const sortNodesRecursively = (nodes) => {
-      nodes.sort((a, b) => {
-        const orderA = getOrder(a);
-        const orderB = getOrder(b);
-        return orderA.localeCompare(orderB, undefined, { numeric: true });
-      });
-      nodes.forEach(node => {
-        if (node.children) {
-          sortNodesRecursively(node.children);
-        }
-      });
-    };
-
-    sortNodesRecursively(treeItems);
-    finalTree[topLevel] = treeItems;
-  }
-  
-  const sortedTopLevelKeys = Object.keys(finalTree).sort((a, b) => {
-      const getLowestOrderInTab = (tabItems) => {
-          return tabItems.map(getOrder).sort((o1, o2) => o1.localeCompare(o2, undefined, { numeric: true }))[0] || ['999'];
-      };
-      const orderA = getLowestOrderInTab(finalTree[a])[0];
-      const orderB = getLowestOrderInTab(finalTree[b])[0];
-      return orderA.localeCompare(orderB, undefined, { numeric: true });
-  });
-
-  const orderedFinalTree = {};
-  for (const key of sortedTopLevelKeys) {
-      orderedFinalTree[key] = finalTree[key];
-  }
-
-  return orderedFinalTree;
-});
-
-watch(settings, (newSettings) => {
-  if (!newSettings || newSettings.length === 0) {
-    activeTab.value = null;
-    return;
-  }
-
-  const tree = settingsTree.value;
-  const categories = Object.keys(tree);
-
-  if (categories.length > 0 && (!activeTab.value || !tree[activeTab.value])) {
-    activeTab.value = categories[0];
-  }
-
-  // Pre-open all list groups
-  const newOpenState = [];
-  categories.forEach(() => {
-    const ids = [];
-    const traverse = (nodes) => {
-        nodes.forEach(node => {
-            if (node.children && node.children.length > 0) {
-                ids.push(node.id);
-                traverse(node.children);
-            }
-        });
-    };
-    traverse(tree[categories[newOpenState.length]]);
-    newOpenState.push(ids);
-  });
-  openState.value = newOpenState;
-
-}, { deep: true });
 
 const loadSettings = async () => {
   const result = await invoke('get_settings');
@@ -242,14 +133,16 @@ onMounted(async () => {
   }
 });
 
+// isDirty and saveAllSettings are commented out as save_settings command is removed
 const isDirty = computed(() => {
-  return JSON.stringify(settings.value) !== JSON.stringify(initialSettings.value);
+  // return JSON.stringify(settings.value) !== JSON.stringify(initialSettings.value);
+  return false; // Always false for now
 });
 
 const saveAllSettings = async () => {
   isSaving.value = true;
   try {
-    await invoke('save_settings', { settings: settings.value });
+    // await invoke('save_settings', { settings: settings.value }); 
     await new Promise(resolve => setTimeout(resolve, 100));
     await loadSettings();
     addMessage('Paramètres sauvegardés avec succès', 'success');

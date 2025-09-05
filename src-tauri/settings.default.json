@@ -1,58 +1,113 @@
 [
   {
-    "nom": "CouleurMarqueur",
-    "description": "Couleur du marqueur qui se déplace sur la trace.",
-    "documentation": null,
-    "type": "color",
-    "unite": "RGBA",
-    "valeur_par_defaut": "rgba(255, 0, 0, 1)",
-    "valeur_de_surcharge": null,
-    "valeur_min": null,
-    "valeur_max": null,
-    "critique": false,
-    "arbre": "Importation/mapbox",
-    "ordre": "1.1"
+    "title": "Importation",
+    "ordre": "1",
+    "parametres": [
+      {
+        "nom": "ActiverImportation",
+        "ordre": "1.0",
+        "type": "boolean",
+        "valeur_par_defaut": true,
+        "description": "Active ou désactive le module d'importation."
+      }
+    ],
+    "children": [
+      {
+        "title": "mapbox",
+        "ordre": "1.1",
+        "parametres": [
+          {
+            "nom": "CleAPI",
+            "ordre": "1.1.0",
+            "type": "string",
+            "valeur_par_defaut": "clé_par_defaut",
+            "description": "Clé API pour l'accès Mapbox."
+          }
+        ],
+        "children": [
+          {
+            "title": "Styles",
+            "ordre": "1.1.1",
+            "parametres": [
+              {
+                "nom": "StyleDefaut",
+                "ordre": "1.1.1.0",
+                "type": "string",
+                "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
+                "description": "Style de carte par défaut."
+              }
+            ],
+            "children": [
+              {
+                "nom": "CouleurFond",
+                "ordre": "1.1.1.1",
+                "type": "color",
+                "valeur_par_defaut": "rgba(255,255,255,1)",
+                "description": "Couleur de fond de la carte."
+              },
+              {
+                "nom": "TailleTexte",
+                "ordre": "1.1.1.2",
+                "type": "number",
+                "valeur_par_defaut": 14,
+                "description": "Taille du texte affiché sur la carte."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   {
-    "nom": "StyleCarteVignette",
-    "description": "URL du style de la carte Mapbox utilisé pour la vignette.",
-    "documentation": "https://docs.mapbox.com/api/maps/styles/#mapbox-styles",
-    "type": "string",
-    "unite": "URL",
-    "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
-    "valeur_de_surcharge": null,
-    "valeur_min": null,
-    "valeur_max": null,
-    "critique": true,
-    "arbre": "Importation/mapbox",
-    "ordre": "1.2"
-  },
-  {
-    "nom": "StyleCarteEdition",
-    "description": "URL du style de la carte Mapbox utilisé lors de l'édition(par exemple, 'mapbox://styles/mapbox/streets-v11').",
-    "documentation": null,
-    "type": "string",
-    "unite": "URL",
-    "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
-    "valeur_de_surcharge": null,
-    "valeur_min": null,
-    "valeur_max": 64,
-    "critique": true,
-    "arbre": "Edition/mapbox",
-    "ordre": "2.1"
-  },
-  {
-    "nom": "StyleCarteVisualisation",
-    "description": "URL du style de la carte Mapbox utilisée lors de la visualisation (par exemple, 'mapbox://styles/mapbox/streets-v11').",
-    "documentation": null,
-    "type": "string",
-    "unite": "URL",
-    "valeur_par_defaut": "mapbox://styles/mapbox/outdoors-v12",
-    "valeur_de_surcharge": null,
-    "valeur_min": null,
-    "valeur_max": null,
-    "critique": false,
-    "arbre": "Visualisation/mapbox",
-    "ordre": "3.1"
+    "title": "Édition",
+    "ordre": "2",
+    "parametres": [
+      {
+        "nom": "AutoriserEdition",
+        "ordre": "2.0",
+        "type": "boolean",
+        "valeur_par_defaut": true,
+        "description": "Active ou désactive l'édition."
+      }
+    ],
+    "children": [
+      {
+        "title": "Outils",
+        "ordre": "2.1",
+        "parametres": [
+          {
+            "nom": "ActiverSnapping",
+            "ordre": "2.1.0",
+            "type": "boolean",
+            "valeur_par_defaut": false,
+            "description": "Permet le snapping sur les objets existants."
+          }
+        ],
+        "children": [
+          {
+            "title": "Avancé",
+            "ordre": "2.1.1",
+            "parametres": [
+              {
+                "nom": "ToléranceSnapping",
+                "ordre": "2.1.1.0",
+                "type": "number",
+                "valeur_par_defaut": 5,
+                "description": "Tolérance en pixels pour le snapping."
+              }
+            ],
+            "children": [
+              {
+                "nom": "AfficherDebug",
+                "ordre": "2.1.1.1",
+                "type": "boolean",
+                "valeur_par_defaut": false,
+                "description": "Affiche les informations de débogage lors du snapping."
+              }
+            ]
+          }
+        ]
+      }
+    ]
   }
 ]
