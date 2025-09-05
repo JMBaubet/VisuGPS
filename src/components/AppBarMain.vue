@@ -8,6 +8,11 @@
       </template>
     </v-tooltip>
 
+    <v-chip v-if="envInfo" :color="envInfo.color" class="mr-4" variant="elevated">
+      <v-icon start :icon="envInfo.icon"></v-icon>
+      {{ envInfo.text }}
+    </v-chip>
+
     <v-spacer></v-spacer>
 
     <v-btn text @click="downloadGpx">
@@ -25,27 +30,43 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'; // Add watch
+import { computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import ThemeToggle from './ThemeToggle.vue'; // Import ThemeToggle
-import { useServiceMonitor } from '../composables/useServiceMonitor'; // Import useServiceMonitor
-import { useMessageStore } from '../composables/useMessageStore'; // Import useMessageStore
+import ThemeToggle from './ThemeToggle.vue';
+import { useServiceMonitor } from '../composables/useServiceMonitor';
+import { useMessageStore } from '../composables/useMessageStore';
 
 const router = useRouter();
-const { serviceStatus, mapboxTokenInvalid } = useServiceMonitor(); // Use the composable
-const { addMessage } = useMessageStore(); // Use the message store
+const { serviceStatus, mapboxTokenInvalid } = useServiceMonitor();
+const { addMessage } = useMessageStore();
+
+const envInfo = computed(() => {
+  const env = import.meta.env.VITE_APP_ENV || 'prod';
+  switch (env) {
+    case 'dev':
+      return { text: 'DEV', color: 'orange', icon: 'mdi-wrench' };
+    case 'sandbox':
+      return { text: 'SANDBOX', color: 'purple', icon: 'mdi-flask' };
+    case 'prod':
+      // Conformément à GEMINI.md, le badge est optionnel pour la prod.
+      // Retourner null le masque.
+      return null;
+    default:
+      return null;
+  }
+});
 
 watch(mapboxTokenInvalid, (newValue) => {
   if (newValue) {
-    addMessage('Le token MapBox est invalide !', 'error', 2500)
+    addMessage('Le token MapBox est invalide !', 'error', 2500);
   }
 });
 
 watch(serviceStatus, (newValue) => {
   if (newValue === 'mapbox-unreachable') {
-    addMessage('Le serveur MapBox ne répond pas !', 'info', 5000 );
+    addMessage('Le serveur MapBox ne répond pas !', 'info', 5000);
   } else if (newValue === 'no-internet') {
-    addMessage('Pas de connexion à Internet vérifiez votre Réseau (Wifi).', 'error', 10000 );
+    addMessage('Pas de connexion à Internet vérifiez votre Réseau (Wifi).', 'error', 10000);
   }
 });
 
@@ -71,7 +92,6 @@ const statusIconColor = computed(() => {
 
 // Button actions
 const downloadGpx = () => {
-  // Logic to open file dialog and handle GPX download
   console.log('Download GPX clicked');
 };
 
