@@ -17,6 +17,7 @@ Ce document décrit le projet **VisuGPS**, une application de bureau multiplatef
 1.  Clonez le dépôt : `git clone https://github.com/JMBaubet/VisuGPS`
 2.  Installez les dépendances : `npm install`
 3.  Lancez l'application en mode développement : `npm run tauri dev`
+4.  Créez l'application pour la production : `npm run tauri build`
 
 ---
 
@@ -46,6 +47,60 @@ pour chaque paramètre nous devons avoir les attributs suivant :
 ⦁	Critique : Booleen pour indiquer à l'utilisateur que la modification de cette valeur peut engendrer des dysfonctionnements de l'application. 
 ⦁	Arbre : Une chaine de caractère du type niveau_1/niveau_2/../niveau_n pour regrouper les paramètres en fonction e leur utilisation dans l'application.
 L'utilisateur ne pourra modifier que le champ valeur de surcharge, via la vue Settings.vue
+
+---
+
+## Gestion des Environnements de travail pour Tauri + VueJS
+
+Voici la recommandation pour structurer les environnements et les afficher clairement dans le composant AppBarMain.vue.
+Une varriable d'environnemtn stockée dans le fichier .env de l'application permettra de préciser dans quel environnement on veut lancer l'application.
+Si la variable n'existe pas l'application se lance ra en mode prod.
+
+---
+
+### 🟢 1. DEV
+- **But :** Développement local avec hot-reload.
+- **Caractéristiques :**
+  - Données jetables (faciles à réinitialiser).
+  - Pas de risque pour les données finales.
+  - Utilise un dossier distinct pour ne pas polluer les autres environnements.
+- **Chemins suggérés :**
+  - **Windows :** `C:\Users\<user>\AppData\Roaming\MonApp\dev`
+  - **macOS :** `~/Library/Application Support/MonApp/dev`
+- **UI recommandée :**
+  - Icône : 🔧 (Material Icon : `mdi-wrench`)
+  - Couleur : **orange**
+  - Badge : `DEV`
+
+---
+
+### 🟡 2. SANDBOX
+- **But :** Environnement de validation avant la prod (tests QA, validation utilisateurs internes).
+- **Caractéristiques :**
+  - Données persistantes mais isolées de la prod.
+  - Utilisé pour reproduire des bugs, tester des fonctionnalités avant déploiement.
+- **Chemins suggérés :**
+  - **Windows :** `C:\Users\<user>\AppData\Roaming\MonApp\sandbox`
+  - **macOS :** `~/Library/Application Support/MonApp/sandbox`
+- **UI recommandée :**
+  - Icône : 🧪 (Material Icon : `mdi-flask`)
+  - Couleur : **violet**
+  - Badge : `TEST` ou `SANDBOX`
+
+---
+
+### 🔵 3. PROD
+- **But :** Utilisation finale (production réelle).
+- **Caractéristiques :**
+  - Données critiques, ne pas expérimenter ici.
+  - Ne jamais écraser les données depuis DEV.
+- **Chemins suggérés :**
+  - **Windows :** `C:\Users\<user>\AppData\Roaming\MonApp\prod`
+  - **macOS :** `~/Library/Application Support/MonApp/prod`
+- **UI recommandée :**
+  - Icône : ✅ (Material Icon : `mdi-check-circle`)
+  - Couleur : **verte**
+  - Badge : optionnel (ou rien si tu veux que la prod soit transparente)
 
 ---
 
