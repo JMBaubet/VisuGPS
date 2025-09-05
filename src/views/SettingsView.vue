@@ -28,65 +28,80 @@
         
         <div v-else>
           <v-card>
-            <v-card-text>
-              <v-treeview
-                :items="settings"
-                item-key="title"
-                item-text="title"
-                open-on-click
-                activatable
-                return-object
+            <v-tabs v-model="activeTab" bg-color="primary" grow>
+              <v-tab v-for="node in settingsTree" :key="node.title" :value="node.title">
+                {{ node.title }}
+              </v-tab>
+            </v-tabs>
+
+            <v-window v-model="activeTab">
+              <v-window-item 
+                v-for="node in settingsTree" 
+                :key="node.title" 
+                :value="node.title"
+                class="ma-2"
               >
-                <template v-slot:label="{ item }">
-                  {{ item.title }}
-                </template>
-                <template v-slot:append="{ item }">
-                  <!-- Display parameters if they exist -->
-                  <v-container v-if="item.parametres && item.parametres.length > 0">
-                    <v-row v-for="parametre in item.parametres" :key="parametre.nom">
-                      <v-col cols="12">
-                        <v-card outlined class="mb-2">
-                          <v-card-title>{{ parametre.nom }}</v-card-title>
-                          <v-card-subtitle>{{ parametre.description }}</v-card-subtitle>
-                          <v-card-text>
-                            <!-- Dynamic input component based on type -->
-                            <StringSetting
-                              v-if="parametre.type === 'string'"
-                              :label="parametre.nom"
-                              :model-value="parametre.valeur_par_defaut"
-                              @update:model-value="parametre.valeur_de_surcharge = $event"
-                            />
-                            <v-checkbox
-                              v-else-if="parametre.type === 'boolean'"
-                              :label="parametre.nom"
-                              :model-value="parametre.valeur_par_defaut"
-                              @update:model-value="parametre.valeur_de_surcharge = $event"
-                            />
-                            <v-text-field
-                              v-else-if="parametre.type === 'number'"
-                              :label="parametre.nom"
-                              type="number"
-                              :model-value="parametre.valeur_par_defaut"
-                              @update:model-value="parametre.valeur_de_surcharge = $event"
-                            />
-                            <v-text-field
-                              v-else-if="parametre.type === 'color'"
-                              :label="parametre.nom"
-                              type="color"
-                              :model-value="parametre.valeur_par_defaut"
-                              @update:model-value="parametre.valeur_de_surcharge = $event"
-                            />
-                            <div v-else class="text-caption text-disabled">
-                              Éditeur pour le type '{{ parametre.type }}' non implémenté.
-                            </div>
-                          </v-card-text>
-                        </v-card>
-                      </v-col>
-                    </v-row>
-                  </v-container>
-                </template>
-              </v-treeview>
-            </v-card-text>
+                <v-card-text>
+                  <v-treeview
+                    :items="[node]"
+                    item-key="title"
+                    item-text="title"
+                    open-on-click
+                    activatable
+                    return-object
+                  >
+                    <template v-slot:label="{ item }">
+                      {{ item.title }}
+                    </template>
+                    <template v-slot:append="{ item }">
+                      <!-- Display parameters if they exist -->
+                      <v-container v-if="item.parametres && item.parametres.length > 0">
+                        <v-row v-for="parametre in item.parametres" :key="parametre.nom">
+                          <v-col cols="12">
+                            <v-card outlined class="mb-2">
+                              <v-card-title>{{ parametre.nom }}</v-card-title>
+                              <v-card-subtitle>{{ parametre.description }}</v-card-subtitle>
+                              <v-card-text>
+                                <!-- Dynamic input component based on type -->
+                                <StringSetting
+                                  v-if="parametre.type === 'string'"
+                                  :label="parametre.nom"
+                                  :model-value="parametre.valeur_par_defaut"
+                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                />
+                                <v-checkbox
+                                  v-else-if="parametre.type === 'boolean'"
+                                  :label="parametre.nom"
+                                  :model-value="parametre.valeur_par_defaut"
+                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                />
+                                <v-text-field
+                                  v-else-if="parametre.type === 'number'"
+                                  :label="parametre.nom"
+                                  type="number"
+                                  :model-value="parametre.valeur_par_defaut"
+                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                />
+                                <v-text-field
+                                  v-else-if="parametre.type === 'color'"
+                                  :label="parametre.nom"
+                                  type="color"
+                                  :model-value="parametre.valeur_par_defaut"
+                                  @update:model-value="parametre.valeur_de_surcharge = $event"
+                                />
+                                <div v-else class="text-caption text-disabled">
+                                  Éditeur pour le type '{{ parametre.type }}' non implémenté.
+                                </div>
+                              </v-card-text>
+                            </v-card>
+                          </v-col>
+                        </v-row>
+                      </v-container>
+                    </template>
+                  </v-treeview>
+                </v-card-text>
+              </v-window-item>
+            </v-window>
           </v-card>
         </div>
       </v-col>
@@ -96,12 +111,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'; // Removed watch
+import { ref, onMounted, computed, watch } from 'vue'; // Re-added watch
 import { invoke } from '@tauri-apps/api/core';
 import { useMessageStore } from '../composables/useMessageStore.js';
-// Removed SettingsTreeItem import
 import StringSetting from '../components/StringSetting.vue'; // Still needed for parameter types
-// Removed MapboxTokenEditor import (it was commented out in template anyway)
 
 const { addMessage } = useMessageStore();
 
@@ -110,6 +123,36 @@ const initialSettings = ref([]); // Keep for future save logic
 const loading = ref(true);
 const isSaving = ref(false);
 const error = ref(null);
+const activeTab = ref(null); // Re-added
+const openState = ref([]); // Re-added, though its usage might change
+
+const settingsTree = computed(() => {
+  if (!settings.value || settings.value.length === 0) {
+    return []; // Return an empty array if no settings
+  }
+
+  // Sort top-level nodes by their 'ordre'
+  const sortedNodes = [...settings.value].sort((a, b) => {
+    return a.ordre.localeCompare(b.ordre, undefined, { numeric: true });
+  });
+
+  return sortedNodes; // settingsTree is now the sorted array of top-level nodes
+});
+
+watch(settings, (newSettings) => {
+  if (!newSettings || newSettings.length === 0) {
+    activeTab.value = null;
+    return;
+  }
+
+  const categories = settingsTree.value; // This is now the sorted array of top-level nodes
+
+  if (categories.length > 0 && (!activeTab.value || !categories.some(cat => cat.title === activeTab.value))) {
+    activeTab.value = categories[0].title; // Set active tab to the title of the first category
+  }
+
+  openState.value = []; // Clear openState for now
+}, { deep: true });
 
 const loadSettings = async () => {
   const result = await invoke('get_settings');
