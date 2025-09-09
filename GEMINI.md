@@ -93,11 +93,11 @@ Afin que tu n'ancitipes pas le codage de certaines features, les étapes te sero
 
 A chaque réalisation d'étape, j'enregistrerai dans ce fichier l'identifiant du commit git
 
-## Etape 0
+## Etape 0 - Réalisée
 
 l'étape 0 consiste à mettre en place l'environement technique. Elle n'a pas vocation à créer les ihm. les vues seront crées uniquement afin de pouvoir configurer le router. 
 
-## Etape 0.1 - Réalisée - 8afea17
+### Etape 0.1 - Réalisée - 8afea17
 
 Mise en place de git :
 
@@ -109,17 +109,17 @@ Mise en place de git :
 
 `LISENCE`
 
-## Etape 0.2 - Réalisée - 59988f9
+### Etape 0.2 - Réalisée - 59988f9
 
 Mise en place de gemini
 
 `GEMINI.md`
 
-## Etape 0.3 - Réalisée - 50a5f12
+### Etape 0.3 - Réalisée - 50a5f12
 
 le npm initiale pour avoir les packages nécessaires.
 
-## Etape 0.4 - Réalisée - dd389466
+### Etape 0.4 - Réalisée - dd389466
 
 Configuration de
 
@@ -135,7 +135,7 @@ Création des vues :
 
 - `src/views/settingsView.vue` pour le paramétrage de l'application
 
-## Etape 0.5 - Réalisée - [74249be4]
+### Etape 0.5 - Réalisée - [74249be4]
 
 Mise en place de l'environnement d'éxécution
 
@@ -165,7 +165,7 @@ Le fichier .env si il existe sera présent sous `C:\Users\username\AppData\Roami
 
 Il devra être lu à partir de ce dossier que l'on soit en mode de travail Dev ou Prod. Si ce ficheier n'existe pas au lancement de l'application, il devra être créé, pour avoir un mode d'éxécution `OPE` que l'on soit en mode de travail dev ou  Prod
 
-### Répertoires d'Environnement
+#### Répertoires d'Environnement
 
 En plus de déterminer le mode d'exécution, l'application crée un dossier de travail dont le nom correspond à la valeur de la variable `APP_ENV`. Ce dossier est créé à l'intérieur du répertoire de données de l'application (`C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS\`).
 
@@ -173,7 +173,7 @@ Par exemple, si `APP_ENV` est `Test_Setup`, le dossier suivant sera créé : `C:
 
 Tous les fichiers de configuration, de test ou de données spécifiques à un environnement devront être lus et écrits dans ce répertoire.
 
-### État de l'Application Partagé
+#### État de l'Application Partagé
 
 Les informations sur l'environnement sont centralisées dans un état (`AppState`) géré par Tauri et accessible depuis le frontend. Cet état contient :
 
@@ -181,7 +181,7 @@ Les informations sur l'environnement sont centralisées dans un état (`AppState
 - `execution_mode`: Le mode déduit (`OPE`, `EVAL`, `TEST`).
 - `app_env_path`: Le chemin complet vers le répertoire de l'environnement de travail.
 
-## Etape 0.6 - Réalisée - [4a4db936]
+### Etape 0.6 - Réalisée - [4a4db936]
 
 Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d'éxécutiuon.
 
@@ -189,9 +189,35 @@ On ajoute juste un composant `v-btn` à la mainView, pour vérifier qu'il s'affi
 
 Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
 
-## Etape 0.7 -Réalisée - []
+### Etape 0.7 -Réalisée - [705e12e2]
 
 Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
+
+---
+
+## Etape 1
+
+Dans cette étape nous allons travailler sur le composant AppBar pour la MainView.vue.
+
+Dans cette AppBar on doit retrouver : 
+
+- Un indicateur d'état des services réseau 
+
+- un chip pour nous indiquer le nom du contexte d'execution 
+
+- Un switch pour passer d'un mode sombre à un mode claire
+
+### Etape 1.1
+
+Dans cette étape nous allons créer l'AppMainBar pour y inclure les modes sombre/clair, et le chip pour nous afficher la variable APP_ENV si nous sommes en mode EVAL ou TEST
+
+### Etape 1.2
+
+Pour cette étape nous allons nous attaché à la connexion avec mapbox.
+
+Le token sera enregistrer dans le fichier .env situé pour rappel dans : `C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS`
+
+
 
 ---
 

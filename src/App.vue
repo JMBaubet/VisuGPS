@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid>
+    <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
       <router-view />
     </v-container>
   </v-app>
