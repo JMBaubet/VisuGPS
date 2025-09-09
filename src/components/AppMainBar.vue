@@ -31,12 +31,21 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue'; // Added onMounted
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '../composables/useEnvironment';
 
 const theme = useTheme();
 const { appEnv, executionMode } = useEnvironment();
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    theme.global.name.value = 'dark';
+  } else {
+    theme.global.name.value = 'light';
+  }
+});
 
 const isDarkTheme = computed({
   get() {
@@ -44,6 +53,7 @@ const isDarkTheme = computed({
   },
   set(value) {
     theme.global.name.value = value ? 'dark' : 'light';
+    localStorage.setItem('theme', value ? 'dark' : 'light'); // Use localStorage
   }
 });
 

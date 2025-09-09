@@ -207,7 +207,7 @@ Dans cette AppBar on doit retrouver :
 
 - Un switch pour passer d'un mode sombre à un mode claire
 
-### Etape 1.1
+### Etape 1.1 Réalisée -[]
 
 Dans cette étape nous allons créer l'AppMainBar pour y inclure les modes sombre/clair, et le chip pour nous afficher la variable APP_ENV si nous sommes en mode EVAL ou TEST
 
