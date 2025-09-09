@@ -15,9 +15,10 @@ fn get_app_state(state: State<AppState>) -> AppState {
 }
 
 fn get_execution_mode(app_env: &str) -> String {
-    if app_env.starts_with("Sandbox_") {
+    let lowercased_app_env = app_env.to_lowercase();
+    if lowercased_app_env.starts_with("sandbox_") {
         "EVAL".to_string()
-    } else if app_env.starts_with("Test_") {
+    } else if lowercased_app_env.starts_with("test_") {
         "TEST".to_string()
     } else {
         "OPE".to_string()

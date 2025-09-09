@@ -181,6 +181,20 @@ Les informations sur l'environnement sont centralisées dans un état (`AppState
 - `execution_mode`: Le mode déduit (`OPE`, `EVAL`, `TEST`).
 - `app_env_path`: Le chemin complet vers le répertoire de l'environnement de travail.
 
+## Etape 0.6 - Réalisée - [4a4db936]
+
+Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d'éxécutiuon.
+
+On ajoute juste un composant `v-btn` à la mainView, pour vérifier qu'il s'affiche correctement.
+
+Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
+
+## Etape 0.7
+
+Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
+
+ 
+
 ---
 
 ## 🤝 Contribution

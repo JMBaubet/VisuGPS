@@ -1,13 +1,29 @@
 <template>
   <v-app>
-    <v-container fluid class="fill-height pa-0 test-border">
+    <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid>
       <router-view />
     </v-container>
   </v-app>
 </template>
 
 <script setup>
-// No script needed for a basic App.vue
+import { computed } from 'vue';
+import { useEnvironment } from './composables/useEnvironment';
+
+const { executionMode } = useEnvironment();
+
+const showFrame = computed(() => {
+  return executionMode.value !== 'OPE';
+});
+
+const frameColorClass = computed(() => {
+  if (executionMode.value === 'EVAL') {
+    return 'app-frame-eval';
+  } else if (executionMode.value === 'TEST') {
+    return 'app-frame-test';
+  }
+  return '';
+});
 </script>
 
 <style>
@@ -31,5 +47,22 @@ html, body, #app {
 
 .test-border {
   border: 5px solid red;
+}
+
+.app-frame {
+  border-width: 5px; /* Changed to 5px */
+  border-style: solid;
+  /* Removed border-radius */
+  height: 100%; /* Added for full height */
+}
+
+.app-frame-eval {
+  border-color: orange;
+  /* Removed box-shadow */
+}
+
+.app-frame-test {
+  border-color: red;
+  /* Removed box-shadow */
 }
 </style>
