@@ -1,12 +1,57 @@
 use tauri::{App, Manager, State};
 use std::fs;
 use std::path::PathBuf;
+use reqwest; // Added reqwest
+use serde_json::Value; // Added serde_json::Value
+
+
 
 #[derive(serde::Serialize, Clone)]
-pub struct AppState {
-    app_env: String,
-    execution_mode: String,
-    app_env_path: PathBuf,
+pub struct MapboxStatusResult {
+    success: bool,
+    reason: Option<String>, // "unreachable", "invalid_token", etc.
+}
+
+#[tauri::command]
+async fn check_internet_connectivity() -> bool {
+    let client = reqwest::Client::new();
+    let url = "http://connectivitycheck.gstatic.com/generate_204"; // Google's connectivity check endpoint
+    match client.get(url).send().await {
+        Ok(response) => response.status().is_success(),
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+async fn check_mapbox_status(token: String) -> MapboxStatusResult {
+    let client = reqwest::Client::new();
+    let url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token={}", token);
+
+    match client.get(&url).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                let body: serde_json::Value = response.json().await.unwrap_or_else(|_| serde_json::from_str("{}").unwrap());
+                if body["message"].is_string() && body["message"].as_str().unwrap().contains("Not Authorized") {
+                    MapboxStatusResult { success: false, reason: Some("invalid_token".to_string()) }
+                } else if body["features"].is_array() {
+                    MapboxStatusResult { success: true, reason: None }
+                } else {
+                    MapboxStatusResult { success: false, reason: Some("unexpected_response".to_string()) } // Handle unexpected valid responses
+                }
+            } else if response.status().as_u16() == 401 || response.status().as_u16() == 403 {
+                MapboxStatusResult { success: false, reason: Some("invalid_token".to_string()) }
+            } else {
+                MapboxStatusResult { success: false, reason: Some(format!("server_error_{}", response.status().as_u16())) }
+            }
+        },
+        Err(e) => {
+            if e.is_connect() || e.is_timeout() || e.is_request() { // Added e.is_request()
+                MapboxStatusResult { success: false, reason: Some("unreachable".to_string()) }
+            } else {
+                MapboxStatusResult { success: false, reason: Some(format!("network_error_{}", e)) }
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -25,6 +70,16 @@ fn get_execution_mode(app_env: &str) -> String {
     }
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct AppState {
+    app_env: String,
+    execution_mode: String,
+    app_env_path: PathBuf,
+    mapbox_token: String, // Added mapbox_token
+}
+
+// ... other code ...
+
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
@@ -40,12 +95,15 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     }
 
     let mut app_env = "OPE".to_string();
+    let mut mapbox_token = String::new(); // Initialize mapbox_token
+
     if let Ok(iter) = dotenvy::from_path_iter(&env_path) {
         for item in iter {
             if let Ok((key, val)) = item {
-                if key == "APP_ENV" {
-                    app_env = val;
-                    break;
+                match key.as_str() { // Use match for multiple keys
+                    "APP_ENV" => app_env = val,
+                    "MAPBOX_TOKEN" => mapbox_token = val, // Read MAPBOX_TOKEN
+                    _ => {} // Ignore other keys
                 }
             }
         }
@@ -63,6 +121,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         app_env,
         execution_mode,
         app_env_path,
+        mapbox_token, // Populate mapbox_token
     })
 }
 
@@ -83,7 +142,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

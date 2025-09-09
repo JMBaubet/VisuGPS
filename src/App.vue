@@ -3,12 +3,14 @@
     <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
       <router-view />
     </v-container>
+    <SnackbarContainer /> <!-- Added SnackbarContainer -->
   </v-app>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 import { useEnvironment } from './composables/useEnvironment';
+import SnackbarContainer from './components/SnackbarContainer.vue'; // Added SnackbarContainer import
 
 const { executionMode } = useEnvironment();
 
@@ -62,7 +64,7 @@ html, body, #app {
 }
 
 .app-frame-test {
-  border-color: red;
+  border-color: red !important;
   /* Removed box-shadow */
 }
 

@@ -1,5 +1,8 @@
 <template>
   <v-toolbar flat class="pa-0">
+    <!-- Service Status Icon -->
+    <v-icon :color="serviceStatusColor">{{ serviceStatusIcon }}</v-icon>
+
     <!-- Chip for APP_ENV -->
     <v-chip
       v-if="showAppEnvChip"
@@ -31,12 +34,39 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'; // Added onMounted
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '../composables/useEnvironment';
+import { useServiceStatus } from '../composables/useServiceStatus';
 
 const theme = useTheme();
-const { appEnv, executionMode } = useEnvironment();
+const { appEnv, executionMode, mapboxToken } = useEnvironment();
+
+const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
+
+const serviceStatusIcon = computed(() => {
+  switch (serviceStatus.value) {
+    case 'connected': return 'mdi-check-circle';
+    case 'disconnected': return 'mdi-alert-circle';
+    case 'mapbox_unreachable': return 'mdi-earth-off'; // Changed icon
+    case 'invalid_token': return 'mdi-alert';
+    case 'checking':
+    default: return 'mdi-sync';
+  }
+});
+
+const serviceStatusColor = computed(() => {
+  switch (serviceStatus.value) {
+    case 'connected': return 'green';
+    case 'disconnected': return 'red';
+    case 'mapbox_unreachable': return 'red';
+    case 'invalid_token': return 'orange';
+    case 'checking':
+    default: return 'blue';
+  }
+});
+
+let serviceCheckInterval; // Declare interval variable
 
 onMounted(() => {
   const savedTheme = localStorage.getItem('theme');
@@ -47,13 +77,42 @@ onMounted(() => {
   }
 });
 
+// Watch mapboxToken to trigger checks only when it's available
+watch(mapboxToken, (newToken) => {
+  // Clear any existing interval to prevent multiple intervals
+  if (serviceCheckInterval) {
+    clearInterval(serviceCheckInterval);
+  }
+
+  if (newToken && newToken.trim() !== '') {
+    // Initial service check
+    checkAllServices(newToken);
+
+    // Set up periodic service checks (e.g., every 30 seconds)
+    serviceCheckInterval = setInterval(() => {
+      checkAllServices(newToken);
+    }, 30000); // 30 seconds
+  } else {
+    // If token becomes invalid/empty, stop checks and set status
+    serviceStatus.value = 'invalid_token';
+    statusMessage.value = 'Token Mapbox manquant ou invalide.';
+  }
+}, { immediate: true }); // Run immediately to catch initial token value
+
+onUnmounted(() => {
+  // Clear the interval when the component is unmounted
+  if (serviceCheckInterval) {
+    clearInterval(serviceCheckInterval);
+  }
+});
+
 const isDarkTheme = computed({
   get() {
     return theme.global.current.value.dark;
   },
   set(value) {
     theme.global.name.value = value ? 'dark' : 'light';
-    localStorage.setItem('theme', value ? 'dark' : 'light'); // Use localStorage
+    localStorage.setItem('theme', value ? 'dark' : 'light');
   }
 });
 
@@ -67,7 +126,7 @@ const chipColor = computed(() => {
   } else if (executionMode.value === 'TEST') {
     return 'red';
   }
-  return 'primary'; // Default color if not EVAL or TEST
+  return 'primary';
 });
 </script>
 

@@ -5,6 +5,7 @@ export function useEnvironment() {
   const appEnv = ref(null)
   const executionMode = ref(null)
   const appEnvPath = ref(null)
+  const mapboxToken = ref(null) // Added mapboxToken
   const isLoading = ref(true)
   const error = ref(null)
 
@@ -14,6 +15,7 @@ export function useEnvironment() {
       appEnv.value = state.app_env
       executionMode.value = state.execution_mode
       appEnvPath.value = state.app_env_path
+      mapboxToken.value = state.mapbox_token // Populate mapboxToken
     } catch (e) {
       error.value = e
     } finally {
@@ -27,6 +29,7 @@ export function useEnvironment() {
     appEnv,
     executionMode,
     appEnvPath,
+    mapboxToken, // Exposed mapboxToken
     isLoading,
     error,
     fetchEnvironment
