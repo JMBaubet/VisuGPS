@@ -6,15 +6,7 @@
     location="bottom right"
   >
     {{ snackbar.message }}
-    <template v-slot:actions>
-      <v-btn
-        color="white"
-        variant="text"
-        @click="snackbar.show = false"
-      >
-        Fermer
-      </v-btn>
-    </template>
+    
   </v-snackbar>
 </template>
 

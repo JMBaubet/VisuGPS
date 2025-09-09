@@ -1,7 +1,7 @@
 <template>
   <v-toolbar flat class="pa-0">
     <!-- Service Status Icon -->
-    <v-icon :color="serviceStatusColor">{{ serviceStatusIcon }}</v-icon>
+    <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
     <!-- Chip for APP_ENV -->
     <v-chip
@@ -46,10 +46,10 @@ const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
 
 const serviceStatusIcon = computed(() => {
   switch (serviceStatus.value) {
-    case 'connected': return 'mdi-check-circle';
-    case 'disconnected': return 'mdi-alert-circle';
-    case 'mapbox_unreachable': return 'mdi-earth-off'; // Changed icon
-    case 'invalid_token': return 'mdi-alert';
+    case 'connected': return 'mdi-web-check';
+    case 'disconnected': return 'mdi-web-off';
+    case 'mapbox_unreachable': return 'mdi-mapbox'; // Changed icon
+    case 'invalid_token': return 'mdi-key-alert';
     case 'checking':
     default: return 'mdi-sync';
   }
@@ -59,8 +59,8 @@ const serviceStatusColor = computed(() => {
   switch (serviceStatus.value) {
     case 'connected': return 'green';
     case 'disconnected': return 'red';
-    case 'mapbox_unreachable': return 'red';
-    case 'invalid_token': return 'orange';
+    case 'mapbox_unreachable': return 'blue';
+    case 'invalid_token': return 'red';
     case 'checking':
     default: return 'blue';
   }
@@ -91,7 +91,7 @@ watch(mapboxToken, (newToken) => {
     // Set up periodic service checks (e.g., every 30 seconds)
     serviceCheckInterval = setInterval(() => {
       checkAllServices(newToken);
-    }, 30000); // 30 seconds
+    }, 10000); // 10 seconds
   } else {
     // If token becomes invalid/empty, stop checks and set status
     serviceStatus.value = 'invalid_token';

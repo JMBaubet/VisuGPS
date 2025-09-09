@@ -4,11 +4,11 @@ const snackbar = ref({
   show: false,
   message: '',
   color: '',
-  timeout: 3000,
+  timeout: 5000, // Changed to 5000
 });
 
 export function useSnackbar() {
-  const showSnackbar = (message, color = 'info', timeout = 3000) => {
+  const showSnackbar = (message, color = 'info', timeout = 5000) => { // Changed to 5000
     snackbar.value.show = true;
     snackbar.value.message = message;
     snackbar.value.color = color;
