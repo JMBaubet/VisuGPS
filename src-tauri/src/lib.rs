@@ -30,7 +30,7 @@ async fn check_mapbox_status(token: String) -> MapboxStatusResult {
     match client.get(&url).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                let body: serde_json::Value = response.json().await.unwrap_or_else(|_| serde_json::from_str("{}").unwrap());
+                let body: Value = response.json().await.unwrap_or_else(|_| serde_json::from_str("{}").unwrap());
                 if body["message"].is_string() && body["message"].as_str().unwrap().contains("Not Authorized") {
                     MapboxStatusResult { success: false, reason: Some("invalid_token".to_string()) }
                 } else if body["features"].is_array() {

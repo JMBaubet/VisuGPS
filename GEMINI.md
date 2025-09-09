@@ -207,21 +207,21 @@ Dans cette AppBar on doit retrouver :
 
 - Un switch pour passer d'un mode sombre à un mode claire
 
-### Etape 1.1 Réalisée -[1ab7eb9a]
+### Etape 1.1 - Réalisée -[1ab7eb9a]
 
 Dans cette étape nous allons créer l'AppMainBar pour y inclure les modes sombre/clair, et le chip pour nous afficher la variable APP_ENV si nous sommes en mode EVAL ou TEST
 
-### Etape 1.2
+### Etape 1.2 - Réalisée - []
 
 Pour cette étape nous allons nous attaché à la connexion avec mapbox.
 
-Le token sera enregistrer dans le fichier .env situé pour rappel dans : `C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS`.
+Le token sera enregistré dans le fichier .env situé pour rappel dans : `C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS`.
 
 On va ajouter un icone à la gauche de la toolBar pour indiquer l'état des services. 
 
 Nous allons également utiliser ShowSnackBar pour informer l'utlisateur des chagement d'état.
 
-Nous allons verifier : 
+Nous allons verifier en permance: 
 
 - L'état de la connexion internet.
 

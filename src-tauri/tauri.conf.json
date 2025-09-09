@@ -13,8 +13,7 @@
     "windows": [
       {
         "title": "visugps",
-        "width": 800,
-        "height": 600,
+        "minWidth": 1024,
         "maximized": true,
         "resizable": true,
         "fullscreen": false

@@ -1,35 +1,44 @@
 <template>
   <v-toolbar flat class="pa-0">
-    <!-- Service Status Icon -->
-    <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
+    <v-row align="center" no-gutters>
+      <v-col cols="12" md="4">
+        <!-- Service Status Icon -->
+        <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
-    <!-- Chip for APP_ENV -->
-    <v-chip
-      v-if="showAppEnvChip"
-      class="ma-2 blinking-chip"
-      :color="chipColor"
-      label
-    >
-      {{ appEnv }}
-    </v-chip>
+        <!-- Chip for APP_ENV -->
+        <v-chip
+          v-if="showAppEnvChip"
+          class="ma-2 blinking-chip"
+          :color="chipColor"
+          label
+        >
+          {{ appEnv }}
+        </v-chip>
+      </v-col>
 
-    <v-spacer></v-spacer> <!-- Spacer to push switch right -->
+      <v-col clos="12" md="4" class="d-flex justify-center"> <!-- This column will take remaining space and center content -->
+        <!-- Centered Title -->
+        <div class="text-center">Accueil</div>
+      </v-col>
 
-    <!-- Dark/Light Mode Switch -->
-    <v-switch
-      v-model="isDarkTheme"
-      hide-details
-      inset
-      color="primary"
-      class="pr-4"
-    >
-      <template v-slot:prepend>
-        <v-icon :color="isDarkTheme ? 'primary' : 'grey'">mdi-weather-night</v-icon>
-      </template>
-      <template v-slot:append>
-        <v-icon :color="isDarkTheme ? 'grey' : '#FFA000'">mdi-weather-sunny</v-icon> <!-- Darker yellow/amber -->
-      </template>
-    </v-switch>
+      <v-col cols="12" md="4" class="d-flex justify-end align-center">
+        <!-- Dark/Light Mode Switch -->
+        <v-switch
+          v-model="isDarkTheme"
+          hide-details
+          inset
+          color="primary"
+          class="pr-4"
+        >
+          <template v-slot:prepend>
+            <v-icon :color="isDarkTheme ? 'primary' : 'grey'">mdi-weather-night</v-icon>
+          </template>
+          <template v-slot:append>
+            <v-icon :color="isDarkTheme ? 'grey' : '#FFA000'">mdi-weather-sunny</v-icon> <!-- Darker yellow/amber -->
+          </template>
+        </v-switch>
+      </v-col>
+    </v-row>
   </v-toolbar>
 </template>
 
