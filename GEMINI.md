@@ -135,7 +135,7 @@ Création des vues :
 
 - `src/views/settingsView.vue` pour le paramétrage de l'application
 
-## Etape 0.5 - Réalisée - [GIT_COMMIT_ID]
+## Etape 0.5 - Réalisée - [74249be4]
 
 Mise en place de l'environnement d'éxécution
 
@@ -176,6 +176,7 @@ Tous les fichiers de configuration, de test ou de données spécifiques à un en
 ### État de l'Application Partagé
 
 Les informations sur l'environnement sont centralisées dans un état (`AppState`) géré par Tauri et accessible depuis le frontend. Cet état contient :
+
 - `app_env`: La valeur brute de la variable `APP_ENV`.
 - `execution_mode`: Le mode déduit (`OPE`, `EVAL`, `TEST`).
 - `app_env_path`: Le chemin complet vers le répertoire de l'environnement de travail.
