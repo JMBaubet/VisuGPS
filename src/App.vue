@@ -65,4 +65,18 @@ html, body, #app {
   border-color: red;
   /* Removed box-shadow */
 }
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+body::-webkit-scrollbar,
+html::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+body,
+html {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
 </style>

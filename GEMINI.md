@@ -189,11 +189,9 @@ On ajoute juste un composant `v-btn` à la mainView, pour vérifier qu'il s'affi
 
 Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
 
-## Etape 0.7
+## Etape 0.7 -Réalisée - []
 
 Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
-
- 
 
 ---
 
