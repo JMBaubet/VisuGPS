@@ -1,8 +1,10 @@
-use tauri::{App, Manager, State, AppHandle, Wry};
+use tauri::{App, Manager, State};
 use std::fs;
 use std::path::PathBuf;
 use reqwest; // Added reqwest
 use serde_json::Value; // Added serde_json::Value
+
+const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 
 
 
@@ -130,8 +132,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
     if !settings_path.exists() {
-        let default_settings_path = app.path().resource_dir().unwrap().join("settingsDefault.json");
-        fs::copy(default_settings_path, settings_path)?;
+        fs::write(settings_path, EMBEDDED_DEFAULT_SETTINGS)?;
     }
 
     Ok(AppState {

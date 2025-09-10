@@ -95,10 +95,11 @@
               {
                 "identifiant": "networkPolling",
                 "libelle": "Intervalle de vérification du réseau",
-                "description": "interval de temps entre chaque vérification de l'état du réseau (en ms)",
+                "description": "Interval de temps entre chaque vérification de l'état du réseau (en ms)",
                 "type": "integer",
                 "defaut": 30000,
-                "surcharge": 10000
+                "surcharge": 10000,
+                "critique": true
               }
             ]
           }
