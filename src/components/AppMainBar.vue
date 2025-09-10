@@ -22,6 +22,11 @@
       </v-col>
 
       <v-col cols="12" md="4" class="d-flex justify-end align-center">
+        <!-- Settings Button -->
+        <v-btn icon to="/settings">
+          <v-icon>mdi-cog</v-icon>
+        </v-btn>
+
         <!-- Dark/Light Mode Switch -->
         <v-switch
           v-model="isDarkTheme"

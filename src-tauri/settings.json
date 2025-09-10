@@ -1,0 +1,101 @@
+{
+  "référence": {
+    "version": "1.0.0",
+    "date_creation": "2025-09-10T10:00:00Z",
+    "date_revision": "2025-09-10T10:00:00Z",
+    "description": "Fichier de dev"
+  },
+  "data": {
+    "groupes": [
+      {
+        "nom": "Importation",
+        "groupes": [
+          {
+            "nom": "mapbox",
+            "parametres": [
+              {
+                "nom": "StyleVignette",
+                "description": "Style de carte poour la création des vignettes",
+                "type": "string",
+                "defaut": "mapbox://styles/mapbox/streets-v12"
+              }
+            ]
+          }
+        ],
+        "parametres": [
+          {
+            "nom": "AutoDelete",
+            "description": "Supprime automatique le fichier *.gpx quand il a été corerectement importé",
+            "type": "boolean",
+            "defaut": false
+          },
+          {
+            "nom": "DossierDeTelechargement",
+            "description": "Dossier dans lequel on va lire les fichiers gpx à traiter.",
+            "type": "string",
+            "defaut": ""
+          }
+        ]
+      },
+      {
+        "nom": "Edition",
+        "groupes": [
+          {
+            "nom": "Caméra",
+            "parametres": [
+              {
+                "nom": "zoomInitial",
+                "description": "Niveau de zoom de la caméra par défaut.",
+                "type": "float",
+                "default": 16.0
+              }
+            ]
+          },
+          {
+            "nom": "mapbox",
+            "parametres": [
+              {
+                "nom": "StyleEdition",
+                "description": "Style de carte lors de l'édition",
+                "type": "string",
+                "defaut": "mapbox://styles/mapbox/satellite-v9"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "nom": "Visualisation",
+        "groupes": [
+          {
+            "nom": "mapbox",
+            "parametres": [
+              {
+                "nom": "StyleVisualisation",
+                "description": "Style de carte lors de la visualisation",
+                "type": "string",
+                "defaut": "mapbox://styles/mapbox/satellite-v9"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "nom": "système",
+        "groupes": [
+          {
+            "nom": "timers",
+            "parametres": [
+              {
+                "nom": "Polling_réseau",
+                "description": "interval de temps entre chaque vérification de l'état du réseau (en ms)",
+                "type": "integer",
+                "defaut": 5000
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

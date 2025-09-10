@@ -1,4 +1,4 @@
-use tauri::{App, Manager, State};
+use tauri::{App, Manager, State, AppHandle, Wry};
 use std::fs;
 use std::path::PathBuf;
 use reqwest; // Added reqwest
@@ -57,6 +57,16 @@ async fn check_mapbox_status(token: String) -> MapboxStatusResult {
 #[tauri::command]
 fn get_app_state(state: State<AppState>) -> AppState {
     state.inner().clone()
+}
+
+#[tauri::command]
+fn read_settings(app: AppHandle<Wry>) -> Result<Value, String> {
+    let resource_path = app.path().resource_dir().unwrap().join("settings.json");
+    let file_content = fs::read_to_string(resource_path)
+        .map_err(|e| e.to_string())?;
+    let json_content: Value = serde_json::from_str(&file_content)
+        .map_err(|e| e.to_string())?;
+    Ok(json_content)
 }
 
 fn get_execution_mode(app_env: &str) -> String {
@@ -142,7 +152,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

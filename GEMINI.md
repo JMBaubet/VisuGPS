@@ -211,7 +211,7 @@ Dans cette AppBar on doit retrouver :
 
 Dans cette étape nous allons créer l'AppMainBar pour y inclure les modes sombre/clair, et le chip pour nous afficher la variable APP_ENV si nous sommes en mode EVAL ou TEST
 
-### Etape 1.2 - Réalisée - []
+### Etape 1.2 - Réalisée - [d7f6f3b6]
 
 Pour cette étape nous allons nous attaché à la connexion avec mapbox.
 
@@ -229,7 +229,65 @@ Nous allons verifier en permance:
 
 - La validité du token MapBox 
 
+## Etape 3
 
+Dans cette étape nous allons travailler principalement sur le vue SettingsView.vue.
+
+A partir de cette vue nous allons pouvoir paramétrer l'application. Tous les paramètres de l'application (sauf les tokens et le mode d'execution qui sont dans le fichier .env) seront enregistrés dans un fichier json.
+
+Ce fichier json settings.json, aura une structure arborescente.
+
+### Description du fichier json settings.json
+
+Le fichier settings.json doit permettre de gérer les paramètres de l'application. 
+
+A sa racine, nous avons deux noeuds :
+
+- un noeud `référence` qui contient des informations sur le fichier lui même qui contient :
+  - une version
+  - une date de création,
+  - une date de révision
+  - une description
+- un noeud `data` qui contient des groupes (Branches)
+  - Chaque groupe est défini par un nom
+
+Dans un groupe on peut retrouver :
+
+- de 0 à n Groupes
+
+- de 0 à n parametres 
+
+Un paramètre est défini par :
+
+- un nom,  obligatoire
+
+- une descrition, obligatoire
+
+- un type, obligatoire
+
+- une valeur_par_defaut, obligatoire
+
+- une surcharge, optionnel
+
+- min, optionnel
+
+- max, optionel
+
+- critique, optionnel
+
+- documentation, optionnel.  
+
+### Etape 3.1 -  - []
+
+L'étape 3.1 consiste à commencer la composition de la vue `SettingsView.vue`, et tout particulièrement  le composant l'arbre des paramètres `SettingsTree.vue`.
+
+La vue sera composée : 
+
+- sur sa partie haute d"un composant `SettingsToolbar.vue`. Le contenu de ce composant sera décrit dans une étape ultérieure.
+
+en dessous 1 colonnne qui contient :
+
+- un `composant` `SettingsTree.vue` qui affichera sous forme d'arbre les groupes et les paramètres du noeud `data` . Les branches de l'arbres seront fermées à la création. Une icône sous forme de dossier fermer/ouvert sera présent devant chaque groupe, (Prepend Icons). Les actions icons seront masqués.
 
 ---
 
