@@ -2,20 +2,20 @@
   <div v-if="node">
     <!-- Si le noeud est un groupe -->
     <v-list-group v-if="node.groupes || node.parametres">
-      <template v-slot:activator="{ props }">
-        <v-list-item v-bind="props" prepend-icon="mdi-folder">
-          <v-list-item-title>{{ node.nom }}</v-list-item-title>
+      <template v-slot:activator="{ props, isOpen }">
+        <v-list-item v-bind="props" :prepend-icon="isOpen ? 'mdi-folder-open' : 'mdi-folder'" append-icon="">
+          <v-list-item-title>{{ node.libelle }}</v-list-item-title>
         </v-list-item>
       </template>
 
-      <!-- Appel récursif pour les sous-groupes -->
-      <SettingsNode v-for="(childGroup, index) in node.groupes" :key="`group-${index}`" :node="childGroup" />
-
       <!-- Affichage des paramètres -->
-      <v-list-item v-for="(param, index) in node.parametres" :key="`param-${index}`" prepend-icon="mdi-file-cog-outline">
-        <v-list-item-title>{{ param.nom }}</v-list-item-title>
+      <v-list-item v-for="param in node.parametres" :key="param.identifiant" prepend-icon="mdi-file-cog-outline">
+        <v-list-item-title>{{ param.libelle }}</v-list-item-title>
         <v-list-item-subtitle>{{ param.description }}</v-list-item-subtitle>
       </v-list-item>
+
+      <!-- Appel récursif pour les sous-groupes -->
+      <SettingsNode v-for="childGroup in node.groupes" :key="childGroup.identifiant" :node="childGroup" />
 
     </v-list-group>
 

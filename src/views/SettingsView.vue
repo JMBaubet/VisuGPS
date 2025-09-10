@@ -2,7 +2,7 @@
   <v-container fluid>
     <SettingsToolbar />
     <v-row>
-      <v-col cols="12">
+      <v-col cols="12" md="8" lg="6">
         <SettingsTree />
       </v-col>
     </v-row>

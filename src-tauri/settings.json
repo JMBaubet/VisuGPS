@@ -8,13 +8,14 @@
   "data": {
     "groupes": [
       {
-        "nom": "Importation",
+        "libelle": "Importation",
         "groupes": [
           {
-            "nom": "mapbox",
+            "libelle": "Mapbox",
             "parametres": [
               {
-                "nom": "StyleVignette",
+                "identifiant": "styleVignette",
+                "libelle": "Style de la vignette",
                 "description": "Style de carte poour la création des vignettes",
                 "type": "string",
                 "defaut": "mapbox://styles/mapbox/streets-v12"
@@ -24,13 +25,15 @@
         ],
         "parametres": [
           {
-            "nom": "AutoDelete",
+            "identifiant": "autoDelete",
+            "libelle": "Suppression automatique",
             "description": "Supprime automatique le fichier *.gpx quand il a été corerectement importé",
             "type": "boolean",
             "defaut": false
           },
           {
-            "nom": "DossierDeTelechargement",
+            "identifiant": "downloadDirectory",
+            "libelle": "Dossier de téléchargement",
             "description": "Dossier dans lequel on va lire les fichiers gpx à traiter.",
             "type": "string",
             "defaut": ""
@@ -38,13 +41,14 @@
         ]
       },
       {
-        "nom": "Edition",
+        "libelle": "Edition",
         "groupes": [
           {
-            "nom": "Caméra",
+            "libelle": "Caméra",
             "parametres": [
               {
-                "nom": "zoomInitial",
+                "identifiant": "initZoom",
+                "libelle": "Zoom initial",
                 "description": "Niveau de zoom de la caméra par défaut.",
                 "type": "float",
                 "default": 16.0
@@ -52,10 +56,11 @@
             ]
           },
           {
-            "nom": "mapbox",
+            "libelle": "mapbox",
             "parametres": [
               {
-                "nom": "StyleEdition",
+                "identifiant": "styleEdition",
+                "libelle": "Style de la carte.",
                 "description": "Style de carte lors de l'édition",
                 "type": "string",
                 "defaut": "mapbox://styles/mapbox/satellite-v9"
@@ -65,13 +70,14 @@
         ]
       },
       {
-        "nom": "Visualisation",
+        "libelle": "Visualisation",
         "groupes": [
           {
-            "nom": "mapbox",
+            "libelle": "Mapbox",
             "parametres": [
               {
-                "nom": "StyleVisualisation",
+                "identification": "styleVisualisation",
+                "libelle": "Style de la carte.",
                 "description": "Style de carte lors de la visualisation",
                 "type": "string",
                 "defaut": "mapbox://styles/mapbox/satellite-v9"
@@ -81,13 +87,14 @@
         ]
       },
       {
-        "nom": "système",
+        "libelle": "Système",
         "groupes": [
           {
-            "nom": "timers",
+            "libelle": "Timers",
             "parametres": [
               {
-                "nom": "Polling_réseau",
+                "identifiant": "networkPolling",
+                "libelle": "Intervalle de vérification du réseau",
                 "description": "interval de temps entre chaque vérification de l'état du réseau (en ms)",
                 "type": "integer",
                 "defaut": 5000

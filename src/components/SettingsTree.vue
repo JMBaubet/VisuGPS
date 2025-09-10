@@ -1,10 +1,10 @@
 <template>
-  <v-card>
+  <v-card color="transparent" flat>
     <v-card-title>Arbre des Paramètres</v-card-title>
-    <v-card-text>
-      <v-list dense>
+    <v-card-text class="scrolling-card-text">
+      <v-list dense bg-color="transparent">
         <template v-if="settings && settings.data && settings.data.groupes">
-          <SettingsNode v-for="(group, index) in settings.data.groupes" :key="index" :node="group" />
+          <SettingsNode v-for="group in settings.data.groupes" :key="group.identifiant" :node="group" />
         </template>
         <v-list-item v-else>
           <v-list-item-title>Chargement des paramètres...</v-list-item-title>
@@ -31,5 +31,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Styles spécifiques au composant */
+.scrolling-card-text {
+  height: 75vh; /* Adjust this value as needed */
+  overflow-y: auto;
+}
 </style>
