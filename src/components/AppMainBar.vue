@@ -57,18 +57,11 @@ import { useSettings } from '../composables/useSettings';
 const theme = useTheme();
 const { appEnv, executionMode, mapboxToken } = useEnvironment();
 const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
-const { settings } = useSettings(); // Use settings composable
+const { getSettingValue } = useSettings(); // Use settings composable
 
 const networkPollingInterval = computed(() => {
-  if (!settings.value) return 10000; // Default while loading
-  try {
-    const systemGroup = settings.value.data.groupes.find(g => g.libelle === 'Système');
-    const timersGroup = systemGroup.groupes.find(g => g.libelle === 'Timers');
-    const pollingParam = timersGroup.parametres.find(p => p.identifiant === 'networkPolling');
-    return pollingParam.defaut || 10000;
-  } catch (e) {
-    return 10000; // Default on any error during traversal
-  }
+  // Get the setting value using the centralized getter
+  return getSettingValue('Système/Timers/networkPolling', 10000);
 });
 
 const serviceStatusIcon = computed(() => {

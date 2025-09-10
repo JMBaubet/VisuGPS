@@ -9,8 +9,11 @@
       </template>
 
       <!-- Affichage des paramètres -->
-      <v-list-item v-for="param in node.parametres" :key="param.identifiant" prepend-icon="mdi-file-cog-outline">
-        <v-list-item-title>{{ param.libelle }}</v-list-item-title>
+      <v-list-item v-for="param in node.parametres" :key="param.identifiant">
+        <template v-slot:prepend>
+          <v-icon :color="param.surcharge != null ? 'info' : undefined">mdi-file-cog-outline</v-icon>
+        </template>
+        <v-list-item-title :class="{ 'text-warning': param.critique }">{{ param.libelle }}</v-list-item-title>
         <v-list-item-subtitle>{{ param.description }}</v-list-item-subtitle>
       </v-list-item>
 

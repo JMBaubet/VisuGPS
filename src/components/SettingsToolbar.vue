@@ -1,6 +1,8 @@
 <template>
   <v-toolbar density="compact">
-    <!-- Le contenu de la barre d'outils sera ajouté dans les étapes ultérieures -->
+    <v-btn icon to="/">
+      <v-icon>mdi-home</v-icon>
+    </v-btn>
     <v-toolbar-title>Paramètres</v-toolbar-title>
   </v-toolbar>
 </template>
