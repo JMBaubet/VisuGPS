@@ -97,7 +97,7 @@
                 "libelle": "Intervalle de vérification du réseau",
                 "description": "interval de temps entre chaque vérification de l'état du réseau (en ms)",
                 "type": "integer",
-                "defaut": 5000
+                "defaut": 30000
               }
             ]
           }

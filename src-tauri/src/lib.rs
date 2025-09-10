@@ -60,9 +60,9 @@ fn get_app_state(state: State<AppState>) -> AppState {
 }
 
 #[tauri::command]
-fn read_settings(app: AppHandle<Wry>) -> Result<Value, String> {
-    let resource_path = app.path().resource_dir().unwrap().join("settingsDefault.json");
-    let file_content = fs::read_to_string(resource_path)
+fn read_settings(state: State<AppState>) -> Result<Value, String> {
+    let settings_path = state.app_env_path.join("settings.json");
+    let file_content = fs::read_to_string(settings_path)
         .map_err(|e| e.to_string())?;
     let json_content: Value = serde_json::from_str(&file_content)
         .map_err(|e| e.to_string())?;
@@ -125,6 +125,13 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let app_env_path = visugps_dir.join(&app_env);
     if !app_env_path.exists() {
         fs::create_dir_all(&app_env_path)?;
+    }
+
+    // Manage settings.json file
+    let settings_path = app_env_path.join("settings.json");
+    if !settings_path.exists() {
+        let default_settings_path = app.path().resource_dir().unwrap().join("settingsDefault.json");
+        fs::copy(default_settings_path, settings_path)?;
     }
 
     Ok(AppState {

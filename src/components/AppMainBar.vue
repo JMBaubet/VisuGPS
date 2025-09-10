@@ -52,11 +52,24 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
+import { useSettings } from '../composables/useSettings';
 
 const theme = useTheme();
 const { appEnv, executionMode, mapboxToken } = useEnvironment();
-
 const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
+const { settings } = useSettings(); // Use settings composable
+
+const networkPollingInterval = computed(() => {
+  if (!settings.value) return 10000; // Default while loading
+  try {
+    const systemGroup = settings.value.data.groupes.find(g => g.libelle === 'Système');
+    const timersGroup = systemGroup.groupes.find(g => g.libelle === 'Timers');
+    const pollingParam = timersGroup.parametres.find(p => p.identifiant === 'networkPolling');
+    return pollingParam.defaut || 10000;
+  } catch (e) {
+    return 10000; // Default on any error during traversal
+  }
+});
 
 const serviceStatusIcon = computed(() => {
   switch (serviceStatus.value) {
@@ -91,27 +104,27 @@ onMounted(() => {
   }
 });
 
-// Watch mapboxToken to trigger checks only when it's available
-watch(mapboxToken, (newToken) => {
+// Watch mapboxToken AND the interval value to trigger checks
+watch([mapboxToken, networkPollingInterval], ([newToken, interval]) => {
   // Clear any existing interval to prevent multiple intervals
   if (serviceCheckInterval) {
     clearInterval(serviceCheckInterval);
   }
 
-  if (newToken && newToken.trim() !== '') {
+  if (newToken && newToken.trim() !== '' && interval > 0) {
     // Initial service check
     checkAllServices(newToken);
 
-    // Set up periodic service checks (e.g., every 30 seconds)
+    // Set up periodic service checks
     serviceCheckInterval = setInterval(() => {
       checkAllServices(newToken);
-    }, 10000); // 10 seconds
-  } else {
+    }, interval); // Use the value from settings
+  } else if (!newToken || newToken.trim() === '') {
     // If token becomes invalid/empty, stop checks and set status
     serviceStatus.value = 'invalid_token';
     statusMessage.value = 'Token Mapbox manquant ou invalide.';
   }
-}, { immediate: true }); // Run immediately to catch initial token value
+}, { immediate: true }); // Run immediately to catch initial values
 
 onUnmounted(() => {
   // Clear the interval when the component is unmounted
