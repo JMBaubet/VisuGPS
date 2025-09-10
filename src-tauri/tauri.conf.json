@@ -34,7 +34,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "settings.json"
+      "settingsDefault.json"
     ]
   }
 }

@@ -61,7 +61,7 @@ fn get_app_state(state: State<AppState>) -> AppState {
 
 #[tauri::command]
 fn read_settings(app: AppHandle<Wry>) -> Result<Value, String> {
-    let resource_path = app.path().resource_dir().unwrap().join("settings.json");
+    let resource_path = app.path().resource_dir().unwrap().join("settingsDefault.json");
     let file_content = fs::read_to_string(resource_path)
         .map_err(|e| e.to_string())?;
     let json_content: Value = serde_json::from_str(&file_content)
