@@ -23,6 +23,8 @@
   "homepage": "https://github.com/JMBaubet/VisuGPS#readme",
   "dependencies": {
     "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-process": "^2.3.0",
     "@turf/turf": "^7.2.0",
     "mapbox-gl": "^3.14.0",
     "vue": "^3.5.21",

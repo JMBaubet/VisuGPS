@@ -1,8 +1,10 @@
-use tauri::{App, Manager, State};
+use tauri::{App, Manager, State, AppHandle, Wry};
 use std::fs;
 use std::path::PathBuf;
 use reqwest; // Added reqwest
 use serde_json::Value; // Added serde_json::Value
+use tauri_plugin_dialog; // Added tauri_plugin_dialog
+use tauri_plugin_process; // Added tauri_plugin_process
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
@@ -72,6 +74,102 @@ fn read_settings(state: State<AppState>) -> Result<Value, String> {
     Ok(json_content)
 }
 
+#[tauri::command]
+fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, String> {
+    let visugps_dir = state.app_env_path.parent().ok_or("Could not get parent directory".to_string())?;
+    let mut modes = Vec::new();
+
+    for entry in fs::read_dir(visugps_dir).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                let mode_type = get_execution_mode(name);
+                modes.push(ExecutionMode { name: name.to_string(), mode_type });
+            }
+        }
+    }
+    Ok(modes)
+}
+
+#[tauri::command]
+fn create_execution_mode(app: AppHandle, mode_name: String, description: String) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+
+    let new_env_path = visugps_dir.join(format!(".env.{}", mode_name));
+    let new_app_env_path = visugps_dir.join(&mode_name);
+
+    if new_env_path.exists() || new_app_env_path.exists() {
+        return Err("Execution mode already exists.".to_string());
+    }
+
+    // Create the .env file for the new mode
+    let env_content = format!("APP_ENV={}\n", mode_name);
+    fs::write(&new_env_path, env_content).map_err(|e| e.to_string())?;
+
+    // Create the environment-specific directory
+    fs::create_dir_all(&new_app_env_path).map_err(|e| e.to_string())?;
+
+    // Copy settingsDefault.json into the new environment directory
+    let settings_path = new_app_env_path.join("settings.json");
+    if !settings_path.exists() {
+        fs::write(settings_path, EMBEDDED_DEFAULT_SETTINGS).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+
+    let main_env_path = visugps_dir.join(".env");
+    let selected_env_path = if mode_name == "OPE" {
+        visugps_dir.join(".env") // OPE uses the main .env file directly
+    } else {
+        visugps_dir.join(format!(".env.{}", mode_name))
+    };
+
+    if !selected_env_path.exists() {
+        return Err(format!("Selected mode .env file does not exist: {}", selected_env_path.display()));
+    }
+
+    let env_content = fs::read_to_string(&selected_env_path).map_err(|e| e.to_string())?;
+    fs::write(&main_env_path, env_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_execution_mode(app: AppHandle, state: State<AppState>, mode_name: String) -> Result<(), String> {
+    if mode_name == "OPE" {
+        return Err("Cannot delete OPE mode.".to_string());
+    }
+
+    if mode_name == state.app_env {
+        return Err("Cannot delete the currently active mode.".to_string());
+    }
+
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+
+    let env_file_path = visugps_dir.join(format!(".env.{}", mode_name));
+    let mode_dir_path = visugps_dir.join(&mode_name);
+
+    if env_file_path.exists() {
+        fs::remove_file(&env_file_path).map_err(|e| e.to_string())?;
+    }
+
+    if mode_dir_path.exists() {
+        fs::remove_dir_all(&mode_dir_path).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn get_execution_mode(app_env: &str) -> String {
     let lowercased_app_env = app_env.to_lowercase();
     if lowercased_app_env.starts_with("eval_") {
@@ -89,6 +187,12 @@ pub struct AppState {
     execution_mode: String,
     app_env_path: PathBuf,
     mapbox_token: String, // Added mapbox_token
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct ExecutionMode {
+    name: String,
+    mode_type: String, // OPE, EVAL, TEST
 }
 
 // ... other code ...
@@ -155,13 +259,15 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            app.handle().plugin(tauri_plugin_dialog::init())?;
+            app.handle().plugin(tauri_plugin_process::init())?;
 
             let state = setup_environment(app)?;
             app.manage(state);
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

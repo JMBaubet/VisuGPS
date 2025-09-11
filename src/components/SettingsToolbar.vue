@@ -4,11 +4,21 @@
       <v-icon>mdi-home</v-icon>
     </v-btn>
     <v-toolbar-title>Paramètres</v-toolbar-title>
+    <v-spacer></v-spacer>
+    <v-btn icon @click="openExeModeDialog">
+      <v-icon>mdi-cog-outline</v-icon>
+    </v-btn>
   </v-toolbar>
 </template>
 
 <script setup>
-// Pas de logique pour le moment
+import { ref } from 'vue';
+
+const emit = defineEmits(['open-exe-mode']);
+
+const openExeModeDialog = () => {
+  emit('open-exe-mode');
+};
 </script>
 
 <style scoped>

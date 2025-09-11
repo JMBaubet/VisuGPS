@@ -286,13 +286,47 @@ en dessous 1 colonnne qui contient :
 
 Actuellement nous avons pour les environnements d'execution Prod, Sandbox et Test.  Il faut les remplacer par OPE, EVAL et TEST. 
 
-### ETape 3.3 -  - []
+### Etape 3.3 - Réalisée - [1098e7e8]
 
-  Au lancement de l'application, il faut vérifier si le fichier .env existe sous C:\Users\$USER\AppData\Roaming\com.visugps.app\VisuGPS. 
+ Au lancement de l'application, il faut vérifier si le fichier .env existe sous C:\Users\$USER\AppData\Roaming\com.visugps.app\VisuGPS. 
 
 Si il n'existe pas il faut le créer en recopiant le fichier envDefault situé dans src-tauri.
 
 Ensuite on lit la variable, pour connaitre le mode d'execution. 
+
+### Etape 3.4 -  - []
+
+Par défaut, au premier démarage, on est par défaut en mode OPE. 
+
+Dans la toolbar de la vue Settings, il faut ajouter sur la droite, une icône pour accéder au composant ExeMode. 
+
+Ce composant doit permettre : 
+
+- de créer un nouveau mode d'exécution EVAL ou TEST. 
+
+- de supprimer les modes d'éxécution EVAL et TEST.
+
+- de selectionner un mode d'éxécution, déjà créé.
+
+Le mode TEST ne peut être créé/supprimé uniquement si nous sommes en dev (voir : process.env.TAURI_ENV).
+
+Le mode OPE n'est pas supprimable.
+
+Pour créer un nouveau mode il faut saisir : 
+
+- son nom : à travers un v-text
+
+- un description à travers un v-textarea
+
+Une liste des modes d'éxéction sera créée afin que l'on puisse changer de mode. (Ne pas oublier d'inclure le mode OPE). 
+
+Une liste des modes d'execution dejà créés sera réalisée afin que l'on puisse séléctionner un ou plusieurs mode pour les supprimer.(On ne pourra pas supprimer le mode d'éxécution actif.)
+
+ Ce composant sera dans une fenêtre nodale.
+
+A la suite de la création d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode créé.
+
+A la suite de la séléction d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode séléectionné.
 
 ---
 
