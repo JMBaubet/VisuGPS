@@ -4,7 +4,7 @@
     <v-card-text class="scrolling-card-text">
       <v-list dense bg-color="transparent">
         <template v-if="settings && settings.data && settings.data.groupes">
-          <SettingsNode v-for="group in settings.data.groupes" :key="group.identifiant" :node="group" />
+          <SettingsNode v-for="group in settings.data.groupes" :key="group.identifiant" :node="group" currentPath="" />
         </template>
         <v-list-item v-else>
           <v-list-item-title>Chargement des paramètres...</v-list-item-title>

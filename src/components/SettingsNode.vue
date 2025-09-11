@@ -5,6 +5,7 @@
       <template v-slot:activator="{ props, isOpen }">
         <v-list-item v-bind="props" :prepend-icon="isOpen ? 'mdi-folder-open' : 'mdi-folder'" append-icon="">
           <v-list-item-title>{{ node.libelle }}</v-list-item-title>
+          <v-tooltip activator="parent" location="top">/{{ fullPath }}</v-tooltip>
         </v-list-item>
       </template>
 
@@ -18,7 +19,7 @@
       </v-list-item>
 
       <!-- Appel récursif pour les sous-groupes -->
-      <SettingsNode v-for="childGroup in node.groupes" :key="childGroup.identifiant" :node="childGroup" />
+      <SettingsNode v-for="childGroup in node.groupes" :key="childGroup.identifiant" :node="childGroup" :currentPath="fullPath" />
 
     </v-list-group>
 
@@ -26,13 +27,24 @@
 </template>
 
 <script setup>
-import { defineProps } from 'vue';
+import { defineProps, computed } from 'vue';
 
 const props = defineProps({
   node: {
     type: Object,
     required: true
+  },
+  currentPath: {
+    type: String,
+    default: ''
   }
+});
+
+const fullPath = computed(() => {
+  if (props.currentPath) {
+    return `${props.currentPath}/${props.node.libelle}`;
+  }
+  return props.node.libelle;
 });
 
 </script>
