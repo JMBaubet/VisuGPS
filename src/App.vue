@@ -40,10 +40,10 @@ html, body, #app {
   padding: 0;
 }
 
-.prod-border {
+.ope-border {
   border: 0px solid rgba(255, 255, 255, 0);
 }
-.sandbox-border {
+.eval-border {
   border: 5px solid orange;
 }
 

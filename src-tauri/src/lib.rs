@@ -73,7 +73,7 @@ fn read_settings(state: State<AppState>) -> Result<Value, String> {
 
 fn get_execution_mode(app_env: &str) -> String {
     let lowercased_app_env = app_env.to_lowercase();
-    if lowercased_app_env.starts_with("sandbox_") {
+    if lowercased_app_env.starts_with("eval_") {
         "EVAL".to_string()
     } else if lowercased_app_env.starts_with("test_") {
         "TEST".to_string()

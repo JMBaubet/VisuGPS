@@ -131,13 +131,13 @@ Création des vues :
 
 - `src/views/EditView.vue` pour l'edition et la vérification du flyover
 
-- `src/views/VisualizeView.vue`pour le rendu 3D du flyover.
+- `src/views/VisualizeView.vue`pour le rendu 3D du flyover. 
 
 - `src/views/settingsView.vue` pour le paramétrage de l'application
 
 ### Etape 0.5 - Réalisée - [74249be4]
 
-Mise en place de l'environnement d'éxécution
+Mise en place de l'environnement d\'éxécution
 
 Dans le processus de développement de l'application nous avons deux **Environnements de travail** :
 
@@ -145,53 +145,53 @@ Dans le processus de développement de l'application nous avons deux **Environne
 
 - L'environnemnt de **Prod**  lorsqu'on lance la commande `npm run tauri build` pour générer la livraison de l'application.
 
-Afin de pouvoir faire des tests fonctionnels ou de la validation de configuration sans impacter les fichiers de configuration utilisés en production, nous allons avoir besoin d'un **Environnement d'éxécution**. Il faut bien faire la distinction entre ces deux types d'environnement.
+Afin de pouvoir faire des tests fonctionnels ou de la validation de configuration sans impacter les fichiers de configuration utilisés en production, nous allons avoir besoin d'un **Environnement d\'éxécution**. Il faut bien faire la distinction entre ces deux types d'environnement.
 
-Les **Environnements d'éxécution** devront être disponibles dans les deux **Environnements de travail**. 
+Les **Environnements d\'éxécution** devront être disponibles dans les deux **Environnements de travail**. 
 
-Pour changer d'environnement d'éxecution, il sera nécessaire de relancer l'application.
+Pour changer d'environnement d\'éxecution, il sera nécessaire de relancer l'application.
 
 L'environnement d'exécution sera défini par la variable `APP_ENV` dans le fichier `.env`. Les valeurs possibles pour cette variable suivent une convention précise :
 
-- `OPE` : Pour l'utilisation normale de l'application. Ce sera la valeur par défaut si le fichier `.env` est absent.
-- `Sandbox_NOM_FEATURE` : Pour la validation d'une configuration ou d'une fonctionnalité spécifique (ex: `Sandbox_Camera`).
-- `Test_NOM_TEST` : Pour l'exécution d'un test fonctionnel particulier (ex: `Test_CalculLongueur`).
+- `OPE` : Pour l\'utilisation normale de l\'application. Ce sera la valeur par défaut si le fichier `.env` est absent.
+- `EVAL_NOM_FEATURE` : Pour la validation d\'une configuration ou d\'une fonctionnalité spécifique (ex: `EVAL_Camera`).
+- `TTEST_NOM_TEST` : Pour l\'exécution d\'un test fonctionnel particulier (ex: `TEST_CalculLongueur`).
 
-À partir de cette variable, l'application devra déduire un **mode d'exécution** (par exemple, dans une variable `executionMode`) qui pourra être `OPE`, `EVAL`, ou `TEST`. Cela permettra d'adapter le comportement de l'application en fonction du contexte (ex: charger des données de test, afficher des informations de debug, etc.).
+À partir de cette variable, l'application devra déduire un **mode d\'exécution** (par exemple, dans une variable `executionMode`) qui pourra être `OPE`, `EVAL`, ou `TEST`. Cela permettra d'adapter le comportement de l'application en fonction du contexte (ex: charger des données de test, afficher des informations de debug, etc.).
 
 Le fichier `.env`, ne sera pas livré avec l'application, car il contiendra plus tard des tokens privés. 
 
 Le fichier .env si il existe sera présent sous `C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS`
 
-Il devra être lu à partir de ce dossier que l'on soit en mode de travail Dev ou Prod. Si ce ficheier n'existe pas au lancement de l'application, il devra être créé, pour avoir un mode d'éxécution `OPE` que l'on soit en mode de travail dev ou  Prod
+Il devra être lu à partir de ce dossier que l'on soit en mode de travail Dev ou Prod. Si ce ficheier n'existe pas au lancement de l'application, il devra être créé, pour avoir un mode d\'éxécution `OPE` que l'on soit en mode de travail dev ou  Prod
 
 #### Répertoires d'Environnement
 
-En plus de déterminer le mode d'exécution, l'application crée un dossier de travail dont le nom correspond à la valeur de la variable `APP_ENV`. Ce dossier est créé à l'intérieur du répertoire de données de l'application (`C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS\`).
+En plus de déterminer le mode d\'exécution, l'application crée un dossier de travail dont le nom correspond à la valeur de la variable `APP_ENV`. Ce dossier est créé à l\'intérieur du répertoire de données de l\'application (`C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS\`).
 
 Par exemple, si `APP_ENV` est `Test_Setup`, le dossier suivant sera créé : `C:\Users\username\AppData\Roaming\com.visugps.app\VisuGPS\Test_Setup\`.
 
-Tous les fichiers de configuration, de test ou de données spécifiques à un environnement devront être lus et écrits dans ce répertoire.
+Tous les fichiers de configuration, de test ou de données spécifiques à un environnement dev devront être lus et écrits dans ce répertoire.
 
 #### État de l'Application Partagé
 
-Les informations sur l'environnement sont centralisées dans un état (`AppState`) géré par Tauri et accessible depuis le frontend. Cet état contient :
+Les informations sur l\'environnement sont centralisées dans un état (`AppState`) géré par Tauri et accessible depuis le frontend. Cet état contient :
 
 - `app_env`: La valeur brute de la variable `APP_ENV`.
 - `execution_mode`: Le mode déduit (`OPE`, `EVAL`, `TEST`).
-- `app_env_path`: Le chemin complet vers le répertoire de l'environnement de travail.
+- `app_env_path`: Le chemin complet vers le répertoire de l\'environnement de travail.
 
 ### Etape 0.6 - Réalisée - [4a4db936]
 
-Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d'éxécutiuon.
+Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d\'éxécutiuon.
 
 On ajoute juste un composant `v-btn` à la mainView, pour vérifier qu'il s'affiche correctement.
 
-Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
+Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d\'éxécution.
 
 ### Etape 0.7 -Réalisée - [705e12e2]
 
-Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d'éxécution.
+Dans `App.vue` on ajoute un `v-container` pour avoir ou pas (en prod) un cadre autour de l'application qui devra changer en fonction du contexte d\'éxécution.
 
 ---
 
@@ -259,35 +259,189 @@ Dans un groupe on peut retrouver :
 
 Un paramètre est défini par :
 
-- un nom,  obligatoire
-
+- Un identifiant, obligatoire. C'est le nom de la variable.
+- un nom,  obligatoire. C'est le libellé de l'arbre.
 - une descrition, obligatoire
-
 - un type, obligatoire
-
 - une valeur_par_defaut, obligatoire
-
 - une surcharge, optionnel
-
 - min, optionnel
-
 - max, optionel
-
 - critique, optionnel
+- documentation, optionnel. 
 
-- documentation, optionnel.  
-
-### Etape 3.1 -  - []
+### Etape 3.1 - Réalisée - [1ff8aa4c]
 
 L'étape 3.1 consiste à commencer la composition de la vue `SettingsView.vue`, et tout particulièrement  le composant l'arbre des paramètres `SettingsTree.vue`.
 
 La vue sera composée : 
 
-- sur sa partie haute d"un composant `SettingsToolbar.vue`. Le contenu de ce composant sera décrit dans une étape ultérieure.
+- sur sa partie haute dun composant `SettingsToolbar.vue`. Le contenu de ce composant sera décrit dans une étape ultérieure.
 
 en dessous 1 colonnne qui contient :
 
 - un `composant` `SettingsTree.vue` qui affichera sous forme d'arbre les groupes et les paramètres du noeud `data` . Les branches de l'arbres seront fermées à la création. Une icône sous forme de dossier fermer/ouvert sera présent devant chaque groupe, (Prepend Icons). Les actions icons seront masqués.
+
+### Etape 3.2 -  - []
+
+Actuellement nous avons pour les environnement d'execution Prod, Sandbox et Test.  Il faut les remplacer par OPE, EVAL et TEST. 
+
+  
+
+---
+
+## 🤝 Contribution
+
+Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBUTING.md`.
+
+---
+
+## 📄 Licence
+
+Ce projet est sous licence **Apache 2.0**. Pour plus de détails, consultez le fichier **`LICENSE`** à la racine de ce projet.
+
+---
+
+## Résumé des Modifications Apportées le 09/09/2025
+
+### **1. Améliorations de l'Interface Utilisateur (UI)**
+
+* **Cadre Visuel Conditionnel (Étape 0.7)**
+
+  * Ajout d'un cadre autour de l'application dans `App.vue` (`v-container`).
+
+  * Ce cadre est visible uniquement dans les environnements `EVAL` (orange) et `TEST` (rouge).
+
+  * Configuration du cadre : 5px d'épaisseur, sans bords arrondis ni ombres, et prenant toute la hauteur de la fenêtre.
+
+  * Suppression du padding par défaut du `v-container` dans `App.vue`.
+
+* **Barre d'Outils Principale (`AppMainBar`) (Étape 1.1)**
+
+  * Création du composant `src/components/AppMainBar.vue`.
+
+  * Intégration de `AppMainBar` dans `src/views/MainView.vue` (initialement envisagé dans `App.vue`, puis ajusté pour répondre au besoin spécifique de l'utilisateur).
+
+  * **Mode Sombre/Clair :**
+
+    * Remplacement du bouton (`v-btn`) par un interrupteur (`v-switch`) pour basculer entre les modes sombre et clair.
+
+    * Utilisation d'icônes (Lune/Soleil) à la place du texte sur le `v-switch`.
+
+    * **Persistance du mode :** Le mode choisi est désormais sauvegardé localement (`window.localStorage`) et restauré au redémarrage de l'application.
+
+    * Ajustement de la couleur de l'icône Soleil pour une meilleure visibilité en mode clair (ambre foncé).
+
+  * **Indicateur d'Environnement (Chip) :**
+
+    * Affichage d'un `v-chip` indiquant la valeur de `APP_ENV` (ex: `Sandbox_Camera`, `Test_CalculLongueur`).
+
+    * Le chip est visible uniquement si l'environnement est `EVAL` (couleur orange) ou `TEST` (couleur rouge).
+
+    * Le chip est animé pour clignoter de manière abrupte.
+
+    * Positionnement du chip à l'extrême gauche de la barre d'outils.
+
+  * **Titre "Accueil" :**
+
+    * Déplacement du titre "Accueil" de `MainView.vue` vers `AppMainBar.vue`.
+
+    * Implémentation d'une structure `v-row`/`v-col` pour un centrage plus précis du titre dans la barre d'outils.
+
+### **2. Gestion des Services et Connexion Mapbox (Étape 1.2)**
+
+* **Lecture du Token Mapbox :**
+
+  * Le `MAPBOX_TOKEN` est désormais lu depuis le fichier `.env` (situé dans le répertoire de données de l'application) par le backend Rust (`src-tauri/src/lib.rs`).
+
+  * Le token est exposé au frontend via le `AppState` et le composable `useEnvironment`.
+
+* **Vérification de la Connectivité Internet :**
+
+  * Implémentation d'une commande Rust (`check_internet_connectivity`) pour une vérification fiable de la connexion Internet (en pingant un service externe).
+
+  * Utilisation de cette vérification dans le composable `useServiceStatus`.
+
+  * **Polling :** L'état des services est vérifié toutes les 10 secondes.
+
+* **Vérification du Serveur Mapbox et Validité du Token :**
+
+  * Implémentation d'une commande Rust (`check_mapbox_status`) qui effectue une requête à l'API Mapbox.
+
+  * La fonction différencie désormais clairement un serveur Mapbox inaccessible (blocage par pare-feu, problème réseau) d'un token invalide, même si le serveur répond avec un statut 200 OK mais un message d'erreur.
+
+* **Indicateur d'État des Services (Icône) :**
+
+  * Ajout d'une icône dynamique à gauche de la barre d'outils (`AppMainBar.vue`) dont l'icône et la couleur changent en fonction de l'état des services (connecté, déconnecté, Mapbox inaccessible, token invalide, vérification).
+
+  * L'icône `mdi-earth-off` est utilisée pour l'état "Mapbox inaccessible".
+
+  * Taille de l'icône forcée à 36px.
+
+  * Ajout d'un padding gauche de 16px à l'icône.
+
+* **Notifications (`ShowSnackBar`) :**
+
+  * Création des composables `useSnackbar.js` et du composant `SnackbarContainer.vue`.
+
+  * Intégration du `SnackbarContainer` dans `App.vue` pour afficher les messages de statut.
+
+  * Les messages sont affichés uniquement lors d'un *changement d'état* réel (pas de répétition si l'état est stable).
+
+  * Le message "Serveur Mapbox inaccessible" s'affiche en bleu.
+
+  * La durée d'affichage des messages est de 5000 ms.
+
+  * Le bouton "Fermer" a été supprimé du snackbar.
+
+### **3. Optimisations et Corrections Diverses**
+
+* **Correction d'Avertissement Rust :** Suppression de l'avertissement `unused import: serde_json::Value` dans `src-tauri/src/lib.rs`.
+
+* **Icône de l'Exécutable :** Explication du processus de génération d'icônes multiplateformes (`tauri icon`) et des problèmes de cache en mode développement.
+
+* **Largeur Minimale de la Fenêtre :** Définition d'une largeur minimale de 1024 pixels pour la fenêtre de l'application dans `tauri.conf.json`.
+
+---
+
+## Résumé des travaux du mercredi 10 septembre 2025
+
+### Implémentation de l'Étape 3.1
+
+* **Création des composants :** Mise en place de `SettingsToolbar.vue` et `SettingsTree.vue`, intégrés dans `SettingsView.vue`.
+* **Lecture des paramètres :** Implémentation d'une commande Tauri (`read_settings`) pour lire le fichier `settings.json` depuis le backend.
+* **Affichage de l'arbre :** Affichage récursif des groupes et paramètres dans `SettingsTree.vue` via `SettingsNode.vue`.
+
+### Gestion des fichiers de configuration
+
+* **Renommage :** `src-tauri/settings.json` a été renommé en `src-tauri/settingsDefault.json`.
+* **Intégration dans l'exécutable :** `settingsDefault.json` est désormais embarqué directement dans le binaire Rust (`visugps.exe`) au lieu d'être une ressource séparée.
+* **Logique de copie au démarrage :** La fonction `setup_environment` (Rust) copie le contenu embarqué de `settingsDefault.json` vers `settings.json` dans le dossier de l'utilisateur (`~/AppData/Roaming/com.visugps.app/VisuGPS/$APP_ENV`) uniquement si `settings.json` n'existe pas.
+* **Lecture contextuelle :** La commande `read_settings` lit maintenant le fichier `settings.json` spécifique au contexte d'exécution de l'application.
+
+### Améliorations de l'affichage et de la logique des paramètres
+
+* **Adaptation à la structure JSON :** Les composants `SettingsTree.vue` et `SettingsNode.vue` ont été adaptés pour utiliser les champs `identifiant` (pour les clés uniques) et `libelle` (pour l'affichage) des paramètres et groupes.
+* **Logique de surcharge centralisée :** Création d'un composable `useSettings.js` avec une fonction `getSettingValue(path)` qui gère la priorité `surcharge` > `defaut` pour tous les paramètres.
+* **Utilisation du paramètre de timer :** Le composant `AppMainBar.vue` utilise désormais `getSettingValue` pour récupérer l'intervalle de polling réseau depuis les paramètres.
+* **Indicateurs visuels :**
+  * Le libellé des paramètres marqués `critique: true` est affiché en couleur `warning` (orange adaptatif au thème).
+  * L'icône des paramètres dont la valeur est surchargée (`surcharge` non nul) est affichée en couleur `info` (bleu).
+* **Améliorations de l'interface utilisateur :**
+  * Ajustement de la largeur du composant `SettingsTree` dans `SettingsView.vue`.
+  * Icône de dossier ouvert/fermé dynamique pour les groupes dans l'arbre.
+  * Fond transparent pour le `v-card` et le `v-list` dans `SettingsTree.vue` pour une meilleure intégration visuelle.
+
+### Navigation
+
+* **Bouton "Paramètres" :** Ajout d'un bouton dans `AppMainBar.vue` pour naviguer vers la vue des paramètres.
+* **Bouton "Accueil" :** Ajout d'un bouton avec une icône de maison dans `SettingsToolbar.vue` pour revenir à la vue principale.
+
+### Corrections de bugs et raffinements
+
+* **Erreur de compilation Rust :** Résolution de l'avertissement `unused imports: AppHandle and Wry` dans `src/lib.rs`.
+* **Problème d'importation Vite :** Correction de l'erreur `Failed to resolve import "@tauri-apps/api/tauri"` en ajustant l'alias `@` dans `vite.config.js` et en corrigeant le chemin d'importation de l'API Tauri (`@tauri-apps/api/core`).
+* **Problème d'affichage de l'icône de surcharge :** Débogage et correction de l'icône bleue pour les paramètres surchargés en utilisant un `v-icon` explicite dans le slot `prepend`.
 
 ---
 
