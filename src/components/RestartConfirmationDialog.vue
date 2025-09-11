@@ -5,7 +5,7 @@
       <v-card-text>{{ message }}</v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="red darken-1" text @click="cancel">Annuler</v-btn>
+        <v-btn color="red darken-1" text @click="cancel" v-if="showCancelButton">Annuler</v-btn>
         <v-btn color="green darken-1" text @click="confirm">Confirmer</v-btn>
       </v-card-actions>
     </v-card>
@@ -19,6 +19,10 @@ const props = defineProps({
   modelValue: Boolean,
   title: String,
   message: String,
+  showCancelButton: { // New prop
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(['update:modelValue', 'confirmed', 'cancelled']);

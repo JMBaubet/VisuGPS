@@ -161,11 +161,9 @@ const createMode = async () => {
     newModeName.value = '';
     newModeDescription.value = '';
     fetchExecutionModes(); // Refresh the list
-    showSnackbar(`Le mode d'exécution '${createdModeName}' a été créé avec succès.`, 'success');
+    showSnackbar(`Pour utiliser le mode d'exécution '${createdModeName}' veuillez le sélectionner dans la liste.`, 'info');
 
-    restartDialogTitle.value = 'Redémarrer l\'application';
-    restartDialogMessage.value = 'Le nouveau mode d\'exécution a été créé. Voulez-vous redémarrer l\'application pour l\'activer ?';
-    showRestartDialog.value = true;
+   
 
     const shouldRestart = await new Promise(resolve => {
       restartPromiseResolve = resolve;
