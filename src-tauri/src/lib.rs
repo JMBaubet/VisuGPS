@@ -143,33 +143,39 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
         fs::write(&selected_env_path, env_content).map_err(|e| e.to_string())?;
     }
 
-    let mut mapbox_token = String::new();
-    if let Ok(iter) = dotenvy::from_path_iter(&main_env_path) {
-        for item in iter {
-            if let Ok((key, val)) = item {
-                if key == "MAPBOX_TOKEN" {
-                    mapbox_token = val;
-                    break;
-                }
-            }
-        }
-    }
+    let mut current_main_env_content = fs::read_to_string(&main_env_path).unwrap_or_default();
 
-    let mut env_content = fs::read_to_string(&selected_env_path).map_err(|e| e.to_string())?;
+    // Update APP_ENV line
+    let app_env_re = regex::Regex::new(r"^APP_ENV=.*\n").unwrap();
+    let new_app_env_line = format!("APP_ENV={}\n", mode_name);
+
+    if app_env_re.is_match(&current_main_env_content) {
+        current_main_env_content = app_env_re.replace(&current_main_env_content, new_app_env_line).to_string();
+    } else {
+        current_main_env_content.push_str(&new_app_env_line);
+    }
 
     // Ensure MAPBOX_TOKEN is preserved
-    if !mapbox_token.is_empty() {
-        if env_content.contains("MAPBOX_TOKEN=") {
-            // Replace existing MAPBOX_TOKEN
-            let re = regex::Regex::new(r"MAPBOX_TOKEN=.*\n").unwrap();
-            env_content = re.replace(&env_content, format!("MAPBOX_TOKEN={}\n", mapbox_token)).to_string();
-        } else {
-            // Append MAPBOX_TOKEN if not present
-            env_content.push_str(&format!("MAPBOX_TOKEN={}\n", mapbox_token));
+    let mut mapbox_token = String::new();
+    let mapbox_token_re_extract = regex::Regex::new(r"^MAPBOX_TOKEN=(.*)\n").unwrap();
+    if let Some(captures) = mapbox_token_re_extract.captures(&current_main_env_content) {
+        if let Some(value) = captures.get(1) {
+            mapbox_token = value.as_str().to_string();
         }
     }
 
-    fs::write(&main_env_path, env_content).map_err(|e| e.to_string())?;
+    let mapbox_token_re_replace = regex::Regex::new(r"^MAPBOX_TOKEN=.*\n").unwrap();
+    let new_mapbox_token_line = format!("MAPBOX_TOKEN={}\n", mapbox_token);
+
+    if !mapbox_token.is_empty() {
+        if mapbox_token_re_replace.is_match(&current_main_env_content) {
+            current_main_env_content = mapbox_token_re_replace.replace(&current_main_env_content, new_mapbox_token_line).to_string();
+        } else {
+            current_main_env_content.push_str(&new_mapbox_token_line);
+        }
+    }
+
+    fs::write(&main_env_path, current_main_env_content).map_err(|e| e.to_string())?;
 
     // Delete the temporary .env.mode_name file
     if mode_name != "OPE" && selected_env_path.exists() {

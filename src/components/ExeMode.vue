@@ -56,9 +56,15 @@
             :subtitle="mode.mode_type"
           >
             <template v-slot:append>
-              <v-btn icon color="success" @click="selectMode(mode.name)">
+              <v-btn
+                v-if="mode.name !== appEnv"
+                icon
+                color="success"
+                @click="selectMode(mode.name)"
+              >
                 <v-icon>mdi-check</v-icon>
               </v-btn>
+              <v-icon v-else color="primary">mdi-check-circle</v-icon>
             </template>
           </v-list-item>
         </v-list>
@@ -110,10 +116,18 @@ const rules = {
   modeNameFormat: value => {
     const evalRegex = /^EVAL_[a-zA-Z0-9_]+$/;
     const testRegex = /^TEST_[a-zA-Z0-9_]+$/;
-    if (evalRegex.test(value) || testRegex.test(value)) {
-      return true;
+
+    if (import.meta.env.PROD) {
+      if (evalRegex.test(value)) {
+        return true;
+      }
+      return 'En mode production, le nom doit commencer par EVAL_ suivi de caractères alphanumériques ou _.';
+    } else { // DEV mode
+      if (evalRegex.test(value) || testRegex.test(value)) {
+        return true;
+      }
+      return 'Le nom doit commencer par EVAL_ ou TEST_ suivi de caractères alphanumériques ou _.';
     }
-    return 'Le nom doit commencer par EVAL_ ou TEST_ suivi de caractères alphanumériques ou _.';
   },
 };
 
@@ -136,17 +150,17 @@ const createMode = async () => {
     return;
   }
 
-  if (newModeName.value.startsWith('TEST_') && process.env.TAURI_ENV !== 'dev') {
+  if (newModeName.value.startsWith('TEST_') && !import.meta.env.DEV) {
     showSnackbar('error', 'Les modes TEST ne peuvent être créés qu\'en environnement de développement.');
     return;
   }
 
   try {
     await invoke('create_execution_mode', { modeName: newModeName.value, description: newModeDescription.value });
-    showSnackbar('success', `Mode ${newModeName.value} créé avec succès.`);
     newModeName.value = '';
     newModeDescription.value = '';
     fetchExecutionModes(); // Refresh the list
+    showSnackbar('success', `Le mode d\'exécution '${newModeName.value}' a été créé avec succès.`);
 
     restartDialogTitle.value = 'Redémarrer l\'application';
     restartDialogMessage.value = 'Le nouveau mode d\'exécution a été créé. Voulez-vous redémarrer l\'application pour l\'activer ?';
@@ -162,30 +176,29 @@ const createMode = async () => {
 
   } catch (error) {
     console.error("Error creating execution mode:", error);
-    showSnackbar('error', `Erreur lors de la création du mode: ${error}`);
+    showSnackbar('error', `Erreur lors de la création du mode: ${error.message || error}`);
   }
 };
 
 const deleteMode = async (modeName) => {
-  if (modeName.startsWith('TEST_') && process.env.TAURI_ENV !== 'dev') {
+  if (modeName.startsWith('TEST_') && !import.meta.env.DEV) {
     showSnackbar('error', 'Les modes TEST ne peuvent être supprimés qu\'en environnement de développement.');
     return;
   }
 
   try {
     await invoke('delete_execution_mode', { modeName });
-    showSnackbar('success', `Mode ${modeName} supprimé avec succès.`);
+    showSnackbar('success', `Le mode d'exécution '${modeName}' a été supprimé avec succès.`);
     fetchExecutionModes(); // Refresh the list
   } catch (error) {
     console.error("Error deleting execution mode:", error);
-    showSnackbar('error', `Erreur lors de la suppression du mode: ${error}`);
+    showSnackbar('error', `Erreur lors de la suppression du mode: ${error.message || error}`);
   }
 };
 
 const selectMode = async (modeName) => {
   try {
     await invoke('select_execution_mode', { modeName });
-    showSnackbar('success', `Mode ${modeName} sélectionné avec succès.`);
 
     restartDialogTitle.value = 'Redémarrer l\'application';
     restartDialogMessage.value = 'Le mode d\'exécution a été modifié. Voulez-vous redémarrer l\'application pour prendre en compte le nouveau mode ?';
@@ -201,7 +214,7 @@ const selectMode = async (modeName) => {
 
   } catch (error) {
     console.error("Error selecting execution mode:", error);
-    showSnackbar('error', `Erreur lors de la sélection du mode: ${error}`);
+    showSnackbar('error', `Erreur lors de la sélection du mode: ${error.message || error}`);
   }
 };
 
