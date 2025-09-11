@@ -99,6 +99,13 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let visugps_dir = app_data_dir.join("VisuGPS");
 
+    // Get current mapbox token
+    let current_app_state = app.state::<AppState>();
+    let old_settings_path = current_app_state.app_env_path.join("settings.json");
+    let old_settings_content = fs::read_to_string(old_settings_path).map_err(|e| e.to_string())?;
+    let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
+    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox").unwrap_or_else(|| "".to_string());
+
     let new_env_path = visugps_dir.join(format!(".env.{}", mode_name));
     let new_app_env_path = visugps_dir.join(&mode_name);
 
@@ -124,6 +131,15 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
             obj.insert("description".to_string(), Value::String(description));
             let now = Utc::now();
             obj.insert("date_creation".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()));
+        }
+    }
+
+    // Set the mapbox token in the new settings
+    if let Some(system) = settings["data"]["groupes"].as_array_mut().and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Système")) {
+        if let Some(tokens) = system["groupes"].as_array_mut().and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Tokens")) {
+            if let Some(mapbox) = tokens["parametres"].as_array_mut().and_then(|p| p.iter_mut().find(|p| p["identifiant"] == "mapbox")) {
+                mapbox["surcharge"] = Value::String(mapbox_token);
+            }
         }
     }
 
@@ -172,26 +188,6 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
         current_main_env_content = app_env_re.replace(&current_main_env_content, new_app_env_line).to_string();
     } else {
         current_main_env_content.push_str(&new_app_env_line);
-    }
-
-    // Ensure MAPBOX_TOKEN is preserved
-    let mut mapbox_token = String::new();
-    let mapbox_token_re_extract = regex::Regex::new(r"^MAPBOX_TOKEN=(.*)\n").unwrap();
-    if let Some(captures) = mapbox_token_re_extract.captures(&current_main_env_content) {
-        if let Some(value) = captures.get(1) {
-            mapbox_token = value.as_str().to_string();
-        }
-    }
-
-    let mapbox_token_re_replace = regex::Regex::new(r"^MAPBOX_TOKEN=.*\n").unwrap();
-    let new_mapbox_token_line = format!("MAPBOX_TOKEN={}\n", mapbox_token);
-
-    if !mapbox_token.is_empty() {
-        if mapbox_token_re_replace.is_match(&current_main_env_content) {
-            current_main_env_content = mapbox_token_re_replace.replace(&current_main_env_content, new_mapbox_token_line).to_string();
-        } else {
-            current_main_env_content.push_str(&new_mapbox_token_line);
-        }
     }
 
     fs::write(&main_env_path, current_main_env_content).map_err(|e| e.to_string())?;
@@ -258,6 +254,48 @@ pub struct ExecutionMode {
 
 // ... other code ...
 
+
+fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
+    let parts: Vec<&str> = path.split('.').collect();
+    let mut current = settings;
+
+    for part in parts {
+        if let Some(c) = current.get(part) {
+            current = c;
+        } else if let Some(arr) = current.as_array() {
+            let mut found = false;
+            for item in arr {
+                if let Some(val) = item.get(part) {
+                    current = val;
+                    found = true;
+                    break;
+                } else if item.get("libelle").and_then(|v| v.as_str()) == Some(part) || item.get("identifiant").and_then(|v| v.as_str()) == Some(part) {
+                    current = item;
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    if let Some(value) = current.get("surcharge").and_then(|v| v.as_str()) {
+        if !value.is_empty() {
+            return Some(value.to_string());
+        }
+    }
+    if let Some(value) = current.get("defaut").and_then(|v| v.as_str()) {
+        return Some(value.to_string());
+    }
+
+    None
+}
+
+
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
@@ -273,31 +311,23 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     }
 
     let mut app_env = "OPE".to_string();
-    let mut mapbox_token = String::new(); // Initialize mapbox_token
 
-    println!("setup_environment: Reading .env from: {}", env_path.display());
+    
 
     if let Ok(iter) = dotenvy::from_path_iter(&env_path) {
         for item in iter {
             if let Ok((key, val)) = item {
-                match key.as_str() { // Use match for multiple keys
-                    "APP_ENV" => {
-                        app_env = val;
-                        println!("setup_environment: APP_ENV found: {}", app_env);
-                    },
-                    "MAPBOX_TOKEN" => {
-                        mapbox_token = val;
-                        println!("setup_environment: MAPBOX_TOKEN found: {}", mapbox_token);
-                    }, // Read MAPBOX_TOKEN
-                    _ => {} // Ignore other keys
+                if key == "APP_ENV" {
+                    app_env = val;
+                    
                 }
             }
         }
     }
 
-    println!("setup_environment: Final app_env: {}", app_env);
-    println!("setup_environment: Final execution_mode: {}", get_execution_mode(&app_env));
-    println!("setup_environment: Final app_env_path: {}", visugps_dir.join(&app_env).display());
+    
+    
+    
 
     let execution_mode = get_execution_mode(&app_env);
     
@@ -310,8 +340,15 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
     if !settings_path.exists() {
-        fs::write(settings_path, EMBEDDED_DEFAULT_SETTINGS)?;
+        fs::write(&settings_path, EMBEDDED_DEFAULT_SETTINGS)?;
     }
+
+    // Read settings and extract mapbox token
+    let settings_content = fs::read_to_string(settings_path)?;
+    let settings: Value = serde_json::from_str(&settings_content)?;
+    let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .unwrap_or_else(|| "".to_string());
+
 
     Ok(AppState {
         app_env,
@@ -320,6 +357,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         mapbox_token, // Populate mapbox_token
     })
 }
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

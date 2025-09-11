@@ -338,7 +338,7 @@ Ce fichier est crée lors de la création d'un contexte d'éxécution. A partir 
 
 Lors de sa création il faut mettre à jour les attributs date-creation, context (Le nom du contexte d'éxécution) et description, qui est données lors de la creation du contexte d'éxécution via le composant ExeMode.vue.
 
-### Etape 3.6 -  - []
+### Etape 3.6 - Réalisée - []
 
 Actuellement le token mapBox est lu dans le fichiers .env.
 
@@ -352,7 +352,7 @@ l'attribut crtique sera à true
 
 . En effet pour des raison de sécurité le ficheir settingsDefault.json ne le connait pas. 
 
-
+### Etape 3.7 -  - []
 
 ---
 

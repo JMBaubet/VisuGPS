@@ -102,6 +102,19 @@
                 "critique": true
               }
             ]
+          },
+          {
+            "libelle": "Tokens",
+            "parametres": [
+              {
+                "identifiant": "mapbox",
+                "libelle": "Token Mapbox",
+                "description": "Token d'accès pour les services Mapbox",
+                "type": "string",
+                "defaut": "",
+                "critique": true
+              }
+            ]
           }
         ]
       }
