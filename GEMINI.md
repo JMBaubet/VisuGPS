@@ -356,9 +356,13 @@ l'attribut crtique sera à true
 
 Actuellement nous avons dans le compossant AppMainBar.vue un switch et ses icones  pour sélectionner choisir le mode clair/sombre. Il lfaudrait déplacer  ce switch et ses icônes dans le settingsToolbar.vue. 
 
-### Etape 3.8 -  - []
+### Etape 3.8 - Réalisée - []
 
 Dans le composant SettingsTree.vue, il faut afficher dans une infobulle le chemin complet des groupes.  
+
+### Etape 3.9 -  - []
+
+Réalisaton d'un composant pour modifier un paramètre string (MapBox par exemple)
 
 ---
 

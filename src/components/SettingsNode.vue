@@ -5,7 +5,7 @@
       <template v-slot:activator="{ props, isOpen }">
         <v-list-item v-bind="props" :prepend-icon="isOpen ? 'mdi-folder-open' : 'mdi-folder'" append-icon="">
           <v-list-item-title>{{ node.libelle }}</v-list-item-title>
-          <v-tooltip activator="parent" location="top">/{{ fullPath }}</v-tooltip>
+          <v-tooltip activator="parent" location="end">/{{ fullPath }}</v-tooltip>
         </v-list-item>
       </template>
 
