@@ -3,13 +3,41 @@
     <v-card>
       <v-card-title class="headline">Gestion des modes d'exécution</v-card-title>
       <v-card-text>
-        <v-list>
-          <v-list-item
-            v-for="mode in executionModes"
-            :key="mode.name"
-            :title="mode.name"
-            :subtitle="mode.mode_type"
-          ></v-list-item>
+        <v-list lines="one" class="mb-4">
+            <v-list-item
+                v-for="mode in sortedAndStyledModes"
+                :key="mode.name"
+            >
+                <template v-slot:title>
+                    <span :class="`text-${mode.color} font-weight-bold`">{{ mode.name }}</span>
+                </template>
+
+                <template v-slot:append>
+                    <v-chip v-if="mode.name === appEnv" color="primary" variant="elevated" size="small" class="ml-2">Actif</v-chip>
+
+                    <!-- Delete Button -->
+                    <v-btn
+                        v-if="deletableModes.some(m => m.name === mode.name)"
+                        icon="mdi-delete"
+                        variant="text"
+                        color="error"
+                        @click="deleteMode(mode.name)"
+                        class="ml-2"
+                        title="Supprimer ce mode"
+                    ></v-btn>
+
+                    <!-- Select Button -->
+                    <v-btn
+                        v-if="mode.name !== appEnv"
+                        icon="mdi-check"
+                        variant="text"
+                        color="success"
+                        @click="selectMode(mode.name)"
+                        class="ml-2"
+                        title="Sélectionner ce mode"
+                    ></v-btn>
+                </template>
+            </v-list-item>
         </v-list>
 
         <v-divider class="my-4"></v-divider>
@@ -26,48 +54,6 @@
           rows="2"
         ></v-textarea>
         <v-btn color="primary" @click="createMode">Créer</v-btn>
-
-        <v-divider class="my-4"></v-divider>
-
-        <v-card-title class="headline">Supprimer un mode d'exécution</v-card-title>
-        <v-list>
-          <v-list-item
-            v-for="mode in deletableModes"
-            :key="mode.name"
-            :title="mode.name"
-            :subtitle="mode.mode_type"
-          >
-            <template v-slot:append>
-              <v-btn icon color="error" @click="deleteMode(mode.name)">
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
-          </v-list-item>
-        </v-list>
-
-        <v-divider class="my-4"></v-divider>
-
-        <v-card-title class="headline">Sélectionner un mode d'exécution</v-card-title>
-        <v-list>
-          <v-list-item
-            v-for="mode in executionModes"
-            :key="mode.name"
-            :title="mode.name"
-            :subtitle="mode.mode_type"
-          >
-            <template v-slot:append>
-              <v-btn
-                v-if="mode.name !== appEnv"
-                icon
-                color="success"
-                @click="selectMode(mode.name)"
-              >
-                <v-icon>mdi-check</v-icon>
-              </v-btn>
-              <v-icon v-else color="primary">mdi-check-circle</v-icon>
-            </template>
-          </v-list-item>
-        </v-list>
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
@@ -133,6 +119,42 @@ const rules = {
 
 const deletableModes = computed(() => {
   return executionModes.value.filter(mode => mode.name !== 'OPE' && mode.name !== appEnv.value);
+});
+
+const sortedAndStyledModes = computed(() => {
+  if (!executionModes.value) return [];
+
+  const getModeStyle = (modeName) => {
+    if (modeName === 'OPE') {
+      return { color: 'success', order: 1 };
+    }
+    if (modeName.startsWith('EVAL_')) {
+      return { color: 'info', order: 2 };
+    }
+    if (modeName.startsWith('TEST_')) {
+      return { color: 'warning', order: 3 };
+    }
+    return { color: undefined, order: 4 }; // Default
+  };
+
+  let modes = [...executionModes.value]; // Create a shallow copy
+
+  // In production, filter out TEST modes
+  if (import.meta.env.PROD) {
+    modes = modes.filter(mode => !mode.name.startsWith('TEST_'));
+  }
+
+  return modes
+    .map(mode => ({
+      ...mode,
+      ...getModeStyle(mode.name),
+    }))
+    .sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+      return a.name.localeCompare(b.name); // Alphabetical sort within the same type
+    });
 });
 
 const fetchExecutionModes = async () => {

@@ -8,7 +8,7 @@
         <!-- Chip for APP_ENV -->
         <v-chip
           v-if="showAppEnvChip"
-          class="ma-2 blinking-chip"
+          class="my-2 ml-4"
           :color="chipColor"
           label
         >
@@ -142,24 +142,14 @@ const showAppEnvChip = computed(() => {
 
 const chipColor = computed(() => {
   if (executionMode.value === 'EVAL') {
-    return 'orange';
+    return 'info';
   } else if (executionMode.value === 'TEST') {
-    return 'red';
+    return 'warning';
   }
   return 'primary';
 });
 </script>
 
 <style scoped>
-@keyframes blink {
-  0% { opacity: 1; }
-  49% { opacity: 1; }
-  50% { opacity: 0; }
-  99% { opacity: 0; }
-  100% { opacity: 1; }
-}
 
-.blinking-chip {
-  animation: blink 1s linear infinite;
-}
 </style>

@@ -44,11 +44,11 @@ html, body, #app {
   border: 0px solid rgba(255, 255, 255, 0);
 }
 .eval-border {
-  border: 5px solid orange;
+  border: 5px solid rgb(var(--v-theme-info));
 }
 
 .test-border {
-  border: 5px solid red;
+  border: 5px solid rgb(var(--v-theme-warning));
 }
 
 .app-frame {
@@ -59,12 +59,12 @@ html, body, #app {
 }
 
 .app-frame-eval {
-  border-color: orange;
+  border-color: rgb(var(--v-theme-info));
   /* Removed box-shadow */
 }
 
 .app-frame-test {
-  border-color: red !important;
+  border-color: rgb(var(--v-theme-warning)) !important;
   /* Removed box-shadow */
 }
 
