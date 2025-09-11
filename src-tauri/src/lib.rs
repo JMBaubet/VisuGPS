@@ -146,7 +146,7 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
     let mut current_main_env_content = fs::read_to_string(&main_env_path).unwrap_or_default();
 
     // Update APP_ENV line
-    let app_env_re = regex::Regex::new(r"^APP_ENV=.*\n").unwrap();
+    let app_env_re = regex::Regex::new(r"(?m)^APP_ENV=.*$").unwrap();
     let new_app_env_line = format!("APP_ENV={}\n", mode_name);
 
     if app_env_re.is_match(&current_main_env_content) {

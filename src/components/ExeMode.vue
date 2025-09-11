@@ -140,27 +140,28 @@ const fetchExecutionModes = async () => {
     executionModes.value = await invoke('list_execution_modes');
   } catch (error) {
     console.error("Error fetching execution modes:", error);
-    showSnackbar('error', `Erreur lors du chargement des modes d'exécution: ${error}`);
+    showSnackbar(`Erreur lors du chargement des modes d'exécution: ${error.message || error}`, 'error');
   }
 };
 
 const createMode = async () => {
   if (!rules.required(newModeName.value) || !rules.modeNameFormat(newModeName.value)) {
-    showSnackbar('error', 'Veuillez corriger les erreurs dans le nom du mode.');
+    showSnackbar('Veuillez corriger les erreurs dans le nom du mode.', 'error');
     return;
   }
 
   if (newModeName.value.startsWith('TEST_') && !import.meta.env.DEV) {
-    showSnackbar('error', 'Les modes TEST ne peuvent être créés qu\'en environnement de développement.');
+    showSnackbar('Les modes TEST ne peuvent être créés qu\'en environnement de développement.', 'error');
     return;
   }
 
   try {
     await invoke('create_execution_mode', { modeName: newModeName.value, description: newModeDescription.value });
+    const createdModeName = newModeName.value;
     newModeName.value = '';
     newModeDescription.value = '';
     fetchExecutionModes(); // Refresh the list
-    showSnackbar('success', `Le mode d\'exécution '${newModeName.value}' a été créé avec succès.`);
+    showSnackbar(`Le mode d'exécution '${createdModeName}' a été créé avec succès.`, 'success');
 
     restartDialogTitle.value = 'Redémarrer l\'application';
     restartDialogMessage.value = 'Le nouveau mode d\'exécution a été créé. Voulez-vous redémarrer l\'application pour l\'activer ?';
@@ -176,29 +177,30 @@ const createMode = async () => {
 
   } catch (error) {
     console.error("Error creating execution mode:", error);
-    showSnackbar('error', `Erreur lors de la création du mode: ${error.message || error}`);
+    showSnackbar(`Erreur lors de la création du mode: ${error.message || error}`, 'error');
   }
 };
 
 const deleteMode = async (modeName) => {
   if (modeName.startsWith('TEST_') && !import.meta.env.DEV) {
-    showSnackbar('error', 'Les modes TEST ne peuvent être supprimés qu\'en environnement de développement.');
+    showSnackbar('Les modes TEST ne peuvent être supprimés qu\'en environnement de développement.', 'error');
     return;
   }
 
   try {
     await invoke('delete_execution_mode', { modeName });
-    showSnackbar('success', `Le mode d'exécution '${modeName}' a été supprimé avec succès.`);
+    showSnackbar(`Le mode d'exécution '${modeName}' a été supprimé avec succès.`, 'success');
     fetchExecutionModes(); // Refresh the list
   } catch (error) {
     console.error("Error deleting execution mode:", error);
-    showSnackbar('error', `Erreur lors de la suppression du mode: ${error.message || error}`);
+    showSnackbar(`Erreur lors de la suppression du mode: ${error.message || error}`, 'error');
   }
 };
 
 const selectMode = async (modeName) => {
   try {
     await invoke('select_execution_mode', { modeName });
+    showSnackbar(`Mode ${modeName} sélectionné avec succès.`, 'success');
 
     restartDialogTitle.value = 'Redémarrer l\'application';
     restartDialogMessage.value = 'Le mode d\'exécution a été modifié. Voulez-vous redémarrer l\'application pour prendre en compte le nouveau mode ?';
@@ -214,7 +216,7 @@ const selectMode = async (modeName) => {
 
   } catch (error) {
     console.error("Error selecting execution mode:", error);
-    showSnackbar('error', `Erreur lors de la sélection du mode: ${error.message || error}`);
+    showSnackbar(`Erreur lors de la sélection du mode: ${error.message || error}`, 'error');
   }
 };
 
