@@ -11,8 +11,21 @@
 import { computed } from 'vue';
 import { useEnvironment } from './composables/useEnvironment';
 import SnackbarContainer from './components/SnackbarContainer.vue'; // Added SnackbarContainer import
+import { onMounted } from 'vue';
+import { useTheme } from 'vuetify';
 
 const { executionMode } = useEnvironment();
+
+onMounted(() => {
+  const theme = useTheme();
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    theme.global.name.value = savedTheme;
+  } else {
+    // Default to dark theme if no preference is saved
+    theme.global.name.value = 'dark';
+  }
+});
 
 const showFrame = computed(() => {
   return executionMode.value !== 'OPE';
