@@ -5,6 +5,7 @@ use reqwest; // Added reqwest
 use serde_json::Value; // Added serde_json::Value
 use tauri_plugin_dialog; // Added tauri_plugin_dialog
 use tauri_plugin_process; // Added tauri_plugin_process
+use chrono::prelude::*;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
@@ -121,6 +122,8 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
         if let Some(obj) = reference.as_object_mut() {
             obj.insert("context".to_string(), Value::String(mode_name.clone()));
             obj.insert("description".to_string(), Value::String(description));
+            let now = Utc::now();
+            obj.insert("date_creation".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()));
         }
     }
 

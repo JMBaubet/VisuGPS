@@ -328,9 +328,7 @@ A la suite de la création d'un nouveau contexte, une dialog box demandera à l'
 
 A la suite de la séléction d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode séléectionné.
 
-
-
-### Etape 3.5 - - []
+### Etape 3.5 - Réalisé - []
 
 Dans cette étape nous allons travailler sur les fichiers settings.json.
 
@@ -339,6 +337,22 @@ Ce fichier est crée lors de la création d'un contexte d'éxécution. A partir 
 `src-tauri/SettingsDefaut.json`
 
 Lors de sa création il faut mettre à jour les attributs date-creation, context (Le nom du contexte d'éxécution) et description, qui est données lors de la creation du contexte d'éxécution via le composant ExeMode.vue.
+
+### Etape 3.6 -  - []
+
+Actuellement le token mapBox est lu dans le fichiers .env.
+
+Il faut qu'il soit gérer dans le fichiers Json sous  le groupe Système/Token(s). 
+
+Faire les modifications nécessaire pour le lire dans ce fichier. 
+
+Lors de la création d'un nouveau mode d'éxécution, le nouveau fichier settings.json devra récupérer le token mpabos existant pour le mettre à jour, dans le fichier crée
+
+l'attribut crtique sera à true 
+
+. En effet pour des raison de sécurité le ficheir settingsDefault.json ne le connait pas. 
+
+
 
 ---
 
