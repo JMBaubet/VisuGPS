@@ -328,7 +328,7 @@ A la suite de la création d'un nouveau contexte, une dialog box demandera à l'
 
 A la suite de la séléction d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode séléectionné.
 
-### Etape 3.5 - Réalisé - []
+### Etape 3.5 - Réalisé - [221f1590]
 
 Dans cette étape nous allons travailler sur les fichiers settings.json.
 
