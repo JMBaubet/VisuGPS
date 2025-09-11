@@ -294,7 +294,7 @@ Si il n'existe pas il faut le créer en recopiant le fichier envDefault situé d
 
 Ensuite on lit la variable, pour connaitre le mode d'execution. 
 
-### Etape 3.4 -  - []
+### Etape 3.4 - Réalisé - [a726d07f]
 
 Par défaut, au premier démarage, on est par défaut en mode OPE. 
 
@@ -327,6 +327,18 @@ Une liste des modes d'execution dejà créés sera réalisée afin que l'on puis
 A la suite de la création d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode créé.
 
 A la suite de la séléction d'un nouveau contexte, une dialog box demandera à l'utilisateur si il veut redémarer l'application pour prendre en compte le nouveau mode séléectionné.
+
+
+
+### Etape 3.5 - - []
+
+Dans cette étape nous allons travailler sur les fichiers settings.json.
+
+Ce fichier est crée lors de la création d'un contexte d'éxécution. A partir du fichier 
+
+`src-tauri/SettingsDefaut.json`
+
+Lors de sa création il faut mettre à jour les attributs date-creation, context (Le nom du contexte d'éxécution) et description, qui est données lors de la creation du contexte d'éxécution via le composant ExeMode.vue.
 
 ---
 
