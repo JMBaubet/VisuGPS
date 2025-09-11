@@ -1,4 +1,4 @@
-use tauri::{App, Manager, State, AppHandle, Wry};
+use tauri::{App, Manager, State, AppHandle};
 use std::fs;
 use std::path::PathBuf;
 use reqwest; // Added reqwest
@@ -94,7 +94,7 @@ fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, St
 }
 
 #[tauri::command]
-fn create_execution_mode(app: AppHandle, mode_name: String, description: String) -> Result<(), String> {
+fn create_execution_mode(app: AppHandle, mode_name: String, _description: String) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let visugps_dir = app_data_dir.join("VisuGPS");
 
@@ -128,17 +128,53 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
 
     let main_env_path = visugps_dir.join(".env");
     let selected_env_path = if mode_name == "OPE" {
-        visugps_dir.join(".env") // OPE uses the main .env file directly
+        let current_env_content = fs::read_to_string(&main_env_path).map_err(|e| e.to_string())?;
+        if current_env_content.trim() != "APP_ENV=OPE" {
+            fs::write(&main_env_path, "APP_ENV=OPE").map_err(|e| e.to_string())?;
+        }
+        return Ok(()); // No further action needed for OPE if already set or just set
     } else {
         visugps_dir.join(format!(".env.{}", mode_name))
     };
 
     if !selected_env_path.exists() {
-        return Err(format!("Selected mode .env file does not exist: {}", selected_env_path.display()));
+        // If the .env.MODE_NAME file doesn't exist, create it on the fly
+        let env_content = format!("APP_ENV={}\n", mode_name);
+        fs::write(&selected_env_path, env_content).map_err(|e| e.to_string())?;
     }
 
-    let env_content = fs::read_to_string(&selected_env_path).map_err(|e| e.to_string())?;
+    let mut mapbox_token = String::new();
+    if let Ok(iter) = dotenvy::from_path_iter(&main_env_path) {
+        for item in iter {
+            if let Ok((key, val)) = item {
+                if key == "MAPBOX_TOKEN" {
+                    mapbox_token = val;
+                    break;
+                }
+            }
+        }
+    }
+
+    let mut env_content = fs::read_to_string(&selected_env_path).map_err(|e| e.to_string())?;
+
+    // Ensure MAPBOX_TOKEN is preserved
+    if !mapbox_token.is_empty() {
+        if env_content.contains("MAPBOX_TOKEN=") {
+            // Replace existing MAPBOX_TOKEN
+            let re = regex::Regex::new(r"MAPBOX_TOKEN=.*\n").unwrap();
+            env_content = re.replace(&env_content, format!("MAPBOX_TOKEN={}\n", mapbox_token)).to_string();
+        } else {
+            // Append MAPBOX_TOKEN if not present
+            env_content.push_str(&format!("MAPBOX_TOKEN={}\n", mapbox_token));
+        }
+    }
+
     fs::write(&main_env_path, env_content).map_err(|e| e.to_string())?;
+
+    // Delete the temporary .env.mode_name file
+    if mode_name != "OPE" && selected_env_path.exists() {
+        fs::remove_file(&selected_env_path).map_err(|e| e.to_string())?;
+    }
 
     Ok(())
 }
@@ -214,17 +250,29 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let mut app_env = "OPE".to_string();
     let mut mapbox_token = String::new(); // Initialize mapbox_token
 
+    println!("setup_environment: Reading .env from: {}", env_path.display());
+
     if let Ok(iter) = dotenvy::from_path_iter(&env_path) {
         for item in iter {
             if let Ok((key, val)) = item {
                 match key.as_str() { // Use match for multiple keys
-                    "APP_ENV" => app_env = val,
-                    "MAPBOX_TOKEN" => mapbox_token = val, // Read MAPBOX_TOKEN
+                    "APP_ENV" => {
+                        app_env = val;
+                        println!("setup_environment: APP_ENV found: {}", app_env);
+                    },
+                    "MAPBOX_TOKEN" => {
+                        mapbox_token = val;
+                        println!("setup_environment: MAPBOX_TOKEN found: {}", mapbox_token);
+                    }, // Read MAPBOX_TOKEN
                     _ => {} // Ignore other keys
                 }
             }
         }
     }
+
+    println!("setup_environment: Final app_env: {}", app_env);
+    println!("setup_environment: Final execution_mode: {}", get_execution_mode(&app_env));
+    println!("setup_environment: Final app_env_path: {}", visugps_dir.join(&app_env).display());
 
     let execution_mode = get_execution_mode(&app_env);
     

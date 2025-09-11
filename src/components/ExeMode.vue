@@ -69,6 +69,14 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <RestartConfirmationDialog
+    v-model="showRestartDialog"
+    :title="restartDialogTitle"
+    :message="restartDialogMessage"
+    @confirmed="handleRestartConfirmed"
+    @cancelled="handleRestartCancelled"
+  />
 </template>
 
 <script setup>
@@ -76,8 +84,8 @@ import { ref, watch, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
-import { confirm } from '@tauri-apps/plugin-dialog';
 import { relaunch } from '@tauri-apps/plugin-process';
+import RestartConfirmationDialog from './RestartConfirmationDialog.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -91,6 +99,11 @@ const newModeName = ref('');
 const newModeDescription = ref('');
 const { showSnackbar } = useSnackbar();
 const { appEnv } = useEnvironment();
+
+const showRestartDialog = ref(false);
+const restartDialogTitle = ref('');
+const restartDialogMessage = ref('');
+let restartPromiseResolve = null;
 
 const rules = {
   required: value => !!value || 'Requis.',
@@ -135,10 +148,14 @@ const createMode = async () => {
     newModeDescription.value = '';
     fetchExecutionModes(); // Refresh the list
 
-    const shouldRestart = await confirm(
-      'Le nouveau mode d\'exécution a été créé. Voulez-vous redémarrer l\'application pour l\'activer ?',
-      { title: 'Redémarrer l\'application' }
-    );
+    restartDialogTitle.value = 'Redémarrer l\'application';
+    restartDialogMessage.value = 'Le nouveau mode d\'exécution a été créé. Voulez-vous redémarrer l\'application pour l\'activer ?';
+    showRestartDialog.value = true;
+
+    const shouldRestart = await new Promise(resolve => {
+      restartPromiseResolve = resolve;
+    });
+
     if (shouldRestart) {
       await relaunch();
     }
@@ -170,10 +187,14 @@ const selectMode = async (modeName) => {
     await invoke('select_execution_mode', { modeName });
     showSnackbar('success', `Mode ${modeName} sélectionné avec succès.`);
 
-    const shouldRestart = await confirm(
-      'Le mode d\'exécution a été modifié. Voulez-vous redémarrer l\'application pour prendre en compte le nouveau mode ?',
-      { title: 'Redémarrer l\'application' }
-    );
+    restartDialogTitle.value = 'Redémarrer l\'application';
+    restartDialogMessage.value = 'Le mode d\'exécution a été modifié. Voulez-vous redémarrer l\'application pour prendre en compte le nouveau mode ?';
+    showRestartDialog.value = true;
+
+    const shouldRestart = await new Promise(resolve => {
+      restartPromiseResolve = resolve;
+    });
+
     if (shouldRestart) {
       await relaunch();
     }
@@ -181,6 +202,18 @@ const selectMode = async (modeName) => {
   } catch (error) {
     console.error("Error selecting execution mode:", error);
     showSnackbar('error', `Erreur lors de la sélection du mode: ${error}`);
+  }
+};
+
+const handleRestartConfirmed = () => {
+  if (restartPromiseResolve) {
+    restartPromiseResolve(true);
+  }
+};
+
+const handleRestartCancelled = () => {
+  if (restartPromiseResolve) {
+    restartPromiseResolve(false);
   }
 };
 
