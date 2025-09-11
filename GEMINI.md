@@ -338,7 +338,7 @@ Ce fichier est crée lors de la création d'un contexte d'éxécution. A partir 
 
 Lors de sa création il faut mettre à jour les attributs date-creation, context (Le nom du contexte d'éxécution) et description, qui est données lors de la creation du contexte d'éxécution via le composant ExeMode.vue.
 
-### Etape 3.6 - Réalisée - []
+### Etape 3.6 - Réalisée - [d2f629f7]
 
 Actuellement le token mapBox est lu dans le fichiers .env.
 
@@ -352,7 +352,13 @@ l'attribut crtique sera à true
 
 . En effet pour des raison de sécurité le ficheir settingsDefault.json ne le connait pas. 
 
-### Etape 3.7 -  - []
+### Etape 3.7 - Réalisée - []
+
+Actuellement nous avons dans le compossant AppMainBar.vue un switch et ses icones  pour sélectionner choisir le mode clair/sombre. Il lfaudrait déplacer  ce switch et ses icônes dans le settingsToolbar.vue. 
+
+### Etape 3.8 -  - []
+
+Dans le composant SettingsTree.vue, il faut afficher dans une infobulle le chemin complet des groupes.  
 
 ---
 

@@ -28,20 +28,7 @@
         </v-btn>
 
         <!-- Dark/Light Mode Switch -->
-        <v-switch
-          v-model="isDarkTheme"
-          hide-details
-          inset
-          color="primary"
-          class="pr-4"
-        >
-          <template v-slot:prepend>
-            <v-icon :color="isDarkTheme ? 'primary' : 'grey'">mdi-weather-night</v-icon>
-          </template>
-          <template v-slot:append>
-            <v-icon :color="isDarkTheme ? 'grey' : '#FFA000'">mdi-weather-sunny</v-icon> <!-- Darker yellow/amber -->
-          </template>
-        </v-switch>
+        
       </v-col>
     </v-row>
   </v-toolbar>
@@ -49,12 +36,10 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useTheme } from 'vuetify';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
 
-const theme = useTheme();
 const { appEnv, executionMode, mapboxToken } = useEnvironment();
 const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
 const { getSettingValue } = useSettings(); // Use settings composable
@@ -88,14 +73,7 @@ const serviceStatusColor = computed(() => {
 
 let serviceCheckInterval; // Declare interval variable
 
-onMounted(() => {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    theme.global.name.value = 'dark';
-  } else {
-    theme.global.name.value = 'light';
-  }
-});
+
 
 // Watch mapboxToken AND the interval value to trigger checks
 watch([mapboxToken, networkPollingInterval], ([newToken, interval]) => {
@@ -126,15 +104,7 @@ onUnmounted(() => {
   }
 });
 
-const isDarkTheme = computed({
-  get() {
-    return theme.global.current.value.dark;
-  },
-  set(value) {
-    theme.global.name.value = value ? 'dark' : 'light';
-    localStorage.setItem('theme', value ? 'dark' : 'light');
-  }
-});
+
 
 const showAppEnvChip = computed(() => {
   return executionMode.value === 'EVAL' || executionMode.value === 'TEST';
