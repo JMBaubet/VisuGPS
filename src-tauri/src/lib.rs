@@ -94,7 +94,7 @@ fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, St
 }
 
 #[tauri::command]
-fn create_execution_mode(app: AppHandle, mode_name: String, _description: String) -> Result<(), String> {
+fn create_execution_mode(app: AppHandle, mode_name: String, description: String) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let visugps_dir = app_data_dir.join("VisuGPS");
 
@@ -112,14 +112,30 @@ fn create_execution_mode(app: AppHandle, mode_name: String, _description: String
     // Create the environment-specific directory
     fs::create_dir_all(&new_app_env_path).map_err(|e| e.to_string())?;
 
-    // Copy settingsDefault.json into the new environment directory
-    let settings_path = new_app_env_path.join("settings.json");
-    if !settings_path.exists() {
-        fs::write(settings_path, EMBEDDED_DEFAULT_SETTINGS).map_err(|e| e.to_string())?;
+    // Parse the default settings
+    let mut settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
+        .map_err(|e| format!("Failed to parse default settings: {}", e))?;
+
+    // Modify the settings
+    if let Some(reference) = settings.get_mut("référence") {
+        if let Some(obj) = reference.as_object_mut() {
+            obj.insert("context".to_string(), Value::String(mode_name.clone()));
+            obj.insert("description".to_string(), Value::String(description));
+        }
     }
+
+    // Write the modified settings to the new environment's settings.json
+    let settings_path = new_app_env_path.join("settings.json");
+    let new_settings_content = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    fs::write(settings_path, new_settings_content)
+        .map_err(|e| format!("Failed to write settings file: {}", e))?;
+
 
     Ok(())
 }
+
 
 #[tauri::command]
 fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String> {
