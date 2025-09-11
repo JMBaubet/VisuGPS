@@ -5,6 +5,7 @@ use reqwest; // Added reqwest
 use serde_json::Value; // Added serde_json::Value
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
+const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
 
 
 
@@ -103,7 +104,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let env_path = visugps_dir.join(".env");
 
     if !env_path.exists() {
-        fs::write(&env_path, "APP_ENV=OPE")?;
+        fs::write(&env_path, EMBEDDED_DEFAULT_ENV)?;
     }
 
     let mut app_env = "OPE".to_string();

@@ -282,11 +282,17 @@ en dessous 1 colonnne qui contient :
 
 - un `composant` `SettingsTree.vue` qui affichera sous forme d'arbre les groupes et les paramètres du noeud `data` . Les branches de l'arbres seront fermées à la création. Une icône sous forme de dossier fermer/ouvert sera présent devant chaque groupe, (Prepend Icons). Les actions icons seront masqués.
 
-### Etape 3.2 -  - []
+### Etape 3.2 - Réalisée - [c7353538]
 
-Actuellement nous avons pour les environnement d'execution Prod, Sandbox et Test.  Il faut les remplacer par OPE, EVAL et TEST. 
+Actuellement nous avons pour les environnements d'execution Prod, Sandbox et Test.  Il faut les remplacer par OPE, EVAL et TEST. 
 
-  
+### ETape 3.3 -  - []
+
+  Au lancement de l'application, il faut vérifier si le fichier .env existe sous C:\Users\$USER\AppData\Roaming\com.visugps.app\VisuGPS. 
+
+Si il n'existe pas il faut le créer en recopiant le fichier envDefault situé dans src-tauri.
+
+Ensuite on lit la variable, pour connaitre le mode d'execution. 
 
 ---
 
