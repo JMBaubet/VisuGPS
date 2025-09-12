@@ -352,15 +352,23 @@ l'attribut crtique sera à true
 
 . En effet pour des raison de sécurité le ficheir settingsDefault.json ne le connait pas. 
 
-### Etape 3.7 - Réalisée - []
+### Etape 3.7 - Réalisée - [541217d5]
 
 Actuellement nous avons dans le compossant AppMainBar.vue un switch et ses icones  pour sélectionner choisir le mode clair/sombre. Il lfaudrait déplacer  ce switch et ses icônes dans le settingsToolbar.vue. 
 
-### Etape 3.8 - Réalisée - []
+### Etape 3.8 - Réalisée - [3b763a46]
 
 Dans le composant SettingsTree.vue, il faut afficher dans une infobulle le chemin complet des groupes.  
 
 ### Etape 3.9 -  - []
+
+Sur le composant `src/components/SettingsTree.vue` on accède à l'ensemble des paramètre de l'application. C'est paramètre ont vocation à pouvoir être modifés. 
+
+Pour cela nous devons créer des composants pour chaque type de donnée (string, boolean, color, entier... afin de pouvoir les modifier et valider leurs limites si elles existent. l'accès à ce composant de type V-dialog se fera pas un click souris sur le paramètres du v-tree.
+
+A chaque modification d'un paramètre la date_revision du fichier json devra être mise à jour. 
+
+#### Etape 3.9.1 -  - []
 
 Réalisaton d'un composant pour modifier un paramètre string (MapBox par exemple)
 

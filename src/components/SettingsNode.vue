@@ -10,7 +10,12 @@
       </template>
 
       <!-- Affichage des paramètres -->
-      <v-list-item v-for="param in node.parametres" :key="param.identifiant">
+      <v-list-item
+        v-for="param in node.parametres"
+        :key="param.identifiant"
+        @click="openEditDialog(param)"
+        class="param-item"
+      >
         <template v-slot:prepend>
           <v-icon :color="param.surcharge != null ? 'info' : undefined">mdi-file-cog-outline</v-icon>
         </template>
@@ -19,15 +24,31 @@
       </v-list-item>
 
       <!-- Appel récursif pour les sous-groupes -->
-      <SettingsNode v-for="childGroup in node.groupes" :key="childGroup.identifiant" :node="childGroup" :currentPath="fullPath" />
+      <SettingsNode
+        v-for="childGroup in node.groupes"
+        :key="childGroup.identifiant"
+        :node="childGroup"
+        :currentPath="fullPath"
+        @settings-updated="$emit('settings-updated')"
+      />
 
     </v-list-group>
 
+    <!-- Composant de dialogue pour les strings -->
+    <EditStringDialog
+      v-if="selectedParameter"
+      :show="isStringDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isStringDialogVisible = $event"
+      @saved="onSettingsUpdated"
+    />
   </div>
 </template>
 
 <script setup>
-import { defineProps, computed } from 'vue';
+import { defineProps, computed, ref, defineEmits } from 'vue';
+import EditStringDialog from './EditStringDialog.vue';
 
 const props = defineProps({
   node: {
@@ -39,6 +60,24 @@ const props = defineProps({
     default: ''
   }
 });
+
+const emit = defineEmits(['settings-updated']);
+
+const isStringDialogVisible = ref(false);
+const selectedParameter = ref(null);
+
+const openEditDialog = (param) => {
+  // Pour l'instant, on ne gère que le type 'string'
+  if (param.type === 'string') {
+    selectedParameter.value = param;
+    isStringDialogVisible.value = true;
+  }
+  // On pourra ajouter des else if pour d'autres types ici
+};
+
+const onSettingsUpdated = () => {
+  emit('settings-updated');
+};
 
 const fullPath = computed(() => {
   if (props.currentPath) {
@@ -55,12 +94,19 @@ const isDev = computed(() => {
 
 <script>
 // Nécessaire pour la récursivité
+import SettingsNode from './SettingsNode.vue';
 export default {
   name: 'SettingsNode'
 }
 </script>
 
 <style scoped>
+.param-item {
+  cursor: pointer;
+}
+.param-item:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
+}
 .v-list-item {
   margin-left: 16px;
 }

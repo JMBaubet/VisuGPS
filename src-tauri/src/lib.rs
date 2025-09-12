@@ -293,6 +293,55 @@ fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
 }
 
 
+#[tauri::command]
+fn update_setting(state: State<AppState>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
+    let settings_path = state.app_env_path.join("settings.json");
+    let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let mut settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    // Update revision date
+    if let Some(reference) = settings.get_mut("référence") {
+        if let Some(obj) = reference.as_object_mut() {
+            let now = Utc::now();
+            obj.insert("date_revision".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()));
+        }
+    }
+
+    // Navigate to the correct group
+    let path_parts: Vec<&str> = group_path.split('/').filter(|s| !s.is_empty()).collect();
+    let mut target_group = &mut settings["data"];
+
+    for part in path_parts {
+        target_group = target_group
+            .get_mut("groupes")
+            .and_then(|g| g.as_array_mut())
+            .and_then(|groups| {
+                groups
+                    .iter_mut()
+                    .find(|g| g.get("libelle").and_then(|l| l.as_str()) == Some(part))
+            })
+            .ok_or_else(|| format!("Group not found in path: {}", part))?;
+    }
+
+    // Find and update the parameter in the target group
+    if let Some(params) = target_group.get_mut("parametres").and_then(|p| p.as_array_mut()) {
+        if let Some(param) = params.iter_mut().find(|p| p.get("identifiant").and_then(|i| i.as_str()) == Some(&param_id)) {
+            param["surcharge"] = new_value;
+        } else {
+            return Err(format!("Parameter '{}' not found", param_id));
+        }
+    } else {
+        return Err("No 'parametres' array found in the target group".to_string());
+    }
+
+    // Write back the updated settings
+    let new_settings_content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    fs::write(&settings_path, new_settings_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
@@ -394,7 +443,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

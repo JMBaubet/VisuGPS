@@ -4,7 +4,13 @@
     <v-card-text class="scrolling-card-text">
       <v-list dense bg-color="transparent">
         <template v-if="settings && settings.data && settings.data.groupes">
-          <SettingsNode v-for="group in settings.data.groupes" :key="group.identifiant" :node="group" currentPath="" />
+          <SettingsNode 
+            v-for="group in settings.data.groupes" 
+            :key="group.identifiant" 
+            :node="group" 
+            currentPath="" 
+            @settings-updated="loadSettings"
+          />
         </template>
         <v-list-item v-else>
           <v-list-item-title>Chargement des paramètres...</v-list-item-title>
@@ -21,13 +27,15 @@ import SettingsNode from './SettingsNode.vue';
 
 const settings = ref(null);
 
-onMounted(async () => {
+const loadSettings = async () => {
   try {
     settings.value = await invoke('read_settings');
   } catch (error) {
     console.error("Erreur lors de la lecture des paramètres:", error);
   }
-});
+};
+
+onMounted(loadSettings);
 </script>
 
 <style scoped>
