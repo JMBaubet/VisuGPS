@@ -362,15 +362,23 @@ Dans le composant SettingsTree.vue, il faut afficher dans une infobulle le chemi
 
 ### Etape 3.9 -  - []
 
-Sur le composant `src/components/SettingsTree.vue` on accède à l'ensemble des paramètre de l'application. C'est paramètre ont vocation à pouvoir être modifés. 
-
-Pour cela nous devons créer des composants pour chaque type de donnée (string, boolean, color, entier... afin de pouvoir les modifier et valider leurs limites si elles existent. l'accès à ce composant de type V-dialog se fera pas un click souris sur le paramètres du v-tree.
-
-A chaque modification d'un paramètre la date_revision du fichier json devra être mise à jour. 
-
-#### Etape 3.9.1 -  - []
-
 Réalisaton d'un composant pour modifier un paramètre string (MapBox par exemple)
+
+#### Etape 3.9.1 - Réalisé - [f364f1cd]
+
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type string. Seront  pris en compte les données suivantes d'un paramètre de type string :
+
+- identifiant, libelle, description, defaut, surcharge, critique, min, max. 
+
+#### 3.9.2 -  - []
+
+Cette étape consiste à ajouter de la documentation sur les paramètres. Les documents seront au format .md et sont stockés sous /public.
+
+Seule de frontend devrait être mis à contribution pour afficher la documentation.
+
+Si un paramètre a un attibut doc,  cet attribut contiendra le chemin pour accéder au document.
+
+Si le paramètre existe une icone  `mdi-book-open-variant-outline` sera affichée en haut à droite du composant. l'icone sera en bleu (info) . La documentation s'affichera dans un composant flotant.
 
 ---
 
