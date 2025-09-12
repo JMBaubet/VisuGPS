@@ -1,15 +1,14 @@
 use tauri::{App, Manager, State, AppHandle};
 use std::fs;
 use std::path::PathBuf;
-use reqwest; // Added reqwest
-use serde_json::Value; // Added serde_json::Value
-use tauri_plugin_dialog; // Added tauri_plugin_dialog
-use tauri_plugin_process; // Added tauri_plugin_process
+use reqwest;
+use serde_json::Value;
+
 use chrono::prelude::*;
+use std::io::Write; // Added for file writing
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
-
 
 
 #[derive(serde::Serialize, Clone)]
@@ -65,13 +64,35 @@ fn get_app_state(state: State<AppState>) -> AppState {
     state.inner().clone()
 }
 
+// Helper function for logging errors to file
+fn log_error_to_file(log_file_path: &PathBuf, context: &str, message: &str) {
+    let log_msg = format!("[{}] {} - \n{}", Utc::now().format("%Y-%m-%d %H:%M:%S"), context, message);
+    if let Some(parent) = log_file_path.parent() {
+        let _ = fs::create_dir_all(parent); // Ensure parent directory exists
+    }
+    if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(log_file_path) {
+        let _ = file.write_all(log_msg.as_bytes());
+    }
+}
+
 #[tauri::command]
 fn read_settings(state: State<AppState>) -> Result<Value, String> {
     let settings_path = state.app_env_path.join("settings.json");
-    let file_content = fs::read_to_string(settings_path)
-        .map_err(|e| e.to_string())?;
+    let app_data_dir = state.app_env_path.parent().unwrap().to_path_buf(); // Get the parent directory (VisuGPS folder)
+    let log_file_path = app_data_dir.join("error.log");
+
+    let file_content = fs::read_to_string(&settings_path)
+        .map_err(|e| {
+            log_error_to_file(&log_file_path, "read_settings_file", &format!("Error: {}", e));
+            e.to_string()
+        })?;
+
     let json_content: Value = serde_json::from_str(&file_content)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            log_error_to_file(&log_file_path, "parse_settings_json", &format!("Error: {}", e));
+            e.to_string()
+        })?;
+    log_error_to_file(&log_file_path, "read_settings_success", &format!("Successfully read and parsed settings. JSON snippet: {}", json_content.to_string().chars().take(200).collect::<String>()));
     Ok(json_content)
 }
 
@@ -252,8 +273,6 @@ pub struct ExecutionMode {
     mode_type: String, // OPE, EVAL, TEST
 }
 
-// ... other code ...
-
 
 fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
     let parts: Vec<&str> = path.split('.').collect();
@@ -299,27 +318,31 @@ fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
+    let log_file_path = visugps_dir.join("error.log");
 
     if !visugps_dir.exists() {
-        fs::create_dir_all(&visugps_dir)?;
+        fs::create_dir_all(&visugps_dir).map_err(|e| {
+            log_error_to_file(&log_file_path, "create_visugps_dir", &format!("Error: {}", e));
+            e
+        })?;
     }
 
     let env_path = visugps_dir.join(".env");
 
     if !env_path.exists() {
-        fs::write(&env_path, EMBEDDED_DEFAULT_ENV)?;
+        fs::write(&env_path, EMBEDDED_DEFAULT_ENV).map_err(|e| {
+            log_error_to_file(&log_file_path, "write_default_env", &format!("Error: {}", e));
+            e
+        })?;
     }
 
     let mut app_env = "OPE".to_string();
-
-    
 
     if let Ok(iter) = dotenvy::from_path_iter(&env_path) {
         for item in iter {
             if let Ok((key, val)) = item {
                 if key == "APP_ENV" {
                     app_env = val;
-                    
                 }
             }
         }
@@ -334,21 +357,34 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Create the environment-specific directory
     let app_env_path = visugps_dir.join(&app_env);
     if !app_env_path.exists() {
-        fs::create_dir_all(&app_env_path)?;
+        fs::create_dir_all(&app_env_path).map_err(|e| {
+            log_error_to_file(&log_file_path, "create_app_env_dir", &format!("Error: {}", e));
+            e
+        })?;
     }
 
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
     if !settings_path.exists() {
-        fs::write(&settings_path, EMBEDDED_DEFAULT_SETTINGS)?;
+        fs::write(&settings_path, EMBEDDED_DEFAULT_SETTINGS).map_err(|e| {
+            log_error_to_file(&log_file_path, "write_default_settings", &format!("Error: {}", e));
+            e
+        })?;
     }
 
     // Read settings and extract mapbox token
-    let settings_content = fs::read_to_string(settings_path)?;
-    let settings: Value = serde_json::from_str(&settings_content)?;
+    let settings_content = fs::read_to_string(&settings_path).map_err(|e| {
+        log_error_to_file(&log_file_path, "read_settings_content", &format!("Error: {}", e));
+        e
+    })?;
+    let settings: Value = serde_json::from_str(&settings_content).map_err(|e| {
+        log_error_to_file(&log_file_path, "parse_settings_json", &format!("Error: {}", e));
+        e
+    })?;
     let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
         .unwrap_or_else(|| "".to_string());
 
+    log_error_to_file(&log_file_path, "setup_environment_success", "setup_environment completed successfully.");
 
     Ok(AppState {
         app_env,
@@ -370,8 +406,22 @@ pub fn run() {
                         .build(),
                 )?;
             }
-            app.handle().plugin(tauri_plugin_dialog::init())?;
-            app.handle().plugin(tauri_plugin_process::init())?;
+            // Removed unused plugins
+            // app.handle().plugin(tauri_plugin_dialog::init())?;
+            // app.handle().plugin(tauri_plugin_process::init())?;
+
+            let app_data_dir = app.path().app_data_dir()?;
+            let visugps_dir = app_data_dir.join("VisuGPS");
+            let log_file_path = visugps_dir.join("error.log");
+            
+            // Attempt to write a startup message to the log file
+            let startup_msg = format!("[{}] Application started.\n", Utc::now().format("%Y-%m-%d %H:%M:%S"));
+            if let Some(parent) = log_file_path.parent() {
+                let _ = fs::create_dir_all(parent); // Ensure parent directory exists
+            }
+            if let Ok(mut file) = fs::OpenOptions::new().create(true).append(true).open(&log_file_path) {
+                let _ = file.write_all(startup_msg.as_bytes());
+            }
 
             let state = setup_environment(app)?;
             app.manage(state);
