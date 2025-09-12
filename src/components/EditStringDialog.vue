@@ -1,8 +1,14 @@
 <template>
   <v-dialog :model-value="show" @update:model-value="$emit('update:show', $event)" persistent max-width="600px">
     <v-card v-if="parameter">
-      <v-card-title>
+      <v-card-title class="d-flex justify-space-between align-center">
         <span class="text-h5" :class="{ 'text-warning': parameter.critique }">{{ parameter.libelle }}</span>
+        <v-icon
+          v-if="parameter.doc"
+          color="info"
+          @click="showDocDialog = true"
+          title="Afficher la documentation"
+        >mdi-book-open-outline</v-icon>
       </v-card-title>
       <v-card-subtitle>{{ parameter.description }}</v-card-subtitle>
       <v-card-text>
@@ -52,12 +58,18 @@
         </v-btn>
       </v-card-actions>
     </v-card>
+    <v-dialog v-model="showDocDialog" max-width="800px">
+      <DocDisplay :doc-path="parameter.doc" @close="showDocDialog = false" />
+    </v-dialog>
   </v-dialog>
 </template>
 
 <script setup>
 import { ref, watch, computed, defineProps, defineEmits } from 'vue';
 import { useSettings } from '@/composables/useSettings';
+import DocDisplay from './DocDisplay.vue'; // Import the new component
+
+const showDocDialog = ref(false); // Reactive variable to control doc dialog visibility
 
 const props = defineProps({
   show: Boolean,

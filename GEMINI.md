@@ -378,7 +378,7 @@ Seule de frontend devrait être mis à contribution pour afficher la documentati
 
 Si un paramètre a un attibut doc,  cet attribut contiendra le chemin pour accéder au document.
 
-Si le paramètre existe une icone  `mdi-book-open-variant-outline` sera affichée en haut à droite du composant. l'icone sera en bleu (info) . La documentation s'affichera dans un composant flotant.
+Si le paramètre existe une icone  `mdi-book-open-outline` sera affichée en haut à droite du composant. l'icone sera en bleu (info) . La documentation s'affichera dans un composant flotant.
 
 ---
 
