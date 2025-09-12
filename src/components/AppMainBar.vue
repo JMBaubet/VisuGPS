@@ -35,25 +35,30 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
 
-const { appEnv, executionMode, mapboxToken } = useEnvironment();
-const { serviceStatus, statusMessage, checkAllServices } = useServiceStatus();
-const { getSettingValue } = useSettings(); // Use settings composable
+// Environment composable is only for display purposes now (chip)
+const { appEnv, executionMode } = useEnvironment();
 
+// Service status composable handles all checking logic
+const { serviceStatus, checkAllServices } = useServiceStatus();
+
+// Settings composable to get the polling interval
+const { getSettingValue } = useSettings();
+
+// Reactive polling interval from settings
 const networkPollingInterval = computed(() => {
-  // Get the setting value using the centralized getter
-  return getSettingValue('Système/Timers/networkPolling', 10000);
+  return getSettingValue('Système.Timers.networkPolling');
 });
 
 const serviceStatusIcon = computed(() => {
   switch (serviceStatus.value) {
     case 'connected': return 'mdi-web-check';
     case 'disconnected': return 'mdi-web-off';
-    case 'mapbox_unreachable': return 'mdi-mapbox'; // Changed icon
+    case 'mapbox_unreachable': return 'mdi-mapbox';
     case 'invalid_token': return 'mdi-key-alert';
     case 'checking':
     default: return 'mdi-sync';
@@ -71,40 +76,43 @@ const serviceStatusColor = computed(() => {
   }
 });
 
-let serviceCheckInterval; // Declare interval variable
+let serviceCheckInterval;
 
-
-
-// Watch mapboxToken AND the interval value to trigger checks
-watch([mapboxToken, networkPollingInterval], ([newToken, interval]) => {
-  // Clear any existing interval to prevent multiple intervals
+const setupPolling = (interval) => {
+  // Clear previous interval if it exists
   if (serviceCheckInterval) {
     clearInterval(serviceCheckInterval);
   }
-
-  if (newToken && newToken.trim() !== '' && interval > 0) {
-    // Initial service check
-    checkAllServices(newToken);
-
-    // Set up periodic service checks
-    serviceCheckInterval = setInterval(() => {
-      checkAllServices(newToken);
-    }, interval); // Use the value from settings
-  } else if (!newToken || newToken.trim() === '') {
-    // If token becomes invalid/empty, stop checks and set status
-    serviceStatus.value = 'invalid_token';
-    statusMessage.value = 'Token Mapbox manquant ou invalide.';
+  // Do not set up polling if interval is invalid or zero
+  if (!interval || interval <= 0) {
+    console.log('Polling disabled due to invalid interval.');
+    return;
   }
-}, { immediate: true }); // Run immediately to catch initial values
+  // Set up new interval
+  serviceCheckInterval = setInterval(() => {
+    checkAllServices();
+  }, interval);
+};
 
+// Watch for changes in the polling interval setting and restart the polling
+watch(networkPollingInterval, (newInterval) => {
+  console.log(`Polling interval changed to ${newInterval}ms, restarting polling.`);
+  setupPolling(newInterval);
+});
+
+// Perform an initial check on mount, and set up initial polling
+onMounted(() => {
+  console.log('AppMainBar mounted, performing initial service check and setting up polling.');
+  checkAllServices();
+  setupPolling(networkPollingInterval.value);
+});
+
+// Cleanup on unmount
 onUnmounted(() => {
-  // Clear the interval when the component is unmounted
   if (serviceCheckInterval) {
     clearInterval(serviceCheckInterval);
   }
 });
-
-
 
 const showAppEnvChip = computed(() => {
   return executionMode.value === 'EVAL' || executionMode.value === 'TEST';

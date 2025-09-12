@@ -21,21 +21,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { useSettings } from '@/composables/useSettings';
 import SettingsNode from './SettingsNode.vue';
 
-const settings = ref(null);
+const { settings } = useSettings();
 
-const loadSettings = async () => {
-  try {
-    settings.value = await invoke('read_settings');
-  } catch (error) {
-    console.error("Erreur lors de la lecture des paramètres:", error);
-  }
-};
-
-onMounted(loadSettings);
 </script>
 
 <style scoped>

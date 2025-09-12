@@ -44,7 +44,7 @@
 
 <script setup>
 import { ref, watch, computed, defineProps, defineEmits } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
+import { useSettings } from '@/composables/useSettings';
 
 const props = defineProps({
   show: Boolean,
@@ -52,7 +52,9 @@ const props = defineProps({
   groupPath: String,
 });
 
-const emit = defineEmits(['update:show', 'saved']);
+const emit = defineEmits(['update:show']);
+
+const { updateSetting } = useSettings();
 
 const editableValue = ref('');
 const initialValue = ref('');
@@ -82,18 +84,12 @@ const closeDialog = () => {
 
 const save = async () => {
   try {
-    // Si la valeur est une chaîne vide, on envoie `null` pour supprimer la surcharge.
     const valueToSave = editableValue.value === '' ? null : editableValue.value;
-    await invoke('update_setting', {
-      groupPath: props.groupPath,
-      paramId: props.parameter.identifiant,
-      newValue: valueToSave,
-    });
-    emit('saved');
+    await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
     closeDialog();
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du paramètre:", error);
-    // TODO: Utiliser un snackbar pour informer l'utilisateur
+    console.error("Erreur lors de la sauvegarde du paramètre:", error);
+    // TODO: Utiliser un snackbar pour informer l'utilisateur de l'erreur
   }
 };
 </script>

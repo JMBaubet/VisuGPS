@@ -29,7 +29,6 @@
         :key="childGroup.identifiant"
         :node="childGroup"
         :currentPath="fullPath"
-        @settings-updated="$emit('settings-updated')"
       />
 
     </v-list-group>
@@ -41,13 +40,12 @@
       :parameter="selectedParameter"
       :group-path="fullPath"
       @update:show="isStringDialogVisible = $event"
-      @saved="onSettingsUpdated"
     />
   </div>
 </template>
 
 <script setup>
-import { defineProps, computed, ref, defineEmits } from 'vue';
+import { defineProps, computed, ref } from 'vue';
 import EditStringDialog from './EditStringDialog.vue';
 
 const props = defineProps({
@@ -61,22 +59,14 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['settings-updated']);
-
 const isStringDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
-  // Pour l'instant, on ne gère que le type 'string'
   if (param.type === 'string') {
     selectedParameter.value = param;
     isStringDialogVisible.value = true;
   }
-  // On pourra ajouter des else if pour d'autres types ici
-};
-
-const onSettingsUpdated = () => {
-  emit('settings-updated');
 };
 
 const fullPath = computed(() => {

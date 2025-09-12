@@ -8,37 +8,26 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useEnvironment } from './composables/useEnvironment';
-import SnackbarContainer from './components/SnackbarContainer.vue'; // Added SnackbarContainer import
 import { onMounted } from 'vue';
 import { useTheme } from 'vuetify';
+import { useEnvironment } from '@/composables/useEnvironment';
+import { useSettings } from '@/composables/useSettings';
+import SnackbarContainer from '@/components/SnackbarContainer.vue';
 
-const { executionMode } = useEnvironment();
+const { executionMode, isDev, isOpe, isEval, isTest } = useEnvironment();
+const { initSettings } = useSettings();
+const theme = useTheme();
 
-onMounted(() => {
-  const theme = useTheme();
-  const savedTheme = localStorage.getItem('theme');
+// Load settings on app mount
+onMounted(async () => {
+  await initSettings();
+  // Restore theme from localStorage
+  const savedTheme = window.localStorage.getItem('theme');
   if (savedTheme) {
     theme.global.name.value = savedTheme;
-  } else {
-    // Default to dark theme if no preference is saved
-    theme.global.name.value = 'dark';
   }
 });
 
-const showFrame = computed(() => {
-  return executionMode.value !== 'OPE';
-});
-
-const frameColorClass = computed(() => {
-  if (executionMode.value === 'EVAL') {
-    return 'app-frame-eval';
-  } else if (executionMode.value === 'TEST') {
-    return 'app-frame-test';
-  }
-  return '';
-});
 </script>
 
 <style>
