@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid>
+  <v-container fluid class="pa-0">
     <SettingsToolbar @open-exe-mode="showExeModeDialog = true" />
     <v-row>
       <v-col cols="12" md="8" lg="6">

@@ -6,7 +6,7 @@
     <v-toolbar-title>Paramètres</v-toolbar-title>
     <v-spacer></v-spacer>
     <v-btn icon @click="openExeModeDialog">
-      <v-icon>mdi-cog-outline</v-icon>
+      <v-icon>mdi-folder-cog-outline</v-icon>
     </v-btn>
   </v-toolbar>
 </template>
