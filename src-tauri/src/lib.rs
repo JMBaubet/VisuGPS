@@ -337,11 +337,29 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
     if !settings_path.exists() {
-        fs::write(&settings_path, EMBEDDED_DEFAULT_SETTINGS)?;
+        // Parse the default settings
+        let mut settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
+            .map_err(|e| format!("Failed to parse default settings: {}", e))?;
+
+        // Modify the settings
+        if let Some(reference) = settings.get_mut("référence") {
+            if let Some(obj) = reference.as_object_mut() {
+                obj.insert("context".to_string(), Value::String(app_env.clone())); // Use app_env for context
+                let now = Utc::now();
+                obj.insert("date_creation".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()));
+            }
+        }
+
+        // Write the modified settings to the new environment's settings.json
+        let new_settings_content = serde_json::to_string_pretty(&settings)
+            .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+        
+        fs::write(&settings_path, new_settings_content)
+            .map_err(|e| format!("Failed to write settings file: {}", e))?;
     }
 
     // Read settings and extract mapbox token
-    let settings_content = fs::read_to_string(settings_path)?;
+    let settings_content = fs::read_to_string(&settings_path)?;
     let settings: Value = serde_json::from_str(&settings_content)?;
     let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
         .unwrap_or_else(|| "".to_string());
