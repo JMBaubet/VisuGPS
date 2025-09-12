@@ -113,7 +113,9 @@
                 "description": "Token d'accès pour les services Mapbox",
                 "type": "string",
                 "defaut": "",
-                "critique": true
+                "critique": true,
+                "min": 25,
+                "amx": 90
               }
             ]
           }

@@ -2,7 +2,7 @@
   <v-dialog :model-value="show" @update:model-value="$emit('update:show', $event)" persistent max-width="600px">
     <v-card v-if="parameter">
       <v-card-title>
-        <span class="text-h5" :class="{ 'text-warning': parameter.critique }">Modifier: {{ parameter.libelle }}</span>
+        <span class="text-h5" :class="{ 'text-warning': parameter.critique }">{{ parameter.libelle }}</span>
       </v-card-title>
       <v-card-subtitle>{{ parameter.description }}</v-card-subtitle>
       <v-card-text>
@@ -10,19 +10,32 @@
           <v-row>
             <v-col cols="12">
               <v-row class="ma-0" align="start">
+                <v-col cols="12" class="pa-0">
+                  <v-label class="text-caption font-weight-light mb-1 text-white">Valeur par défault :&nbsp</v-label>
+                  <span class="text-caption font-weight-light text-white">{{ parameter.defaut === '' ? '""' : parameter.defaut }}</span>
+                </v-col>
                 <v-col cols="11" class="pa-0">
                   <v-text-field
                     label="Valeur"
                     v-model="editableValue"
-                    :hint="`Défaut: ${parameter.defaut}`"
-                    persistent-hint
                     required
                     autofocus
                   ></v-text-field>
+                  <v-row v-if="parameter.min || parameter.max" class="align-center">
+                    <v-col cols="4" class="py-0 text-left">
+                      <span v-if="parameter.min" class="text-white text-caption font-weight-light">Long. min : {{ parameter.min || 0 }}</span>
+                    </v-col>
+                    <v-col cols="4" class="py-0 text-center">
+                      <span v-if="currentLength > 0" :class="currentLengthColor" class="text-caption font-weight-light">Long. actuelle : {{ currentLength }}</span>
+                    </v-col>
+                    <v-col cols="4" class="py-0 text-right">
+                      <span v-if="parameter.max" class="text-white text-caption font-weight-light">Long. max : {{ parameter.max || '∞' }}</span>
+                    </v-col>
+                  </v-row>
                 </v-col>
                 <v-col cols="1" class="d-flex justify-center mt-3">
-                  <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications">mdi-undo</v-icon>
-                  <v-icon v-if="hasSurcharge && !isModified" @click="removeSurcharge" title="Supprimer la surcharge">mdi-eraser</v-icon>
+                  <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications" color="info">mdi-undo</v-icon>
+                  <v-icon v-if="hasSurcharge && !isModified" @click="removeSurcharge" title="Supprimer la surcharge" color="info">mdi mdi-format-color-marker-cancel</v-icon>
                 </v-col>
               </v-row>
             </v-col>
@@ -60,7 +73,22 @@ const editableValue = ref('');
 const initialValue = ref('');
 
 const hasSurcharge = computed(() => props.parameter.surcharge != null && props.parameter.surcharge !== '');
-const isModified = computed(() => editableValue.value !== initialValue.value);
+  const isModified = computed(() => editableValue.value !== initialValue.value);
+
+const currentLength = computed(() => editableValue.value.length);
+
+const currentLengthColor = computed(() => {
+  const len = currentLength.value;
+  const min = props.parameter.min;
+  const max = props.parameter.max;
+
+  if (len === 0) return 'text-info'; // Blue if empty
+
+  const isWithinMin = min === undefined || len >= min;
+  const isWithinMax = max === undefined || len <= max;
+
+  return (isWithinMin && isWithinMax) ? 'text-success' : 'text-error';
+});
 
 watch(() => props.show, (isVisible) => {
   if (isVisible && props.parameter) {
