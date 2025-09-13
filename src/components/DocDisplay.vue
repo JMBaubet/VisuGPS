@@ -188,4 +188,49 @@ watch(() => props.docPath, (newPath) => {
   }
 }
 
+/* --- Amélioration globale du contraste --- */
+
+/* Texte principal */
+.theme-light .markdown-body {
+  color: #1a1a1a; /* plus sombre que le gris par défaut */
+}
+
+.theme-dark .markdown-body {
+  color: #e6e6e6; /* plus clair et lisible sur fond sombre */
+}
+
+/* Titres - plus de contraste et meilleure hiérarchie */
+.theme-light .markdown-body h1,
+.theme-light .markdown-body h2,
+.theme-light .markdown-body h3 {
+  color: #000000; /* noir pur en clair pour bien ressortir */
+}
+
+.theme-dark .markdown-body h1,
+.theme-dark .markdown-body h2,
+.theme-dark .markdown-body h3 {
+  color: #ffffff; /* blanc pur en sombre */
+}
+
+/* Listes et paragraphes - garder une bonne lisibilité */
+.theme-light .markdown-body p,
+.theme-light .markdown-body ul,
+.theme-light .markdown-body li {
+  color: #000000;
+}
+
+.theme-dark .markdown-body p,
+.theme-dark .markdown-body li {
+  color: #e6e6e6;
+}
+
+/* Lien - améliorer la visibilité */
+.theme-light .markdown-body a {
+  color: #0366d6; /* bleu GitHub */
+}
+
+.theme-dark .markdown-body a {
+  color: #58a6ff; /* bleu GitHub dark */
+}
+
 </style>
