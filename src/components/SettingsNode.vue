@@ -35,11 +35,20 @@
 
     <!-- Composant de dialogue pour les strings -->
     <EditStringDialog
-      v-if="selectedParameter"
+      v-if="selectedParameter && selectedParameter.type === 'string'"
       :show="isStringDialogVisible"
       :parameter="selectedParameter"
       :group-path="fullPath"
       @update:show="isStringDialogVisible = $event"
+    />
+
+    <!-- Composant de dialogue pour les entiers -->
+    <EditIntDialog
+      v-if="selectedParameter && selectedParameter.type === 'entier'"
+      :show="isIntDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isIntDialogVisible = $event"
     />
   </div>
 </template>
@@ -47,6 +56,7 @@
 <script setup>
 import { defineProps, computed, ref } from 'vue';
 import EditStringDialog from './EditStringDialog.vue';
+import EditIntDialog from './EditIntDialog.vue';
 
 const props = defineProps({
   node: {
@@ -60,12 +70,15 @@ const props = defineProps({
 });
 
 const isStringDialogVisible = ref(false);
+const isIntDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
+  selectedParameter.value = param;
   if (param.type === 'string') {
-    selectedParameter.value = param;
     isStringDialogVisible.value = true;
+  } else if (param.type === 'entier') {
+    isIntDialogVisible.value = true;
   }
 };
 

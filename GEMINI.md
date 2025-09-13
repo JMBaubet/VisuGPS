@@ -370,15 +370,31 @@ Cette étape consite à créer un nouveau composant pour éditer les paramètres
 
 - identifiant, libelle, description, defaut, surcharge, critique, min, max. 
 
-#### 3.9.2 -  - []
+#### Etape 3.9.2 - Réalisée - [e720245c]
 
-Cette étape consiste à ajouter de la documentation sur les paramètres. Les documents seront au format .md et sont stockés sous /public.
+Cette étape consiste à ajouter de la documentation sur les paramètres. Les documents seront au format .md et sont stockés sous /public/docs.
 
 Seule de frontend devrait être mis à contribution pour afficher la documentation.
 
-Si un paramètre a un attibut doc,  cet attribut contiendra le chemin pour accéder au document.
+Si un paramètre a un attibut doc,  cet attribut contiendra le nom de fichier.
 
 Si le paramètre existe une icone  `mdi-book-open-outline` sera affichée en haut à droite du composant. l'icone sera en bleu (info) . La documentation s'affichera dans un composant flotant.
+
+#### Etape 3.9.3 - Réalisée - []
+
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type string, en s'inspirant du composant EditStringDialog.
+
+Seront pris en compte si elle existent et non null les données suivantes d'un paramètre de type string :
+
+- identifiant, libelle, description, defaut, surcharge, critique, min, max, step, doc et unité.
+
+Les valeurs min et max permettront de contrôler la valeur saisie.
+
+#### Etape 3.9.4 -  - []
+
+
+
+
 
 ---
 
