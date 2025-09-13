@@ -50,6 +50,15 @@
       :group-path="fullPath"
       @update:show="isIntDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les booleens -->
+    <EditBoolDialog
+      v-if="selectedParameter && selectedParameter.type === 'booleen'"
+      :show="isBoolDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isBoolDialogVisible = $event"
+    />
   </div>
 </template>
 
@@ -57,6 +66,7 @@
 import { defineProps, computed, ref } from 'vue';
 import EditStringDialog from './EditStringDialog.vue';
 import EditIntDialog from './EditIntDialog.vue';
+import EditBoolDialog from './EditBoolDialog.vue';
 
 const props = defineProps({
   node: {
@@ -71,6 +81,7 @@ const props = defineProps({
 
 const isStringDialogVisible = ref(false);
 const isIntDialogVisible = ref(false);
+const isBoolDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
@@ -79,6 +90,8 @@ const openEditDialog = (param) => {
     isStringDialogVisible.value = true;
   } else if (param.type === 'entier') {
     isIntDialogVisible.value = true;
+  } else if (param.type === 'booleen') {
+    isBoolDialogVisible.value = true;
   }
 };
 

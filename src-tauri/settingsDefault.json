@@ -2,6 +2,7 @@
   "data": {
     "groupes": [
       {
+        "libelle": "Importation",
         "groupes": [
           {
             "libelle": "Mapbox",
@@ -12,15 +13,21 @@
                 "identifiant": "styleVignette",
                 "libelle": "Style de la vignette",
                 "type": "string"
+              },
+              {
+                "defaut": "mapbox://styles/mapbox/streets-v12",
+                "description": "Style de carte poour la création des vignettes",
+                "identifiant": "styleVignette",
+                "libelle": "Style de la vignette",
+                "type": "couleur"
               }
             ]
           }
         ],
-        "libelle": "Importation",
         "parametres": [
           {
             "defaut": false,
-            "description": "Supprime automatiquement le fichier *.gpx quand il a été corerectement importé",
+            "description": "Suppression automatique du fichier *.gpx quand il a été corerectement importé.",
             "identifiant": "autoDelete",
             "libelle": "Suppression après importation",
             "type": "booleen"
