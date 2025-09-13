@@ -380,7 +380,7 @@ Si un paramètre a un attibut doc,  cet attribut contiendra le nom de fichier.
 
 Si le paramètre existe une icone  `mdi-book-open-outline` sera affichée en haut à droite du composant. l'icone sera en bleu (info) . La documentation s'affichera dans un composant flotant.
 
-#### Etape 3.9.3 - Réalisée - []
+#### Etape 3.9.3 - Réalisée - [3eb39713]
 
 Cette étape consite à créer un nouveau composant pour éditer les paramètres de type string, en s'inspirant du composant EditStringDialog.
 
@@ -392,7 +392,11 @@ Les valeurs min et max permettront de contrôler la valeur saisie.
 
 #### Etape 3.9.4 -  - []
 
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type Booeen, en s'inspirant du composant EditStringDialog et EditIntDialog
 
+Seront pris en compte si elle existent et non null les données suivantes d'un paramètre de type string :
+
+- identifiant, libelle, description, defaut, surcharge, critique.
 
 
 
