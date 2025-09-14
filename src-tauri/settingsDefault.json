@@ -15,11 +15,12 @@
                 "type": "string"
               },
               {
-                "defaut": "mapbox://styles/mapbox/streets-v12",
-                "description": "Style de carte poour la création des vignettes",
-                "identifiant": "styleVignette",
-                "libelle": "Style de la vignette",
-                "type": "couleur"
+                "defaut": "orange-darken-4",
+                "description": "Couleur de la trace GPX pour la création des vignettes",
+                "identifiant": "colorGPXVignette",
+                "libelle": "Couleur de la trace sur la vignette",
+                "type": "couleur",
+                "materialDesign": true
               }
             ]
           }

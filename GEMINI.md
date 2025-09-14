@@ -384,21 +384,29 @@ Si le paramètre existe une icone  `mdi-book-open-outline` sera affichée en hau
 
 Cette étape consite à créer un nouveau composant pour éditer les paramètres de type string, en s'inspirant du composant EditStringDialog.
 
-Seront pris en compte si elle existent et non null les données suivantes d'un paramètre de type string :
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type string :
 
 - identifiant, libelle, description, defaut, surcharge, critique, min, max, step, doc et unité.
 
 Les valeurs min et max permettront de contrôler la valeur saisie.
 
-#### Etape 3.9.4 -  - []
+#### Etape 3.9.4 - Réalisée - [2afcc5c5]
 
-Cette étape consite à créer un nouveau composant pour éditer les paramètres de type Booeen, en s'inspirant du composant EditStringDialog et EditIntDialog
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type Booleen, en s'inspirant du composant EditStringDialog et EditIntDialog
 
-Seront pris en compte si elle existent et non null les données suivantes d'un paramètre de type string :
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type booleen :
 
-- identifiant, libelle, description, defaut, surcharge, critique.
+- identifiant, libelle, description, defaut, surcharge, critique et doc.
 
+#### Etape 3.9.5 -  - []
 
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type Couleur, en s'inspirant des composants EditStringDialog,  EditIntDialog et EditBoolDialog
+
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type Couleur:
+
+- identifiant, libelle, description, defaut, surcharge, critique, materialDesing, et doc..
+
+Si materialDesing  vaut true, alors la couleur sélectionnée devra être convertie en une chaine de caractère connue de la palette de couleur de Vuetify. Sinon elle restera en #RVBA
 
 ---
 
