@@ -27,15 +27,15 @@
                     :swatches="parameter.materialDesign ? materialSwatches : undefined"
                     :hide-alpha="parameter.materialDesign"
                     hide-eye-dropper
-                    show-swatches
+                    :show-swatches="parameter.materialDesign"
                     hide-inputs
                     class="mx-auto"
                   ></v-color-picker>
-                  <div v-if="selectedColorName" class="mt-2">
+                  <div v-if="displayedValue" class="mt-2">
                     <v-row align="center" class="ma-0">
                       <v-col cols="auto" class="pa-0">
                         <v-label class="text-caption font-weight-light text-white">Couleur sélectionnée :&nbsp;</v-label>
-                        <span class="text-caption font-weight-light">{{ selectedColorName }}</span>
+                        <span class="text-caption font-weight-light">{{ displayedValue }}</span>
                       </v-col>
                       <v-spacer></v-spacer>
                       <v-col cols="auto" class="pa-0">
@@ -101,6 +101,11 @@ const selectedColorName = computed(() => {
     return toName(editableValue.value);
   }
   return null;
+});
+
+const displayedValue = computed(() => {
+  if (!editableValue.value) return null;
+  return props.parameter?.materialDesign ? selectedColorName.value : editableValue.value;
 });
 
 watch(() => props.show, (isVisible) => {
