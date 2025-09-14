@@ -23,16 +23,29 @@
                 <v-col cols="11" class="pa-0">
                   <v-color-picker
                     v-model="editableValue"
+                    :mode="pickerMode"
                     :swatches="parameter.materialDesign ? materialSwatches : undefined"
                     :hide-alpha="parameter.materialDesign"
+                    hide-eye-dropper
                     show-swatches
                     hide-inputs
                     class="mx-auto"
                   ></v-color-picker>
+                  <div v-if="selectedColorName" class="mt-2">
+                    <v-row align="center" class="ma-0">
+                      <v-col cols="auto" class="pa-0">
+                        <v-label class="text-caption font-weight-light text-white">Couleur sélectionnée :&nbsp;</v-label>
+                        <span class="text-caption font-weight-light">{{ selectedColorName }}</span>
+                      </v-col>
+                      <v-spacer></v-spacer>
+                      <v-col cols="auto" class="pa-0">
+                        <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications" color="info" class="mr-2">mdi-undo</v-icon>
+                        <v-icon v-if="hasSurcharge && !isModified" @click="removeSurcharge" title="Supprimer la surcharge" color="info">mdi-format-color-marker-cancel</v-icon>
+                      </v-col>
+                    </v-row>
+                  </div>
                 </v-col>
                 <v-col cols="1" class="d-flex justify-center">
-                  <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications" color="info">mdi-undo</v-icon>
-                  <v-icon v-if="hasSurcharge && !isModified" @click="removeSurcharge" title="Supprimer la surcharge" color="info">mdi-format-color-marker-cancel</v-icon>
                 </v-col>
               </v-row>
             </v-col>
@@ -78,6 +91,17 @@ const initialValue = ref(null);
 
 const hasSurcharge = computed(() => props.parameter.surcharge != null);
 const isModified = computed(() => editableValue.value !== initialValue.value);
+
+const pickerMode = computed(() => {
+  return props.parameter?.materialDesign ? 'hex' : 'hexa';
+});
+
+const selectedColorName = computed(() => {
+  if (props.parameter?.materialDesign && editableValue.value) {
+    return toName(editableValue.value);
+  }
+  return null;
+});
 
 watch(() => props.show, (isVisible) => {
   if (isVisible && props.parameter) {
