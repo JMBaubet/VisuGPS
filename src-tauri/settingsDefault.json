@@ -43,6 +43,7 @@
         ]
       },
       {
+        "libelle": "Edition",
         "groupes": [
           {
             "libelle": "Caméra",
@@ -50,9 +51,12 @@
               {
                 "default": 16.0,
                 "description": "Niveau de zoom de la caméra par défaut.",
-                "identifiant": "initZoom",
-                "libelle": "Zoom initial",
-                "type": "float"
+                "identifiant": "Zoom",
+                "libelle": "Zoom",
+                "min": 0.0,
+                "max": 22.0,
+                "type": "reel",
+                "decimale": 2
               }
             ]
           },
@@ -68,10 +72,10 @@
               }
             ]
           }
-        ],
-        "libelle": "Edition"
+        ]
       },
       {
+        "libelle": "Visualisation",
         "groupes": [
           {
             "libelle": "Mapbox",
@@ -85,10 +89,10 @@
               }
             ]
           }
-        ],
-        "libelle": "Visualisation"
+        ]
       },
       {
+        "libelle": "Système",
         "groupes": [
           {
             "libelle": "Timers",
@@ -125,8 +129,7 @@
               }
             ]
           }
-        ],
-        "libelle": "Système"
+        ]
       }
     ]
   },

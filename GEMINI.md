@@ -398,15 +398,29 @@ Seront pris en compte si elles existent et non null les données suivantes d'un 
 
 - identifiant, libelle, description, defaut, surcharge, critique et doc.
 
-#### Etape 3.9.5 -  - []
+#### Etape 3.9.5 - Réalisée - [fb301eb6]
 
-Cette étape consite à créer un nouveau composant pour éditer les paramètres de type Couleur, en s'inspirant des composants EditStringDialog,  EditIntDialog et EditBoolDialog
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type couleur, en s'inspirant des composants EditStringDialog,  EditIntDialog et EditBoolDialog
 
-Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type Couleur:
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type couleur:
 
 - identifiant, libelle, description, defaut, surcharge, critique, materialDesing, et doc..
 
 Si materialDesing  vaut true, alors la couleur sélectionnée devra être convertie en une chaine de caractère connue de la palette de couleur de Vuetify. Sinon elle restera en #RVBA
+
+#### Etape 3.9.6
+
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type reel, en s'inspirant principalement du composant EditStringDialog.
+
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type reel :
+
+- identifiant, libelle, description, defaut, surcharge, critique, min, max, decimales, doc et unité.
+
+Les valeurs min et max permettront de contrôler la valeur saisie. 
+
+'décimales' indique le nombre maximum de décimales pour la valeur. Lors de la saisie si le nombre max de décimales est atteind, il faut rejeter les nouvelles décimales. 
+
+La scrollbar ne me semble pas nécessaire pour une valeur réelle. 
 
 ---
 
