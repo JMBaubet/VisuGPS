@@ -19,7 +19,14 @@
         </v-alert>
         <div v-else class="map-container">
           <div ref="mapContainer" class="map"></div>
-          <div class="crosshair">+</div>
+          <div class="crosshair">
+            <div class="crosshair-line top"></div>
+            <div class="crosshair-line right"></div>
+            <div class="crosshair-line bottom"></div>
+            <div class="crosshair-line left"></div>
+            <div class="crosshair-circle-outer"></div>
+            <div class="crosshair-circle-inner"></div>
+          </div>
           <div class="coords-display">
             <div v-if="editableCoord">
               <div>Lon: {{ editableCoord.lon.toFixed(6) }}</div>
@@ -261,10 +268,70 @@ const resetToDefault = () => {
   position: absolute;
   top: 50%;
   left: 50%;
+  width: 36px;
+  height: 36px;
   transform: translate(-50%, -50%);
-  font-size: 32px;
+  pointer-events: none;
   color: red;
-  pointer-events: none; /* Pour que les clics passent à travers */
+}
+
+.crosshair-line-horz,
+.crosshair-line-vert,
+.crosshair-circle-outer,
+.crosshair-circle-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+}
+
+.crosshair-line {
+  position: absolute;
+  background-color: currentColor;
+}
+
+.crosshair-line.top {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 30%;
+  transform: translateX(-50%);
+}
+.crosshair-line.bottom {
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  height: 30%;
+  transform: translateX(-50%);
+}
+.crosshair-line.left {
+  top: 50%;
+  left: 0;
+  width: 30%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.crosshair-line.right {
+  top: 50%;
+  right: 0;
+  width: 30%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.crosshair-circle-outer {
+  width: 100%;
+  height: 100%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.crosshair-circle-inner {
+  width: 40%;
+  height: 40%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
 }
 
 .coords-display {
