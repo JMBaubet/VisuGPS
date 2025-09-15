@@ -49,14 +49,14 @@
             "libelle": "Caméra",
             "parametres": [
               {
-                "default": 16.0,
+                "defaut": 16.0,
                 "description": "Niveau de zoom de la caméra par défaut.",
                 "identifiant": "Zoom",
                 "libelle": "Zoom",
                 "min": 0.0,
                 "max": 22.0,
                 "type": "reel",
-                "decimale": 2
+                "decimales": 2
               }
             ]
           },

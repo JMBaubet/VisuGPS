@@ -68,6 +68,15 @@
       :group-path="fullPath"
       @update:show="isColorDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les réels -->
+    <EditFloatDialog
+      v-if="selectedParameter && selectedParameter.type === 'reel'"
+      :show="isFloatDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isFloatDialogVisible = $event"
+    />
   </div>
 </template>
 
@@ -77,6 +86,7 @@ import EditStringDialog from './EditStringDialog.vue';
 import EditIntDialog from './EditIntDialog.vue';
 import EditBoolDialog from './EditBoolDialog.vue';
 import EditColorDialog from './EditColorDialog.vue';
+import EditFloatDialog from './EditFloatDialog.vue';
 
 const props = defineProps({
   node: {
@@ -93,6 +103,7 @@ const isStringDialogVisible = ref(false);
 const isIntDialogVisible = ref(false);
 const isBoolDialogVisible = ref(false);
 const isColorDialogVisible = ref(false);
+const isFloatDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
@@ -105,6 +116,8 @@ const openEditDialog = (param) => {
     isBoolDialogVisible.value = true;
   } else if (param.type === 'couleur') {
     isColorDialogVisible.value = true;
+  } else if (param.type === 'reel') {
+    isFloatDialogVisible.value = true;
   }
 };
 
