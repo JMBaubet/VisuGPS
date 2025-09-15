@@ -77,6 +77,15 @@
       :group-path="fullPath"
       @update:show="isFloatDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les coordonnées -->
+    <EditCoordDialog
+      v-if="selectedParameter && selectedParameter.type === 'coord'"
+      :show="isCoordDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isCoordDialogVisible = $event"
+    />
   </div>
 </template>
 
@@ -87,6 +96,7 @@ import EditIntDialog from './EditIntDialog.vue';
 import EditBoolDialog from './EditBoolDialog.vue';
 import EditColorDialog from './EditColorDialog.vue';
 import EditFloatDialog from './EditFloatDialog.vue';
+import EditCoordDialog from './EditCoordDialog.vue';
 
 const props = defineProps({
   node: {
@@ -104,6 +114,7 @@ const isIntDialogVisible = ref(false);
 const isBoolDialogVisible = ref(false);
 const isColorDialogVisible = ref(false);
 const isFloatDialogVisible = ref(false);
+const isCoordDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
@@ -118,6 +129,8 @@ const openEditDialog = (param) => {
     isColorDialogVisible.value = true;
   } else if (param.type === 'reel') {
     isFloatDialogVisible.value = true;
+  } else if (param.type === 'coord') {
+    isCoordDialogVisible.value = true;
   }
 };
 

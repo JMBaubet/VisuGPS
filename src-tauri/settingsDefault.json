@@ -84,9 +84,17 @@
               {
                 "defaut": "mapbox://styles/mapbox/satellite-v9",
                 "description": "Style de carte lors de la visualisation",
-                "identification": "styleVisualisation",
+                "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
                 "type": "string"
+              },
+              {
+                "defaut": "[2.34498, 48.85349]",
+                "description": "Coordonnées d'initialisation de la visualisation au format [longitude, latitude]",
+                "identifiant": "startPositionVisualisation",
+                "libelle": "Départ de la visualisation",
+                "type": "coord",
+                "decimales": 5
               }
             ]
           }

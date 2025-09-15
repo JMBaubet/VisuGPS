@@ -9,7 +9,9 @@ const settings = ref(null);
 const findParameterNode = (path) => {
   if (!settings.value || !path) return null;
 
-  const parts = path.split('.');
+  // Normaliser le chemin pour accepter indifféremment '.' ou '/'
+  const normalizedPath = path.replace(/\./g, '/');
+  const parts = normalizedPath.split('/');
   const paramId = parts.pop();
   let current = settings.value.data;
 

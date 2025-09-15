@@ -408,7 +408,7 @@ Seront pris en compte si elles existent et non null les données suivantes d'un 
 
 Si materialDesing  vaut true, alors la couleur sélectionnée devra être convertie en une chaine de caractère connue de la palette de couleur de Vuetify. Sinon elle restera en #RVBA
 
-#### Etape 3.9.6
+#### Etape 3.9.6 - Réalisée - [1b936b6]
 
 Cette étape consite à créer un nouveau composant pour éditer les paramètres de type reel, en s'inspirant principalement du composant EditStringDialog.
 
@@ -421,6 +421,20 @@ Les valeurs min et max permettront de contrôler la valeur saisie.
 'décimales' indique le nombre maximum de décimales pour la valeur. Lors de la saisie si le nombre max de décimales est atteind, il faut rejeter les nouvelles décimales. 
 
 La scrollbar ne me semble pas nécessaire pour une valeur réelle. 
+
+#### Etape 3.9.7 -  - []
+
+Cette étape consite à créer un nouveau composant pour éditer les paramètres de type coord, en s'inspirant des  composants  Edit*Dialog.
+
+les coordonnées seront données sous la forme "longitude, latittude". exemple "`[-77.0364,38.8951]`"
+
+Seront pris en compte si elles existent et non null les données suivantes d'un paramètre de type reel :
+
+- identifiant, libelle, description, defaut, surcharge, critique,   decimales, doc.
+
+'décimales' indique le nombre maximum de décimales pour les valeurs. 
+
+Une carte mapbox sera affichée avec un objet graphique qui identifie le nouveau point. Un pin sera positioné sur la valeur par défaut. l'utilisateur pour zoomer/dézoomer sur la carte (avec la molette) et la déplacer avec la souris  (clic droit et déplacement de la souris)
 
 ---
 
