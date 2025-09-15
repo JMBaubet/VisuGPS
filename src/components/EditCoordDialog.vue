@@ -112,6 +112,7 @@ const { updateSetting } = useSettings();
 
 const showDocDialog = ref(false);
 const initializationError = ref(null);
+const surchargeRemoved = ref(false);
 
 // --- Map State ---
 const mapContainer = ref(null);
@@ -140,6 +141,14 @@ const initializeMap = () => {
     style: 'mapbox://styles/mapbox/streets-v12',
     center: [editableCoord.value.lon, editableCoord.value.lat],
     zoom: 14,
+  });
+
+  map.on('error', (e) => {
+    // Si l'erreur est une erreur d'authentification (token invalide)
+    if (e.error && e.error.status === 401) {
+      destroyMap(); // Détruire la carte pour ne pas afficher un fond blanc
+      initializationError.value = "Le token Mapbox est invalide. Veuillez le corriger dans les paramètres 'Système/Tokens'.";
+    }
   });
 
   map.on('load', () => {
@@ -178,6 +187,7 @@ const initializeMap = () => {
 
   // Mettre à jour les coordonnées lors du déplacement de la carte
   map.on('move', () => {
+    surchargeRemoved.value = false; // L'utilisateur édite à nouveau, on annule l'intention de réinitialiser
     const center = map.getCenter();
     editableCoord.value = { lon: center.lng, lat: center.lat };
   });
@@ -192,6 +202,7 @@ const destroyMap = () => {
 
 watch(() => props.show, (isVisible) => {
   initializationError.value = null; // Réinitialiser l'erreur à chaque ouverture
+  surchargeRemoved.value = false; // Réinitialiser l'intention de suppression
   if (isVisible && props.parameter) {
     const initialValue = props.parameter.surcharge ?? props.parameter.defaut;
     editableCoord.value = parseCoordString(initialValue);
@@ -220,13 +231,17 @@ const closeDialog = () => {
 const save = async () => {
   if (!editableCoord.value) return;
 
-  const decimals = props.parameter.decimales ?? 6; // 6 décimales par défaut
-  const valueToSave = formatCoordString(editableCoord.value, decimals);
+  // Vérifier si la position finale est la même que la position par défaut (avec une tolérance)
+  const isSameAsDefault = defaultCoord.value &&
+                        editableCoord.value.lon.toFixed(6) === defaultCoord.value.lon.toFixed(6) &&
+                        editableCoord.value.lat.toFixed(6) === defaultCoord.value.lat.toFixed(6);
 
-  // Ne pas sauvegarder si la valeur est la même que la valeur par défaut
-  if (valueToSave === props.parameter.defaut) {
+  // On annule la surcharge si l'utilisateur a cliqué sur réinitialiser OU si la position finale correspond au défaut
+  if (surchargeRemoved.value || isSameAsDefault) {
     await updateSetting(props.groupPath, props.parameter.identifiant, null);
   } else {
+    const decimals = props.parameter.decimales ?? 6; // 6 décimales par défaut
+    const valueToSave = formatCoordString(editableCoord.value, decimals);
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
   }
   
@@ -235,6 +250,7 @@ const save = async () => {
 
 const resetToDefault = () => {
   if (defaultCoord.value) {
+    surchargeRemoved.value = true; // On note l'intention de supprimer la surcharge
     editableCoord.value = { ...defaultCoord.value };
     if (map) {
       map.flyTo({ 
