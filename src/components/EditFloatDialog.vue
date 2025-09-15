@@ -19,14 +19,15 @@
               <v-col cols="11">
                 <v-text-field
                   label="Valeur"
-                  v-model.number="editableValue"
-                  type="number"
-                  :placeholder="`Actuellement : ${parameter.defaut}`"
+                  v-model="editableValue"
+                  type="text"
                   :rules="validationRules"
                   :suffix="parameter.unite"
                   autofocus
+                  autocomplete="off"
                   hide-details="auto"
                 ></v-text-field>
+                <div class="text-caption font-weight-light mt-2">Valeur actuelle : {{ parameter.surcharge ?? parameter.defaut }} {{ parameter.unite || '' }}</div>
               </v-col>
               <v-col cols="1" class="text-center">
                 <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications" color="info">mdi-undo</v-icon>
@@ -75,44 +76,55 @@ const editableValue = ref(null);
 
 const hasSurcharge = computed(() => props.parameter?.surcharge != null);
 const isModified = computed(() => {
-  // Treat null/undefined from prop as null for comparison
-  const initialValue = props.parameter.surcharge ?? null;
-  // Treat empty string from input as null for comparison
-  const currentValue = editableValue.value === '' ? null : editableValue.value;
-  return initialValue !== currentValue;
+  const initial = props.parameter.surcharge ?? null;
+  let current = null;
+  if (editableValue.value !== null && editableValue.value !== '') {
+    const parsed = parseFloat(editableValue.value);
+    if (!isNaN(parsed)) {
+      current = parsed;
+    }
+  }
+  return initial !== current;
 });
 
-watch(editableValue, (newValue) => {
-  if (newValue === null || newValue === '') return;
+watch(editableValue, (newValue, oldValue) => {
+  if (newValue === null || newValue === undefined || newValue === '') return;
 
+  let correctedValue = String(newValue);
+
+  // Remplacer la virgule par un point
+  if (correctedValue.includes(',')) {
+    correctedValue = correctedValue.replace(',', '.');
+  }
+
+  // S'assurer qu'il n'y a qu'un seul point
+  const parts = correctedValue.split('.');
+  if (parts.length > 2) {
+    correctedValue = `${parts[0]}.${parts.slice(1).join('')}`;
+  }
+
+  // Limiter le nombre de décimales
   const decimals = props.parameter.decimales;
-  if (decimals == null) return;
+  if (decimals != null && parts.length > 1 && parts[1].length > decimals) {
+    const num = parseFloat(correctedValue);
+    if (!isNaN(num)) {
+        correctedValue = num.toFixed(decimals);
+    }
+  }
 
-  const valueStr = String(newValue);
-  const parts = valueStr.split('.');
-
-  if (parts.length > 1 && parts[1].length > decimals) {
-    const truncatedValue = parseFloat(valueStr).toFixed(decimals);
+  // Mettre à jour le modèle si la valeur a été corrigée
+  if (correctedValue !== String(newValue)) {
     nextTick(() => {
-      editableValue.value = parseFloat(truncatedValue);
+      editableValue.value = correctedValue;
     });
   }
 });
 
-const onKeyDown = (event) => {
-  const value = event.target.value;
-  const decimals = props.parameter.decimales;
-
-  if (decimals == null) return true; // Pas de limite
-
-  const decimalPart = value.split('.')[1];
-  if (decimalPart && decimalPart.length >= decimals && event.key.match(/\d/)) {
-    event.preventDefault();
-  }
-};
-
 const validationRules = computed(() => [
   v => {
+    if (v === null || v === '') return true; // Champ vide est valide
+    // Regex pour valider un nombre flottant (avec point comme séparateur)
+    if (!/^-?\d*\.?\d*$/.test(v)) return 'Format invalide.';
     const val = parseFloat(v);
     if (isNaN(val)) return 'Doit être un nombre.';
 
@@ -128,20 +140,22 @@ const validationRules = computed(() => [
 
 watch(() => props.parameter, (param) => {
   if (param) {
-    editableValue.value = param.surcharge ?? null;
+    const initialValue = param.surcharge ?? null;
+    editableValue.value = initialValue !== null ? String(initialValue) : null;
     surchargeRemoved.value = false;
     isValid.value = true;
   }
 }, { immediate: true, deep: true });
 
 const revertChanges = () => {
-  editableValue.value = props.parameter.surcharge ?? null;
+  const initialValue = props.parameter.surcharge ?? null;
+  editableValue.value = initialValue !== null ? String(initialValue) : null;
   surchargeRemoved.value = false;
 };
 
 const removeSurcharge = () => {
   editableValue.value = null;
-  surchargeRemoved.value = true; // Keep this to indicate intent
+  surchargeRemoved.value = true;
 };
 
 const closeDialog = () => {
@@ -152,16 +166,15 @@ const save = async () => {
   if (!isValid.value) return;
 
   try {
-    let valueToSave = editableValue.value;
-
-    // Treat empty string as null (no surcharge)
-    if (valueToSave === '') {
-      valueToSave = null;
-    }
-
-    // If the entered value is numerically the same as the default, also treat as no surcharge
-    if (valueToSave !== null && parseFloat(valueToSave) === props.parameter.defaut) {
-      valueToSave = null;
+    let valueToSave = null;
+    if (editableValue.value !== null && editableValue.value !== '') {
+      const numericValue = parseFloat(editableValue.value);
+      if (!isNaN(numericValue)) {
+        // Ne pas sauvegarder si la valeur est la même que la valeur par défaut
+        if (numericValue !== props.parameter.defaut) {
+          valueToSave = numericValue;
+        }
+      }
     }
 
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);

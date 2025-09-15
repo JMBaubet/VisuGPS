@@ -51,6 +51,7 @@
               {
                 "defaut": 16.0,
                 "description": "Niveau de zoom de la caméra par défaut.",
+                "doc": "docs/parametre_zoom.md",
                 "identifiant": "Zoom",
                 "libelle": "Zoom",
                 "min": 0.0,
