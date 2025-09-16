@@ -4,10 +4,25 @@
       <v-card-title>
         <span class="text-h5">Importer un fichier GPX</span>
       </v-card-title>
-      <v-card-text style="max-height: 400px; overflow-y: auto;">
-        <v-list v-model:selected="selectedFile" selectable lines="one">
+      <v-card-text>
+        <v-text-field
+          v-model="filterText"
+          label="Filtrer par nom"
+          prepend-inner-icon="mdi-magnify"
+          variant="outlined"
+          hide-details
+          clearable
+          class="mb-4"
+        ></v-text-field>
+
+        <v-list
+          v-model:selected="selectedFile"
+          selectable
+          lines="one"
+          style="max-height: 350px; overflow-y: auto;"
+        >
           <v-list-item
-            v-for="file in gpxFiles"
+            v-for="file in filteredGpxFiles"
             :key="file"
             :value="file"
             color="primary"
@@ -15,6 +30,7 @@
             <v-list-item-title>{{ file }}</v-list-item-title>
           </v-list-item>
         </v-list>
+
         <div v-if="error">{{ error }}</div>
       </v-card-text>
       <v-card-actions>
@@ -27,7 +43,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { core } from '@tauri-apps/api';
 
 const props = defineProps({
@@ -38,14 +54,25 @@ const emit = defineEmits(['update:modelValue']);
 
 const dialog = ref(props.modelValue);
 const gpxFiles = ref([]);
-const selectedFile = ref([]); // In Vuetify 3, v-model:selected returns an array
+const selectedFile = ref([]);
 const error = ref(null);
+const filterText = ref('');
+
+const filteredGpxFiles = computed(() => {
+  if (!filterText.value) {
+    return gpxFiles.value;
+  }
+  return gpxFiles.value.filter(file =>
+    file.toLowerCase().includes(filterText.value.toLowerCase())
+  );
+});
 
 watch(() => props.modelValue, (newVal) => {
   dialog.value = newVal;
   if (newVal) {
     loadGpxFiles();
-    selectedFile.value = []; // Reset selection on open
+    selectedFile.value = [];
+    filterText.value = ''; // Reset filter on open
   }
 });
 
