@@ -442,7 +442,7 @@ Une carte mapbox sera affichée avec un objet graphique qui identifie le nouveau
 
 L'étape 4 va consister à gerer les fichiers gpx et leurs données associées.
 
-### Selection d'un gpx
+### Selection d'un gpx - Réalisée - [87fe5f57]
 
 Dans le container AppMainBar.vue une nouvelle icône (`mdi-file-import-outline`) devra être insérée à la gauche du `mdi-cog`. 
 
@@ -461,6 +461,36 @@ Un bouton Annuler doit permettre de sortir du container sans déclencher d'actio
 Dans cette partie il faut générer tout le code frontend et backend pour pouvoir sélectionner un fichier dans le dossier spécifé dans le fichier settings.json sans enchainer sur son traitement que l'on verra plus tard.
 
 Attention à la syntaxe pour atteindre les variables du fichier settings.json (`/`vs `.`). Il ne faut pas la modifier au risque d'avoir un effet de bord avec le composant EditCoordDialog.
+
+---
+
+### Fichier circuits.json
+
+La description du fichier circuits.json est donnée dans les fichiers 
+
+- `@documentation/fichiers_json/ circuits_analysis.md` 
+
+- `@documentation/fichiers_json/ circuits.schema.yaml`
+
+Au lancement de l'application, si dans le dossier du contexte d'éxécution le fichiers circuits.json n'existe pas il faut le créer. Il sera par la suite mis à jour en fonction de l'import ou de la suppression de traces GPX. 
+
+### Reconnaissance de l'éditeur gpx
+
+lors de l'imporatition d'un fichier gpx, il faut reconnaitre la source du GPX 
+
+Il faut déterminer si le fichier provient de : 
+
+1. Strava
+
+2. openrunner
+
+3. Garmin connect
+
+4. ridewithgps
+
+5. ... 
+
+Quand l'origine est trouvée, il faut mettre à jour si nécessaire la rubrique editeurs du fichiers circuits.json pour l'id la syntaxe suivante sera utilisée `ed-0001`, `ed-0002`, `ed-0003`, etc.
 
 ---
 

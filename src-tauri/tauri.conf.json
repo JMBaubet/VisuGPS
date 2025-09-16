@@ -23,6 +23,13 @@
       "csp": null
     }
   },
+  "plugins": {
+    "process": {
+      "allowlist": [
+        "relaunch"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

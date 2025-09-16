@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "description": "Base de données des circuits GPX",
+  "auteur": "VisuGPS",
+  "commentaires": "",
+  "villes": [],
+  "traceurs": [],
+  "editeurs": [],
+  "indexCircuits": 0,
+  "circuits": []
+}

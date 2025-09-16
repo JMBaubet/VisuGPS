@@ -45,6 +45,9 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { core } from '@tauri-apps/api';
+import { useSnackbar } from '@/composables/useSnackbar';
+
+const { showSnackbar } = useSnackbar();
 
 const props = defineProps({
   modelValue: Boolean
@@ -96,11 +99,17 @@ function close() {
   dialog.value = false;
 }
 
-function importFile() {
-  if (selectedFile.value.length > 0) {
-    console.log(`Importing ${selectedFile.value[0]}`);
-    // La logique d'importation sera ajoutée ici dans une future étape
+async function importFile() {
+  if (selectedFile.value.length === 0) return;
+
+  const filename = selectedFile.value[0];
+  try {
+    const result = await core.invoke('process_gpx_file', { filename });
+    showSnackbar(result, 'success');
+  } catch (e) {
+    showSnackbar(`Erreur lors de l'import: ${e}`, 'error');
   }
+
   close();
 }
 </script>
