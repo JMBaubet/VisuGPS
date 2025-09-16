@@ -22,6 +22,11 @@
       </v-col>
 
       <v-col cols="12" md="4" class="d-flex justify-end align-center">
+        <!-- Import GPX Button -->
+        <v-btn icon @click="openGpxImportDialog">
+          <v-icon>mdi-file-import-outline</v-icon>
+        </v-btn>
+
         <!-- Settings Button -->
         <v-btn icon to="/settings">
           <v-icon>mdi-cog</v-icon>
@@ -35,10 +40,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
+
+const emit = defineEmits(['open-gpx-import-dialog']);
+
+function openGpxImportDialog() {
+  emit('open-gpx-import-dialog');
+}
 
 // Environment composable is only for display purposes now (chip)
 const { appEnv, executionMode } = useEnvironment();
