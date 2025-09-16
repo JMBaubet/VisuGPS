@@ -1,0 +1,55 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: VisuCameraTimeline
+type: array
+description: >
+  Liste des étapes caméra (keyframes ou interpolations) pour animer la
+  visualisation d’un parcours en 3D.
+
+items:
+  type: object
+  properties:
+    isKeyframe:
+      type: boolean
+      description: "True si c’est une image clé définie manuellement, False si interpolée"
+    frameStart:
+      type: integer
+      description: "Index ou frame de départ de cette étape"
+    stepCount:
+      type: integer
+      description: "Durée ou nombre de pas de l’étape"
+    lookAt:
+      type: object
+      description: "Coordonnées regardées par la caméra"
+      properties:
+        lon:
+          type: number
+          description: "Longitude en degrés décimaux"
+        lat:
+          type: number
+          description: "Latitude en degrés décimaux"
+      required: [lon, lat]
+    cap:
+      type: number
+      description: "Orientation (heading) de la caméra en degrés"
+    zoom:
+      type: number
+      description: "Niveau de zoom de la vue"
+    pitch:
+      type: number
+      description: "Inclinaison verticale de la caméra en degrés"
+    cameraPosition:
+      type: object
+      description: "Position de la caméra (peut être vide si interpolée)"
+      properties:
+        lon:
+          type: number
+          description: "Longitude en degrés décimaux"
+        lat:
+          type: number
+          description: "Latitude en degrés décimaux"
+      required: [lon, lat]
+    cameraAltitude:
+      type: number
+      description: "Altitude de la caméra en mètres"
+
+  required: [isKeyframe, frameStart, stepCount, lookAt, cap, zoom, pitch, cameraAltitude]
