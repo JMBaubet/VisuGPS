@@ -444,27 +444,23 @@ L'étape 4 va consister à gerer les fichiers gpx et leurs données associées.
 
 ### Selection d'un gpx
 
-Dans le container AppMainBar.vue une nouvelle icône devra être insérée à la gauche du mdi-cog. 
+Dans le container AppMainBar.vue une nouvelle icône (`mdi-file-import-outline`) devra être insérée à la gauche du `mdi-cog`. 
 
-- Attention à ne pas réinsérer le composant LightDarkSwitch.
+- Attention à ne pas réinsérer le composant `@src/components/LightDarkSwitch.vue`.
 
-- Attentio à l'alignment des icones.
+- Attention à l'alignment des icônes.
 
-Qaund on clique sur cette icône, un nouveau composant devra s'ouvrir ouvir et lister les fichiers *.gpx présent dans le dossier defini par la variable Système/Dossier/GPXFile définie dans le fichier setting.json. Pour ce paramètre la valeur par defaut sera le dossier de téléchargement de l'utilisateur. 
+Qaund on clique sur cette icône, un nouveau composant devra s'ouvrir ouvir et lister les fichiers *.gpx présent dans le dossier defini par la variable Importation/Dossier/GPXFile définie dans le fichier setting.json. Pour ce paramètre la valeur par defaut sera le dossier de téléchargement de l'utilisateur. Dans ce cas le nom sera `DEFAULT_DOWNLOADS` .Pour que cette solution fonctionne quelque soit le système d'exploitation, je te propose dirs::download_dir()
 
-- Attention penser que la surcharge peut être une chaine de caractères de la forme E:/Loisir/MesDossiers
+- Sinon,  penser que la surcharge peut être une chaine de caractères de la forme E:/Loisir/MesDossiers
 
 La sélection d'un fichier déclenchera son traitement, uniquement après avoir cliquer sur un bouton Impoter.
 
-Un bouton Annuler doit permettre de sortir du container sans déclencher d'action
+Un bouton Annuler doit permettre de sortir du container sans déclencher d'action.
 
-Dans cette partie il faut générer tout le code frontend et backend pour pouvoir sélectionner un fichier en enchainer sur son traitement que l'on verra plus tard.
+Dans cette partie il faut générer tout le code frontend et backend pour pouvoir sélectionner un fichier dans le dossier spécifé dans le fichier settings.json sans enchainer sur son traitement que l'on verra plus tard.
 
-Attention à la syntaxe pour atteindre les variables du fichier settings.json. Il ne faut pas la modifier au risque d'avoir un effet de bord avec le composant EditCoordDialog.
-
-
-
-
+Attention à la syntaxe pour atteindre les variables du fichier settings.json (`/`vs `.`). Il ne faut pas la modifier au risque d'avoir un effet de bord avec le composant EditCoordDialog.
 
 ---
 
