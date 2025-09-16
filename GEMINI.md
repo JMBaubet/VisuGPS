@@ -474,13 +474,23 @@ La description du fichier circuits.json est donnée dans les fichiers
 
 Au lancement de l'application, si dans le dossier du contexte d'éxécution le fichiers circuits.json n'existe pas il faut le créer. Il sera par la suite mis à jour en fonction de l'import ou de la suppression de traces GPX. 
 
-### Traitement d'un gpx
+### Reconnaissance de l'éditeur gpx
 
-lors de l'imporatition d'un fichier gpx, il y-a plusieurs actions à réaliser.
+lors de l'imporatition d'un fichier gpx, il faut reconnaitre la source du GPX 
 
-1. Reconnaitre la source du GPX 
+Il faut déterminer si le fichier provient de : 
 
-2. Créer le fichier lineString.json
+1. Strava
+
+2. openrunner
+
+3. Garmin connect
+
+4. ridewithgps
+
+5. ... 
+
+Quand l'origine est trouvée, il faut mettre à jour si nécessaire la rubrique editeurs du fichiers circuits.json pour l'id la syntaxe suivante sera utilisée `ed-0001`, `ed-0002`, `ed-0003`, etc.
 
 ---
 
