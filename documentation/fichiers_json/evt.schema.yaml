@@ -1,0 +1,75 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: EvenementsParcours
+type: array
+description: >
+  Liste chronologique des événements associés à un parcours
+  (pauses, marqueurs, animations caméra).
+
+items:
+  type: object
+  properties:
+    id:
+      type: integer
+      description: "Identifiant unique de l'événement"
+    type:
+      type: string
+      enum: [pause, marker, flyTo]
+      description: "Type de l'événement"
+    start:
+      type: integer
+      description: "Index de départ ou position de déclenchement"
+
+    # Pour les marqueurs
+    position:
+      type: integer
+      description: "Index de la trace où le marqueur s'affiche (optionnel)"
+    end:
+      type: integer
+      description: "Index de fin associé au marqueur (optionnel)"
+    marker:
+      type: object
+      description: "Définition d'un marqueur sur la carte"
+      properties:
+        taille:
+          type: integer
+          description: "Taille de l'icône en pixels"
+        id:
+          type: string
+          description: "UUID du marqueur"
+        fichier:
+          type: string
+          description: "Nom du fichier image associé au marqueur"
+        coord:
+          type: array
+          description: "Coordonnées [longitude, latitude]"
+          items:
+            type: string
+          minItems: 2
+          maxItems: 2
+
+    # Pour les flyTo
+    flyTo:
+      type: object
+      description: "Paramètres d'animation de caméra"
+      properties:
+        cap:
+          type: number
+          description: "Cap/orientation de la caméra en degrés"
+        coord:
+          type: array
+          description: "Coordonnées [longitude, latitude] de la caméra"
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+        duree:
+          type: number
+          description: "Durée de l'animation en secondes"
+        pitch:
+          type: number
+          description: "Inclinaison de la caméra en degrés"
+        zoom:
+          type: number
+          description: "Niveau de zoom de la caméra"
+
+  required: [id, type, start]

@@ -1,0 +1,108 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: SettingsDefault
+type: object
+description: "Schéma de configuration par défaut de l'application VisuGPS"
+
+properties:
+  data:
+    type: object
+    properties:
+      groupes:
+        type: array
+        description: "Groupes de paramètres organisés par thèmes"
+        items:
+          $ref: "#/$defs/Groupe"
+
+  référence:
+    type: object
+    description: "Métadonnées de la configuration"
+    properties:
+      context:
+        type: string
+        description: "Contexte d'utilisation (ex: OPE)"
+      description:
+        type: string
+        description: "Description du mode d'exécution"
+      version:
+        type: string
+        description: "Version de la configuration (ex: 1.0.0)"
+      date_creation:
+        type: [string, "null"]
+        format: date-time
+        description: "Date de création"
+      date_revision:
+        type: [string, "null"]
+        format: date-time
+        description: "Date de dernière révision"
+      date_revison:
+        type: [string, "null"]
+        format: date-time
+        description: "⚠️ Doublon probable de date_revision"
+    required: [context, description, version]
+
+required: [data, référence]
+
+$defs:
+  Groupe:
+    type: object
+    properties:
+      libelle:
+        type: string
+        description: "Nom du groupe (ex: Importation, Edition, Visualisation, Système)"
+      parametres:
+        type: array
+        description: "Liste des paramètres associés"
+        items:
+          $ref: "#/$defs/Parametre"
+      groupes:
+        type: array
+        description: "Sous-groupes éventuels"
+        items:
+          $ref: "#/$defs/Groupe"
+    required: [libelle]
+
+  Parametre:
+    type: object
+    properties:
+      identifiant:
+        type: string
+        description: "Clé unique du paramètre"
+      libelle:
+        type: string
+        description: "Nom affiché dans l'interface"
+      description:
+        type: string
+        description: "Texte explicatif"
+      defaut:
+        description: "Valeur par défaut (type dépendant)"
+      type:
+        type: string
+        enum: [string, entier, reel, booleen, couleur, coord]
+      critique:
+        type: boolean
+        description: "Indique si le paramètre est critique"
+      min:
+        type: number
+        description: "Valeur minimale (si applicable)"
+      max:
+        type: number
+        description: "Valeur maximale (si applicable)"
+      step:
+        type: number
+        description: "Pas d'incrément (si applicable)"
+      unite:
+        type: string
+        description: "Unité de mesure (ex: ms)"
+      materialDesign:
+        type: boolean
+        description: "Utilisation du design Material (si applicable)"
+      decimales:
+        type: integer
+        description: "Nombre de décimales pour un réel"
+      doc:
+        type: string
+        description: "Lien vers la documentation associée"
+      surcharge:
+        type: string
+        description: "Valeur de surcharge éventuelle"
+    required: [identifiant, libelle, description, defaut, type]

@@ -10,7 +10,6 @@ const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
 
 
-
 #[derive(serde::Serialize, Clone)]
 pub struct MapboxStatusResult {
     success: bool,
@@ -75,6 +74,43 @@ fn read_settings(state: State<AppState>) -> Result<Value, String> {
 }
 
 #[tauri::command]
+fn list_gpx_files(state: State<AppState>) -> Result<Vec<String>, String> {
+    let settings_path = state.app_env_path.join("settings.json");
+    let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    let gpx_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
+        .ok_or_else(|| "GPXFile setting not found".to_string())?;
+
+    let gpx_path = if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
+        dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
+    } else {
+        PathBuf::from(gpx_dir_setting)
+    };
+
+    if !gpx_path.is_dir() {
+        return Err(format!("GPX directory not found: {}", gpx_path.display()));
+    }
+
+    let mut gpx_files = Vec::new();
+    for entry in fs::read_dir(gpx_path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(extension) = path.extension().and_then(|s| s.to_str()) {
+                if extension.eq_ignore_ascii_case("gpx") {
+                    gpx_files.push(path.file_name().unwrap().to_string_lossy().into_owned());
+                }
+            }
+        }
+    }
+
+    gpx_files.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+
+    Ok(gpx_files)
+}
+
+#[tauri::command]
 fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, String> {
     let visugps_dir = state.app_env_path.parent().ok_or("Could not get parent directory".to_string())?;
     let mut modes = Vec::new();
@@ -113,7 +149,8 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     }
 
     // Create the .env file for the new mode
-    let env_content = format!("APP_ENV={}\n", mode_name);
+    let env_content = format!("APP_ENV={}
+", mode_name);
     fs::write(&new_env_path, env_content).map_err(|e| e.to_string())?;
 
     // Create the environment-specific directory
@@ -173,7 +210,8 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
 
     if !selected_env_path.exists() {
         // If the .env.MODE_NAME file doesn't exist, create it on the fly
-        let env_content = format!("APP_ENV={}\n", mode_name);
+        let env_content = format!("APP_ENV={}
+", mode_name);
         fs::write(&selected_env_path, env_content).map_err(|e| e.to_string())?;
     }
 
@@ -181,7 +219,8 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
 
     // Update APP_ENV line
     let app_env_re = regex::Regex::new(r"(?m)^APP_ENV=.*$").unwrap();
-    let new_app_env_line = format!("APP_ENV={}\n", mode_name);
+    let new_app_env_line = format!("APP_ENV={}
+", mode_name);
 
     if app_env_re.is_match(&current_main_env_content) {
         current_main_env_content = app_env_re.replace(&current_main_env_content, new_app_env_line).to_string();
@@ -443,7 +482,8 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+

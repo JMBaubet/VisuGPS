@@ -1,0 +1,45 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: LineStringFeature
+type: object
+
+properties:
+  type:
+    type: string
+    const: Feature
+    description: "Un objet GeoJSON de type Feature"
+
+  geometry:
+    type: object
+    properties:
+      type:
+        type: string
+        const: LineString
+        description: "La géométrie est une LineString"
+
+      coordinates:
+        type: array
+        description: >
+          Tableau de positions, chaque élément est un tableau de 4 nombres :
+          [longitude, latitude, altitude_brute, altitude_corrigée]
+        items:
+          type: array
+          minItems: 4
+          maxItems: 4
+          items:
+            - type: number
+              description: Longitude en degrés décimaux
+            - type: number
+              description: Latitude en degrés décimaux
+            - type: number
+              description: Altitude brute (issue du GPS)
+            - type: number
+              description: Altitude corrigée (après traitement)
+        minItems: 2
+    required: [type, coordinates]
+
+  properties:
+    type: object
+    description: "Propriétés associées au LineString"
+    additionalProperties: true
+
+required: [type, geometry]

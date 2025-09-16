@@ -34,10 +34,10 @@
             "type": "booleen"
           },
           {
-            "defaut": "",
-            "description": "Dossier dans lequel on va lire les fichiers gpx à traiter.",
-            "identifiant": "downloadDirectory",
-            "libelle": "Dossier de téléchargement",
+            "defaut": "DEFAULT_DOWNLOADS",
+            "description": "Dossier pour l'importation des fichiers GPX. 'DEFAULT_DOWNLOADS' utilise le dossier de téléchargement de l'utilisateur.",
+            "identifiant": "GPXFile",
+            "libelle": "Dossier des fichiers GPX",
             "type": "string"
           }
         ]

@@ -1,0 +1,178 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+title: CircuitsTraceGPS
+type: object
+
+properties:
+  version:
+    type: string
+    description: "Version du fichier de configuration (ex: 1.0.0)"
+
+  description:
+    type: string
+    description: "Description générale du fichier"
+
+  auteur:
+    type: string
+    description: "Auteur du fichier de configuration"
+
+  commentaires:
+    type: string
+    description: "Commentaires divers"
+
+  villes:
+    type: array
+    description: "Liste des villes disponibles"
+    items:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Identifiant unique de la ville"
+        nom:
+          type: string
+          description: "Nom de la ville"
+      required: [id, nom]
+
+  traceurs:
+    type: array
+    description: "Liste des traceurs"
+    items:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: "Identifiant unique du traceur"
+        nom:
+          type: string
+          description: "Nom du traceur"
+      required: [id, nom]
+
+  editeurs:
+    type: array
+    description: "Liste des éditeurs de traces GPS"
+    items:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Identifiant unique de l'éditeur"
+        nom:
+          type: string
+          description: "Nom de l'éditeur (ex: Strava, Garmin)"
+      required: [id, nom]
+
+  indexCircuits:
+    type: integer
+    description: "Compteur ou index courant des circuits"
+
+  circuits:
+    type: array
+    description: "Liste des circuits disponibles"
+    items:
+      type: object
+      properties:
+        circuitId:
+          type: string
+          description: "Identifiant du circuit"
+        nom:
+          type: string
+          description: "Nom du circuit"
+        villeDepartId:
+          type: string
+          format: uuid
+          description: "Identifiant de la ville de départ"
+        traceurId:
+          type: string
+          format: uuid
+          description: "Identifiant du traceur"
+        editeurId:
+          type: string
+          description: "Identifiant de l'éditeur"
+        url:
+          type: string
+          format: uri
+          description: "Lien vers la trace GPS"
+        distanceKm:
+          type: number
+          description: "Distance totale en kilomètres"
+        deniveleM:
+          type: integer
+          description: "Dénivelé positif total en mètres"
+        depart:
+          type: object
+          description: "Coordonnées du départ"
+          properties:
+            lon:
+              type: number
+              description: "Longitude en degrés décimaux"
+            lat:
+              type: number
+              description: "Latitude en degrés décimaux"
+          required: [lon, lat]
+        sommet:
+          type: object
+          description: "Informations sur le sommet principal"
+          properties:
+            altitudeM:
+              type: integer
+              description: "Altitude maximale en mètres"
+            km:
+              type: number
+              description: "Distance au sommet en kilomètres"
+          required: [altitudeM, km]
+        isoDateTime:
+          type: string
+          format: date-time
+          description: "Date et heure ISO du parcours"
+        distanceVerifieeKm:
+          type: number
+          description: "Distance recalculée sur la trace pour vérification"
+        evt:
+          type: object
+          description: "Événements et options d'affichage"
+          properties:
+            compteurs:
+              type: object
+              properties:
+                zoom:
+                  type: integer
+                  description: "Nombre de zooms effectués"
+                pause:
+                  type: integer
+                  description: "Nombre de pauses"
+                info:
+                  type: integer
+                  description: "Nombre d'infos affichées"
+              required: [zoom, pause, info]
+            affichage:
+              type: object
+              properties:
+                depart:
+                  type: boolean
+                  description: "Afficher le départ"
+                arrivee:
+                  type: boolean
+                  description: "Afficher l'arrivée"
+                marqueurs10km:
+                  type: boolean
+                  description: "Afficher les marqueurs tous les 10 km"
+              required: [depart, arrivee, marqueurs10km]
+          required: [compteurs, affichage]
+      required:
+        - circuitId
+        - nom
+        - villeDepartId
+        - traceurId
+        - editeurId
+        - url
+        - distanceKm
+        - deniveleM
+        - depart
+        - sommet
+        - isoDateTime
+        - distanceVerifieeKm
+        - evt
+
+required: [version, villes, traceurs, editeurs, circuits]
