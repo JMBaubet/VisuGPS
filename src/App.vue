@@ -8,15 +8,29 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 
-const { executionMode, isDev, isOpe, isEval, isTest } = useEnvironment();
+const { executionMode } = useEnvironment();
 const { initSettings } = useSettings();
 const theme = useTheme();
+
+const showFrame = computed(() => {
+  return executionMode.value === 'EVAL' || executionMode.value === 'TEST';
+});
+
+const frameColorClass = computed(() => {
+  if (executionMode.value === 'EVAL') {
+    return 'app-frame-eval';
+  }
+  if (executionMode.value === 'TEST') {
+    return 'app-frame-test';
+  }
+  return '';
+});
 
 // Load settings on app mount
 onMounted(async () => {

@@ -142,17 +142,11 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
     let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox").unwrap_or_else(|| "".to_string());
 
-    let new_env_path = visugps_dir.join(format!(".env.{}", mode_name));
     let new_app_env_path = visugps_dir.join(&mode_name);
 
-    if new_env_path.exists() || new_app_env_path.exists() {
+    if new_app_env_path.exists() {
         return Err("Execution mode already exists.".to_string());
     }
-
-    // Create the .env file for the new mode
-    let env_content = format!("APP_ENV={}
-", mode_name);
-    fs::write(&new_env_path, env_content).map_err(|e| e.to_string())?;
 
     // Create the environment-specific directory
     fs::create_dir_all(&new_app_env_path).map_err(|e| e.to_string())?;
@@ -197,44 +191,28 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
 fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let visugps_dir = app_data_dir.join("VisuGPS");
-
     let main_env_path = visugps_dir.join(".env");
-    let selected_env_path = if mode_name == "OPE" {
-        let current_env_content = fs::read_to_string(&main_env_path).map_err(|e| e.to_string())?;
-        if current_env_content.trim() != "APP_ENV=OPE" {
-            fs::write(&main_env_path, "APP_ENV=OPE").map_err(|e| e.to_string())?;
-        }
-        return Ok(()); // No further action needed for OPE if already set or just set
-    } else {
-        visugps_dir.join(format!(".env.{}", mode_name))
-    };
 
-    if !selected_env_path.exists() {
-        // If the .env.MODE_NAME file doesn't exist, create it on the fly
-        let env_content = format!("APP_ENV={}
-", mode_name);
-        fs::write(&selected_env_path, env_content).map_err(|e| e.to_string())?;
-    }
+    let env_var_to_update = if cfg!(debug_assertions) {
+        "APP_ENV_DEV"
+    } else {
+        "APP_ENV_PROD"
+    };
 
     let mut current_main_env_content = fs::read_to_string(&main_env_path).unwrap_or_default();
 
-    // Update APP_ENV line
-    let app_env_re = regex::Regex::new(r"(?m)^APP_ENV=.*$").unwrap();
-    let new_app_env_line = format!("APP_ENV={}
-", mode_name);
+    let pattern = format!("(?m)^{}=.*$", env_var_to_update);
+    let app_env_re = regex::Regex::new(&pattern).unwrap();
+    let new_app_env_line = format!("{0}={1}", env_var_to_update, mode_name);
 
     if app_env_re.is_match(&current_main_env_content) {
         current_main_env_content = app_env_re.replace(&current_main_env_content, new_app_env_line).to_string();
     } else {
+        current_main_env_content.push_str("\n");
         current_main_env_content.push_str(&new_app_env_line);
     }
 
     fs::write(&main_env_path, current_main_env_content).map_err(|e| e.to_string())?;
-
-    // Delete the temporary .env.mode_name file
-    if mode_name != "OPE" && selected_env_path.exists() {
-        fs::remove_file(&selected_env_path).map_err(|e| e.to_string())?;
-    }
 
     Ok(())
 }
@@ -398,14 +376,18 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
 
     let mut app_env = "OPE".to_string();
 
-    
+    let env_var_to_read = if cfg!(debug_assertions) {
+        "APP_ENV_DEV"
+    } else {
+        "APP_ENV_PROD"
+    };
 
     if let Ok(iter) = dotenvy::from_path_iter(&env_path) {
         for item in iter {
             if let Ok((key, val)) = item {
-                if key == "APP_ENV" {
+                if key == env_var_to_read {
                     app_env = val;
-                    
+                    break; 
                 }
             }
         }
@@ -473,6 +455,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
