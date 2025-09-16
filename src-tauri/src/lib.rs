@@ -7,6 +7,7 @@ use serde_json::Value;
 use chrono::prelude::*;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
+const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
 
 
@@ -444,6 +445,13 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         
         fs::write(&settings_path, new_settings_content)
             .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    }
+
+    // Manage circuits.json file
+    let circuits_path = app_env_path.join("circuits.json");
+    if !circuits_path.exists() {
+        fs::write(&circuits_path, EMBEDDED_DEFAULT_CIRCUITS)
+            .map_err(|e| format!("Failed to write circuits file: {}", e))?;
     }
 
     // Read settings and extract mapbox token
