@@ -39,5 +39,3 @@ Thumbs.db
 coverage/
 *.lcov
 
-* --- Documentation de développement ---
-docs_dev
