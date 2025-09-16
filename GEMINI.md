@@ -464,7 +464,7 @@ Attention à la syntaxe pour atteindre les variables du fichier settings.json (`
 
 ---
 
-### Fichier circuits.json
+### Fichier circuits.json - Réalisé - [ 7782c290]
 
 La description du fichier circuits.json est donnée dans les fichiers 
 
@@ -474,7 +474,7 @@ La description du fichier circuits.json est donnée dans les fichiers
 
 Au lancement de l'application, si dans le dossier du contexte d'éxécution le fichiers circuits.json n'existe pas il faut le créer. Il sera par la suite mis à jour en fonction de l'import ou de la suppression de traces GPX. 
 
-### Reconnaissance de l'éditeur gpx
+### Reconnaissance de l'éditeur gpx - Réalisé - [ec145a9b]
 
 lors de l'imporatition d'un fichier gpx, il faut reconnaitre la source du GPX 
 
@@ -491,6 +491,36 @@ Il faut déterminer si le fichier provient de :
 5. ... 
 
 Quand l'origine est trouvée, il faut mettre à jour si nécessaire la rubrique editeurs du fichiers circuits.json pour l'id la syntaxe suivante sera utilisée `ed-0001`, `ed-0002`, `ed-0003`, etc.
+
+---
+
+### Mise à jour (partielle) de la structure circuit dans le fichier circuits.json
+
+Pour chaque fichier corectement importé, il faut mettre à jour le fichier circuits.json avec les attributs suivants : 
+
+- circuitId, sous la forme d'un digit de 6 chiffres de 000001 à 999999. Sa valeur sera calculée à partir de indexCircuits + 1
+
+- nom: issue du fichier gpx 
+
+- editeurId : trouvé dans la sequence précédente.
+
+- url : Url de la trace vers l'editeur de la trace. 
+
+- distanceKm : Calcul de la distance de la trace. ( en nodeJS on peut utiliser la librairie turf. en Rust tu peux utliser geo ). Un fichier lineString.json va être créé dans le chapitre suivant. Tu pouuras peut-être t'en servir pour tes calcul..  
+
+- depart : les coordonnées du premier point 
+
+- deniveleM : le denivelé positif du circuit, calculé à partir de la 3 données du fichier gpx.
+
+- sommet : le point le plus haut de la trace GPX avec sa distance cummulée depuis le point de départ
+
+A chaque importation correcte(sans erreur) de circuit l'attribut indexCircuits devra être incrémenté.
+
+Dans le dossier de l'environnement d'éxécution, pour chaque circuit importé, nous allons créé dans le dossier data (qui est à créé si il n'existe pas) un sous dossier lié au circuit qui est en cours d'imporation. Le nom de ce dossier sera le même que circuitId
+
+### Création du fichier lineString.json
+
+A partir de la trace GPX, je voudrais que tu me génères un fichier lineString.json, qui sera sauvegardé dans le dossier data/circuitId
 
 ---
 
