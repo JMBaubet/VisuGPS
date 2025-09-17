@@ -83,6 +83,8 @@ fn list_gpx_files(state: State<AppState>) -> Result<Vec<String>, String> {
     let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
 
     let gpx_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
         .ok_or_else(|| "GPXFile setting not found".to_string())?;
 
     let gpx_path = if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
@@ -147,7 +149,10 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let old_settings_path = current_app_state.app_env_path.join("settings.json");
     let old_settings_content = fs::read_to_string(old_settings_path).map_err(|e| e.to_string())?;
     let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
-    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox").unwrap_or_else(|| "".to_string());
+    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "".to_string());
 
     let new_app_env_path = visugps_dir.join(&mode_name);
 
@@ -277,7 +282,7 @@ pub struct ExecutionMode {
 }
 
 
-fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
+fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Value> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = settings;
 
@@ -305,16 +310,20 @@ fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
         }
     }
 
-    if let Some(value) = current.get("surcharge").and_then(|v| v.as_str()) {
-        if !value.is_empty() {
-            return Some(value.to_string());
+    let surcharge = current.get("surcharge");
+    if let Some(s) = surcharge {
+        if !s.is_null() {
+            if let Some(s_str) = s.as_str() {
+                if !s_str.is_empty() {
+                    return Some(s);
+                }
+            } else {
+                return Some(s); // Not a string, so just return it if it's not null
+            }
         }
     }
-    if let Some(value) = current.get("defaut").and_then(|v| v.as_str()) {
-        return Some(value.to_string());
-    }
-
-    None
+    
+    current.get("defaut")
 }
 
 
@@ -447,6 +456,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let settings_content = fs::read_to_string(&settings_path)?;
     let settings: Value = serde_json::from_str(&settings_content)?;
     let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
         .unwrap_or_else(|| "".to_string());
 
 
@@ -484,4 +495,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

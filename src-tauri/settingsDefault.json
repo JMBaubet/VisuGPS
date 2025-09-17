@@ -39,6 +39,16 @@
             "identifiant": "GPXFile",
             "libelle": "Dossier des fichiers GPX",
             "type": "string"
+          },
+          {
+            "defaut": 10,
+            "description": "Distance minimale (en mètres) entre deux points pour le calcul du dénivelé positif. Permet de lisser les imprécisions de l'altitude.",
+            "identifiant": "denivele_lissage_distance",
+            "libelle": "Distance de lissage du dénivelé",
+            "type": "entier",
+            "min": 0,
+            "max": 100,
+            "unite": "m"
           }
         ]
       },
