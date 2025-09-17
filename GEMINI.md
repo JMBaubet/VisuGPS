@@ -512,13 +512,23 @@ A chaque importation correcte(sans erreur) de circuit l'attribut indexCircuits d
 
 Dans le dossier de l'environnement d'éxécution, pour chaque circuit importé, nous allons créé dans le dossier data (qui est à créé si il n'existe pas) un sous dossier lié au circuit qui est en cours d'imporation. Le nom de ce dossier sera le même que circuitId
 
-### Création du fichier lineString.json -  - []
+### Création du fichier lineString.json - Réalisé - [2230f202]
 
 A partir de la trace GPX, je voudrais que tu me génères le fichier lineString.json, qui sera sauvegardé dans le dossier data/circuitId, sous le nom de lineTring.json.
 
 Pour cela tu lis la trace gpx chargée, puis à partir des données géographique tu crées le fichier lineString avec les paramètres [longitude, latitude, altitude]
 
-### Suite de la mise à jour du fichiers circuits.json - - []
+### Suite de la mise à jour du fichier circuits.json - - []
+
+A partir du fichier lineString.json, je voudrais que tu calcules :
+
+- La longueur de la trace. je te propose d'utiliser geojson et geo
+
+- Le point le plus haut de la trace et la distance à laquelle il se situe par rapport au départ
+
+- Le denivelé positif. 
+
+Ensuite tu mets à jour le fichier circuits.json 
 
 ---
 

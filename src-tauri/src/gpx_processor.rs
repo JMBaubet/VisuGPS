@@ -5,6 +5,16 @@ use tauri::{AppHandle, Manager};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use chrono::{DateTime, Utc};
+use geo::{LineString as GeoLineString, Point};
+use geo::prelude::*;
+
+// Struct to hold calculation results
+struct TrackStats {
+    total_distance_km: f64,
+    positive_elevation_m: i32,
+    summit_altitude_m: i32,
+    summit_distance_km: f64,
+}
 
 #[derive(Serialize, Debug)]
 struct LineString {
@@ -135,6 +145,9 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
+    // 4. Calculate track statistics
+    let stats = calculate_track_stats(&rounded_track_points);
+
     let new_circuit = Circuit {
         circuit_id: new_circuit_id.clone(),
         nom: metadata.name.unwrap_or_else(|| filename.to_string()),
@@ -142,15 +155,15 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
         traceur_id: String::new(), // To be filled later
         editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
         url: String::new(), // To be filled later
-        distance_km: 0.0, // To be calculated later
-        denivele_m: 0, // To be calculated later
+        distance_km: stats.total_distance_km,
+        denivele_m: stats.positive_elevation_m,
         depart: CircuitDepart {
             lon: (lon_depart * 100_000.0).round() / 100_000.0,
             lat: (lat_depart * 100_000.0).round() / 100_000.0,
         },
         sommet: CircuitSommet {
-            altitude_m: 0,
-            km: 0.0,
+            altitude_m: stats.summit_altitude_m,
+            km: stats.summit_distance_km,
         },
         iso_date_time: metadata.time.unwrap_or_else(Utc::now),
         distance_verifiee_km: 0.0, // To be calculated later
@@ -164,7 +177,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     circuits_file.index_circuits += 1;
     write_circuits_file(app_handle, &circuits_file)?;
 
-    // 4. Create lineString.json
+    // 5. Create lineString.json
     create_line_string_file(app_handle, &new_circuit_id, &rounded_track_points)?;
 
     Ok(format!("Fichier importé. Editeur: {}. Circuit: {}.", editor_name, new_circuit_id))
@@ -357,4 +370,58 @@ fn create_line_string_file(app_handle: &AppHandle, circuit_id: &str, track_point
 
     let linestring_content = serde_json::to_string_pretty(&linestring_data).map_err(|e| e.to_string())?;
     fs::write(&linestring_path, linestring_content).map_err(|e| e.to_string())
+}
+
+fn calculate_track_stats(track_points: &Vec<Vec<f64>>) -> TrackStats {
+    if track_points.len() < 2 {
+        return TrackStats {
+            total_distance_km: 0.0,
+            positive_elevation_m: 0,
+            summit_altitude_m: track_points.get(0).map_or(0, |p| p[2] as i32),
+            summit_distance_km: 0.0,
+        };
+    }
+
+    let geo_points: Vec<Point<f64>> = track_points
+        .iter()
+        .map(|p| Point::new(p[0], p[1]))
+        .collect();
+    let line = GeoLineString::from(geo_points);
+    let total_distance_m = line.haversine_length();
+
+    let mut positive_elevation_m = 0.0;
+    let mut summit_altitude_m = 0.0;
+    let mut distance_at_summit_m = 0.0;
+    let mut cumulative_distance_m = 0.0;
+
+    if let Some(first_point) = track_points.get(0) {
+        summit_altitude_m = first_point[2];
+    }
+
+    for i in 1..track_points.len() {
+        let p1 = track_points[i-1].as_slice();
+        let p2 = track_points[i].as_slice();
+
+        let point1_geo = Point::new(p1[0], p1[1]);
+        let point2_geo = Point::new(p2[0], p2[1]);
+        let segment_distance_m = point1_geo.haversine_distance(&point2_geo);
+        cumulative_distance_m += segment_distance_m;
+
+        let ele_diff = p2[2] - p1[2];
+        if ele_diff > 0.0 {
+            positive_elevation_m += ele_diff;
+        }
+
+        if p2[2] > summit_altitude_m {
+            summit_altitude_m = p2[2];
+            distance_at_summit_m = cumulative_distance_m;
+        }
+    }
+
+    TrackStats {
+        total_distance_km: (total_distance_m / 1000.0 * 10.0).round() / 10.0, // Round to 1 decimal
+        positive_elevation_m: positive_elevation_m.round() as i32,
+        summit_altitude_m: summit_altitude_m.round() as i32,
+        summit_distance_km: (distance_at_summit_m / 1000.0 * 10.0).round() / 10.0, // Round to 1 decimal
+    }
 }
