@@ -494,33 +494,31 @@ Quand l'origine est trouvée, il faut mettre à jour si nécessaire la rubrique 
 
 ---
 
-### Mise à jour (partielle) de la structure circuit dans le fichier circuits.json
+### Mise à jour (partielle) de la structure circuit dans le fichier circuits.json - Réalisé - [50fe9be0]
 
 Pour chaque fichier corectement importé, il faut mettre à jour le fichier circuits.json avec les attributs suivants : 
 
-- circuitId, sous la forme d'un digit de 6 chiffres de 000001 à 999999. Sa valeur sera calculée à partir de indexCircuits + 1
+- circuitId, sous la forme d'un digit de 4 chiffres de circ-0001 à circ-9999. Sa valeur sera calculée à partir de indexCircuits + 1
 
 - nom: issue du fichier gpx 
 
-- editeurId : trouvé dans la sequence précédente.
-
-- url : Url de la trace vers l'editeur de la trace. 
-
-- distanceKm : Calcul de la distance de la trace. ( en nodeJS on peut utiliser la librairie turf. en Rust tu peux utliser geo ). Un fichier lineString.json va être créé dans le chapitre suivant. Tu pouuras peut-être t'en servir pour tes calcul..  
+- editeurId : trouvé dans la sequence précédente.  
 
 - depart : les coordonnées du premier point 
 
-- deniveleM : le denivelé positif du circuit, calculé à partir de la 3 données du fichier gpx.
-
-- sommet : le point le plus haut de la trace GPX avec sa distance cummulée depuis le point de départ
+- isoDateTime : l'heure de l'imporation.
 
 A chaque importation correcte(sans erreur) de circuit l'attribut indexCircuits devra être incrémenté.
 
 Dans le dossier de l'environnement d'éxécution, pour chaque circuit importé, nous allons créé dans le dossier data (qui est à créé si il n'existe pas) un sous dossier lié au circuit qui est en cours d'imporation. Le nom de ce dossier sera le même que circuitId
 
-### Création du fichier lineString.json
+### Création du fichier lineString.json -  - []
 
-A partir de la trace GPX, je voudrais que tu me génères un fichier lineString.json, qui sera sauvegardé dans le dossier data/circuitId
+A partir de la trace GPX, je voudrais que tu me génères le fichier lineString.json, qui sera sauvegardé dans le dossier data/circuitId, sous le nom de lineTring.json.
+
+Pour cela tu lis la trace gpx chargée, puis à partir des données géographique tu crées le fichier lineString avec les paramètres [longitude, latitude, altitude]
+
+### Suite de la mise à jour du fichiers circuits.json - - []
 
 ---
 

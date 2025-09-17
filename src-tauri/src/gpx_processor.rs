@@ -6,6 +6,13 @@ use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use chrono::{DateTime, Utc};
 
+#[derive(Serialize, Debug)]
+struct LineString {
+    #[serde(rename = "type")]
+    type_field: String,
+    coordinates: Vec<Vec<f64>>,
+}
+
 // Structures for circuits.json
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Editor {
@@ -108,6 +115,15 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     // 1. Extract metadata and track points from GPX
     let (metadata, track_points) = extract_gpx_data(&file_path)?;
 
+    // Round coordinates before further processing
+    let rounded_track_points: Vec<Vec<f64>> = track_points.iter().map(|point| {
+        vec![
+            (point[0] * 100_000.0).round() / 100_000.0, // lon, 5 decimals
+            (point[1] * 100_000.0).round() / 100_000.0, // lat, 5 decimals
+            (point[2] * 10.0).round() / 10.0,          // ele, 1 decimal
+        ]
+    }).collect();
+
     // 2. Identify editor
     let editor_name = identify_editor_from_creator(&metadata.creator.unwrap_or_default());
     add_editor_if_not_exists(app_handle, &editor_name)?;
@@ -115,6 +131,9 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     // 3. Update circuits.json
     let mut circuits_file = read_circuits_file(app_handle)?;
     let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
+
+    let lon_depart = metadata.first_point_lon.unwrap_or_default();
+    let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
     let new_circuit = Circuit {
         circuit_id: new_circuit_id.clone(),
@@ -126,8 +145,8 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
         distance_km: 0.0, // To be calculated later
         denivele_m: 0, // To be calculated later
         depart: CircuitDepart {
-            lon: metadata.first_point_lon.unwrap_or_default(),
-            lat: metadata.first_point_lat.unwrap_or_default(),
+            lon: (lon_depart * 100_000.0).round() / 100_000.0,
+            lat: (lat_depart * 100_000.0).round() / 100_000.0,
         },
         sommet: CircuitSommet {
             altitude_m: 0,
@@ -146,7 +165,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     write_circuits_file(app_handle, &circuits_file)?;
 
     // 4. Create lineString.json
-    create_line_string_file(app_handle, &new_circuit_id, &track_points)?;
+    create_line_string_file(app_handle, &new_circuit_id, &rounded_track_points)?;
 
     Ok(format!("Fichier importé. Editeur: {}. Circuit: {}.", editor_name, new_circuit_id))
 }
@@ -330,6 +349,12 @@ fn create_line_string_file(app_handle: &AppHandle, circuit_id: &str, track_point
     fs::create_dir_all(&circuit_data_dir).map_err(|e| format!("Impossible de créer le dossier de données du circuit: {}", e))?;
 
     let linestring_path = circuit_data_dir.join("lineString.json");
-    let linestring_content = serde_json::to_string_pretty(track_points).map_err(|e| e.to_string())?;
+
+    let linestring_data = LineString {
+        type_field: "LineString".to_string(),
+        coordinates: track_points.clone(),
+    };
+
+    let linestring_content = serde_json::to_string_pretty(&linestring_data).map_err(|e| e.to_string())?;
     fs::write(&linestring_path, linestring_content).map_err(|e| e.to_string())
 }
