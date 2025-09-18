@@ -395,13 +395,10 @@ fn list_traceurs(state: State<AppState>) -> Result<Vec<Traceur>, String> {
 
 #[tauri::command]
 fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
-    log::info!("add_traceur: Tentative d'ajout du traceur '{}'", nom);
     let mut circuits_file = read_circuits_file(&state.app_env_path)?;
-    log::info!("add_traceur: Traceurs avant ajout: {:?}", circuits_file.traceurs);
 
     // Vérifier si le traceur existe déjà (insensible à la casse)
     if circuits_file.traceurs.iter().any(|t| t.nom.eq_ignore_ascii_case(&nom)) {
-        log::warn!("add_traceur: Le traceur '{}' existe déjà.", nom);
         return Err(format!("Le traceur '{}' existe déjà.", nom));
     }
 
@@ -410,10 +407,8 @@ fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
         nom: nom.clone(),
     };
     circuits_file.traceurs.push(new_traceur.clone());
-    log::info!("add_traceur: Traceurs après ajout: {:?}", circuits_file.traceurs);
 
     write_circuits_file(&state.app_env_path, &circuits_file)?;
-    log::info!("add_traceur: Fichier circuits.json mis à jour.");
 
     Ok(new_traceur)
 }
@@ -552,7 +547,6 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage circuits.json file
     let circuits_path = app_env_path.join("circuits.json");
     if !circuits_path.exists() {
-        log::info!("setup_environment: Contenu de EMBEDDED_DEFAULT_CIRCUITS avant écriture: {}", EMBEDDED_DEFAULT_CIRCUITS);
         fs::write(&circuits_path, EMBEDDED_DEFAULT_CIRCUITS)
             .map_err(|e| format!("Failed to write circuits file: {}", e))?;
     }
