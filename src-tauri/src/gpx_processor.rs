@@ -32,7 +32,6 @@ struct MapboxReverseGeocodeResponse {
 #[derive(Deserialize, Debug)]
 struct MapboxFeature {
     text: String,
-    place_type: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
