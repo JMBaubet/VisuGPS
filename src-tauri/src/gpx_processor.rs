@@ -8,6 +8,7 @@ use quick_xml::reader::Reader;
 use chrono::{DateTime, Utc};
 use geo::{LineString as GeoLineString, Point};
 use geo::prelude::*;
+use uuid::Uuid;
 
 // Struct to hold calculation results
 struct TrackStats {
@@ -15,6 +16,29 @@ struct TrackStats {
     positive_elevation_m: i32,
     summit_altitude_m: i32,
     summit_distance_km: f64,
+}
+
+// Structures for Geocoding API responses
+#[derive(Deserialize, Debug)]
+struct Commune {
+    nom: String,
+}
+
+#[derive(Deserialize, Debug)]
+struct MapboxReverseGeocodeResponse {
+    features: Vec<MapboxFeature>,
+}
+
+#[derive(Deserialize, Debug)]
+struct MapboxFeature {
+    text: String,
+    place_type: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Ville {
+    id: String,
+    nom: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -96,7 +120,7 @@ pub struct CircuitsFile {
     pub description: String,
     pub auteur: String,
     pub commentaires: String,
-    pub villes: Vec<serde_json::Value>,
+    pub villes: Vec<Ville>,
     pub traceurs: Vec<super::Traceur>,
     pub editeurs: Vec<Editor>,
     #[serde(rename = "indexCircuits")]
@@ -113,12 +137,17 @@ struct GpxMetadata {
     link: Option<String>,
 }
 
-pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
+pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
     let app_state: tauri::State<super::AppState> = app_handle.state();
     
     let settings_path = app_state.app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let mapbox_token = super::get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Token Mapbox non trouvé".to_string())?;
 
     let gpx_dir_path = get_gpx_directory(&settings)?;
     let file_path = gpx_dir_path.join(filename);
@@ -156,6 +185,8 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
+    let ville_id = get_ville_depart_id(&mut circuits_file, lon_depart, lat_depart, &mapbox_token).await.unwrap_or_default();
+
     let smoothing_distance = super::get_setting_value(&settings, "data.groupes.Importation.parametres.denivele_lissage_distance")
         .and_then(|v| v.as_i64())
         .unwrap_or(10) as f64;
@@ -165,7 +196,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
     let new_circuit = Circuit {
         circuit_id: new_circuit_id.clone(),
         nom: metadata.name.unwrap_or_else(|| filename.to_string()),
-        ville_depart_id: String::new(),
+        ville_depart_id: ville_id, // Utilisation de l'ID de la ville
         traceur_id: String::new(), // Initialiser avec une chaîne vide
         editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
         url,
@@ -559,4 +590,56 @@ fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64
         summit_altitude_m: summit_altitude_m.round() as i32,
         summit_distance_km: (distance_at_summit_m / 1000.0 * 10.0).round() / 10.0, // Round to 1 decimal
     }
+}
+
+async fn get_ville_depart_id(
+    circuits_file: &mut CircuitsFile,
+    lon: f64,
+    lat: f64,
+    mapbox_token: &str,
+) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let mut city_name: Option<String> = None;
+
+    // 1. Try geo.api.gouv.fr API
+    let url = format!("https://geo.api.gouv.fr/communes?lat={}&lon={}&fields=nom", lat, lon);
+    if let Ok(response) = client.get(&url).send().await {
+        if response.status().is_success() {
+            if let Ok(data) = response.json::<Vec<Commune>>().await {
+                if let Some(commune) = data.first() {
+                    city_name = Some(commune.nom.clone());
+                }
+            }
+        }
+    }
+
+    // 2. Fallback to Mapbox API
+    if city_name.is_none() {
+        let url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/{},{}.json?types=place&access_token={}", lon, lat, mapbox_token);
+        if let Ok(response) = client.get(&url).send().await {
+            if response.status().is_success() {
+                if let Ok(data) = response.json::<MapboxReverseGeocodeResponse>().await {
+                    if let Some(feature) = data.features.first() {
+                        city_name = Some(feature.text.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Update circuits_file struct and get city ID
+    if let Some(name) = city_name {
+        if let Some(existing_ville) = circuits_file.villes.iter().find(|v| v.nom == name) {
+            return Ok(existing_ville.id.clone());
+        } else {
+            let new_ville = Ville {
+                id: Uuid::new_v4().to_string(),
+                nom: name,
+            };
+            circuits_file.villes.push(new_ville.clone());
+            return Ok(new_ville.id);
+        }
+    }
+
+    Err("Impossible de déterminer la ville de départ".to_string())
 }

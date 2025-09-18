@@ -138,8 +138,8 @@ fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, St
 }
 
 #[tauri::command]
-fn process_gpx_file(app: AppHandle, filename: String) -> Result<String, String> {
-    gpx_processor::process_gpx_file(&app, &filename)
+async fn process_gpx_file_command(app: AppHandle, filename: String) -> Result<String, String> {
+    gpx_processor::process_gpx_file(&app, &filename).await
 }
 
 #[tauri::command]
@@ -590,7 +590,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file, list_traceurs, add_traceur, update_circuit_traceur])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file_command, list_traceurs, add_traceur, update_circuit_traceur])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

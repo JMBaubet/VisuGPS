@@ -62,6 +62,7 @@ const gpxFiles = ref([]);
 const selectedFile = ref([]);
 const error = ref(null);
 const filterText = ref('');
+const loading = ref(false);
 
 
 const filteredGpxFiles = computed(() => {
@@ -111,14 +112,18 @@ async function importFile() {
   }
 
   const filename = selectedFile.value[0];
+  loading.value = true;
+  error.value = null;
+
   try {
-    const circuitId = await core.invoke('process_gpx_file', { filename });
-    showSnackbar(`Fichier importé. Circuit ID: ${circuitId}`, 'success'); // Message de succès mis à jour
-    emit('gpx-imported', circuitId); // Émettre le circuitId
+    const circuitId = await core.invoke('process_gpx_file_command', { filename });
+    showSnackbar(`Fichier importé. Circuit ID: ${circuitId}`, 'success');
+    emit('gpx-imported', circuitId);
   } catch (e) {
     showSnackbar(`Erreur lors de l'import: ${e}`, 'error');
+  } finally {
+    loading.value = false;
+    close();
   }
-
-  close();
 }
 </script>

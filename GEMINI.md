@@ -532,7 +532,7 @@ Ensuite tu mets à jour le fichier circuits.json.
 
 ---
 
-### Poursuite de la mise à jour de circuits.json
+### Poursuite de la mise à jour de circuits.json - Réalisé - [de55b315]
 
 Pour poursuivre la mise à jour des paramètres liés a un circuit lors de son importation, il faut encore renseigner les attributs suivants :
 
@@ -566,7 +566,7 @@ Pour cela tu peux par défaut essayer avec l'API de géocodage inverse de l'IGN.
 
 - Si nous sommes en France, tu obtiendra le nom de la commune,
 
--  Sinon je pense que le geoportail te renverra une erreur. Dans ce cas  tu dois pouvoir faire une requette à mapBox.
+- Sinon je pense que le geoportail te renverra une erreur. Dans ce cas  tu dois pouvoir faire une requette à mapBox.
 
 Une fois que tu as le nom de la commune, tu vérifies si elle n'est pas dejà présente dans le fichier circuits.json. 
 
