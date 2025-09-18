@@ -10,6 +10,22 @@ use geo::{LineString as GeoLineString, Point};
 use geo::prelude::*;
 use uuid::Uuid;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DraftCircuit {
+    gpx_filename: String,
+    nom: String,
+    depart: CircuitDepart,
+    distance_km: f64,
+    denivele_m: i32,
+    sommet: CircuitSommet,
+    iso_date_time: DateTime<Utc>,
+    url: String,
+    editor_name: String,
+    ville_nom: String,
+    track_points: Vec<Vec<f64>>,
+}
+
 // Struct to hold calculation results
 struct TrackStats {
     total_distance_km: f64,
@@ -136,7 +152,7 @@ struct GpxMetadata {
     link: Option<String>,
 }
 
-pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
+pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<DraftCircuit, String> {
     let app_state: tauri::State<super::AppState> = app_handle.state();
     
     let settings_path = app_state.app_env_path.join("settings.json");
@@ -166,7 +182,6 @@ pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
     }).collect();
 
     let editor_name = identify_editor_from_creator(metadata.creator.as_deref().unwrap_or_default());
-    add_editor_if_not_exists(app_handle, &editor_name)?;
 
     let mut url = get_url_from_metadata(&metadata, &editor_name);
     if editor_name == "Garmin Connect" {
@@ -178,13 +193,10 @@ pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
         }
     }
 
-    let mut circuits_file = read_circuits_file(app_handle)?;
-    let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
-
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
-    let ville_id = get_ville_depart_id(&mut circuits_file, lon_depart, lat_depart, &mapbox_token).await.unwrap_or_default();
+    let ville_nom = get_city_name_from_coords(lon_depart, lat_depart, &mapbox_token).await.unwrap_or_else(|_| "Inconnue".to_string());
 
     let smoothing_distance = super::get_setting_value(&settings, "data.groupes.Importation.parametres.denivele_lissage_distance")
         .and_then(|v| v.as_i64())
@@ -192,25 +204,51 @@ pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
 
     let stats = calculate_track_stats(&rounded_track_points, smoothing_distance);
 
-    let new_circuit = Circuit {
-        circuit_id: new_circuit_id.clone(),
+    Ok(DraftCircuit {
+        gpx_filename: filename.to_string(),
         nom: metadata.name.unwrap_or_else(|| filename.to_string()),
-        ville_depart_id: ville_id, // Utilisation de l'ID de la ville
-        traceur_id: String::new(), // Initialiser avec une chaîne vide
-        editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
-        url,
-        distance_km: stats.total_distance_km,
-        denivele_m: stats.positive_elevation_m,
         depart: CircuitDepart {
             lon: (lon_depart * 100_000.0).round() / 100_000.0,
             lat: (lat_depart * 100_000.0).round() / 100_000.0,
         },
+        distance_km: stats.total_distance_km,
+        denivele_m: stats.positive_elevation_m,
         sommet: CircuitSommet {
             altitude_m: stats.summit_altitude_m,
             km: stats.summit_distance_km,
         },
         iso_date_time: metadata.time.unwrap_or_else(Utc::now),
-        distance_verifiee_km: 0.0,
+        url,
+        editor_name,
+        ville_nom,
+        track_points: rounded_track_points,
+    })
+}
+
+pub fn commit_new_circuit(
+    app_handle: &AppHandle,
+    draft: DraftCircuit,
+    traceur_id: String,
+) -> Result<String, String> {
+    let mut circuits_file = read_circuits_file(app_handle)?;
+
+    let editeur_id = resolve_editor_id(&mut circuits_file, &draft.editor_name)?;
+    let ville_id = resolve_ville_id(&mut circuits_file, &draft.ville_nom)?;
+
+    let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
+    let new_circuit = Circuit {
+        circuit_id: new_circuit_id.clone(),
+        nom: draft.nom,
+        ville_depart_id: ville_id,
+        traceur_id,
+        editeur_id,
+        url: draft.url,
+        distance_km: draft.distance_km,
+        denivele_m: draft.denivele_m,
+        depart: draft.depart,
+        sommet: draft.sommet,
+        iso_date_time: draft.iso_date_time,
+        distance_verifiee_km: 0.0, // This could be calculated from track_points if needed
         evt: CircuitEvt {
             compteurs: CircuitCompteurs { zoom: 0, pause: 0, info: 0 },
             affichage: CircuitAffichage { depart: true, arrivee: true, marqueurs_10km: true },
@@ -219,12 +257,51 @@ pub async fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
 
     circuits_file.circuits.push(new_circuit);
     circuits_file.index_circuits += 1;
+
     write_circuits_file(app_handle, &circuits_file)?;
 
-    create_line_string_file(app_handle, &new_circuit_id, &rounded_track_points)?;
+    create_line_string_file(app_handle, &new_circuit_id, &draft.track_points)?;
 
-    Ok(new_circuit_id) // Retourner le circuitId
+    Ok(new_circuit_id)
 }
+
+fn resolve_editor_id(circuits_file: &mut CircuitsFile, editor_name: &str) -> Result<String, String> {
+    if let Some(editor) = circuits_file.editeurs.iter().find(|e| e.nom.eq_ignore_ascii_case(editor_name)) {
+        Ok(editor.id.clone())
+    } else {
+        if editor_name.is_empty() || editor_name == "Inconnu" {
+            return Ok("ed-0000".to_string()); // Specific ID for "Inconnu"
+        }
+        let max_id = circuits_file.editeurs.iter()
+            .filter_map(|e| e.id.strip_prefix("ed-").and_then(|s| s.parse::<i32>().ok()))
+            .max()
+            .unwrap_or(0);
+        
+        let new_id = format!("ed-{:04}", max_id + 1);
+        
+        let new_editor = Editor {
+            id: new_id.clone(),
+            nom: editor_name.to_string(),
+        };
+
+        circuits_file.editeurs.push(new_editor);
+        Ok(new_id)
+    }
+}
+
+fn resolve_ville_id(circuits_file: &mut CircuitsFile, ville_nom: &str) -> Result<String, String> {
+    if let Some(ville) = circuits_file.villes.iter().find(|v| v.nom == ville_nom) {
+        Ok(ville.id.clone())
+    } else {
+        let new_ville = Ville {
+            id: Uuid::new_v4().to_string(),
+            nom: ville_nom.to_string(),
+        };
+        circuits_file.villes.push(new_ville.clone());
+        Ok(new_ville.id)
+    }
+}
+
 
 fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
     let gpx_dir_setting = super::get_setting_value(settings, "data.groupes.Importation.parametres.GPXFile")
@@ -482,35 +559,6 @@ fn write_circuits_file(app_handle: &AppHandle, circuits_file: &CircuitsFile) -> 
     fs::write(&circuits_path, updated_content).map_err(|e| e.to_string())
 }
 
-fn add_editor_if_not_exists(app_handle: &AppHandle, editor_name: &str) -> Result<(), String> {
-    if editor_name == "Inconnu" {
-        return Ok(())
-    }
-
-    let mut circuits_file = read_circuits_file(app_handle)?;
-
-    let editor_exists = circuits_file.editeurs.iter().any(|e| e.nom.eq_ignore_ascii_case(editor_name));
-
-    if !editor_exists {
-        let max_id = circuits_file.editeurs.iter()
-            .filter_map(|e| e.id.strip_prefix("ed-").and_then(|s| s.parse::<i32>().ok()))
-            .max()
-            .unwrap_or(0);
-        
-        let new_id = format!("ed-{:04}", max_id + 1);
-        
-        let new_editor = Editor {
-            id: new_id,
-            nom: editor_name.to_string(),
-        };
-
-        circuits_file.editeurs.push(new_editor);
-        write_circuits_file(app_handle, &circuits_file)?;
-    }
-
-    Ok(())
-}
-
 fn create_line_string_file(app_handle: &AppHandle, circuit_id: &str, track_points: &Vec<Vec<f64>>) -> Result<(), String> {
     let app_state: tauri::State<super::AppState> = app_handle.state();
     let data_dir = app_state.app_env_path.join("data");
@@ -591,12 +639,7 @@ fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64
     }
 }
 
-async fn get_ville_depart_id(
-    circuits_file: &mut CircuitsFile,
-    lon: f64,
-    lat: f64,
-    mapbox_token: &str,
-) -> Result<String, String> {
+async fn get_city_name_from_coords(lon: f64, lat: f64, mapbox_token: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
     let mut city_name: Option<String> = None;
 
@@ -626,19 +669,7 @@ async fn get_ville_depart_id(
         }
     }
 
-    // 3. Update circuits_file struct and get city ID
-    if let Some(name) = city_name {
-        if let Some(existing_ville) = circuits_file.villes.iter().find(|v| v.nom == name) {
-            return Ok(existing_ville.id.clone());
-        } else {
-            let new_ville = Ville {
-                id: Uuid::new_v4().to_string(),
-                nom: name,
-            };
-            circuits_file.villes.push(new_ville.clone());
-            return Ok(new_ville.id);
-        }
-    }
-
-    Err("Impossible de déterminer la ville de départ".to_string())
+    city_name.ok_or_else(|| "Impossible de déterminer la ville de départ".to_string())
 }
+
+

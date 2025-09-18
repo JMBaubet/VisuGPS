@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 mod gpx_processor;
 
 use chrono::prelude::*;
-use gpx_processor::Circuit;
+use gpx_processor::{Circuit, DraftCircuit};
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
@@ -135,11 +135,6 @@ fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, St
         }
     }
     Ok(modes)
-}
-
-#[tauri::command]
-async fn process_gpx_file_command(app: AppHandle, filename: String) -> Result<String, String> {
-    gpx_processor::process_gpx_file(&app, &filename).await
 }
 
 #[tauri::command]
@@ -414,19 +409,6 @@ fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
 }
 
 #[tauri::command]
-fn update_circuit_traceur(state: State<AppState>, circuit_id: String, traceur_id: String) -> Result<(), String> {
-    let mut circuits_file = read_circuits_file(&state.app_env_path)?;
-
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
-        circuit.traceur_id = traceur_id;
-        write_circuits_file(&state.app_env_path, &circuits_file)?;
-        Ok(())
-    } else {
-        Err(format!("Circuit avec l'ID {} non trouvé.", circuit_id))
-    }
-}
-
-#[tauri::command]
 fn update_setting(state: State<AppState>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
     let settings_path = state.app_env_path.join("settings.json");
     let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
@@ -474,6 +456,21 @@ fn update_setting(state: State<AppState>, group_path: String, param_id: String, 
     Ok(())
 }
 
+
+
+#[tauri::command]
+async fn analyze_gpx_file(app_handle: tauri::AppHandle, filename: String) -> Result<DraftCircuit, String> {
+    gpx_processor::analyze_gpx_file(&app_handle, &filename).await
+}
+
+#[tauri::command]
+fn commit_new_circuit(
+    app_handle: tauri::AppHandle,
+    draft: DraftCircuit,
+    traceur_id: String,
+) -> Result<String, String> {
+    gpx_processor::commit_new_circuit(&app_handle, draft, traceur_id)
+}
 
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
@@ -590,7 +587,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file_command, list_traceurs, add_traceur, update_circuit_traceur])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -42,12 +42,14 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+  <TraceurSelectionDialog ref="traceurDialog" />
 </template>
 
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { core } from '@tauri-apps/api';
 import { useSnackbar } from '@/composables/useSnackbar';
+import TraceurSelectionDialog from './TraceurSelectionDialog.vue';
 
 const { showSnackbar } = useSnackbar();
 
@@ -63,6 +65,7 @@ const selectedFile = ref([]);
 const error = ref(null);
 const filterText = ref('');
 const loading = ref(false);
+const traceurDialog = ref(null);
 
 
 const filteredGpxFiles = computed(() => {
@@ -116,14 +119,35 @@ async function importFile() {
   error.value = null;
 
   try {
-    const circuitId = await core.invoke('process_gpx_file_command', { filename });
-    showSnackbar(`Fichier importé. Circuit ID: ${circuitId}`, 'success');
+    // Phase 1: Analyse
+    const draftCircuit = await core.invoke('analyze_gpx_file', { filename });
+
+    // Fermer la boîte de dialogue actuelle avant d'en ouvrir une autre
+    dialog.value = false;
+
+    // Phase 2: Sélection du traceur
+    console.log('GpxImportDialog: Opening TraceurSelectionDialog...');
+    const traceurId = await traceurDialog.value.open();
+    console.log('GpxImportDialog: TraceurSelectionDialog closed, received traceurId:', traceurId);
+
+    // Phase 3: Validation
+    const circuitId = await core.invoke('commit_new_circuit', { 
+      draft: draftCircuit, 
+      traceurId: traceurId 
+    });
+
+    showSnackbar(`Circuit '${draftCircuit.nom}' importé avec succès.`, 'success');
     emit('gpx-imported', circuitId);
+
   } catch (e) {
-    showSnackbar(`Erreur lors de l'import: ${e}`, 'error');
+    // Si l'erreur n'est pas une annulation de la part de l'utilisateur, l'afficher.
+    if (typeof e === 'string' && !e.includes('annulée')) {
+      showSnackbar(`Erreur lors de l\'import: ${e}`, 'error');
+    }
+    // Si l'utilisateur annule, ne rien faire.
   } finally {
     loading.value = false;
-    close();
+    // Ne pas appeler close() ici car le dialogue est déjà fermé
   }
 }
 </script>
