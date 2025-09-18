@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 mod gpx_processor;
 
 use chrono::prelude::*;
-use gpx_processor::{Circuit, CircuitDepart, CircuitSommet, CircuitCompteurs, CircuitAffichage, CircuitEvt};
+use gpx_processor::Circuit;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
