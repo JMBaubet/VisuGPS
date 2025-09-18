@@ -102,6 +102,16 @@
                 "type": "entier",
                 "min": 0,
                 "unite": "m"
+              },
+              {
+                "defaut": 5,
+                "description": "Largeur de la trace GPX sur la vignette en pixels.",
+                "identifiant": "largeurTrace",
+                "libelle": "Largeur de la trace",
+                "type": "entier",
+                "min": 1,
+                "max": 20,
+                "unite": "px"
               }
             ]
           }

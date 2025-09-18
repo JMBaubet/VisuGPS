@@ -614,9 +614,12 @@ async fn generate_gpx_thumbnail(
 
     let path_string = encoded_polyline_for_url;
 
+    let largeur_trace = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.largeurTrace")
+        .and_then(|v| v.as_u64()).unwrap_or(5) as u32;
+
     // Construire l'overlay pour la trace
     let mut overlay_parts = vec![];
-    overlay_parts.push(format!("path-5+{}({})", gpx_color_hex, path_string)); // Largeur 5, couleur hex
+    overlay_parts.push(format!("path-{}+{}({})", largeur_trace, gpx_color_hex, path_string)); // Largeur variable, couleur hex
 
     // Ajouter les marqueurs si activés
     if show_markers {
