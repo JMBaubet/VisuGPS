@@ -7,7 +7,8 @@
       <v-card-text>
         <v-combobox
           v-model="selectedTraceur"
-          :items="traceurs"
+          :items="filteredTraceurs"
+          v-model:search="searchText"
           item-title="nom"
           item-value="id"
           label="Sélectionner ou créer un traceur"
@@ -20,7 +21,7 @@
           autocomplete="off"
           hide-no-data
           :menu-props="{ maxHeight: '150px' }"
-          :filter-keys="['nom']"
+          no-filter
         ></v-combobox>
       </v-card-text>
       <v-card-actions>
@@ -33,7 +34,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { core } from '@tauri-apps/api';
 import { useSnackbar } from '@/composables/useSnackbar';
 
@@ -42,9 +43,21 @@ const { showSnackbar } = useSnackbar();
 const dialog = ref(false);
 const traceurs = ref([]);
 const selectedTraceur = ref(null);
+const searchText = ref(''); // Nouvelle variable pour la saisie
 
 let resolvePromise = null;
 let rejectPromise = null;
+
+// Propriété calculée pour filtrer les traceurs
+const filteredTraceurs = computed(() => {
+  if (!searchText.value) {
+    return traceurs.value;
+  }
+  const searchLower = searchText.value.toLowerCase();
+  return traceurs.value.filter(traceur =>
+    traceur.nom.toLowerCase().includes(searchLower)
+  );
+});
 
 async function open() {
   console.log('TraceurSelectionDialog: open() called, setting dialog.value = true');
