@@ -15,6 +15,20 @@
           class="mb-4"
         ></v-text-field>
 
+        <v-combobox
+          v-model="selectedTraceur"
+          :items="traceurs"
+          item-title="nom"
+          item-value="id"
+          label="Sélectionner ou créer un traceur"
+          variant="outlined"
+          clearable
+          class="mb-4"
+          :rules="[v => !!v || 'Un traceur est requis']"
+          required
+          return-object
+        ></v-combobox>
+
         <v-list
           v-model:selected="selectedFile"
           selectable
@@ -36,7 +50,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="blue-darken-1" variant="text" @click="close">Annuler</v-btn>
-        <v-btn color="blue-darken-1" variant="text" @click="importFile" :disabled="selectedFile.length === 0">Importer</v-btn>
+        <v-btn color="blue-darken-1" variant="text" @click="importFile" :disabled="selectedFile.length === 0 || !selectedTraceur">Importer</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -60,6 +74,8 @@ const gpxFiles = ref([]);
 const selectedFile = ref([]);
 const error = ref(null);
 const filterText = ref('');
+const traceurs = ref([]);
+const selectedTraceur = ref(null);
 
 const filteredGpxFiles = computed(() => {
   if (!filterText.value) {
@@ -74,8 +90,10 @@ watch(() => props.modelValue, (newVal) => {
   dialog.value = newVal;
   if (newVal) {
     loadGpxFiles();
+    loadTraceurs();
     selectedFile.value = [];
     filterText.value = ''; // Reset filter on open
+    selectedTraceur.value = null; // Reset selected traceur
   }
 });
 
@@ -95,16 +113,52 @@ async function loadGpxFiles() {
   }
 }
 
+async function loadTraceurs() {
+  try {
+    traceurs.value = await core.invoke('list_traceurs');
+  } catch (e) {
+    showSnackbar(`Erreur lors du chargement des traceurs: ${e}`, 'error');
+    traceurs.value = [];
+  }
+}
+
 function close() {
   dialog.value = false;
 }
 
 async function importFile() {
-  if (selectedFile.value.length === 0) return;
+  if (selectedFile.value.length === 0) {
+    showSnackbar('Veuillez sélectionner un fichier GPX.', 'warning');
+    return;
+  }
+  if (!selectedTraceur.value) {
+    showSnackbar('Veuillez sélectionner ou créer un traceur.', 'warning');
+    return;
+  }
+
+  let traceurIdToUse = null;
+  if (typeof selectedTraceur.value === 'string') {
+    // Nouveau traceur à créer
+    try {
+      const newTraceur = await core.invoke('add_traceur', { nom: selectedTraceur.value });
+      traceurIdToUse = newTraceur.id;
+      showSnackbar(`Traceur '${newTraceur.nom}' créé.`, 'success');
+      // Recharger la liste des traceurs pour inclure le nouveau
+      await loadTraceurs();
+      // Réinitialiser selectedTraceur pour forcer la mise à jour du v-combobox
+      selectedTraceur.value = newTraceur; // Sélectionner le nouveau traceur
+    } catch (e) {
+      showSnackbar(`Erreur lors de la création du traceur: ${e}`, 'error');
+      return;
+    }
+  } else {
+    // Traceur existant sélectionné
+    traceurIdToUse = selectedTraceur.value.id;
+  }
 
   const filename = selectedFile.value[0];
   try {
-    const result = await core.invoke('process_gpx_file', { filename });
+    const result = await core.invoke('process_gpx_file', { filename, traceurId: traceurIdToUse });
     showSnackbar(result, 'success');
   } catch (e) {
     showSnackbar(`Erreur lors de l'import: ${e}`, 'error');

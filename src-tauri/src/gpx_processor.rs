@@ -89,14 +89,18 @@ pub struct Circuit {
     evt: CircuitEvt,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CircuitsFile {
-    version: String,
-    description: String,
-    editeurs: Vec<Editor>,
+    pub version: String,
+    pub description: String,
+    pub auteur: String,
+    pub commentaires: String,
+    pub villes: Vec<serde_json::Value>,
+    pub traceurs: Vec<super::Traceur>,
+    pub editeurs: Vec<Editor>,
     #[serde(rename = "indexCircuits")]
-    index_circuits: i32,
-    circuits: Vec<Circuit>,
+    pub index_circuits: u32,
+    pub circuits: Vec<Circuit>,
 }
 
 struct GpxMetadata {
@@ -107,7 +111,7 @@ struct GpxMetadata {
     first_point_lon: Option<f64>,
 }
 
-pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
+pub fn process_gpx_file(app_handle: &AppHandle, filename: &str, traceur_id: String) -> Result<String, String> {
     let app_state: tauri::State<super::AppState> = app_handle.state();
     
     let settings_path = app_state.app_env_path.join("settings.json");
@@ -150,7 +154,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
         circuit_id: new_circuit_id.clone(),
         nom: metadata.name.unwrap_or_else(|| filename.to_string()),
         ville_depart_id: String::new(),
-        traceur_id: String::new(),
+        traceur_id: traceur_id, // Utiliser le traceur_id passé en paramètre
         editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
         url: String::new(),
         distance_km: stats.total_distance_km,

@@ -518,7 +518,7 @@ A partir de la trace GPX, je voudrais que tu me génères le fichier lineString.
 
 Pour cela tu lis la trace gpx chargée, puis à partir des données géographique tu crées le fichier lineString avec les paramètres [longitude, latitude, altitude]
 
-### Suite de la mise à jour du fichier circuits.json - - []
+### Suite de la mise à jour du fichier circuits.json - Réalisé - [5866587f]
 
 A partir du fichier lineString.json, je voudrais que tu calcules :
 
@@ -526,9 +526,57 @@ A partir du fichier lineString.json, je voudrais que tu calcules :
 
 - Le point le plus haut de la trace et la distance à laquelle il se situe par rapport au départ
 
-- Le denivelé positif. 
+- Le denivelé positif. On y ajoute un paramètre de lissage dans le fichier settingDefault.json
 
-Ensuite tu mets à jour le fichier circuits.json 
+Ensuite tu mets à jour le fichier circuits.json.
+
+---
+
+### Poursuite de la mise à jour de circuits.json
+
+Pour poursuivre la mise à jour des paramètres liés a un circuit lors de son importation, il faut encore renseigner les attributs suivants :
+
+- url 
+
+- traceurId
+
+Pour url je souhaite pouvoir retrouver le fichier origine sur le site de l'editeur (strava, ridewithgps, openrunner, gamin-connect, etc. ) Tu dois pouvoir trouver cette information dans le fichier gpx, mais ce n'est pas toujours le cas. Si tu as des dificultés 
+
+pour y arriver mets un message le plus explicite possible dans la showSnackBar.
+
+- Pour un fichier de type `Strava`  la balise link se trouve sous  gpx/trk/
+
+- Pour un fichier de type `TestWithRideGPS` la balise link se trouve sous gpx/metadata/
+
+- Pour un fichier `OpenRunner` l'URL est : https://www.openrunner.com/route-details/NUMBER, 
+
+- Pour un fichier `Garmin Connect`l'URL est : https://connectgarmin.com/modern/cource/NUMBER
+  
+  - NUMBER se trouve dans gpx/trk/name. Dans cette balise on trouve Nom_de_la_trace-NUMBER (le caractère`-` est le séparateur)
+
+Pour traceurId il faut que tu me le demande au moment de l'import. Tu peux à partir du fichier circuits.json me proposer une liste défilante des traceurs déjà connus. Je dois pouvoir egalement saisir le nom d'un nouveau traceur. ensuite valider. On ne peux pas rester avec ce champ vide. ou pire j'attourerai via l'interface un traceur inconnu... 
+
+### Ville de départ
+
+Pour finaliser la mise à jour des paramètres liés à un circuit lors de son importation, il faut encore renseigner l'attribut villeDepartId
+
+A partir des coordonnées de départ déjà connu, tu dois déterminer le nom de la commune. 
+
+Pour cela tu peux par défaut essayer avec l'API de géocodage inverse de l'IGN. 
+
+- Si nous sommes en France, tu obtiendra le nom de la commune,
+
+-  Sinon je pense que le geoportail te renverra une erreur. Dans ce cas  tu dois pouvoir faire une requette à mapBox.
+
+Une fois que tu as le nom de la commune, tu vérifies si elle n'est pas dejà présente dans le fichier circuits.json. 
+
+- Si c'est le cas tu récupères son UUID . 
+
+- Sinon tu l'ajoutes avec un nouvelle UUID 
+
+Puis tu mets à jour VilleDepartId du cicuit.
+
+Note : Si il est nécessaire d'avoir un token pour le geoportail de l'IGN peux tu me le préciser ? Si oui il te fraudra créer un nouveau paramètre dans settingDefault.json sous `Système/Tokens`
 
 ---
 
