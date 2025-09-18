@@ -672,4 +672,36 @@ async fn get_city_name_from_coords(lon: f64, lat: f64, mapbox_token: &str) -> Re
     city_name.ok_or_else(|| "Impossible de déterminer la ville de départ".to_string())
 }
 
+pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let r = 6371000.0; // Rayon de la Terre en mètres
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lon = (lon2 - lon1).to_radians();
+
+    let a = (d_lat / 2.0).sin() * (d_lat / 2.0).sin()
+        + lat1.to_radians().cos() * lat2.to_radians().cos()
+        * (d_lon / 2.0).sin() * (d_lon / 2.0).sin();
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+
+    r * c
+}
+
+pub fn calculate_bearing(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let lat1_rad = lat1.to_radians();
+    let lon1_rad = lon1.to_radians();
+    let lat2_rad = lat2.to_radians();
+    let lon2_rad = lon2.to_radians();
+
+    let delta_lon = lon2_rad - lon1_rad;
+
+    let y = lat2_rad.sin() * delta_lon.sin();
+    let x = lat1_rad.cos() * lat2_rad.sin() - lat1_rad.sin() * lat2_rad.cos() * delta_lon.cos();
+
+    let bearing_rad = y.atan2(x);
+    let bearing_deg = bearing_rad.to_degrees();
+
+    (bearing_deg + 360.0) % 360.0
+}
+
+
+
 

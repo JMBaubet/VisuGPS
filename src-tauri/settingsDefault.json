@@ -21,6 +21,87 @@
                 "libelle": "Couleur de la trace sur la vignette",
                 "type": "couleur",
                 "materialDesign": true
+              },
+              {
+                "defaut": 400,
+                "description": "Largeur de la vignette générée en pixels.",
+                "identifiant": "largeur",
+                "libelle": "Largeur de la vignette",
+                "type": "entier",
+                "min": 100,
+                "max": 1280,
+                "unite": "px"
+              },
+              {
+                "defaut": "1/1",
+                "description": "Format de la vignette (ratio largeur/hauteur).",
+                "identifiant": "format",
+                "libelle": "Format de la vignette",
+                "type": "string",
+                "options": ["1/1", "4/3", "16/9"]
+              },
+              {
+                "defaut": false,
+                "description": "Indique si la distance doit être affichée sur la trace.",
+                "identifiant": "presenceDistance",
+                "libelle": "Afficher la distance",
+                "type": "booleen"
+              },
+              {
+                "defaut": 5,
+                "description": "Intervalle en km pour l'affichage de la distance ou de la direction sur la trace.",
+                "identifiant": "Distance",
+                "libelle": "Intervalle distance/direction",
+                "type": "entier",
+                "min": 1,
+                "unite": "km"
+              },
+              {
+                "defaut": false,
+                "description": "Indique si la direction doit être affichée sur la trace.",
+                "identifiant": "direction",
+                "libelle": "Afficher la direction",
+                "type": "booleen"
+              },
+              {
+                "defaut": true,
+                "description": "Indique si les marqueurs de départ et d'arrivée doivent être affichés.",
+                "identifiant": "Vignettes",
+                "libelle": "Afficher les marqueurs",
+                "type": "booleen"
+              },
+              {
+                "defaut": "green-darken-2",
+                "description": "Couleur du marqueur de départ.",
+                "identifiant": "couleurDépart",
+                "libelle": "Couleur du marqueur de départ",
+                "type": "couleur",
+                "materialDesign": true
+              },
+              {
+                "defaut": "red-darken-2",
+                "description": "Couleur du marqueur d'arrivée.",
+                "identifiant": "couleurArrivée",
+                "libelle": "Couleur du marqueur d'arrivée",
+                "type": "couleur",
+                "materialDesign": true
+              },
+              {
+                "defaut": "blue-darken-2",
+                "description": "Couleur du marqueur de départ/arrivée si proches.",
+                "identifiant": "couleurDépartArrivée",
+                "libelle": "Couleur du marqueur départ/arrivée (proches)",
+                "type": "couleur",
+                "materialDesign": true
+              },
+              {
+                "defaut": 100,
+                "description": "Distance maximale en mètres entre le départ et l'arrivée pour les considérer comme proches.",
+                "identifiant": "distanceMax",
+                "libelle": "Distance max départ/arrivée (m)",
+                "type": "entier",
+                "min": 0,
+                "unite": "m"
               }
             ]
           }

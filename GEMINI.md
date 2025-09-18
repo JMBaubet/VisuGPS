@@ -556,7 +556,7 @@ pour y arriver mets un message le plus explicite possible dans la showSnackBar.
 
 Pour traceurId il faut que tu me le demande au moment de l'import. Tu peux à partir du fichier circuits.json me proposer une liste défilante des traceurs déjà connus. Je dois pouvoir egalement saisir le nom d'un nouveau traceur. ensuite valider. On ne peux pas rester avec ce champ vide. ou pire j'attourerai via l'interface un traceur inconnu... 
 
-### Ville de départ
+### Ville de départ - Réalisée - [804c9c58]
 
 Pour finaliser la mise à jour des paramètres liés à un circuit lors de son importation, il faut encore renseigner l'attribut villeDepartId
 
@@ -577,6 +577,40 @@ Une fois que tu as le nom de la commune, tu vérifies si elle n'est pas dejà pr
 Puis tu mets à jour VilleDepartId du cicuit.
 
 Note : Si il est nécessaire d'avoir un token pour le geoportail de l'IGN peux tu me le préciser ? Si oui il te fraudra créer un nouveau paramètre dans settingDefault.json sous `Système/Tokens`
+
+
+
+### Génération de la vignette
+
+lors de l'imporation d'un circuit gpx, j'ai besoin d'avoir la génération d'un vignette MapBox pour une visualisation de la trace. Pour cela tu as à ta disposition le fichier lineString.json dans le dossier du circuit qui se trouve dans le répertoire d'éxécution. 
+
+Pour le generation de cette vignette, nous allons prendre en compte plusieurs paramétres qui sont ou seront féfinis dans le fichier settings.json. Ces paramètres sont les suivants : 
+
+- Importation/Mapbox/styleVignette qui correspond au style de la carte. Ce paramètre est déjà présent dans le fichiers settingsDefault.json,
+
+- Importation/MapBox/colorGPXVignette qui correspond à la couleur de la trace. Ce paramètre est déjà présent dans le fichiers settingsDefault.json,
+
+- Importation/MapBox/largeur qui correspond à la largeur de la vignette, de type entier.
+
+- Importation/MapBox/format qui correspond au format de la vignette (1/1, 4/3, 16:9, etc.) de type string,
+
+- Importation/MapBox/presenceDistance, un booleen qui indique si on veux mettre une information de distance sur la trace tous les n km,
+
+- Importation/MapBox/Distance, un entier qui défini la distance entre deux informations de distance, ou de direction,
+
+- Imporatation/MapBox/direction, un booleen, pour mettre un flèche sur la trace tous les n km pour donner la direction de celle ci,
+
+- Imporation/MapBox/Vignettes, un booleen, qui nous indique si nous voulons voir des pins sur les points de départ et d'arrivée.
+
+- Imporation/MapBox/couleurDépart, une couleur MaterialDesing pour le pin de départ
+
+-  Imporation/MapBox/couleurArrivée, une couleur MaterialDesing pour le pin d'arrivée
+
+- Imporation/MapBox/couleurDépartArrivée, une couleur MaterialDesing pour le pin de départ/Arrivée si ils sont proches.
+
+- Imporation/MapBox/distanceMax, un entier qui correspond à une distance en m qui sépare le départ et l'arrivée, à vol d'oiseau pour déterminer si on différencie les pins depart et arrivée, ou si on met un pin commun.
+
+Le fichier généré se nomera vignette.png et sera enregistré dans le dossier dédié au circuit importé.
 
 ---
 
