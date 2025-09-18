@@ -17,11 +17,13 @@
           :rules="[v => !!v || 'Un traceur est requis']"
           required
           return-object
+          autocomplete="off"
+          hide-no-data
+          :menu-props="{ maxHeight: '150px' }"
         ></v-combobox>
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="blue-darken-1" variant="text" @click="close">Annuler</v-btn>
         <v-btn color="blue-darken-1" variant="text" @click="saveTraceur" :disabled="!selectedTraceur">Valider</v-btn>
       </v-card-actions>
     </v-card>
@@ -101,15 +103,14 @@ async function saveTraceur() {
     await core.invoke('update_circuit_traceur', { circuitId: props.circuitId, traceurId: traceurIdToUse });
     showSnackbar(`Traceur '${traceurNomToUse}' assigné au circuit ${props.circuitId}.`, 'success');
     emit('traceur-selected', { circuitId: props.circuitId, traceurId: traceurIdToUse, traceurNom: traceurNomToUse });
-    close();
+    dialog.value = false; // Ferme la boîte de dialogue
   } catch (e) {
+    console.error("Erreur lors de l'assignation du traceur:", e); // Ajout du log d'erreur
     showSnackbar(`Erreur lors de l'assignation du traceur: ${e}`, 'error');
   }
 }
 
-function close() {
-  dialog.value = false;
-}
+
 </script>
 
 <style scoped>
