@@ -18,6 +18,8 @@
           required
           return-object
           autocomplete="off"
+          hide-no-data
+          :menu-props="{ maxHeight: '150px' }"
         ></v-combobox>
       </v-card-text>
       <v-card-actions>
