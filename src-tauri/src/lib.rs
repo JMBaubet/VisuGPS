@@ -50,10 +50,14 @@ static VUETIFY_COLOR_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(
 });
 
 fn convert_vuetify_color_to_hex(color_name: &str) -> String {
-    // Mapbox Static Images API expects 6-digit hex codes for colors,
-    // so we'll strip the alpha channel if present (e.g., from "FFFFFF00" to "FFFFFF").
     let hex = VUETIFY_COLOR_MAP.get(color_name).unwrap_or(&"000000"); // Default to black if not found
-    hex.strip_suffix("00").unwrap_or(hex).to_string()
+
+    // Only strip the suffix "00" if the hex code is 8 characters long (has an alpha channel)
+    if hex.len() == 8 && hex.ends_with("00") {
+        hex[..6].to_string() // Take only the first 6 characters
+    } else {
+        hex.to_string() // Otherwise, return the hex code as is
+    }
 }
 
 
