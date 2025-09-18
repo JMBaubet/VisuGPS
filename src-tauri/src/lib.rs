@@ -9,6 +9,7 @@ use serde::{Serialize, Deserialize};
 mod gpx_processor;
 
 use chrono::prelude::*;
+use gpx_processor::{Circuit, CircuitDepart, CircuitSommet, CircuitCompteurs, CircuitAffichage, CircuitEvt};
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
@@ -137,8 +138,8 @@ fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, St
 }
 
 #[tauri::command]
-fn process_gpx_file(app: AppHandle, filename: String, traceur_id: String) -> Result<String, String> {
-    gpx_processor::process_gpx_file(&app, &filename, traceur_id)
+fn process_gpx_file(app: AppHandle, filename: String) -> Result<String, String> {
+    gpx_processor::process_gpx_file(&app, &filename)
 }
 
 #[tauri::command]
@@ -302,7 +303,7 @@ pub struct CircuitsFile {
     pub editeurs: Vec<serde_json::Value>, // Placeholder for now
     #[serde(rename = "indexCircuits")]
     pub index_circuits: u32,
-    pub circuits: Vec<serde_json::Value>, // Placeholder for now
+    pub circuits: Vec<Circuit>, // Maintenant Vec<Circuit>
 }
 
 // Fonction pour lire le fichier circuits.json
@@ -415,6 +416,19 @@ fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
     log::info!("add_traceur: Fichier circuits.json mis à jour.");
 
     Ok(new_traceur)
+}
+
+#[tauri::command]
+fn update_circuit_traceur(state: State<AppState>, circuit_id: String, traceur_id: String) -> Result<(), String> {
+    let mut circuits_file = read_circuits_file(&state.app_env_path)?;
+
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.traceur_id = traceur_id;
+        write_circuits_file(&state.app_env_path, &circuits_file)?;
+        Ok(())
+    } else {
+        Err(format!("Circuit avec l'ID {} non trouvé.", circuit_id))
+    }
 }
 
 #[tauri::command]
@@ -582,7 +596,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file, list_traceurs, add_traceur])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file, list_traceurs, add_traceur, update_circuit_traceur])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

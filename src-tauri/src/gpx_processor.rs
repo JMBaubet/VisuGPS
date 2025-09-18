@@ -67,26 +67,26 @@ pub struct CircuitEvt {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Circuit {
     #[serde(rename = "circuitId")]
-    circuit_id: String,
-    nom: String,
+    pub circuit_id: String, // Rendre public
+    pub nom: String,
     #[serde(rename = "villeDepartId")]
-    ville_depart_id: String,
+    pub ville_depart_id: String,
     #[serde(rename = "traceurId")]
-    traceur_id: String,
+    pub traceur_id: String, // Rendre public
     #[serde(rename = "editeurId")]
-    editeur_id: String,
-    url: String,
+    pub editeur_id: String,
+    pub url: String,
     #[serde(rename = "distanceKm")]
-    distance_km: f64,
+    pub distance_km: f64,
     #[serde(rename = "deniveleM")]
-    denivele_m: i32,
-    depart: CircuitDepart,
-    sommet: CircuitSommet,
+    pub denivele_m: i32,
+    pub depart: CircuitDepart,
+    pub sommet: CircuitSommet,
     #[serde(rename = "isoDateTime")]
-    iso_date_time: DateTime<Utc>,
+    pub iso_date_time: DateTime<Utc>,
     #[serde(rename = "distanceVerifieeKm")]
-    distance_verifiee_km: f64,
-    evt: CircuitEvt,
+    pub distance_verifiee_km: f64,
+    pub evt: CircuitEvt,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -111,7 +111,7 @@ struct GpxMetadata {
     first_point_lon: Option<f64>,
 }
 
-pub fn process_gpx_file(app_handle: &AppHandle, filename: &str, traceur_id: String) -> Result<String, String> {
+pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
     let app_state: tauri::State<super::AppState> = app_handle.state();
     
     let settings_path = app_state.app_env_path.join("settings.json");
@@ -154,7 +154,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str, traceur_id: Stri
         circuit_id: new_circuit_id.clone(),
         nom: metadata.name.unwrap_or_else(|| filename.to_string()),
         ville_depart_id: String::new(),
-        traceur_id: traceur_id, // Utiliser le traceur_id passé en paramètre
+        traceur_id: String::new(), // Initialiser avec une chaîne vide
         editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
         url: String::new(),
         distance_km: stats.total_distance_km,
@@ -181,7 +181,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str, traceur_id: Stri
 
     create_line_string_file(app_handle, &new_circuit_id, &rounded_track_points)?;
 
-    Ok(format!("Fichier importé. Editeur: {}. Circuit: {}.", editor_name, new_circuit_id))
+    Ok(new_circuit_id) // Retourner le circuitId
 }
 
 fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
