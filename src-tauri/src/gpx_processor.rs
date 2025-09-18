@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
@@ -109,6 +110,7 @@ struct GpxMetadata {
     time: Option<DateTime<Utc>>,
     first_point_lat: Option<f64>,
     first_point_lon: Option<f64>,
+    link: Option<String>,
 }
 
 pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String, String> {
@@ -135,8 +137,18 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
         ]
     }).collect();
 
-    let editor_name = identify_editor_from_creator(&metadata.creator.unwrap_or_default());
+    let editor_name = identify_editor_from_creator(metadata.creator.as_deref().unwrap_or_default());
     add_editor_if_not_exists(app_handle, &editor_name)?;
+
+    let mut url = get_url_from_metadata(&metadata, &editor_name);
+    if editor_name == "Garmin Connect" {
+        let re = Regex::new(r"COURSE_(\d+)").unwrap();
+        if let Some(caps) = re.captures(filename) {
+            if let Some(course_id) = caps.get(1) {
+                url = format!("https://connect.garmin.com/modern/course/{}", course_id.as_str());
+            }
+        }
+    }
 
     let mut circuits_file = read_circuits_file(app_handle)?;
     let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
@@ -156,7 +168,7 @@ pub fn process_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<String
         ville_depart_id: String::new(),
         traceur_id: String::new(), // Initialiser avec une chaîne vide
         editeur_id: circuits_file.editeurs.iter().find(|e| e.nom == editor_name).map(|e| e.id.clone()).unwrap_or_default(),
-        url: String::new(),
+        url,
         distance_km: stats.total_distance_km,
         denivele_m: stats.positive_elevation_m,
         depart: CircuitDepart {
@@ -198,7 +210,10 @@ fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
 }
 
 fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), String> {
-    let xml = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    let xml_content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    let re = Regex::new(r#"\s*xmlns(:\w+)?=\"[^\"]*\""#).unwrap();
+    let xml = re.replace_all(&xml_content, "").to_string();
+
     let mut reader = Reader::from_str(&xml);
     reader.config_mut().trim_text(true);
     let mut buf = Vec::new();
@@ -209,46 +224,93 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
         time: None,
         first_point_lat: None,
         first_point_lon: None,
+        link: None,
     };
     let mut track_points: Vec<Vec<f64>> = Vec::new();
 
-    let mut in_trkpt = false;
+    let mut link_from_trk: Option<String> = None;
+    let mut link_from_meta: Option<String> = None;
+    let mut link_from_license: Option<String> = None;
+
     let mut current_lat: Option<f64> = None;
     let mut current_lon: Option<f64> = None;
+    let mut path: Vec<Vec<u8>> = Vec::new();
 
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                match e.name().as_ref() {
-                    b"gpx" => {
+                path.push(e.name().as_ref().to_vec());
+                let current_path_str = path.iter().map(|p| std::str::from_utf8(p).unwrap_or("")).collect::<Vec<&str>>().join("/");
+
+                match current_path_str.as_str() {
+                    "gpx" => {
                         for attr in e.attributes() {
-                            let attr = attr.map_err(|e| e.to_string())?;
-                            if attr.key.as_ref() == b"creator" {
-                                metadata.creator = Some(attr.decode_and_unescape_value(reader.decoder()).map_err(|e| e.to_string())?.into_owned());
+                            if let Ok(attr) = attr {
+                                if attr.key.as_ref() == b"creator" {
+                                    if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                        metadata.creator = Some(val.into_owned());
+                                    }
+                                }
                             }
                         }
                     },
-                    b"name" => {
+                    "gpx/metadata/name" | "gpx/trk/name" => {
                         if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
-                            metadata.name = Some(t.unescape().map_err(|e|e.to_string())?.to_string());
-                        }
-                    },
-                    b"time" => {
-                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
-                             let time_str = t.unescape().map_err(|e|e.to_string())?.to_string();
-                            if let Ok(dt) = time_str.parse::<DateTime<Utc>>() {
-                                metadata.time = Some(dt);
+                            if let Ok(name) = t.unescape() {
+                                if metadata.name.is_none() {
+                                    metadata.name = Some(name.to_string());
+                                }
                             }
                         }
                     },
-                    b"trkpt" => {
-                        in_trkpt = true;
+                    "gpx/metadata/copyright/license" => {
+                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
+                            if let Ok(license) = t.unescape() {
+                                link_from_license = Some(license.to_string());
+                            }
+                        }
+                    },
+                    "gpx/metadata/link" => {
                         for attr in e.attributes() {
-                            let attr = attr.map_err(|e| e.to_string())?;
-                            match attr.key.as_ref() {
-                                b"lat" => current_lat = Some(attr.decode_and_unescape_value(reader.decoder()).map_err(|e| e.to_string())?.parse().map_err(|_| "Invalid lat".to_string())?),
-                                b"lon" => current_lon = Some(attr.decode_and_unescape_value(reader.decoder()).map_err(|e| e.to_string())?.parse().map_err(|_| "Invalid lon".to_string())?),
-                                _ => {{}},
+                            if let Ok(attr) = attr {
+                                if attr.key.as_ref() == b"href" {
+                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                        link_from_meta = Some(link.into_owned());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "gpx/trk/link" => {
+                        for attr in e.attributes() {
+                            if let Ok(attr) = attr {
+                                if attr.key.as_ref() == b"href" {
+                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                        link_from_trk = Some(link.into_owned());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "gpx/metadata/time" => {
+                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
+                            if let Ok(time_str) = t.unescape() {
+                                if let Ok(dt) = time_str.parse::<DateTime<Utc>>() {
+                                    metadata.time = Some(dt);
+                                }
+                            }
+                        }
+                    },
+                    "gpx/trk/trkseg/trkpt" => {
+                        for attr in e.attributes() {
+                            if let Ok(attr) = attr {
+                                match attr.key.as_ref() {
+                                    b"lat" => current_lat = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
+                                    b"lon" => current_lon = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
+                                    _ => {},
+                                }
                             }
                         }
                         if metadata.first_point_lat.is_none() && current_lat.is_some() {
@@ -256,33 +318,107 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                             metadata.first_point_lon = current_lon;
                         }
                     },
-                    b"ele" => {
-                        if in_trkpt {
-                            if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
-                                let ele: f64 = t.unescape().map_err(|e| e.to_string())?.parse().map_err(|_| "Invalid ele".to_string())?;
-                                if let (Some(lat), Some(lon)) = (current_lat, current_lon) {
-                                    track_points.push(vec![lon, lat, ele]);
-                                    current_lat = None;
-                                    current_lon = None;
+                    "gpx/trk/trkseg/trkpt/ele" => {
+                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
+                            if let (Some(lat), Some(lon)) = (current_lat, current_lon) {
+                                if let Ok(ele_str) = t.unescape() {
+                                    if let Ok(ele) = ele_str.parse::<f64>() {
+                                        track_points.push(vec![lon, lat, ele]);
+                                        current_lat = None;
+                                        current_lon = None;
+                                    }
                                 }
                             }
                         }
                     },
-                    _ => {{}},
+                    _ => {},
                 }
+            },
+            Ok(Event::Empty(e)) => {
+                path.push(e.name().as_ref().to_vec());
+                let current_path_str = path.iter().map(|p| std::str::from_utf8(p).unwrap_or("")).collect::<Vec<&str>>().join("/");
+                match current_path_str.as_str() {
+                    "gpx/metadata/link" => {
+                        for attr in e.attributes() {
+                            if let Ok(attr) = attr {
+                                if attr.key.as_ref() == b"href" {
+                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                        link_from_meta = Some(link.into_owned());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "gpx/trk/link" => {
+                        for attr in e.attributes() {
+                            if let Ok(attr) = attr {
+                                if attr.key.as_ref() == b"href" {
+                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                        link_from_trk = Some(link.into_owned());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                     "gpx/trk/trkseg/trkpt" => {
+                        for attr in e.attributes() {
+                            if let Ok(attr) = attr {
+                                match attr.key.as_ref() {
+                                    b"lat" => current_lat = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
+                                    b"lon" => current_lon = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
+                                    _ => {},
+                                }
+                            }
+                        }
+                        if metadata.first_point_lat.is_none() && current_lat.is_some() {
+                            metadata.first_point_lat = current_lat;
+                            metadata.first_point_lon = current_lon;
+                        }
+                        // This is a self-closing trkpt, it won't have an ele child, so we might need to handle that if ele is an attribute.
+                        // Assuming ele is always a separate tag for now.
+                    },
+                    _ => {},
+                }
+                path.pop(); // Pop immediately for empty tags
             },
             Ok(Event::End(e)) => {
-                if e.name().as_ref() == b"trkpt" {
-                    in_trkpt = false;
+                if !path.is_empty() && path.last().unwrap() == e.name().as_ref() {
+                    path.pop();
                 }
             },
-            Ok(Event::Eof) => break, 
+            Ok(Event::Eof) => break,
             Err(e) => return Err(format!("Erreur de parsing XML: {}", e)),
-            _ => {{}},
+            _ => {},
         }
         buf.clear();
     }
+
+    metadata.link = link_from_trk.or(link_from_meta).or(link_from_license);
+
     Ok((metadata, track_points))
+}
+
+fn get_url_from_metadata(metadata: &GpxMetadata, editor_name: &str) -> String {
+    if let Some(link) = &metadata.link {
+        return link.clone();
+    }
+
+    if let Some(name) = &metadata.name {
+        match editor_name {
+            "OpenRunner" => {
+                if let Some(number) = name.split(|c: char| !c.is_numeric()).last() {
+                    if !number.is_empty() {
+                        return format!("https://www.openrunner.com/route-details/{}", number);
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
+
+    String::new()
 }
 
 fn identify_editor_from_creator(creator: &str) -> String {
