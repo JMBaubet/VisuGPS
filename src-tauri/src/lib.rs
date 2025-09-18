@@ -3,10 +3,13 @@ use std::fs;
 use std::path::PathBuf;
 use reqwest;
 use serde_json::Value;
+use uuid::Uuid;
+use serde::{Serialize, Deserialize};
 
 mod gpx_processor;
 
 use chrono::prelude::*;
+use gpx_processor::Circuit;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
@@ -83,6 +86,8 @@ fn list_gpx_files(state: State<AppState>) -> Result<Vec<String>, String> {
     let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
 
     let gpx_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
         .ok_or_else(|| "GPXFile setting not found".to_string())?;
 
     let gpx_path = if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
@@ -147,7 +152,10 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let old_settings_path = current_app_state.app_env_path.join("settings.json");
     let old_settings_content = fs::read_to_string(old_settings_path).map_err(|e| e.to_string())?;
     let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
-    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox").unwrap_or_else(|| "".to_string());
+    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "".to_string());
 
     let new_app_env_path = visugps_dir.join(&mode_name);
 
@@ -251,6 +259,13 @@ fn delete_execution_mode(app: AppHandle, state: State<AppState>, mode_name: Stri
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ExecutionMode {
+    pub name: String,
+    #[serde(rename = "modeType")]
+    pub mode_type: String,
+}
+
 fn get_execution_mode(app_env: &str) -> String {
     let lowercased_app_env = app_env.to_lowercase();
     if lowercased_app_env.starts_with("eval_") {
@@ -270,14 +285,64 @@ pub struct AppState {
     mapbox_token: String, // Added mapbox_token
 }
 
-#[derive(serde::Serialize, Clone)]
-pub struct ExecutionMode {
-    name: String,
-    mode_type: String, // OPE, EVAL, TEST
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Traceur {
+    pub id: String,
+    pub nom: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CircuitsFile {
+    pub version: String,
+    pub description: String,
+    pub auteur: String,
+    pub commentaires: String,
+    pub villes: Vec<serde_json::Value>, // Placeholder for now
+    pub traceurs: Vec<Traceur>,
+    pub editeurs: Vec<serde_json::Value>, // Placeholder for now
+    #[serde(rename = "indexCircuits")]
+    pub index_circuits: u32,
+    pub circuits: Vec<Circuit>, // Maintenant Vec<Circuit>
+}
+
+// Fonction pour lire le fichier circuits.json
+fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String> {
+    let circuits_path = app_env_path.join("circuits.json");
+    let file_content = fs::read_to_string(&circuits_path)
+        .map_err(|e| format!("Failed to read circuits.json: {}", e))?;
+    serde_json::from_str(&file_content)
+        .map_err(|e| format!("Failed to parse circuits.json: {}", e))
+}
+
+// Fonction pour écrire le fichier circuits.json
+fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile) -> Result<(), String> {
+    let circuits_path = app_env_path.join("circuits.json");
+    let new_content = serde_json::to_string_pretty(circuits_data)
+        .map_err(|e| format!("Failed to serialize circuits.json: {}", e))?;
+    fs::write(&circuits_path, new_content)
+        .map_err(|e| format!("Failed to write circuits.json: {}", e))
 }
 
 
-fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CircuitsJson {
+    pub version: String,
+    pub description: String,
+    pub auteur: String,
+    pub commentaires: String,
+    pub villes: Vec<serde_json::Value>, // Placeholder for now
+    pub traceurs: Vec<Traceur>,
+    pub editeurs: Vec<serde_json::Value>, // Placeholder for now
+    #[serde(rename = "indexCircuits")]
+    pub index_circuits: u32,
+    pub circuits: Vec<serde_json::Value>, // Placeholder for now
+}
+
+
+fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Value> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = settings;
 
@@ -305,18 +370,66 @@ fn get_setting_value(settings: &Value, path: &str) -> Option<String> {
         }
     }
 
-    if let Some(value) = current.get("surcharge").and_then(|v| v.as_str()) {
-        if !value.is_empty() {
-            return Some(value.to_string());
+    let surcharge = current.get("surcharge");
+    if let Some(s) = surcharge {
+        if !s.is_null() {
+            if let Some(s_str) = s.as_str() {
+                if !s_str.is_empty() {
+                    return Some(s);
+                }
+            } else {
+                return Some(s); // Not a string, so just return it if it's not null
+            }
         }
     }
-    if let Some(value) = current.get("defaut").and_then(|v| v.as_str()) {
-        return Some(value.to_string());
-    }
-
-    None
+    
+    current.get("defaut")
 }
 
+
+#[tauri::command]
+fn list_traceurs(state: State<AppState>) -> Result<Vec<Traceur>, String> {
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+    Ok(circuits_file.traceurs)
+}
+
+#[tauri::command]
+fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
+    log::info!("add_traceur: Tentative d'ajout du traceur '{}'", nom);
+    let mut circuits_file = read_circuits_file(&state.app_env_path)?;
+    log::info!("add_traceur: Traceurs avant ajout: {:?}", circuits_file.traceurs);
+
+    // Vérifier si le traceur existe déjà (insensible à la casse)
+    if circuits_file.traceurs.iter().any(|t| t.nom.eq_ignore_ascii_case(&nom)) {
+        log::warn!("add_traceur: Le traceur '{}' existe déjà.", nom);
+        return Err(format!("Le traceur '{}' existe déjà.", nom));
+    }
+
+    let new_traceur = Traceur {
+        id: Uuid::new_v4().to_string(),
+        nom: nom.clone(),
+    };
+    circuits_file.traceurs.push(new_traceur.clone());
+    log::info!("add_traceur: Traceurs après ajout: {:?}", circuits_file.traceurs);
+
+    write_circuits_file(&state.app_env_path, &circuits_file)?;
+    log::info!("add_traceur: Fichier circuits.json mis à jour.");
+
+    Ok(new_traceur)
+}
+
+#[tauri::command]
+fn update_circuit_traceur(state: State<AppState>, circuit_id: String, traceur_id: String) -> Result<(), String> {
+    let mut circuits_file = read_circuits_file(&state.app_env_path)?;
+
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.traceur_id = traceur_id;
+        write_circuits_file(&state.app_env_path, &circuits_file)?;
+        Ok(())
+    } else {
+        Err(format!("Circuit avec l'ID {} non trouvé.", circuit_id))
+    }
+}
 
 #[tauri::command]
 fn update_setting(state: State<AppState>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
@@ -439,6 +552,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage circuits.json file
     let circuits_path = app_env_path.join("circuits.json");
     if !circuits_path.exists() {
+        log::info!("setup_environment: Contenu de EMBEDDED_DEFAULT_CIRCUITS avant écriture: {}", EMBEDDED_DEFAULT_CIRCUITS);
         fs::write(&circuits_path, EMBEDDED_DEFAULT_CIRCUITS)
             .map_err(|e| format!("Failed to write circuits file: {}", e))?;
     }
@@ -447,6 +561,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let settings_content = fs::read_to_string(&settings_path)?;
     let settings: Value = serde_json::from_str(&settings_content)?;
     let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
         .unwrap_or_else(|| "".to_string());
 
 
@@ -480,8 +596,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, process_gpx_file, list_traceurs, add_traceur, update_circuit_traceur])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

@@ -15,6 +15,8 @@
           class="mb-4"
         ></v-text-field>
 
+
+
         <v-list
           v-model:selected="selectedFile"
           selectable
@@ -53,13 +55,14 @@ const props = defineProps({
   modelValue: Boolean
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'gpx-imported']);
 
 const dialog = ref(props.modelValue);
 const gpxFiles = ref([]);
 const selectedFile = ref([]);
 const error = ref(null);
 const filterText = ref('');
+
 
 const filteredGpxFiles = computed(() => {
   if (!filterText.value) {
@@ -95,17 +98,23 @@ async function loadGpxFiles() {
   }
 }
 
+
+
 function close() {
   dialog.value = false;
 }
 
 async function importFile() {
-  if (selectedFile.value.length === 0) return;
+  if (selectedFile.value.length === 0) {
+    showSnackbar('Veuillez sélectionner un fichier GPX.', 'warning');
+    return;
+  }
 
   const filename = selectedFile.value[0];
   try {
-    const result = await core.invoke('process_gpx_file', { filename });
-    showSnackbar(result, 'success');
+    const circuitId = await core.invoke('process_gpx_file', { filename });
+    showSnackbar(`Fichier importé. Circuit ID: ${circuitId}`, 'success'); // Message de succès mis à jour
+    emit('gpx-imported', circuitId); // Émettre le circuitId
   } catch (e) {
     showSnackbar(`Erreur lors de l'import: ${e}`, 'error');
   }
