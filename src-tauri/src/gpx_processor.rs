@@ -693,22 +693,7 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     r * c
 }
 
-pub fn calculate_bearing(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
-    let lat1_rad = lat1.to_radians();
-    let lon1_rad = lon1.to_radians();
-    let lat2_rad = lat2.to_radians();
-    let lon2_rad = lon2.to_radians();
 
-    let delta_lon = lon2_rad - lon1_rad;
-
-    let y = lat2_rad.sin() * delta_lon.sin();
-    let x = lat1_rad.cos() * lat2_rad.sin() - lat1_rad.sin() * lat2_rad.cos() * delta_lon.cos();
-
-    let bearing_rad = y.atan2(x);
-    let bearing_deg = bearing_rad.to_degrees();
-
-    (bearing_deg + 360.0) % 360.0
-}
 
 
 

@@ -14,8 +14,7 @@ pub mod thumbnail_generator;
 use chrono::prelude::*;
 use gpx_processor::{Circuit, DraftCircuit};
 
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
+
 
 use std::sync::Mutex;
 

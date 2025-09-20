@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::Path;
 use std::sync::Mutex;
 
 use geo::prelude::*;
@@ -108,16 +107,12 @@ pub async fn generate_gpx_thumbnail(
     };
 
     let nb_pts_simplified = simplified_line.points().count();
-    println!("Nombre de points avant simplification: {}", coordinates.len());
-    println!("Nombre de points après simplification: {}", nb_pts_simplified);
 
     let encoded_polyline = encode_coordinates(simplified_line.points().map(|p| Coord { x: p.x(), y: p.y() }), 5)
         .map_err(|e| format!("Failed to encode polyline: {:?}", e))?;
     // Remplacer uniquement les barres obliques inverses, comme requis par l'API Mapbox et la documentation du crate polyline.
     // Un encodage excessif peut entraîner des erreurs.
     let path_string = encoded_polyline.replace('\\', "%5C").replace('?', "%3F").replace('@', "%40").replace('[', "%5B").replace(']', "%5D");
-    println!("Polyligne encodée: {}", encoded_polyline);
-    println!("Polyligne encodée pour URL: {}", path_string);
 
     let largeur_trace = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.largeurTrace")
         .and_then(|v| v.as_u64()).unwrap_or(5) as u32;
@@ -205,7 +200,6 @@ pub async fn generate_gpx_thumbnail(
         "@2x", // Pour une meilleure qualité
         format!("?access_token={}", mapbox_token)
     );
-    println!("URL Mapbox générée: {}", mapbox_url);
     // 4. Effectuer la requête HTTP
     let client = reqwest::Client::new();
     let response = client.get(&mapbox_url).send().await
