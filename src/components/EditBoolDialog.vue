@@ -67,16 +67,22 @@ const emit = defineEmits(['update:show']);
 const { updateSetting } = useSettings();
 
 const editableValue = ref(false);
+const originalValue = ref(null); // Stocke la valeur initiale (surcharge ou defaut)
 
 const hasSurcharge = computed(() => props.parameter?.surcharge != null);
 const isModified = computed(() => {
-  if (surchargeRemoved.value) return true;
-  return editableValue.value !== (props.parameter?.surcharge ?? props.parameter?.defaut);
+  // Si la surcharge a été explicitement supprimée, c'est une modification si une surcharge existait
+  if (surchargeRemoved.value) {
+    return hasSurcharge.value;
+  }
+  // Sinon, comparer la valeur éditable à la valeur d'origine
+  return editableValue.value !== originalValue.value;
 });
 
 watch(() => props.parameter, (param) => {
   if (param) {
-    editableValue.value = param.surcharge ?? param.defaut;
+    originalValue.value = param.surcharge ?? param.defaut; // Capture la valeur initiale
+    editableValue.value = originalValue.value;
     surchargeRemoved.value = false;
   }
 }, { immediate: true, deep: true });
@@ -97,7 +103,15 @@ const closeDialog = () => {
 
 const save = async () => {
   try {
-    const valueToSave = surchargeRemoved.value ? null : editableValue.value;
+    let valueToSave = null;
+    if (surchargeRemoved.value) {
+      valueToSave = null; // Supprimer la surcharge
+    } else if (hasSurcharge.value && editableValue.value === props.parameter.defaut) {
+      valueToSave = null; // Supprimer la surcharge si la valeur éditée est la même que la valeur par défaut et qu'il y avait une surcharge
+    } else {
+      valueToSave = editableValue.value; // Sauvegarder la nouvelle valeur
+    }
+
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
     closeDialog();
   } catch (error) {
