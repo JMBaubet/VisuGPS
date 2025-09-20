@@ -558,8 +558,6 @@ async fn generate_gpx_thumbnail(
         .and_then(|v| v.as_bool()).unwrap_or(false);
     let distance_interval = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.Distance")
         .and_then(|v| v.as_u64()).unwrap_or(5) as f64; // en km
-    let direction = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.direction")
-        .and_then(|v| v.as_bool()).unwrap_or(false);
     let show_markers = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.Vignettes")
         .and_then(|v| v.as_bool()).unwrap_or(true);
     let couleur_depart = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurDépart")
@@ -656,48 +654,34 @@ async fn generate_gpx_thumbnail(
             cumulative_distance_km += gpx_processor::haversine_distance(prev_lat, prev_lon, current_lat, current_lon) / 1000.0;
         }
 
-        if (presence_distance || direction) && cumulative_distance_km >= (last_marker_distance_km + distance_interval) {
+        if presence_distance && cumulative_distance_km >= (last_marker_distance_km + distance_interval) {
             distance_marker_count += 1;
+            
             // Ajouter un marqueur de distance
-            if presence_distance {
-                let base_color = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurPinDistance")
-                    .and_then(|v| v.as_str()).unwrap_or("red");
+            let base_color = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurPinDistance")
+                .and_then(|v| v.as_str()).unwrap_or("red");
 
-                let decade = distance_marker_count / 10;
-                let intensity_suffix = match decade {
-                    0 => "lighten-3", // 1-9
-                    1 => "lighten-2", // 10-19
-                    2 => "lighten-1", // 20-29
-                    3 => "darken-1",  // 30-39
-                    4 => "darken-2",  // 40-49
-                    5 => "darken-3",  // 50-59
-                    _ => ""
-                };
+            let decade = distance_marker_count / 10;
+            let intensity_suffix = match decade {
+                0 => "lighten-3", // 1-9
+                1 => "lighten-2", // 10-19
+                2 => "lighten-1", // 20-29
+                3 => "darken-1",  // 30-39
+                4 => "darken-2",  // 40-49
+                5 => "darken-3",  // 50-59
+                _ => ""
+            };
 
-                let marker_color_hex = if !intensity_suffix.is_empty() {
-                    let full_color_name = format!("{}-{}", base_color, intensity_suffix);
-                    convert_vuetify_color_to_hex(&full_color_name)
-                } else {
-                    "000000".to_string() // Default to black for pins >= 60
-                };
+            let marker_color_hex = if !intensity_suffix.is_empty() {
+                let full_color_name = format!("{}-{}", base_color, intensity_suffix);
+                convert_vuetify_color_to_hex(&full_color_name)
+            } else {
+                "000000".to_string() // Default to black for pins >= 60
+            };
 
-                let pin_label = distance_marker_count % 10;
-                overlay_parts.push(format!("pin-s-{}+{}({},{})", pin_label, &marker_color_hex, current_lon, current_lat));
-            }
+            let pin_label = distance_marker_count % 10;
+            overlay_parts.push(format!("pin-s-{}+{}({},{})", pin_label, &marker_color_hex, current_lon, current_lat));
 
-            // Ajouter un marqueur de direction (flèche)
-            if direction && i < coordinates.len() - 1 {
-                let next_coord = coordinates[i+1].as_array().ok_or("Invalid coordinate format")?;
-                let next_lon = next_coord[0].as_f64().ok_or("Invalid longitude")?;
-                let next_lat = next_coord[1].as_f64().ok_or("Invalid latitude")?;
-
-                // Calculer l'angle de la flèche (bearing)
-                let _bearing = gpx_processor::calculate_bearing(current_lat, current_lon, next_lat, next_lon);
-                // Mapbox Static Images API ne supporte pas directement la rotation des marqueurs.
-                // On peut utiliser un marqueur personnalisé si on veut une flèche orientée.
-                // Pour l'instant, on va juste mettre un marqueur générique.
-                overlay_parts.push(format!("pin-s-arrow+{}({},{})", "000000", current_lon, current_lat)); // Flèche noire
-            }
             last_marker_distance_km = cumulative_distance_km;
         }
     }

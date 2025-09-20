@@ -57,13 +57,6 @@
                 "unite": "km"
               },
               {
-                "defaut": false,
-                "description": "Indique si la direction doit être affichée sur la trace.",
-                "identifiant": "direction",
-                "libelle": "Afficher la direction",
-                "type": "booleen"
-              },
-              {
                 "defaut": true,
                 "description": "Indique si les marqueurs de départ et d'arrivée doivent être affichés.",
                 "identifiant": "Vignettes",
