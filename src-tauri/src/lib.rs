@@ -608,11 +608,11 @@ async fn generate_gpx_thumbnail(
 
     let encoded_polyline = encode_coordinates(simplified_line.points().map(|p| Coord { x: p.x(), y: p.y() }), 5)
         .map_err(|e| format!("Failed to encode polyline: {:?}", e))?;
-    let encoded_polyline_for_url = percent_encode(encoded_polyline.as_bytes(), NON_ALPHANUMERIC).to_string();
+    // Remplacer uniquement les barres obliques inverses, comme requis par l'API Mapbox et la documentation du crate polyline.
+    // Un encodage excessif peut entraîner des erreurs.
+    let path_string = encoded_polyline.replace('\\', "%5C").replace('?', "%3F").replace('@', "%40").replace('[', "%5B").replace(']', "%5D");
     println!("Polyligne encodée: {}", encoded_polyline);
-    println!("Polyligne encodée pour URL: {}", encoded_polyline_for_url);
-
-    let path_string = encoded_polyline_for_url;
+    println!("Polyligne encodée pour URL: {}", path_string);
 
     let largeur_trace = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.largeurTrace")
         .and_then(|v| v.as_u64()).unwrap_or(5) as u32;
@@ -642,6 +642,7 @@ async fn generate_gpx_thumbnail(
     // Calculer les distances cumulées et ajouter les marqueurs de distance/direction
     let mut cumulative_distance_km = 0.0;
     let mut last_marker_distance_km = 0.0;
+    let mut distance_marker_count = 0;
 
     for i in 0..coordinates.len() {
         let current_coord = coordinates[i].as_array().ok_or("Invalid coordinate format")?;
@@ -656,15 +657,32 @@ async fn generate_gpx_thumbnail(
         }
 
         if (presence_distance || direction) && cumulative_distance_km >= (last_marker_distance_km + distance_interval) {
+            distance_marker_count += 1;
             // Ajouter un marqueur de distance
             if presence_distance {
-                let rounded_distance = cumulative_distance_km.round() as u32;
-                if rounded_distance > 0 && rounded_distance < 10 { // Si la distance est un chiffre unique
-                    overlay_parts.push(format!("pin-s-{}+{}({},{})", rounded_distance, "000000", current_lon, current_lat)); // Noir pour le texte
+                let base_color = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurPinDistance")
+                    .and_then(|v| v.as_str()).unwrap_or("red");
+
+                let decade = distance_marker_count / 10;
+                let intensity_suffix = match decade {
+                    0 => "lighten-3", // 1-9
+                    1 => "lighten-2", // 10-19
+                    2 => "lighten-1", // 20-29
+                    3 => "darken-1",  // 30-39
+                    4 => "darken-2",  // 40-49
+                    5 => "darken-3",  // 50-59
+                    _ => ""
+                };
+
+                let marker_color_hex = if !intensity_suffix.is_empty() {
+                    let full_color_name = format!("{}-{}", base_color, intensity_suffix);
+                    convert_vuetify_color_to_hex(&full_color_name)
                 } else {
-                    // Utiliser un marqueur générique (cercle) si la distance est à plusieurs chiffres ou 0
-                    overlay_parts.push(format!("pin-s-circle+{}({},{})", "000000", current_lon, current_lat));
-                }
+                    "000000".to_string() // Default to black for pins >= 60
+                };
+
+                let pin_label = distance_marker_count % 10;
+                overlay_parts.push(format!("pin-s-{}+{}({},{})", pin_label, &marker_color_hex, current_lon, current_lat));
             }
 
             // Ajouter un marqueur de direction (flèche)
@@ -674,7 +692,7 @@ async fn generate_gpx_thumbnail(
                 let next_lat = next_coord[1].as_f64().ok_or("Invalid latitude")?;
 
                 // Calculer l'angle de la flèche (bearing)
-                let bearing = gpx_processor::calculate_bearing(current_lat, current_lon, next_lat, next_lon);
+                let _bearing = gpx_processor::calculate_bearing(current_lat, current_lon, next_lat, next_lon);
                 // Mapbox Static Images API ne supporte pas directement la rotation des marqueurs.
                 // On peut utiliser un marqueur personnalisé si on veut une flèche orientée.
                 // Pour l'instant, on va juste mettre un marqueur générique.

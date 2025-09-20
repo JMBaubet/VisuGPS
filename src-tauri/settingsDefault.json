@@ -48,7 +48,7 @@
                 "type": "booleen"
               },
               {
-                "defaut": 5,
+                "defaut": 10,
                 "description": "Intervalle en km pour l'affichage de la distance ou de la direction sur la trace.",
                 "identifiant": "Distance",
                 "libelle": "Intervalle distance/direction",
@@ -91,6 +91,14 @@
                 "description": "Couleur du marqueur de départ/arrivée si proches.",
                 "identifiant": "couleurDépartArrivée",
                 "libelle": "Couleur du marqueur départ/arrivée (proches)",
+                "type": "couleur",
+                "materialDesign": true
+              },
+              {
+                "defaut": "red",
+                "description": "Couleur de base pour les marqueurs de distance numérotés.",
+                "identifiant": "couleurPinDistance",
+                "libelle": "Couleur des marqueurs de distance",
                 "type": "couleur",
                 "materialDesign": true
               },
