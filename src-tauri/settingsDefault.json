@@ -87,7 +87,8 @@
                     "identifiant": "couleurPinDistance",
                     "libelle": "Couleur des marqueurs de distance",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "materialDesignStrict": true
                   }
                 ]
               },

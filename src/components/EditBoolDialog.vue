@@ -103,13 +103,12 @@ const closeDialog = () => {
 
 const save = async () => {
   try {
-    let valueToSave = null;
-    if (surchargeRemoved.value) {
+    let valueToSave = editableValue.value; // Par défaut, on sauvegarde la valeur éditée
+
+    // Si la surcharge a été explicitement supprimée OU si la valeur éditée est la valeur par défaut
+    // ET qu'il y avait une surcharge (pour éviter de mettre null si pas de surcharge à la base)
+    if (surchargeRemoved.value || (hasSurcharge.value && editableValue.value === props.parameter.defaut)) {
       valueToSave = null; // Supprimer la surcharge
-    } else if (hasSurcharge.value && editableValue.value === props.parameter.defaut) {
-      valueToSave = null; // Supprimer la surcharge si la valeur éditée est la même que la valeur par défaut et qu'il y avait une surcharge
-    } else {
-      valueToSave = editableValue.value; // Sauvegarder la nouvelle valeur
     }
 
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);

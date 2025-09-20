@@ -29,6 +29,21 @@ const vuetifyColors = {
 // Create a reverse map for quick lookup (HEX -> name)
 const hexToName = Object.fromEntries(Object.entries(vuetifyColors).map(([name, hex]) => [hex.toUpperCase(), name]));
 
+// Filter for base colors (without lighten/darken suffixes)
+const baseVuetifyColors = Object.fromEntries(
+  Object.entries(vuetifyColors).filter(([name, _]) => {
+    return !name.includes('lighten') && !name.includes('darken') && name !== 'transparent';
+  })
+);
+
+// Create a nested array of swatches for the v-color-picker, containing only base colors
+const baseSwatches = [
+  Object.values(baseVuetifyColors).slice(0, 5),
+  Object.values(baseVuetifyColors).slice(5, 10),
+  Object.values(baseVuetifyColors).slice(10, 15),
+  Object.values(baseVuetifyColors).slice(15, 20),
+];
+
 // Create a nested array of swatches for the v-color-picker
 const swatches = [
     ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5'],
@@ -52,8 +67,13 @@ function hexToRgb(hex) {
   } : null;
 }
 
-// Pre-calculate RGB values for the entire palette for performance.
 const paletteRgb = Object.entries(vuetifyColors).map(([name, hex]) => ({
+  name,
+  rgb: hexToRgb(hex)
+}));
+
+// Pre-calculate RGB values for the base palette for performance.
+const basePaletteRgb = Object.entries(baseVuetifyColors).map(([name, hex]) => ({
   name,
   rgb: hexToRgb(hex)
 }));
@@ -74,6 +94,33 @@ function findClosestColorName(hex) {
     if (!color.rgb) continue;
 
     // Using squared Euclidean distance for efficiency (avoids sqrt)
+    const distance = Math.pow(targetRgb.r - color.rgb.r, 2) +
+                   Math.pow(targetRgb.g - color.rgb.g, 2) +
+                   Math.pow(targetRgb.b - color.rgb.b, 2);
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestName = color.name;
+    }
+  }
+  return closestName;
+}
+
+/**
+ * Finds the closest Vuetify base color name for a given hex string.
+ * @param {string} hex - The hex color string.
+ * @returns {string|null} The name of the closest base color or null.
+ */
+function findClosestBaseColorName(hex) {
+  const targetRgb = hexToRgb(hex);
+  if (!targetRgb) return null;
+
+  let minDistance = Infinity;
+  let closestName = null;
+
+  for (const color of basePaletteRgb) { // Utilise basePaletteRgb
+    if (!color.rgb) continue;
+
     const distance = Math.pow(targetRgb.r - color.rgb.r, 2) +
                    Math.pow(targetRgb.g - color.rgb.g, 2) +
                    Math.pow(targetRgb.b - color.rgb.b, 2);
@@ -113,10 +160,30 @@ export function useVuetifyColors() {
     return findClosestColorName(hex);
   };
 
+  /**
+   * Converts a HEX color value to its closest Vuetify base color name.
+   * @param {string} hex The HEX value of the color (e.g., '#F44336').
+   * @returns {string} The closest Vuetify base color name.
+   */
+  const toBaseName = (hex) => {
+    if (!hex) return null;
+    // First, check for an exact match for performance and accuracy.
+    const upperHex = hex.toUpperCase();
+    // Check if the exact hex matches a base color
+    const exactBaseMatch = Object.entries(baseVuetifyColors).find(([name, val]) => val.toUpperCase() === upperHex);
+    if (exactBaseMatch) {
+      return exactBaseMatch[0];
+    }
+    // If no exact match, find the closest base color in the palette.
+    return findClosestBaseColorName(hex);
+  };
+
   return {
     toHex,
     toName,
+    toBaseName, // Nouvelle fonction exportée
     swatches,
+    baseSwatches,
     vuetifyColors
   };
 }

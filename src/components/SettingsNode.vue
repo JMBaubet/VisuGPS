@@ -66,6 +66,7 @@
       :show="isColorDialogVisible"
       :parameter="selectedParameter"
       :group-path="fullPath"
+      :material-design-strict="selectedParameter.materialDesignStrict"
       @update:show="isColorDialogVisible = $event"
     />
 

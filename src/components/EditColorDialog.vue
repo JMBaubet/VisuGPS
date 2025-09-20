@@ -24,11 +24,13 @@
                   <v-color-picker
                     v-model="editableValue"
                     :mode="pickerMode"
-                    :swatches="parameter.materialDesign ? materialSwatches : undefined"
+                    :swatches="parameter.materialDesign ? (parameter.materialDesignStrict ? baseSwatches : materialSwatches) : undefined"
                     :hide-alpha="parameter.materialDesign"
-                    hide-eye-dropper
+                    :hide-eye-dropper="parameter.materialDesign"
                     :show-swatches="parameter.materialDesign"
-                    hide-inputs
+                    :hide-inputs="parameter.materialDesign"
+                    :hide-canvas="parameter.materialDesignStrict"
+                    :hide-sliders="parameter.materialDesignStrict"
                     class="mx-auto"
                   ></v-color-picker>
                   <div v-if="displayedValue" class="mt-2">
@@ -83,7 +85,7 @@ const props = defineProps({
 const emit = defineEmits(['update:show']);
 
 const { updateSetting } = useSettings();
-const { toHex, toName, swatches: materialSwatches } = useVuetifyColors();
+const { toHex, toName, toBaseName, swatches: materialSwatches, baseSwatches } = useVuetifyColors();
 
 const showDocDialog = ref(false);
 const editableValue = ref(null);
@@ -98,7 +100,7 @@ const pickerMode = computed(() => {
 
 const selectedColorName = computed(() => {
   if (props.parameter?.materialDesign && editableValue.value) {
-    return toName(editableValue.value);
+    return props.parameter.materialDesignStrict ? toBaseName(editableValue.value) : toName(editableValue.value);
   }
   return null;
 });
@@ -132,17 +134,12 @@ const closeDialog = () => {
 
 const save = async () => {
   try {
-    let valueToSave;
-    if (props.parameter.materialDesign) {
-      valueToSave = toName(editableValue.value);
-    } else {
-      valueToSave = editableValue.value;
-    }
+    const finalValue = props.parameter.materialDesign
+      ? (props.parameter.materialDesignStrict ? toBaseName(editableValue.value) : toName(editableValue.value))
+      : editableValue.value;
 
     // Si la valeur finale est la même que la valeur par défaut, on enregistre null pour supprimer la surcharge
-    if (valueToSave === props.parameter.defaut) {
-      valueToSave = null;
-    }
+    const valueToSave = (finalValue === props.parameter.defaut) ? null : finalValue;
 
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
     closeDialog();
