@@ -9,6 +9,7 @@ use chrono::{DateTime, Utc};
 use geo::{LineString as GeoLineString, Point};
 use geo::prelude::*;
 use uuid::Uuid;
+use std::sync::Mutex;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -153,9 +154,13 @@ struct GpxMetadata {
 }
 
 pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<DraftCircuit, String> {
-    let app_state: tauri::State<super::AppState> = app_handle.state();
+    let app_env_path = {
+        let state_mutex = app_handle.state::<Mutex<super::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
     
-    let settings_path = app_state.app_env_path.join("settings.json");
+    let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
@@ -230,7 +235,13 @@ pub fn commit_new_circuit(
     draft: DraftCircuit,
     traceur_id: String,
 ) -> Result<String, String> {
-    let mut circuits_file = read_circuits_file(app_handle)?;
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let mut circuits_file = read_circuits_file(&app_env_path)?;
 
     let editeur_id = resolve_editor_id(&mut circuits_file, &draft.editor_name)?;
     let ville_id = resolve_ville_id(&mut circuits_file, &draft.ville_nom)?;
@@ -258,9 +269,9 @@ pub fn commit_new_circuit(
     circuits_file.circuits.push(new_circuit);
     circuits_file.index_circuits += 1;
 
-    write_circuits_file(app_handle, &circuits_file)?;
+    write_circuits_file(&app_env_path, &circuits_file)?;
 
-    create_line_string_file(app_handle, &new_circuit_id, &draft.track_points)?;
+    create_line_string_file(&app_env_path, &new_circuit_id, &draft.track_points)?;
 
     Ok(new_circuit_id)
 }
@@ -545,23 +556,20 @@ fn identify_editor_from_creator(creator: &str) -> String {
     }
 }
 
-fn read_circuits_file(app_handle: &AppHandle) -> Result<CircuitsFile, String> {
-    let app_state: tauri::State<super::AppState> = app_handle.state();
-    let circuits_path = app_state.app_env_path.join("circuits.json");
+fn read_circuits_file(app_env_path: &Path) -> Result<CircuitsFile, String> {
+    let circuits_path = app_env_path.join("circuits.json");
     let content = fs::read_to_string(&circuits_path).map_err(|e| e.to_string())?;
     serde_json::from_str::<CircuitsFile>(&content).map_err(|e| e.to_string())
 }
 
-fn write_circuits_file(app_handle: &AppHandle, circuits_file: &CircuitsFile) -> Result<(), String> {
-    let app_state: tauri::State<super::AppState> = app_handle.state();
-    let circuits_path = app_state.app_env_path.join("circuits.json");
+fn write_circuits_file(app_env_path: &Path, circuits_file: &CircuitsFile) -> Result<(), String> {
+    let circuits_path = app_env_path.join("circuits.json");
     let updated_content = serde_json::to_string_pretty(circuits_file).map_err(|e| e.to_string())?;
     fs::write(&circuits_path, updated_content).map_err(|e| e.to_string())
 }
 
-fn create_line_string_file(app_handle: &AppHandle, circuit_id: &str, track_points: &Vec<Vec<f64>>) -> Result<(), String> {
-    let app_state: tauri::State<super::AppState> = app_handle.state();
-    let data_dir = app_state.app_env_path.join("data");
+fn create_line_string_file(app_env_path: &Path, circuit_id: &str, track_points: &Vec<Vec<f64>>) -> Result<(), String> {
+    let data_dir = app_env_path.join("data");
     let circuit_data_dir = data_dir.join(circuit_id);
 
     fs::create_dir_all(&circuit_data_dir).map_err(|e| format!("Impossible de créer le dossier de données du circuit: {}", e))?;

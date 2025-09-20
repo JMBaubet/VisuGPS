@@ -14,9 +14,11 @@ use gpx_processor::{Circuit, DraftCircuit};
 use geo::{LineString as GeoLineString, Point, Coord};
 use geo::prelude::*;
 use polyline::encode_coordinates;
-use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
+
 use std::collections::HashMap;
 use once_cell::sync::Lazy;
+
+use std::sync::Mutex;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
@@ -110,12 +112,13 @@ async fn check_mapbox_status(token: String) -> MapboxStatusResult {
 }
 
 #[tauri::command]
-fn get_app_state(state: State<AppState>) -> AppState {
-    state.inner().clone()
+fn get_app_state(state: State<Mutex<AppState>>) -> AppState {
+    state.lock().unwrap().clone()
 }
 
 #[tauri::command]
-fn read_settings(state: State<AppState>) -> Result<Value, String> {
+fn read_settings(state: State<Mutex<AppState>>) -> Result<Value, String> {
+    let state = state.lock().unwrap();
     let settings_path = state.app_env_path.join("settings.json");
     let file_content = fs::read_to_string(settings_path)
         .map_err(|e| e.to_string())?;
@@ -125,7 +128,8 @@ fn read_settings(state: State<AppState>) -> Result<Value, String> {
 }
 
 #[tauri::command]
-fn list_gpx_files(state: State<AppState>) -> Result<Vec<String>, String> {
+fn list_gpx_files(state: State<Mutex<AppState>>) -> Result<Vec<String>, String> {
+    let state = state.lock().unwrap();
     let settings_path = state.app_env_path.join("settings.json");
     let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
@@ -164,7 +168,8 @@ fn list_gpx_files(state: State<AppState>) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-fn list_execution_modes(state: State<AppState>) -> Result<Vec<ExecutionMode>, String> {
+fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMode>, String> {
+    let state = state.lock().unwrap();
     let visugps_dir = state.app_env_path.parent().ok_or("Could not get parent directory".to_string())?;
     let mut modes = Vec::new();
 
@@ -188,7 +193,8 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let visugps_dir = app_data_dir.join("VisuGPS");
 
     // Get current mapbox token
-    let current_app_state = app.state::<AppState>();
+    let state_mutex = app.state::<Mutex<AppState>>();
+    let current_app_state = state_mutex.lock().unwrap();
     let old_settings_path = current_app_state.app_env_path.join("settings.json");
     let old_settings_content = fs::read_to_string(old_settings_path).map_err(|e| e.to_string())?;
     let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
@@ -274,7 +280,8 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
 }
 
 #[tauri::command]
-fn delete_execution_mode(app: AppHandle, state: State<AppState>, mode_name: String) -> Result<(), String> {
+fn delete_execution_mode(app: AppHandle, state: State<Mutex<AppState>>, mode_name: String) -> Result<(), String> {
+    let state = state.lock().unwrap();
     if mode_name == "OPE" {
         return Err("Cannot delete OPE mode.".to_string());
     }
@@ -429,13 +436,15 @@ fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Value> {
 
 
 #[tauri::command]
-fn list_traceurs(state: State<AppState>) -> Result<Vec<Traceur>, String> {
+fn list_traceurs(state: State<Mutex<AppState>>) -> Result<Vec<Traceur>, String> {
+    let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
     Ok(circuits_file.traceurs)
 }
 
 #[tauri::command]
-fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
+fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, String> {
+    let state = state.lock().unwrap();
     let mut circuits_file = read_circuits_file(&state.app_env_path)?;
 
     // Vérifier si le traceur existe déjà (insensible à la casse)
@@ -455,7 +464,8 @@ fn add_traceur(state: State<AppState>, nom: String) -> Result<Traceur, String> {
 }
 
 #[tauri::command]
-fn update_setting(state: State<AppState>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
+fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
+    let mut state = state.lock().unwrap();
     let settings_path = state.app_env_path.join("settings.json");
     let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let mut settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
@@ -487,7 +497,7 @@ fn update_setting(state: State<AppState>, group_path: String, param_id: String, 
     // Find and update the parameter in the target group
     if let Some(params) = target_group.get_mut("parametres").and_then(|p| p.as_array_mut()) {
         if let Some(param) = params.iter_mut().find(|p| p.get("identifiant").and_then(|i| i.as_str()) == Some(&param_id)) {
-            param["surcharge"] = new_value;
+            param["surcharge"] = new_value.clone(); // Clone new_value to use it later
         } else {
             return Err(format!("Parameter '{}' not found", param_id));
         }
@@ -498,6 +508,13 @@ fn update_setting(state: State<AppState>, group_path: String, param_id: String, 
     // Write back the updated settings
     let new_settings_content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, new_settings_content).map_err(|e| e.to_string())?;
+
+    // If the mapbox token was updated, also update the in-memory state
+    if group_path == "Système/Tokens" && param_id == "mapbox" {
+        if let Some(token_str) = new_value.as_str() {
+            state.mapbox_token = token_str.to_string();
+        }
+    }
 
     Ok(())
 }
@@ -516,8 +533,11 @@ async fn generate_gpx_thumbnail(
     line_string_path: String,
     settings: Value, // Les paramètres de la vignette
 ) -> Result<String, String> {
-    let app_state = app_handle.state::<AppState>();
-    let mapbox_token = app_state.mapbox_token.clone();
+    let (mapbox_token, app_env_path) = {
+        let state_mutex = app_handle.state::<Mutex<AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        (app_state.mapbox_token.clone(), app_state.app_env_path.clone())
+    };
 
     // 1. Lire le lineString.json
     let line_string_content = fs::read_to_string(&line_string_path)
@@ -714,7 +734,7 @@ async fn generate_gpx_thumbnail(
     let image_bytes = response.bytes().await
         .map_err(|e| format!("Failed to read image bytes: {}", e))?;
 
-    let data_dir = app_state.app_env_path.join("data");
+    let data_dir = app_env_path.join("data");
     fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create data directory: {}", e))?;
 
@@ -848,7 +868,7 @@ pub fn run() {
             // tauri::plugin::process::init();
 
             let state = setup_environment(app)?;
-            app.manage(state);
+            app.manage(Mutex::new(state));
 
             Ok(())
         })
