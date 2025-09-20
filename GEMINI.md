@@ -608,9 +608,53 @@ Pour le generation de cette vignette, nous allons prendre en compte plusieurs pa
 
 Le fichier généré se nomera vignette.png et sera enregistré dans le dossier dédié au circuit importé.
 
+### Restructuration du fichier settingDefault.json
 
+Je voudrais que l'on modifie l'arborescence de Importation/Mabox et de ces paramètres.  Respecter l'ordre des paramètres comme indiqué dans la suite du paragraphe.
 
+Bien sûr il faudra également mettre à jour le code avec cette nouvelle organisation. 
 
+1. renomer Imporation/Mapbox en Importation/Vignette
+
+2. Créer un groupe Importation/Vignette/Dimentions
+   
+   1. Déplacer dans ce groupe : 
+      
+      1. Largeur de la vignette
+      
+      2. Largeur de la vignette
+
+3. Créer un groupe Importation/Vignette/Trace
+   
+   1. Déplacer dans ce groupe : 
+      
+      1. Couleur de la trace sur la vignette
+      
+      2. Largeur de la trace, et mettre sa valeur pas défaut à 3
+
+4. Créer un groupe Importation/Vignette/MarqueurDistance
+   
+   1. Déplacer dans ce groupe : 
+      
+      1. Afficher la distance, et mettre la valeur par défaut à true
+      
+      2. Intervalle distance/direction, et le renommer Intervalle distance 
+      
+      3. Couleur des marqueurs de distance
+
+5. Créer un groupe Importation/Vignette/DepartArrivee
+   
+   1. Dépalcer dans ce groupe :
+      
+      1. Afficher les marqueurs
+      
+      2. Couleur du marqueur de départ
+      
+      3. Couleur du marqueur d'arrivée
+      
+      4. Distance max départ/arrivée (m) et mettre 250 par défaut.
+      
+      5. Couleur du marqueur départ/arrivée (proches)
 
 ---
 

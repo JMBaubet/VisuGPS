@@ -5,7 +5,7 @@
         "libelle": "Importation",
         "groupes": [
           {
-            "libelle": "Mapbox",
+            "libelle": "Vignette",
             "parametres": [
               {
                 "defaut": "mapbox://styles/mapbox/streets-v12",
@@ -13,106 +13,128 @@
                 "identifiant": "styleVignette",
                 "libelle": "Style de la vignette",
                 "type": "string"
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Dimentions",
+                "parametres": [
+                  {
+                    "defaut": 400,
+                    "description": "Largeur de la vignette générée en pixels.",
+                    "identifiant": "largeur",
+                    "libelle": "Largeur de la vignette",
+                    "type": "entier",
+                    "min": 100,
+                    "max": 1280,
+                    "unite": "px"
+                  },
+                  {
+                    "defaut": "1/1",
+                    "description": "Format de la vignette (ratio largeur/hauteur).",
+                    "identifiant": "format",
+                    "libelle": "Format de la vignette",
+                    "type": "string",
+                    "options": ["1/1", "4/3", "16/9"]
+                  }
+                ]
               },
               {
-                "defaut": "orange-darken-4",
-                "description": "Couleur de la trace GPX pour la création des vignettes",
-                "identifiant": "colorGPXVignette",
-                "libelle": "Couleur de la trace sur la vignette",
-                "type": "couleur",
-                "materialDesign": true
+                "libelle": "Trace",
+                "parametres": [
+                  {
+                    "defaut": "orange-darken-4",
+                    "description": "Couleur de la trace GPX pour la création des vignettes",
+                    "identifiant": "colorGPXVignette",
+                    "libelle": "Couleur de la trace sur la vignette",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 3,
+                    "description": "Largeur de la trace GPX sur la vignette en pixels.",
+                    "identifiant": "largeurTrace",
+                    "libelle": "Largeur de la trace",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px"
+                  }
+                ]
               },
               {
-                "defaut": 400,
-                "description": "Largeur de la vignette générée en pixels.",
-                "identifiant": "largeur",
-                "libelle": "Largeur de la vignette",
-                "type": "entier",
-                "min": 100,
-                "max": 1280,
-                "unite": "px"
+                "libelle": "MarqueurDistance",
+                "parametres": [
+                  {
+                    "defaut": true,
+                    "description": "Indique si la distance doit être affichée sur la trace.",
+                    "identifiant": "presenceDistance",
+                    "libelle": "Afficher la distance",
+                    "type": "booleen"
+                  },
+                  {
+                    "defaut": 10,
+                    "description": "Intervalle en km pour l'affichage de la distance ou de la direction sur la trace.",
+                    "identifiant": "Distance",
+                    "libelle": "Intervalle distance",
+                    "type": "entier",
+                    "min": 1,
+                    "unite": "km"
+                  },
+                  {
+                    "defaut": "red",
+                    "description": "Couleur de base pour les marqueurs de distance numérotés.",
+                    "identifiant": "couleurPinDistance",
+                    "libelle": "Couleur des marqueurs de distance",
+                    "type": "couleur",
+                    "materialDesign": true
+                  }
+                ]
               },
               {
-                "defaut": "1/1",
-                "description": "Format de la vignette (ratio largeur/hauteur).",
-                "identifiant": "format",
-                "libelle": "Format de la vignette",
-                "type": "string",
-                "options": ["1/1", "4/3", "16/9"]
-              },
-              {
-                "defaut": false,
-                "description": "Indique si la distance doit être affichée sur la trace.",
-                "identifiant": "presenceDistance",
-                "libelle": "Afficher la distance",
-                "type": "booleen"
-              },
-              {
-                "defaut": 10,
-                "description": "Intervalle en km pour l'affichage de la distance ou de la direction sur la trace.",
-                "identifiant": "Distance",
-                "libelle": "Intervalle distance/direction",
-                "type": "entier",
-                "min": 1,
-                "unite": "km"
-              },
-              {
-                "defaut": true,
-                "description": "Indique si les marqueurs de départ et d'arrivée doivent être affichés.",
-                "identifiant": "Vignettes",
-                "libelle": "Afficher les marqueurs",
-                "type": "booleen"
-              },
-              {
-                "defaut": "green-darken-2",
-                "description": "Couleur du marqueur de départ.",
-                "identifiant": "couleurDépart",
-                "libelle": "Couleur du marqueur de départ",
-                "type": "couleur",
-                "materialDesign": true
-              },
-              {
-                "defaut": "red-darken-2",
-                "description": "Couleur du marqueur d'arrivée.",
-                "identifiant": "couleurArrivée",
-                "libelle": "Couleur du marqueur d'arrivée",
-                "type": "couleur",
-                "materialDesign": true
-              },
-              {
-                "defaut": "blue-darken-2",
-                "description": "Couleur du marqueur de départ/arrivée si proches.",
-                "identifiant": "couleurDépartArrivée",
-                "libelle": "Couleur du marqueur départ/arrivée (proches)",
-                "type": "couleur",
-                "materialDesign": true
-              },
-              {
-                "defaut": "red",
-                "description": "Couleur de base pour les marqueurs de distance numérotés.",
-                "identifiant": "couleurPinDistance",
-                "libelle": "Couleur des marqueurs de distance",
-                "type": "couleur",
-                "materialDesign": true
-              },
-              {
-                "defaut": 100,
-                "description": "Distance maximale en mètres entre le départ et l'arrivée pour les considérer comme proches.",
-                "identifiant": "distanceMax",
-                "libelle": "Distance max départ/arrivée (m)",
-                "type": "entier",
-                "min": 0,
-                "unite": "m"
-              },
-              {
-                "defaut": 5,
-                "description": "Largeur de la trace GPX sur la vignette en pixels.",
-                "identifiant": "largeurTrace",
-                "libelle": "Largeur de la trace",
-                "type": "entier",
-                "min": 1,
-                "max": 20,
-                "unite": "px"
+                "libelle": "DepartArrivee",
+                "parametres": [
+                  {
+                    "defaut": true,
+                    "description": "Indique si les marqueurs de départ et d'arrivée doivent être affichés.",
+                    "identifiant": "Vignettes",
+                    "libelle": "Afficher les marqueurs",
+                    "type": "booleen"
+                  },
+                  {
+                    "defaut": "green-darken-2",
+                    "description": "Couleur du marqueur de départ.",
+                    "identifiant": "couleurDépart",
+                    "libelle": "Couleur du marqueur de départ",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": "red-darken-2",
+                    "description": "Couleur du marqueur d'arrivée.",
+                    "identifiant": "couleurArrivée",
+                    "libelle": "Couleur du marqueur d'arrivée",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 250,
+                    "description": "Distance maximale en mètres entre le départ et l'arrivée pour les considérer comme proches.",
+                    "identifiant": "distanceMax",
+                    "libelle": "Distance max départ/arrivée (m)",
+                    "type": "entier",
+                    "min": 0,
+                    "unite": "m"
+                  },
+                  {
+                    "defaut": "blue-darken-2",
+                    "description": "Couleur du marqueur de départ/arrivée si proches.",
+                    "identifiant": "couleurDépartArrivée",
+                    "libelle": "Couleur du marqueur départ/arrivée (proches)",
+                    "type": "couleur",
+                    "materialDesign": true
+                  }
+                ]
               }
             ]
           }

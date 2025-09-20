@@ -52,28 +52,28 @@ pub async fn generate_gpx_thumbnail(
 
 
     // 2. Extraire les paramètres de la vignette
-    let style_vignette = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.styleVignette")
+    let style_vignette = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.parametres.styleVignette")
         .and_then(|v| v.as_str()).unwrap_or("mapbox://styles/mapbox/streets-v12");
-    let color_gpx_vignette = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.colorGPXVignette")
+    let color_gpx_vignette = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Trace.parametres.colorGPXVignette")
         .and_then(|v| v.as_str()).unwrap_or("orange-darken-4");
-    let largeur = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.largeur")
+    let largeur = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimentions.parametres.largeur")
         .and_then(|v| v.as_u64()).unwrap_or(400) as u32;
-    let format_str = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.format")
+    let format_str = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimentions.parametres.format")
         .and_then(|v| v.as_str()).unwrap_or("1/1");
-    let presence_distance = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.presenceDistance")
-        .and_then(|v| v.as_bool()).unwrap_or(false);
-    let distance_interval = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.Distance")
-        .and_then(|v| v.as_u64()).unwrap_or(10) as f64; // en km
-    let show_markers = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.Vignettes")
+    let presence_distance = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.MarqueurDistance.parametres.presenceDistance")
         .and_then(|v| v.as_bool()).unwrap_or(true);
-    let couleur_depart = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurDépart")
+    let distance_interval = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.MarqueurDistance.parametres.Distance")
+        .and_then(|v| v.as_u64()).unwrap_or(10) as f64; // en km
+    let show_markers = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.DepartArrivee.parametres.Vignettes")
+        .and_then(|v| v.as_bool()).unwrap_or(true);
+    let couleur_depart = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.DepartArrivee.parametres.couleurDépart")
         .and_then(|v| v.as_str()).unwrap_or("green-darken-2");
-    let couleur_arrivee = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurArrivée")
+    let couleur_arrivee = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.DepartArrivee.parametres.couleurArrivée")
         .and_then(|v| v.as_str()).unwrap_or("red-darken-2");
-    let couleur_depart_arrivee = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurDépartArrivée")
+    let couleur_depart_arrivee = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.DepartArrivee.parametres.couleurDépartArrivée")
         .and_then(|v| v.as_str()).unwrap_or("blue-darken-2");
-    let distance_max_close = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.distanceMax")
-        .and_then(|v| v.as_u64()).unwrap_or(100) as f64; // en mètres
+    let distance_max_close = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.DepartArrivee.parametres.distanceMax")
+        .and_then(|v| v.as_u64()).unwrap_or(250) as f64; // en mètres
 
     // Convertir la couleur Vuetify en hex
     let gpx_color_hex = convert_vuetify_color_to_hex(color_gpx_vignette);
@@ -114,8 +114,8 @@ pub async fn generate_gpx_thumbnail(
     // Un encodage excessif peut entraîner des erreurs.
     let path_string = encoded_polyline.replace('\\', "%5C").replace('?', "%3F").replace('@', "%40").replace('[', "%5B").replace(']', "%5D");
 
-    let largeur_trace = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.largeurTrace")
-        .and_then(|v| v.as_u64()).unwrap_or(5) as u32;
+    let largeur_trace = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Trace.parametres.largeurTrace")
+        .and_then(|v| v.as_u64()).unwrap_or(3) as u32;
 
     // Construire l'overlay pour la trace
     let mut overlay_parts = vec![];
@@ -160,7 +160,7 @@ pub async fn generate_gpx_thumbnail(
             distance_marker_count += 1;
             
             // Ajouter un marqueur de distance
-            let base_color = get_setting_value(&settings, "data.groupes.Importation.groupes.Mapbox.parametres.couleurPinDistance")
+            let base_color = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.MarqueurDistance.parametres.couleurPinDistance")
                 .and_then(|v| v.as_str()).unwrap_or("red");
 
             let decade = distance_marker_count / 10;
