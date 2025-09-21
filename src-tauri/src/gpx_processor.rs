@@ -12,6 +12,7 @@ use uuid::Uuid;
 use std::sync::Mutex;
 
 use crate::tracking_processor;
+use super::{AppState, CircuitsFile, Editor, Ville};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -37,7 +38,6 @@ struct TrackStats {
     summit_distance_km: f64,
 }
 
-// Structures for Geocoding API responses
 #[derive(Deserialize, Debug)]
 struct Commune {
     nom: String,
@@ -53,24 +53,11 @@ struct MapboxFeature {
     text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Ville {
-    id: String,
-    nom: String,
-}
-
 #[derive(Serialize, Debug)]
 struct LineString {
     #[serde(rename = "type")]
     type_field: String,
     coordinates: Vec<Vec<f64>>,
-}
-
-// Structures for circuits.json
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Editor {
-    id: String,
-    nom: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -132,20 +119,6 @@ pub struct Circuit {
     pub evt: CircuitEvt,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CircuitsFile {
-    pub version: String,
-    pub description: String,
-    pub auteur: String,
-    pub commentaires: String,
-    pub villes: Vec<Ville>,
-    pub traceurs: Vec<super::Traceur>,
-    pub editeurs: Vec<Editor>,
-    #[serde(rename = "indexCircuits")]
-    pub index_circuits: u32,
-    pub circuits: Vec<Circuit>,
-}
-
 struct GpxMetadata {
     name: Option<String>,
     creator: Option<String>,
@@ -157,7 +130,7 @@ struct GpxMetadata {
 
 pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<DraftCircuit, String> {
     let app_env_path = {
-        let state_mutex = app_handle.state::<Mutex<super::AppState>>();
+        let state_mutex = app_handle.state::<Mutex<AppState>>();
         let app_state = state_mutex.lock().unwrap();
         app_state.app_env_path.clone()
     };
@@ -238,12 +211,12 @@ pub fn commit_new_circuit(
     traceur_id: String,
 ) -> Result<String, String> {
     let app_env_path = {
-        let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
+        let state_mutex = app_handle.state::<std::sync::Mutex<AppState>>();
         let app_state = state_mutex.lock().unwrap();
         app_state.app_env_path.clone()
     };
 
-    let mut circuits_file = read_circuits_file(&app_env_path)?;
+    let mut circuits_file = super::read_circuits_file(&app_env_path)?;
 
     let editeur_id = resolve_editor_id(&mut circuits_file, &draft.editor_name)?;
     let ville_id = resolve_ville_id(&mut circuits_file, &draft.ville_nom)?;
@@ -271,7 +244,7 @@ pub fn commit_new_circuit(
     circuits_file.circuits.push(new_circuit);
     circuits_file.index_circuits += 1;
 
-    write_circuits_file(&app_env_path, &circuits_file)?;
+    super::write_circuits_file(&app_env_path, &circuits_file)?;
 
     create_line_string_file(&app_env_path, &new_circuit_id, &draft.track_points)?;
 
@@ -563,18 +536,6 @@ fn identify_editor_from_creator(creator: &str) -> String {
     } else {
         creator.to_string()
     }
-}
-
-fn read_circuits_file(app_env_path: &Path) -> Result<CircuitsFile, String> {
-    let circuits_path = app_env_path.join("circuits.json");
-    let content = fs::read_to_string(&circuits_path).map_err(|e| e.to_string())?;
-    serde_json::from_str::<CircuitsFile>(&content).map_err(|e| e.to_string())
-}
-
-fn write_circuits_file(app_env_path: &Path, circuits_file: &CircuitsFile) -> Result<(), String> {
-    let circuits_path = app_env_path.join("circuits.json");
-    let updated_content = serde_json::to_string_pretty(circuits_file).map_err(|e| e.to_string())?;
-    fs::write(&circuits_path, updated_content).map_err(|e| e.to_string())
 }
 
 fn create_line_string_file(app_env_path: &Path, circuit_id: &str, track_points: &Vec<Vec<f64>>) -> Result<(), String> {

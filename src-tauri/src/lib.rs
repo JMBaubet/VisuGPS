@@ -294,6 +294,19 @@ pub struct AppState {
     mapbox_token: String, // Added mapbox_token
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Ville {
+    pub id: String,
+    pub nom: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Editor {
+    pub id: String,
+    pub nom: String,
+}
+
+
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Traceur {
@@ -307,16 +320,49 @@ pub struct CircuitsFile {
     pub description: String,
     pub auteur: String,
     pub commentaires: String,
-    pub villes: Vec<serde_json::Value>, // Placeholder for now
+    pub villes: Vec<Ville>,
     pub traceurs: Vec<Traceur>,
-    pub editeurs: Vec<serde_json::Value>, // Placeholder for now
+    pub editeurs: Vec<Editor>,
     #[serde(rename = "indexCircuits")]
     pub index_circuits: u32,
     pub circuits: Vec<Circuit>, // Maintenant Vec<Circuit>
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CircuitForDisplay {
+    circuit_id: String,
+    nom: String,
+    distance_km: f64,
+    denivele_m: i32,
+    ville_depart: String,
+}
+
+#[tauri::command]
+fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<CircuitForDisplay>, String> {
+    let state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+
+    let circuits_for_display = circuits_file.circuits.iter().map(|circuit| {
+        let ville_depart = circuits_file.villes
+            .iter()
+            .find(|v| v.id == circuit.ville_depart_id)
+            .map_or("Inconnue".to_string(), |v| v.nom.clone());
+
+        CircuitForDisplay {
+            circuit_id: circuit.circuit_id.clone(),
+            nom: circuit.nom.clone(),
+            distance_km: circuit.distance_km,
+            denivele_m: circuit.denivele_m,
+            ville_depart,
+        }
+    }).collect();
+
+    Ok(circuits_for_display)
+}
+
 // Fonction pour lire le fichier circuits.json
-fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String> {
+pub fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String> {
     let circuits_path = app_env_path.join("circuits.json");
     let file_content = fs::read_to_string(&circuits_path)
         .map_err(|e| format!("Failed to read circuits.json: {}", e))?;
@@ -325,7 +371,7 @@ fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String> {
 }
 
 // Fonction pour écrire le fichier circuits.json
-fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile) -> Result<(), String> {
+pub fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile) -> Result<(), String> {
     let circuits_path = app_env_path.join("circuits.json");
     let new_content = serde_json::to_string_pretty(circuits_data)
         .map_err(|e| format!("Failed to serialize circuits.json: {}", e))?;
@@ -612,7 +658,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

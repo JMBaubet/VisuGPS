@@ -1,26 +1,61 @@
 <template>
-  <v-container fluid class="fill-height d-flex flex-column align-center pa-0">
+  <v-container fluid class="fill-height d-flex flex-column pa-0">
     <AppMainBar @open-gpx-import-dialog="gpxImportDialog = true" />
-    <v-btn color="primary">
-      Aller aux Paramètres
-    </v-btn>
+
+    <v-list lines="two" class="w-100">
+      <CircuitListItem
+        v-for="circuit in paginatedCircuits"
+        :key="circuit.circuitId"
+        :circuit="circuit"
+      />
+    </v-list>
+
+    <v-pagination
+      v-model="currentPage"
+      :length="pageCount"
+      class="mt-4"
+    ></v-pagination>
+
     <GpxImportDialog v-model="gpxImportDialog" @gpx-imported="handleGpxImported" />
-    <TraceurSelectionDialog v-model="showTraceurSelectionDialog" :circuitId="circuitIdToAssignTraceur" />
   </v-container>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { invoke } from '@tauri-apps/api/core';
 import AppMainBar from '../components/AppMainBar.vue';
 import GpxImportDialog from '../components/GpxImportDialog.vue';
-import TraceurSelectionDialog from '@/components/TraceurSelectionDialog.vue'; // Import du nouveau composant
+import CircuitListItem from '@/components/CircuitListItem.vue';
 
 const gpxImportDialog = ref(false);
-const showTraceurSelectionDialog = ref(false);
-const circuitIdToAssignTraceur = ref(null);
+const circuits = ref([]);
 
-function handleGpxImported(circuitId) {
-  circuitIdToAssignTraceur.value = circuitId;
-  showTraceurSelectionDialog.value = true;
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+
+const pageCount = computed(() => {
+  return Math.ceil(circuits.value.length / itemsPerPage.value);
+});
+
+const paginatedCircuits = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return circuits.value.slice(start, end);
+});
+
+async function refreshCircuits() {
+  try {
+    circuits.value = await invoke('get_circuits_for_display');
+  } catch (error) {
+    console.error("Failed to fetch circuits:", error);
+  }
 }
+
+function handleGpxImported() {
+  refreshCircuits();
+}
+
+onMounted(() => {
+  refreshCircuits();
+});
 </script>

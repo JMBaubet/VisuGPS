@@ -656,7 +656,7 @@ Bien sûr il faudra également mettre à jour le code avec cette nouvelle organi
       
       5. Couleur du marqueur départ/arrivée (proches)
 
-### Generation du fichier tracking.json -  - []
+### Generation du fichier tracking.json - Réalisée - [7bf37061]
 
 Le fichier tracking.json doit être engistré dans le dossier dédié au circuit importé.
 
@@ -791,6 +791,48 @@ Pour éviter ce piège, on utilise une **moyenne vectorielle** des orientations 
    Y est un entier paramétré dans Importation/Tracking/LissageCap qui vaut 15 par défaut. 
    
    Pour les Y derniers on calculera le cap avec les points restants 14, 13, 12, ...
+
+
+
+## Affichage des circuits
+
+Les circuits sont à afficher dans la page d'accueil.
+
+La page d'accueil devra être mise à jour à chaque ajout ou suppression de circuit.
+
+L'ensemble des circuits sera affiché dans une v-page, qui présentera un extrait d'une v-list. 
+
+Les circuits à afficher sont décrits dans le fichier circuits.json situé dans le dossier du conexte d'éxécusion.
+
+### Affichage d'un circuit
+
+Pour afficher les données d'un circuit déjà importé, un nouveau composant doit être créé. 
+
+Ce composant doit affiché les données suivantes sur deux lignes maximum :
+
+- `nom`
+
+- `distance`
+
+- `dénivelé`
+
+- `Ville de départ` 
+
+A partir de ce composant, on doit avoir des icônes pour effectuer les actions suivantes :
+
+-  `debuger le circuit` uniquement en mode Dev. Cette fonction n'est pas accessible en mode Prod.
+
+- `Editer le tracking`
+
+- `Voir la 3D`
+
+- `Supprimer le circuit`
+
+Les icones seront allignées à droite dans l'odre donné ci dessus. La description de ces actions sera donnée dans des futurs chapitres.
+
+
+
+
 
 ---
 

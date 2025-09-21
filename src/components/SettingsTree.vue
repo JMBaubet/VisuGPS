@@ -9,7 +9,7 @@
             :key="group.identifiant" 
             :node="group" 
             currentPath="" 
-            @settings-updated="loadSettings"
+            @settings-updated="initSettings"
           />
         </template>
         <v-list-item v-else>
@@ -24,7 +24,7 @@
 import { useSettings } from '@/composables/useSettings';
 import SettingsNode from './SettingsNode.vue';
 
-const { settings } = useSettings();
+const { settings, initSettings } = useSettings();
 
 </script>
 
