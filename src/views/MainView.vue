@@ -13,6 +13,7 @@
     <v-pagination
       v-model="currentPage"
       :length="pageCount"
+      :total-visible="7"
       class="mt-4"
     ></v-pagination>
 
@@ -26,18 +27,22 @@ import { invoke } from '@tauri-apps/api/core';
 import AppMainBar from '../components/AppMainBar.vue';
 import GpxImportDialog from '../components/GpxImportDialog.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
+import { useSettings } from '@/composables/useSettings';
 
 const gpxImportDialog = ref(false);
 const circuits = ref([]);
+const { getSettingValue } = useSettings();
 
 const currentPage = ref(1);
-const itemsPerPage = ref(10);
+const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);
 
 const pageCount = computed(() => {
+  if (!itemsPerPage.value) return 0;
   return Math.ceil(circuits.value.length / itemsPerPage.value);
 });
 
 const paginatedCircuits = computed(() => {
+  if (!itemsPerPage.value) return [];
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
   return circuits.value.slice(start, end);
