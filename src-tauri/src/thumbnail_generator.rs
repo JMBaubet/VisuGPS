@@ -106,7 +106,7 @@ pub async fn generate_gpx_thumbnail(
         geo_line.simplify(&0.00001) // Appliquer une petite simplification par défaut
     };
 
-    let nb_pts_simplified = simplified_line.points().count();
+    let _nb_pts_simplified = simplified_line.points().count();
 
     let encoded_polyline = encode_coordinates(simplified_line.points().map(|p| Coord { x: p.x(), y: p.y() }), 5)
         .map_err(|e| format!("Failed to encode polyline: {:?}", e))?;

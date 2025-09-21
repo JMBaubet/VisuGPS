@@ -608,7 +608,7 @@ Pour le generation de cette vignette, nous allons prendre en compte plusieurs pa
 
 Le fichier généré se nomera vignette.png et sera enregistré dans le dossier dédié au circuit importé.
 
-### Restructuration du fichier settingDefault.json
+### Restructuration du fichier settingDefault.json - Réalise - [0efa71ab]
 
 Je voudrais que l'on modifie l'arborescence de Importation/Mabox et de ces paramètres.  Respecter l'ordre des paramètres comme indiqué dans la suite du paragraphe.
 
@@ -656,11 +656,147 @@ Bien sûr il faudra également mettre à jour le code avec cette nouvelle organi
       
       5. Couleur du marqueur départ/arrivée (proches)
 
+### Generation du fichier tracking.json -  - []
+
+Le fichier tracking.json doit être engistré dans le dossier dédié au circuit importé.
+
+Il est construit à partir du fichier lineString.json.
+
+Dans ce fichier on doit avoir une liste de paramètres. 
+
+On aura autant de paramètres que nécessaire pour traiter toute la longueur de la trace gps. 
+
+Chacun de ces paramètres est composé des attributs suivants. 
+
+- `increment` un entier qui correspond au nième élément de la la liste en commençant par 0.
+
+- `pointDeControl`un booleen qui sera utilisé ulétérieument.
+
+- `nbrSegment`un entier qui sera utilisé ultérieument.
+
+- `coordonnee` qui est composé de deux valeurs [longitude, latittude] avec une précision de 5 décimales.
+
+- `altitude` un reel qui donne l'altitude de `coordonnee` avec une précision de 1 décimale.
+
+- `commune` un string que donne le nom de la commune du point de `coordonnee`
+
+- `cap` un entier qui sera utilisé ultérieument pour la caméra
+
+- `zoom` un reel qui sera utilisé ultérieument pour la caméra
+
+- `pitch` un reel qui sera utilisé ultérieument pour la caméra
+
+- `coordonneeCamera` qui est composé de deux valeurs [longitude, latittude] et qui sera utilisé ultérieument pour la caméra, avc une précision de 5 décimales
+
+- `altitudeCamera`en entier qui sera utilisé ultérieument pour la caméra
+
+
+
+Le fichier sera généré avec tous les attributs décrits, mais seuls les suivants seront renseignés à sa céation :
+
+- `incement`, `coordonnee`, `cap`, et `altitude` seront calculés,
+
+tandis que :
+
+- `zoom` sera initié via le paramètre Importation/Caméra/Zoom avec 16 comme valeur pas défaut
+
+- `pitch` sera initié par le paramètre Importation/Caméra/Pitch avec 60° comme valeur par défaut.
+
+Les attributs suivants seront initialisés avec les valeurs suivantes :
+
+- `pointDeControl` : false
+
+- `nbrSegment`: 0
+
+- `commune` : ""
+
+- `coordonneeCamera` : []
+
+- `altitudeCamera`: 0
+
+#### Calcul de increment
+
+increment sera incrémenté de 1 a chaque paramètre calculé. Il commence à 0
+
+#### Calcul de coordonnee
+
+L'attribut `coordonnee`est déterminé par un entier (X) paramétré dans Importation/Tracking/LongueurSegment qui vaut 100m par défaut.
+
+En partant du premier point on doit calculer les coordonnées du point suivant situé sur la lineString à un distance de X m, et ce jusqu'à la fin de la longueur de la lineString.
+
+On va traiter des fichiers lineString de plus de 100 km.
+
+Ne pas oublier d'y ajouter le dernier segment aura une longueur comprise entre ]0, X].
+
+#### Calcul de altitude
+
+`altitude` sera calculée en faisant une règle de 3 avec les deux points les plus proche en amont et en aval,  de la lineString, du nouveau point calculé. `coordonnee`.
+
+#### Calcul de cap
+
+Le calcul de cap s'appuie uniquement sur les coodonnées calculées. On ne prends pas en compte la lineString pour ce calcul. 
+
+Le problème consiste à estimer une **direction moyenne** (cap) à partir d’une succession de Y segments consécutifs. Comme le cap est un **angle circulaire** défini modulo 360°, une moyenne arithmétique simple peut être trompeuse (par exemple, la moyenne de 350° et 10° ne doit pas donner 180° mais bien 0°).
+
+Pour éviter ce piège, on utilise une **moyenne vectorielle** des orientations :
+
+1. **Sélection des points**
+   
+   - On part d’un point `P[i]` de la ligne.
+   
+   - On considère les `y` segments suivants : `(P[i]→P[i+1]), (P[i+1]→P[i+2]), …, (P[i+y-1]→P[i+y])`.
+
+2. **Calcul des caps individuels**
+   
+   - Pour chaque segment `P[k]→P[k+1]`, on calcule le **bearing géodésique** (angle par rapport au nord).
+   
+   - Ce bearing est exprimé en degrés dans l’intervalle `[0°, 360°)`.
+
+3. **Passage en coordonnées vectorielles**
+   
+   - Chaque cap `θ` est converti en radians.
+   
+   - On projette l’angle sur le cercle trigonométrique :
+     
+     - `x = cos(θ)`
+     
+     - `y = sin(θ)`
+   
+   - On obtient ainsi un vecteur unitaire qui pointe dans la direction du segment.
+
+4. **Somme et moyenne**
+   
+   - On additionne tous les vecteurs :
+     
+     - `X = Σ cos(θk)`
+     
+     - `Y = Σ sin(θk)`
+   
+   - Ces sommes représentent le vecteur moyen (non encore normalisé).
+
+5. **Reconstruction de l’angle moyen**
+   
+   - On calcule l’angle du vecteur moyen avec :
+     
+     - `θmoy = atan2(Y, X)`
+   
+   - Cet angle est ensuite converti en degrés et normalisé dans `[0°, 360°)`.
+
+6. **Résultat**
+   
+   - `θmoy` représente le **cap moyen** de l’ensemble des `y` segments considérés.
+   
+   - Cette approche prend correctement en compte le caractère circulaire des angles et évite les erreurs dues au franchissement de la discontinuité à 0°/360°.
+   
+   Y est un entier paramétré dans Importation/Tracking/LissageCap qui vaut 15 par défaut. 
+   
+   Pour les Y derniers on calculera le cap avec les points restants 14, 13, 12, ...
+
 ---
 
 ## 🤝 Contribution
 
-Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBUTING.md`.
+Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBUTING.md`
 
 ---
 

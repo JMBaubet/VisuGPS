@@ -11,6 +11,8 @@ use geo::prelude::*;
 use uuid::Uuid;
 use std::sync::Mutex;
 
+use crate::tracking_processor;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftCircuit {
@@ -273,8 +275,15 @@ pub fn commit_new_circuit(
 
     create_line_string_file(&app_env_path, &new_circuit_id, &draft.track_points)?;
 
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    tracking_processor::generate_tracking_file(&app_env_path, &new_circuit_id, &draft.track_points, &settings)?;
+
     Ok(new_circuit_id)
 }
+
 
 fn resolve_editor_id(circuits_file: &mut CircuitsFile, editor_name: &str) -> Result<String, String> {
     if let Some(editor) = circuits_file.editeurs.iter().find(|e| e.nom.eq_ignore_ascii_case(editor_name)) {

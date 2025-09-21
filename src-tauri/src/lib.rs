@@ -10,6 +10,7 @@ use serde::{Serialize, Deserialize};
 mod gpx_processor;
 pub mod colors;
 pub mod thumbnail_generator;
+pub mod tracking_processor;
 
 use chrono::prelude::*;
 use gpx_processor::{Circuit, DraftCircuit};
