@@ -154,42 +154,55 @@ fn interpolate_altitude(point: &Point<f64>, track_points: &Vec<Vec<f64>>) -> f64
 
 fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, window_size: usize) -> f64 {
     if points.len() < 2 || current_index >= points.len() - 1 {
-        return 0.0; // Not enough points or at the end
-    }
-
-    let end_index = (current_index + window_size).min(points.len());
-    let mut bearings = Vec::new();
-
-    for i in current_index..end_index - 1 {
-        let p1 = points[i];
-        let p2 = points[i + 1];
-        if p1 != p2 {
-            bearings.push(p1.haversine_bearing(p2));
-        }
-    }
-
-    if bearings.is_empty() {
-        // Fallback for the very last segments if they are duplicates
-        if current_index > 0 {
-            let p1 = points[current_index - 1];
-            let p2 = points[current_index];
-            if p1 != p2 { return p1.haversine_bearing(p2); }
+        // Fallback for the very end of the track
+        if current_index > 0 && current_index < points.len() {
+            return points[current_index - 1].haversine_bearing(points[current_index]);
         }
         return 0.0;
     }
 
-    // Vectorial mean
-    let (sum_sin, sum_cos) = bearings.iter().fold((0.0, 0.0), |(ss, sc), &b| {
-        let rad = b.to_radians();
-        (ss + rad.sin(), sc + rad.cos())
-    });
+    let current_point = points[current_index];
+    let end_index = (current_index + 1 + window_size).min(points.len());
+    
+    let mut bearing_distance_pairs = Vec::new();
 
-    let avg_rad = sum_sin.atan2(sum_cos);
-    let avg_bearing = avg_rad.to_degrees();
-
-    if avg_bearing < 0.0 {
-        avg_bearing + 360.0
-    } else {
-        avg_bearing
+    // Step 1: Calculate bearing and distance to each point in the look-ahead window
+    for i in (current_index + 1)..end_index {
+        let target_point = points[i];
+        if current_point != target_point {
+            let bearing = current_point.haversine_bearing(target_point);
+            let distance = current_point.haversine_distance(&target_point);
+            bearing_distance_pairs.push((bearing, distance));
+        }
     }
+
+    if bearing_distance_pairs.is_empty() {
+        // Fallback if there are no valid look-ahead points
+        if current_index + 1 < points.len() {
+             return points[current_index].haversine_bearing(points[current_index + 1]);
+        }
+       return 0.0;
+    }
+
+    // Step 2: Find the pairs corresponding to min and max bearing
+    let (min_bearing, dist_for_min) = *bearing_distance_pairs.iter().min_by(|a, b| a.0.partial_cmp(&b.0).unwrap()).unwrap();
+    let (max_bearing, dist_for_max) = *bearing_distance_pairs.iter().max_by(|a, b| a.0.partial_cmp(&b.0).unwrap()).unwrap();
+
+    // Step 3, 4, 5: Weighted circular average using vectors
+    let rad_min = min_bearing.to_radians();
+    let rad_max = max_bearing.to_radians();
+
+    let sum_x = dist_for_min * rad_min.cos() + dist_for_max * rad_max.cos();
+    let sum_y = dist_for_min * rad_min.sin() + dist_for_max * rad_max.sin();
+
+    // Step 6: Calculate final angle
+    let avg_rad = sum_y.atan2(sum_x);
+    let mut avg_bearing = avg_rad.to_degrees();
+
+    // Normalize to [0, 360)
+    if avg_bearing < 0.0 {
+        avg_bearing += 360.0;
+    }
+    
+    avg_bearing
 }
