@@ -7,6 +7,7 @@
         v-for="circuit in paginatedCircuits"
         :key="circuit.circuitId"
         :circuit="circuit"
+        @circuit-deleted="refreshCircuits"
       />
     </v-list>
 

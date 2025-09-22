@@ -570,6 +570,35 @@ fn commit_new_circuit(
     gpx_processor::commit_new_circuit(&app_handle, draft, traceur_id)
 }
 
+#[tauri::command]
+fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    // 1. Delete from circuits.json
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    let initial_len = circuits_file.circuits.len();
+    circuits_file.circuits.retain(|c| c.circuit_id != circuit_id);
+
+    if circuits_file.circuits.len() == initial_len {
+        return Err(format!("Circuit with ID '{}' not found.", circuit_id));
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    // 2. Delete the circuit's directory
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    if circuit_data_dir.exists() {
+        fs::remove_dir_all(&circuit_data_dir)
+            .map_err(|e| format!("Failed to delete circuit directory: {}", e))?;
+    } else {
+        println!("Circuit directory not found: {}", circuit_data_dir.display());
+    }
+
+    Ok(())
+}
+
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
@@ -684,7 +713,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

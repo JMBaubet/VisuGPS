@@ -556,7 +556,7 @@ pour y arriver mets un message le plus explicite possible dans la showSnackBar.
 
 Pour traceurId il faut que tu me le demande au moment de l'import. Tu peux à partir du fichier circuits.json me proposer une liste défilante des traceurs déjà connus. Je dois pouvoir egalement saisir le nom d'un nouveau traceur. ensuite valider. On ne peux pas rester avec ce champ vide. ou pire j'attourerai via l'interface un traceur inconnu... 
 
-### Ville de départ - Réalisée - [804c9c58]
+### Ville de départ - Réalisé - [804c9c58]
 
 Pour finaliser la mise à jour des paramètres liés à un circuit lors de son importation, il faut encore renseigner l'attribut villeDepartId
 
@@ -578,7 +578,7 @@ Puis tu mets à jour VilleDepartId du cicuit.
 
 Note : Si il est nécessaire d'avoir un token pour le geoportail de l'IGN peux tu me le préciser ? Si oui il te fraudra créer un nouveau paramètre dans settingDefault.json sous `Système/Tokens`
 
-### Génération de la vignette - Réalisée - [64ef49b2]
+### Génération de la vignette - Réalisé - [64ef49b2]
 
 lors de l'imporation d'un circuit gpx, j'ai besoin d'avoir la génération d'un vignette MapBox pour une visualisation de la trace. Pour cela tu as à ta disposition le fichier lineString.json dans le dossier du circuit qui se trouve dans le répertoire d'éxécution. 
 
@@ -608,7 +608,7 @@ Pour le generation de cette vignette, nous allons prendre en compte plusieurs pa
 
 Le fichier généré se nomera vignette.png et sera enregistré dans le dossier dédié au circuit importé.
 
-### Restructuration du fichier settingDefault.json - Réalise - [0efa71ab]
+### Restructuration du fichier settingDefault.json - Réalisé - [0efa71ab]
 
 Je voudrais que l'on modifie l'arborescence de Importation/Mabox et de ces paramètres.  Respecter l'ordre des paramètres comme indiqué dans la suite du paragraphe.
 
@@ -656,7 +656,7 @@ Bien sûr il faudra également mettre à jour le code avec cette nouvelle organi
       
       5. Couleur du marqueur départ/arrivée (proches)
 
-### Generation du fichier tracking.json - Réalisée - [7bf37061]
+### Génération du fichier tracking.json - Réalisé - [7bf37061]
 
 Le fichier tracking.json doit être engistré dans le dossier dédié au circuit importé.
 
@@ -826,7 +826,7 @@ A partir de ce composant, on doit avoir des icônes pour effectuer les actions s
 
 Les icones seront allignées à droite dans l'odre donné ci dessus. La description de ces actions sera donnée dans des futurs chapitres.
 
-## Debogage de tracking.json
+## Debogage de tracking.json - Réalisé - [0e001a5a]
 
 Pour cette étape nous allons créer une nouvelle vue qui sera appelée via le bouton debug d'un circuit présent dans la v-list de la mainView.
 
@@ -845,6 +845,18 @@ Pour les caps une boite à cocher permetra de les afficher ou de les masquer. Pa
 Les touches flêche gauche et flêche droite du clavier permettront de passer d'un point à l'autre. Ctrl  + flêche Gauche ou Droite permettra de fait un saut de 10 points en arrière ou avant.
 
 Une attention particulière pour l'affichage des n points sera apportée pour les n derniers points du fichier tracking.json.
+
+
+
+## Suppression d'un circuit.
+
+Depuis la vue princiaple, on peut voir les circuits déjà importés. Pour chaque circuit on a une icône `mdi-delete` qui sur un click souris appelle la fonction deleteCircuit.
+
+Cette fonction doit supprimer :
+
+- le cicuit du fichier circuits.json
+
+- le répertoire relatif à ce circuit.
 
 ---
 
