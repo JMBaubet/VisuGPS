@@ -380,6 +380,44 @@ fn convert_vuetify_color(color_name: String) -> String {
     format!("#{}", hex_color)
 }
 
+#[tauri::command]
+fn update_camera_position(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    longitude: f64,
+    latitude: f64,
+    altitude: f64,
+    zoom: f64,
+    pitch: f64,
+    bearing: f64,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(&circuit_id);
+    let tracking_path = data_dir.join("tracking.json");
+
+    let file_content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
+    let mut tracking_data: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    if let Some(points) = tracking_data.as_array_mut() {
+        if let Some(first_point) = points.get_mut(0) {
+            first_point["coordonneeCamera"] = serde_json::to_value(vec![longitude, latitude]).map_err(|e| e.to_string())?;
+            first_point["altitudeCamera"] = serde_json::to_value(altitude).map_err(|e| e.to_string())?;
+            first_point["zoom"] = serde_json::to_value(zoom).map_err(|e| e.to_string())?;
+            first_point["pitch"] = serde_json::to_value(pitch).map_err(|e| e.to_string())?;
+            first_point["cap"] = serde_json::to_value(bearing).map_err(|e| e.to_string())?;
+        } else {
+            return Err("Tracking data is empty.".to_string());
+        }
+    } else {
+        return Err("Tracking data is not an array.".to_string());
+    }
+
+    let new_content = serde_json::to_string_pretty(&tracking_data).map_err(|e| e.to_string())?;
+    fs::write(&tracking_path, new_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitForDisplay {
@@ -739,7 +777,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, convert_vuetify_color])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, convert_vuetify_color, update_camera_position])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

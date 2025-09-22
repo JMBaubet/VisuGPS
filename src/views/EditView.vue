@@ -3,6 +3,7 @@
     <div id="map-container" ref="mapContainer" class="fill-height"></div>
 
     <v-btn icon="mdi-arrow-left" @click="goBack" class="ma-2" style="position: absolute; top: 0; left: 0; z-index: 1000;"></v-btn>
+    <v-btn icon="mdi-content-save" @click="saveCameraPosition" class="ma-2" style="position: absolute; top: 0; left: 60px; z-index: 1000;"></v-btn>
   </v-container>
 </template>
 
@@ -26,6 +27,43 @@ let map = null;
 
 const goBack = () => {
   router.push({ name: 'Main' });
+};
+
+const saveCameraPosition = async () => {
+  if (!map) {
+    showSnackbar('Carte non initialisée.', 'error');
+    return;
+  }
+
+  const center = map.getCenter();
+  const zoom = map.getZoom();
+  const pitch = map.getPitch();
+  const bearing = map.getBearing(); // Cap
+
+  // Mapbox GL JS ne fournit pas directement l'altitude de la caméra.
+  // Pour l'instant, nous allons utiliser une valeur par défaut ou estimée.
+  // Une implémentation plus avancée pourrait nécessiter un calcul basé sur le zoom et le pitch.
+  // Estimer l'altitude de la caméra en fonction du zoom
+  // C'est une heuristique, Mapbox GL JS ne fournit pas directement l'altitude de la caméra.
+  // Plus le zoom est élevé, plus l'altitude est faible.
+  // Utilisation d'une formule qui donne des valeurs plus significatives pour l'altitude de la caméra.
+  const altitude = Math.round(5000 * Math.pow(0.8, zoom)); // Estimation plus progressive
+
+  try {
+    await invoke('update_camera_position', {
+      circuitId: circuitId,
+      longitude: center.lng,
+      latitude: center.lat,
+      altitude: altitude,
+      zoom: zoom,
+      pitch: pitch,
+      bearing: bearing,
+    });
+    showSnackbar('Position de la caméra sauvegardée avec succès.', 'success');
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde de la position de la caméra:', error);
+    showSnackbar(`Erreur lors de la sauvegarde: ${error.message || error}`, 'error');
+  }
 };
 
 onMounted(async () => {
@@ -52,6 +90,7 @@ onMounted(async () => {
       traceColor = await invoke('convert_vuetify_color', { colorName: traceColor });
     }
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
+    const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
 
     // Récupérer les données de tracking et lineString
     const trackingData = await invoke('read_tracking_file', { circuitId: circuitId });
@@ -77,6 +116,16 @@ onMounted(async () => {
       pitch: initialPitch,
       bearing: initialBearing,
       antialias: true,
+    });
+
+    // Activer la 3D du terrain
+    map.on('load', () => {
+      map.addSource('mapbox-dem', {
+        'type': 'raster-dem',
+        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        'tileSize': 512
+      });
+      map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': exaggeration });
     });
 
     map.on('load', () => {

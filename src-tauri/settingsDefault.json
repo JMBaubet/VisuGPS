@@ -49,7 +49,11 @@
                     "identifiant": "format",
                     "libelle": "Format de la vignette",
                     "type": "string",
-                    "options": ["1/1", "4/3", "16/9"]
+                    "options": [
+                      "1/1",
+                      "4/3",
+                      "16/9"
+                    ]
                   }
                 ]
               },
@@ -229,64 +233,80 @@
           }
         ]
       },
-                {
-                  "libelle": "Edition",
-                  "groupes": [
-                    {
-                      "libelle": "Caméra",
-                      "parametres": [
-                        {
-                          "defaut": 16.0,
-                          "description": "Niveau de zoom de la caméra par défaut.",
-                          "doc": "docs/parametre_zoom.md",
-                          "identifiant": "Zoom",
-                          "libelle": "Zoom",
-                          "min": 0.0,
-                          "max": 22.0,
-                          "type": "reel",
-                          "decimales": 2
-                        }
-                      ]
-                    },
-                    {
-                      "libelle": "Mapbox",
-                      "parametres": [
-                        {
-                          "defaut": "mapbox://styles/mapbox/satellite-v9",
-                          "description": "Style de carte lors de l'édition",
-                          "identifiant": "styleVisualisation",
-                          "libelle": "Style de la carte.",
-                          "type": "string"
-                        }
-                      ],
-                      "groupes": [
-                        {
-                          "libelle": "Trace",
-                          "parametres": [
-                            {
-                              "defaut": "orange-darken-4",
-                              "description": "Couleur de la trace GPX pour l'édition",
-                              "identifiant": "couleur",
-                              "libelle": "Couleur de la trace",
-                              "type": "couleur",
-                              "materialDesign": true
-                            },
-                            {
-                              "defaut": 3,
-                              "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
-                              "identifiant": "epaisseur",
-                              "libelle": "Épaisseur de la trace",
-                              "type": "entier",
-                              "min": 1,
-                              "max": 20,
-                              "unite": "px"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },      {
+      {
+        "libelle": "Edition",
+        "groupes": [
+          {
+            "libelle": "Caméra",
+            "parametres": [
+              {
+                "defaut": 16.0,
+                "description": "Niveau de zoom de la caméra par défaut.",
+                "doc": "docs/parametre_zoom.md",
+                "identifiant": "Zoom",
+                "libelle": "Zoom",
+                "min": 0.0,
+                "max": 22.0,
+                "type": "reel",
+                "decimales": 2
+              }
+            ]
+          },
+          {
+            "libelle": "Mapbox",
+            "parametres": [
+              {
+                "defaut": "mapbox://styles/mapbox/satellite-v9",
+                "description": "Style de carte lors de l'édition",
+                "identifiant": "styleVisualisation",
+                "libelle": "Style de la carte.",
+                "type": "string"
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Trace",
+                "parametres": [
+                  {
+                    "defaut": "orange-darken-4",
+                    "description": "Couleur de la trace GPX pour l'édition",
+                    "identifiant": "couleur",
+                    "libelle": "Couleur de la trace",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 3,
+                    "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
+                    "identifiant": "epaisseur",
+                    "libelle": "Épaisseur de la trace",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px"
+                  }
+                ]
+              },
+              {
+                "libelle": "Relief",
+                "parametres": [
+                  {
+                    "defaut": 1,
+                    "description": "Facteur d'exagération du relief 3D. 1.0 pour un relief réel, >1.0 pour l'exagérer.",
+                    "identifiant": "exaggeration",
+                    "libelle": "Exagération du relief",
+                    "type": "reel",
+                    "min": 0.0,
+                    "max": 2.0,
+                    "decimales": 2
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         "libelle": "Visualisation",
         "groupes": [
           {
