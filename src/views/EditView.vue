@@ -138,6 +138,15 @@ onMounted(async () => {
 
     // Activer la 3D du terrain
     map.on('load', () => {
+      // Désactiver toutes les interactions de la souris
+      map.boxZoom.disable();
+      map.doubleClickZoom.disable();
+      map.dragPan.disable();
+      map.dragRotate.disable();
+      map.keyboard.disable();
+      map.scrollZoom.disable();
+      map.touchZoomRotate.disable();
+
       map.addSource('mapbox-dem', {
         'type': 'raster-dem',
         'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
@@ -148,7 +157,6 @@ onMounted(async () => {
 
     map.on('load', () => {
       // Ajouter la source et la couche pour la lineString
-      console.log('lineStringCoordinates.value:', lineStringCoordinates.value);
       map.addSource('circuit-line', {
         type: 'geojson',
         data: {
@@ -249,23 +257,12 @@ const updateCameraPosition = (index) => {
       });
     }
   } else {
-    progressPercentage.value = 0;
-    if (map.getSource('progress-line')) {
-      map.getSource('progress-line').setData({
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: [],
-        },
-      });
-    }
-  }
-  console.log('Progression:', progressPercentage.value.toFixed(2) + '%');
+  progressPercentage.value = 0;
+}
+
 };
 
 const handleKeydown = (event) => {
-  console.log('Keydown event:', event.key, 'Shift:', event.shiftKey, 'Ctrl:', event.ctrlKey);
   let newIndex = currentPointIndex.value;
   let step = 1;
   if (event.ctrlKey) {
@@ -273,7 +270,6 @@ const handleKeydown = (event) => {
   } else if (event.shiftKey) {
     step = 10;
   }
-  console.log('Calculated step:', step);
 
   if (event.key === 'm' || event.key === 'M') { // Avancer
     newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
