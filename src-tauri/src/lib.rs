@@ -328,6 +328,32 @@ pub struct CircuitsFile {
     pub circuits: Vec<Circuit>, // Maintenant Vec<Circuit>
 }
 
+#[derive(serde::Serialize, Clone)]
+struct DebugData {
+    line_string: Value,
+    tracking_points: Value,
+}
+
+#[tauri::command]
+fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<DebugData, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(circuit_id);
+
+    let line_string_path = data_dir.join("lineString.json");
+    let tracking_points_path = data_dir.join("tracking.json");
+
+    let line_string_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
+    let tracking_points_content = fs::read_to_string(tracking_points_path).map_err(|e| e.to_string())?;
+
+    let line_string: Value = serde_json::from_str(&line_string_content).map_err(|e| e.to_string())?;
+    let tracking_points: Value = serde_json::from_str(&tracking_points_content).map_err(|e| e.to_string())?;
+
+    Ok(DebugData {
+        line_string,
+        tracking_points,
+    })
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitForDisplay {
@@ -658,7 +684,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

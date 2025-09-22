@@ -24,6 +24,11 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: SettingsView
+  },
+  {
+    path: '/debug-tracking/:circuitId',
+    name: 'DebugTracking',
+    component: () => import('../views/DebugTrackingView.vue')
   }
 ]
 

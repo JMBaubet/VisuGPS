@@ -690,8 +690,6 @@ Chacun de ces paramètres est composé des attributs suivants.
 
 - `altitudeCamera`en entier qui sera utilisé ultérieument pour la caméra
 
-
-
 Le fichier sera généré avec tous les attributs décrits, mais seuls les suivants seront renseignés à sa céation :
 
 - `incement`, `coordonnee`, `cap`, et `altitude` seront calculés,
@@ -792,9 +790,7 @@ Pour éviter ce piège, on utilise une **moyenne vectorielle** des orientations 
    
    Pour les Y derniers on calculera le cap avec les points restants 14, 13, 12, ...
 
-
-
-## Affichage des circuits
+## Affichage des circuits - Réalisé - [d83003ad]
 
 Les circuits sont à afficher dans la page d'accueil.
 
@@ -808,7 +804,7 @@ Les circuits à afficher sont décrits dans le fichier circuits.json situé dans
 
 Pour afficher les données d'un circuit déjà importé, un nouveau composant doit être créé. 
 
-Ce composant doit affiché les données suivantes sur deux lignes maximum :
+Ce composant doit afficher les données suivantes sur deux lignes maximum :
 
 - `nom`
 
@@ -820,7 +816,7 @@ Ce composant doit affiché les données suivantes sur deux lignes maximum :
 
 A partir de ce composant, on doit avoir des icônes pour effectuer les actions suivantes :
 
--  `debuger le circuit` uniquement en mode Dev. Cette fonction n'est pas accessible en mode Prod.
+- `debuger le circuit` uniquement en mode Dev. Cette fonction n'est pas accessible en mode Prod.
 
 - `Editer le tracking`
 
@@ -830,9 +826,25 @@ A partir de ce composant, on doit avoir des icônes pour effectuer les actions s
 
 Les icones seront allignées à droite dans l'odre donné ci dessus. La description de ces actions sera donnée dans des futurs chapitres.
 
+## Debogage de tracking.json
 
+Pour cette étape nous allons créer une nouvelle vue qui sera appelée via le bouton debug d'un circuit présent dans la v-list de la mainView.
 
+Cette vue doit affichée une carte Mapbox, qui affichera :
 
+- la trace à partir du fichier lineString.json situé dans le dossier lié au circuit sélectionné. La lineTring sera affichée en bleu avec une opacité de 50%
+
+- A partir du fichier tracking.json, je souhaite que l'on puisse afficher un à un l'ensemble des points du fichier en rouge sous forme d'un cercle de 3 pixel de diamètre, , ainsi que les n points en jaune qui ont été pris en compte pour le calcul du cap. n étant le paramètre Importation/Tracking/LissageCap du fichier settings.json.
+
+- Pour chacun des points on affiche un vecteur de 100 m qui part du point en direction du cap. Le vecteur sera de couleur Jaune et aura une épaisseur de 3.
+
+Pour la lineString une boite à cocher permetra de l'afficher ou de la masquer. Par defaut elle sera affichée.
+
+Pour les caps une boite à cocher permetra de les afficher ou de les masquer. Par defaut ils seront affichés .
+
+Les touches flêche gauche et flêche droite du clavier permettront de passer d'un point à l'autre. Ctrl  + flêche Gauche ou Droite permettra de fait un saut de 10 points en arrière ou avant.
+
+Une attention particulière pour l'affichage des n points sera apportée pour les n derniers points du fichier tracking.json.
 
 ---
 

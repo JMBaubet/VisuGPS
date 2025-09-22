@@ -18,6 +18,7 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const props = defineProps({
   circuit: {
@@ -27,10 +28,10 @@ const props = defineProps({
 });
 
 const isDev = ref(import.meta.env.DEV);
+const router = useRouter();
 
 const debugCircuit = () => {
-  console.log('Debug circuit:', props.circuit.circuitId);
-  // Future implementation
+  router.push({ name: 'DebugTracking', params: { circuitId: props.circuit.circuitId } });
 };
 
 const editTracking = () => {
