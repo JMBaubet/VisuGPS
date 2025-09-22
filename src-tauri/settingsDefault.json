@@ -229,40 +229,64 @@
           }
         ]
       },
-      {
-        "libelle": "Edition",
-        "groupes": [
-          {
-            "libelle": "Caméra",
-            "parametres": [
-              {
-                "defaut": 16.0,
-                "description": "Niveau de zoom de la caméra par défaut.",
-                "doc": "docs/parametre_zoom.md",
-                "identifiant": "Zoom",
-                "libelle": "Zoom",
-                "min": 0.0,
-                "max": 22.0,
-                "type": "reel",
-                "decimales": 2
-              }
-            ]
-          },
-          {
-            "libelle": "mapbox",
-            "parametres": [
-              {
-                "defaut": "mapbox://styles/mapbox/satellite-v9",
-                "description": "Style de carte lors de l'édition",
-                "identifiant": "styleEdition",
-                "libelle": "Style de la carte.",
-                "type": "string"
-              }
-            ]
-          }
-        ]
-      },
-      {
+                {
+                  "libelle": "Edition",
+                  "groupes": [
+                    {
+                      "libelle": "Caméra",
+                      "parametres": [
+                        {
+                          "defaut": 16.0,
+                          "description": "Niveau de zoom de la caméra par défaut.",
+                          "doc": "docs/parametre_zoom.md",
+                          "identifiant": "Zoom",
+                          "libelle": "Zoom",
+                          "min": 0.0,
+                          "max": 22.0,
+                          "type": "reel",
+                          "decimales": 2
+                        }
+                      ]
+                    },
+                    {
+                      "libelle": "Mapbox",
+                      "parametres": [
+                        {
+                          "defaut": "mapbox://styles/mapbox/satellite-v9",
+                          "description": "Style de carte lors de l'édition",
+                          "identifiant": "styleVisualisation",
+                          "libelle": "Style de la carte.",
+                          "type": "string"
+                        }
+                      ],
+                      "groupes": [
+                        {
+                          "libelle": "Trace",
+                          "parametres": [
+                            {
+                              "defaut": "orange-darken-4",
+                              "description": "Couleur de la trace GPX pour l'édition",
+                              "identifiant": "couleur",
+                              "libelle": "Couleur de la trace",
+                              "type": "couleur",
+                              "materialDesign": true
+                            },
+                            {
+                              "defaut": 3,
+                              "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
+                              "identifiant": "epaisseur",
+                              "libelle": "Épaisseur de la trace",
+                              "type": "entier",
+                              "min": 1,
+                              "max": 20,
+                              "unite": "px"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },      {
         "libelle": "Visualisation",
         "groupes": [
           {

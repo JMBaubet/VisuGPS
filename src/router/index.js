@@ -11,8 +11,8 @@ const routes = [
     component: MainView
   },
   {
-    path: '/edit',
-    name: 'Edit',
+    path: '/edit/:circuitId',
+    name: 'EditView', // Renommé pour être plus explicite
     component: EditView
   },
   {

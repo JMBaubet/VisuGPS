@@ -52,8 +52,7 @@ const debugCircuit = () => {
 };
 
 const editTracking = () => {
-  console.log('Edit tracking for circuit:', props.circuit.circuitId);
-  // Future implementation
+  router.push({ name: 'EditView', params: { circuitId: props.circuit.circuitId } });
 };
 
 const view3D = () => {

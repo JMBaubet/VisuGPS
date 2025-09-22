@@ -354,6 +354,32 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
     })
 }
 
+#[tauri::command]
+fn read_line_string_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Value, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(circuit_id);
+    let line_string_path = data_dir.join("lineString.json");
+    let file_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
+    let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    Ok(json_content)
+}
+
+#[tauri::command]
+fn read_tracking_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Value, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(circuit_id);
+    let tracking_path = data_dir.join("tracking.json");
+    let file_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
+    let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    Ok(json_content)
+}
+
+#[tauri::command]
+fn convert_vuetify_color(color_name: String) -> String {
+    let hex_color = colors::convert_vuetify_color_to_hex(&color_name);
+    format!("#{}", hex_color)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitForDisplay {
@@ -713,7 +739,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, convert_vuetify_color])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
