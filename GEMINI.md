@@ -848,7 +848,7 @@ Une attention particulière pour l'affichage des n points sera apportée pour le
 
 
 
-## Suppression d'un circuit.
+## Suppression d'un circuit. - Réalisé - [bfa06ec9]
 
 Depuis la vue princiaple, on peut voir les circuits déjà importés. Pour chaque circuit on a une icône `mdi-delete` qui sur un click souris appelle la fonction deleteCircuit.
 
@@ -857,6 +857,40 @@ Cette fonction doit supprimer :
 - le cicuit du fichier circuits.json
 
 - le répertoire relatif à ce circuit.
+
+## Edition d'un circuit. -  - []
+
+Cette étape est l'une des plus compliquée. Nous allons la construire en plusieurs phases.
+
+### Initialisation de l'édition
+
+Cette première phase va consister à la mise en place de la vue édition
+
+Le vue édition sera affichée lorsque l'ulisateur cliquera sur l'icône 'mdi-pencil' du composant CircuitListItem.vue/
+
+La vue édition sera constituée d'une div mapbox qui prendra tout l'espace disponique de la vue EditView.vue.
+
+La carte sera initialisée avec les paramètre suivant : 
+
+- le style de la carte est défini dans le fichier settings.json sous Edition/mapbox/styleVisualisation
+
+- le centre de la carte sera issu du paramètre coordonnee du premier point du fichier tracking.json
+
+- le zoom de la camera sera issu du paramètre zoom du premier point de la carte
+
+- le  pitchde la camera sera issu du paramètre pitch du premier point de la carte
+
+- la direction de la camera sera issu du paramètre cap du premier point de la carte
+
+A partir de là on devrait pouvoir renseigner dans le fichier tracking.json les coordonnees de la caméra et son altitude.
+
+On ajoutera une couche pour afficher le lineString. La visualisation de la lineString aura les caractéristiques suivantes :
+
+- Couleur de la lineString : paramètre à créer dans Edition/mapbox/Trace/couleur
+
+- Epaisseur de la lineString : paramètre à créer dans Edition/mapbox/Trace/Epaisseur
+
+Sur la vue EditView.vue prévoir un overlay situé en haut à gauche pour revenir sur la vue pricipale.
 
 ---
 
