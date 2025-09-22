@@ -50,24 +50,41 @@ pub fn generate_tracking_file(
         .map(|p| Point::new(p[0], p[1]))
         .collect();
     let line = GeoLineString::from(geo_points.clone());
-    let total_distance = line.haversine_length();
 
     let mut tracking_points: Vec<TrackingPoint> = Vec::new();
-    let mut distance = 0.0;
     let mut increment = 0;
 
     let mut calculated_points = Vec::new();
+    let mut distance_needed = 0.0;
+    let mut distance_traversed = 0.0;
 
-    while distance < total_distance {
-        let fraction = distance / total_distance;
-        if let Some(point) = line.line_interpolate_point(fraction) {
-            calculated_points.push(point);
-        }
-        distance += segment_length;
+    if let Some(first_point) = line.points().next() {
+        calculated_points.push(first_point);
+        distance_needed += segment_length;
     }
-    // Add the last point
-    if let Some(last_point) = line.points().last() {
-        calculated_points.push(last_point);
+
+    for segment in line.lines() {
+        let p1 = segment.start;
+        let p2 = segment.end;
+        let segment_len = Point::from(p1).haversine_distance(&Point::from(p2));
+
+        while distance_traversed + segment_len >= distance_needed {
+            let dist_into_segment = distance_needed - distance_traversed;
+            let fraction = if segment_len > 0.0 { dist_into_segment / segment_len } else { 0.0 };
+            let new_point = geo::Line::new(p1, p2).line_interpolate_point(fraction).unwrap();
+            calculated_points.push(new_point);
+            distance_needed += segment_length;
+        }
+        distance_traversed += segment_len;
+    }
+
+    // Add the very last point if it's not close to the last calculated one
+    if let Some(last_original_point) = line.points().last() {
+        if let Some(last_calculated_point) = calculated_points.last() {
+            if last_calculated_point.haversine_distance(&last_original_point) > 1.0 { // If more than 1m away
+                 calculated_points.push(last_original_point);
+            }
+        }
     }
 
     for (i, point) in calculated_points.iter().enumerate() {
