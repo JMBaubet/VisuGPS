@@ -15,6 +15,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import * as turf from '@turf/turf';
 
 const route = useRoute();
 const router = useRouter();
@@ -24,6 +25,11 @@ const { getSettingValue } = useSettings();
 const circuitId = route.params.circuitId;
 const mapContainer = ref(null);
 let map = null;
+const currentPointIndex = ref(0);
+const trackingPoints = ref([]);
+const lineStringCoordinates = ref([]); // Pour stocker les coordonnées de la lineString complète
+const totalLineLength = ref(0); // Longueur totale de la lineString
+const progressPercentage = ref(0); // Pourcentage de progression
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -91,18 +97,30 @@ onMounted(async () => {
     }
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
     const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
+    let couleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
+    if (couleurAvancement && !couleurAvancement.startsWith('#')) {
+      couleurAvancement = await invoke('convert_vuetify_color', { colorName: couleurAvancement });
+    }
+    const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
     // Récupérer les données de tracking et lineString
-    const trackingData = await invoke('read_tracking_file', { circuitId: circuitId });
-    const lineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
+    const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
+    const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
+    lineStringCoordinates.value = rawLineStringData.coordinates;
 
-    if (!trackingData || trackingData.length === 0) {
+    // Calculer la longueur totale de la lineString
+    const line = turf.lineString(lineStringCoordinates.value);
+    totalLineLength.value = turf.length(line, { units: 'kilometers' });
+
+    if (!rawTrackingData || rawTrackingData.length === 0) {
       showSnackbar('Données de tracking introuvables ou vides.', 'error');
       router.push({ name: 'Main' });
       return;
     }
+    trackingPoints.value = rawTrackingData;
+    currentPointIndex.value = 0; // Toujours commencer au premier point
 
-    const firstPoint = trackingData[0];
+    const firstPoint = trackingPoints.value[currentPointIndex.value];
     const initialCenter = firstPoint.coordonnee;
     const initialZoom = firstPoint.zoom;
     const initialPitch = firstPoint.pitch;
@@ -130,6 +148,7 @@ onMounted(async () => {
 
     map.on('load', () => {
       // Ajouter la source et la couche pour la lineString
+      console.log('lineStringCoordinates.value:', lineStringCoordinates.value);
       map.addSource('circuit-line', {
         type: 'geojson',
         data: {
@@ -137,7 +156,7 @@ onMounted(async () => {
           properties: {},
           geometry: {
             type: 'LineString',
-            coordinates: lineStringData.coordinates,
+            coordinates: lineStringCoordinates.value, // Utiliser lineStringCoordinates.value
           },
         },
       });
@@ -155,6 +174,33 @@ onMounted(async () => {
           'line-width': traceWidth,
         },
       });
+
+      // Ajouter la source et la couche pour la ligne d'avancement
+      map.addSource('progress-line', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: [], // Initialement vide
+          },
+        },
+      });
+
+      map.addLayer({
+        id: 'progress-line',
+        type: 'line',
+        source: 'progress-line',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': couleurAvancement,
+          'line-width': epaisseurAvancement,
+        },
+      });
     });
 
     map.on('error', (e) => {
@@ -169,11 +215,93 @@ onMounted(async () => {
   }
 });
 
+const updateCameraPosition = (index) => {
+  if (!map || !trackingPoints.value.length) return;
+
+  const point = trackingPoints.value[index];
+  map.flyTo({
+    center: point.coordonnee,
+    zoom: point.zoom,
+    pitch: point.pitch,
+    bearing: point.cap,
+    essential: true // This ensures the animation is smooth
+  });
+
+  // Mettre à jour la ligne d'avancement et calculer le pourcentage de progression
+  if (totalLineLength.value > 0 && lineStringCoordinates.value.length > 1) {
+    const line = turf.lineString(lineStringCoordinates.value);
+    const cameraPoint = turf.point(point.coordonnee);
+
+    // Trouver le point sur la ligne le plus proche de la position de la caméra
+    const nearestPoint = turf.nearestPointOnLine(line, cameraPoint, { units: 'kilometers' });
+
+    // Obtenir la sous-ligne du début jusqu'à ce point
+    const currentProgressLine = turf.lineSlice(line.geometry.coordinates[0], nearestPoint.geometry.coordinates, line);
+    const currentProgressLength = turf.length(currentProgressLine, { units: 'kilometers' });
+
+    progressPercentage.value = (currentProgressLength / totalLineLength.value) * 100;
+
+    if (map.getSource('progress-line')) {
+      map.getSource('progress-line').setData({
+        type: 'Feature',
+        properties: {},
+        geometry: currentProgressLine.geometry,
+      });
+    }
+  } else {
+    progressPercentage.value = 0;
+    if (map.getSource('progress-line')) {
+      map.getSource('progress-line').setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [],
+        },
+      });
+    }
+  }
+  console.log('Progression:', progressPercentage.value.toFixed(2) + '%');
+};
+
+const handleKeydown = (event) => {
+  console.log('Keydown event:', event.key, 'Shift:', event.shiftKey, 'Ctrl:', event.ctrlKey);
+  let newIndex = currentPointIndex.value;
+  let step = 1;
+  if (event.ctrlKey) {
+    step = 100;
+  } else if (event.shiftKey) {
+    step = 10;
+  }
+  console.log('Calculated step:', step);
+
+  if (event.key === 'm' || event.key === 'M') { // Avancer
+    newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
+  } else if (event.key === 'l' || event.key === 'L') { // Reculer
+    newIndex = Math.max(currentPointIndex.value - step, 0);
+  }
+
+  if (newIndex !== currentPointIndex.value) {
+    currentPointIndex.value = newIndex;
+    updateCameraPosition(currentPointIndex.value);
+    // Optionnel: Mettre à jour le premier point du tracking.json avec la nouvelle position de la caméra
+    // Cela pourrait être fait ici en appelant la commande Tauri 'update_camera_position'
+    // avec les données du point actuel.
+    // Pour l'instant, nous nous contentons de déplacer la caméra.
+  }
+};
+
+onMounted(async () => {
+  // ... (code existant) ...
+  window.addEventListener('keydown', handleKeydown);
+});
+
 onUnmounted(() => {
   if (map) {
     map.remove();
     map = null;
   }
+  window.removeEventListener('keydown', handleKeydown);
 });
 </script>
 

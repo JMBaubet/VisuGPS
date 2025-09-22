@@ -266,27 +266,44 @@
             "groupes": [
               {
                 "libelle": "Trace",
-                "parametres": [
-                  {
-                    "defaut": "orange-darken-4",
-                    "description": "Couleur de la trace GPX pour l'édition",
-                    "identifiant": "couleur",
-                    "libelle": "Couleur de la trace",
-                    "type": "couleur",
-                    "materialDesign": true
-                  },
-                  {
-                    "defaut": 3,
-                    "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
-                    "identifiant": "epaisseur",
-                    "libelle": "Épaisseur de la trace",
-                    "type": "entier",
-                    "min": 1,
-                    "max": 20,
-                    "unite": "px"
-                  }
-                ]
-              },
+                                          "parametres": [
+                                            {
+                                              "defaut": "orange-darken-4",
+                                              "description": "Couleur de la trace GPX pour l'édition",
+                                              "identifiant": "couleur",
+                                              "libelle": "Couleur de la trace",
+                                              "type": "couleur",
+                                              "materialDesign": true
+                                            },
+                                            {
+                                              "defaut": 3,
+                                              "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
+                                              "identifiant": "epaisseur",
+                                              "libelle": "Épaisseur de la trace",
+                                              "type": "entier",
+                                              "min": 1,
+                                              "max": 20,
+                                              "unite": "px"
+                                            },
+                                            {
+                                              "defaut": "yellow",
+                                              "description": "Couleur de la ligne d'avancement de la caméra.",
+                                              "identifiant": "couleurAvancement",
+                                              "libelle": "Couleur de l'avancement",
+                                              "type": "couleur",
+                                              "materialDesign": true
+                                            },
+                                            {
+                                              "defaut": 5,
+                                              "description": "Épaisseur de la ligne d'avancement de la caméra en pixels.",
+                                              "identifiant": "epaisseurAvancement",
+                                              "libelle": "Épaisseur de l'avancement",
+                                              "type": "entier",
+                                              "min": 1,
+                                              "max": 20,
+                                              "unite": "px"
+                                            }
+                                          ]              },
               {
                 "libelle": "Relief",
                 "parametres": [
