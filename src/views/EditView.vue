@@ -83,6 +83,12 @@
       :showPitch="showPitch"
       :showBearingDelta="showBearingDelta"
       :showBearingTotalDelta="showBearingTotalDelta"
+      :currentCameraBearing="currentBearing"
+      :initialCameraBearing="trackingPoints[0]?.cap"
+      :currentCameraZoom="currentZoom"
+      :defaultCameraZoom="defaultZoom"
+      :currentCameraPitch="currentPitch"
+      :defaultCameraPitch="defaultPitch"
       @seek-distance="handleSeekDistance"
     />
   </v-container>

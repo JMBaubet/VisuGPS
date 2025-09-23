@@ -11,11 +11,34 @@
           <text :x="marker.x" :y="graphCenterY + 20" class="marker-text">{{ marker.label }}</text>
         </g>
 
-        <!-- Graphique du Zoom -->
-        <path v-if="props.showZoom" :d="zoomPath" :style="{ stroke: zoomColor }" />
+        <!-- Zone d'avancement -->
+        <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" :opacity="progressZoneOpacity" />
 
         <!-- Graphique du Pitch -->
         <path v-if="props.showPitch" :d="pitchPath" :style="{ stroke: pitchColor }" />
+
+        <!-- Indicateur de pitch actuel -->
+        <line
+          :x1="progressIndicatorX + 2 - 15"
+          :y1="currentPitchDeltaY"
+          :x2="progressIndicatorX + 2 + 15"
+          :y2="currentPitchDeltaY"
+          :stroke="pitchColor"
+          stroke-width="2"
+        />
+
+        <!-- Graphique du Zoom -->
+        <path v-if="props.showZoom" :d="zoomPath" :style="{ stroke: zoomColor }" />
+
+        <!-- Indicateur de zoom actuel -->
+        <line
+          :x1="progressIndicatorX + 2 - 10"
+          :y1="currentZoomDeltaY"
+          :x2="progressIndicatorX + 2 + 10"
+          :y2="currentZoomDeltaY"
+          :stroke="zoomColor"
+          stroke-width="2"
+        />
 
         <!-- Graphique du Bearing (Delta vs Précédent) -->
         <path v-if="props.showBearingDelta" :d="bearingDeltaPath" :style="{ stroke: bearingDeltaColor }" />
@@ -23,8 +46,15 @@
         <!-- Graphique du Bearing (Delta vs Début) -->
         <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" :style="{ stroke: bearingTotalDeltaColor }" />
 
-        <!-- Zone d'avancement -->
-        <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" opacity="0.1" />
+        <!-- Indicateur de bearing actuel -->
+        <line
+          :x1="progressIndicatorX + 2 - 5"
+          :y1="currentBearingDeltaY"
+          :x2="progressIndicatorX + 2 + 5"
+          :y2="currentBearingDeltaY"
+          :stroke="bearingTotalDeltaColor"
+          stroke-width="2"
+        />
       </svg>
     </div>
   </div>
@@ -44,14 +74,16 @@ const zoomColor = ref('');
 const pitchColor = ref('');
 const bearingDeltaColor = ref('');
 const bearingTotalDeltaColor = ref('');
-const progressZoneColor = ref(''); // New ref
+const progressZoneColor = ref('');
+const progressZoneOpacity = ref(0.1); // New ref for opacity
 
 onMounted(async () => {
   zoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
   pitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
   bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
   bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
-  progressZoneColor.value = toHex(await getSettingValue('Edition/Mapbox/Trace/couleurAvancement')); // Load existing color
+  progressZoneColor.value = toHex(await getSettingValue('Edition/Mapbox/Trace/couleurAvancement'));
+  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone'); // Load new opacity
 });
 
 const props = defineProps({
@@ -62,6 +94,12 @@ const props = defineProps({
   showPitch: { type: Boolean, default: true },
   showBearingDelta: { type: Boolean, default: true },
   showBearingTotalDelta: { type: Boolean, default: true },
+  currentCameraBearing: { type: Number, default: 0 }, // New prop for current camera bearing
+  initialCameraBearing: { type: Number, default: 0 }, // New prop for initial bearing (km 0)
+  currentCameraZoom: { type: Number, default: 0 },
+  defaultCameraZoom: { type: Number, default: 0 },
+  currentCameraPitch: { type: Number, default: 0 },
+  defaultCameraPitch: { type: Number, default: 0 },
 });
 
 const handleGraphClick = (event) => {
@@ -86,6 +124,21 @@ const bearingTotalDeltaToPx = 1;
 const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
 
 const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
+
+const currentBearingDeltaY = computed(() => {
+  let delta = props.currentCameraBearing - props.initialCameraBearing;
+  if (delta > 180) delta -= 360;
+  if (delta < -180) delta += 360;
+  return graphCenterY - (delta * bearingTotalDeltaToPx);
+});
+
+const currentZoomDeltaY = computed(() => {
+  return graphCenterY - ((props.currentCameraZoom - props.defaultCameraZoom) * zoomToPx);
+});
+
+const currentPitchDeltaY = computed(() => {
+  return graphCenterY - ((props.currentCameraPitch - props.defaultCameraPitch) * pitchToPx);
+});
 
 const isScrollable = computed(() => {
   const contentWidth = props.totalLength * kmToPx;

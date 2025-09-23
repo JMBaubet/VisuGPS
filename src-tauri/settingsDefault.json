@@ -286,6 +286,24 @@
                 "type": "couleur",
                 "defaut": "pink",
                 "materialDesign": true
+              },
+              {
+                "identifiant": "couleurAvancementZone",
+                "libelle": "Couleur de la zone d'avancement",
+                "description": "Couleur de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe.",
+                "type": "couleur",
+                "defaut": "blue",
+                "materialDesign": true
+              },
+              {
+                "identifiant": "opaciteAvancementZone",
+                "libelle": "Opacité de la zone d'avancement",
+                "description": "Opacité de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe (0.0 à 1.0).",
+                "type": "reel",
+                "defaut": 0.1,
+                "min": 0.0,
+                "max": 1.0,
+                "decimales": 2
               }
             ]
           },
