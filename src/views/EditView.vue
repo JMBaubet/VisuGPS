@@ -19,6 +19,11 @@
       ></v-switch>
     </div>
 
+    <TrackProgressWidget
+      :totalLength="totalLineLength"
+      :currentDistance="currentProgressDistance"
+    />
+
     <CameraInfoWidget
       :bearing="currentBearing"
       :zoom="currentZoom"
@@ -39,6 +44,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
+import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -53,6 +59,7 @@ const trackingPoints = ref([]);
 const lineStringCoordinates = ref([]); // Pour stocker les coordonnées de la lineString complète
 const totalLineLength = ref(0); // Longueur totale de la lineString
 const progressPercentage = ref(0); // Pourcentage de progression
+const currentProgressDistance = ref(0); // Distance actuelle en km
 const cameraCommandSettings = ref({}); // Pour stocker les paramètres des commandes de la caméra
 const updateCameraOnNav = ref(true); // Switch state
 
@@ -62,7 +69,6 @@ const currentPitch = ref(0);
 const currentBearing = ref(0);
 const defaultZoom = ref(0);
 const defaultPitch = ref(0);
-
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -316,6 +322,7 @@ const updateCameraPosition = (index) => {
     const currentProgressLine = turf.lineSlice(line.geometry.coordinates[0], nearestPoint.geometry.coordinates, line);
     const currentProgressLength = turf.length(currentProgressLine, { units: 'kilometers' });
 
+    currentProgressDistance.value = currentProgressLength;
     progressPercentage.value = (currentProgressLength / totalLineLength.value) * 100;
 
     if (map.getSource('progress-line')) {
