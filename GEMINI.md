@@ -183,7 +183,7 @@ Les informations sur l\'environnement sont centralisées dans un état (`AppStat
 
 ### Etape 0.6 - Réalisée - [4a4db936]
 
-Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d\'éxécutiuon.
+Dans cette étape nous nous assurons que vuetify est correctement installé, et on va configurer un cadre en fonction du contexte d'éxécutiuon.
 
 On ajoute juste un composant `v-btn` à la mainView, pour vérifier qu'il s'affiche correctement.
 
@@ -914,7 +914,7 @@ Le modificateur Shift associé au touches définies ci dessus modifira l'incrém
 
 - Pour le bearing ce sera 5 (paramétrable)
 
-### Affichage des paramétres Caméra -  - []
+### Affichage des paramétres Caméra - Réalisé - [9a4783b4]
 
 Avec les touches du clavier on peut modifier les paramètres de la camera pour modifier notre point de vue. 
 
@@ -927,6 +927,28 @@ ce witget affichera de haut en bas :
 - Le zoom. Si la valeur du zoom est égale à sa valeur par défaut affichage en Vert
 
 - Le pitch. Si la valeur du pitchest égale à sa valeur par défaut affichage en Vert
+
+### Graphe camera
+
+Pour avoir une vue synthétique de tous les paramètres de la caméra, nous allons créer sous forme de widget qui sera affiché en bas de la vue un graphe multiple  à 2 dimentions.
+
+Sur l'axe  X des abcisses, nous allons avoir la distance. 30 pixels pour 1 km. Bien sûr nous allons avoir une scrollBar horizontale pour afficher des distances > 90 km environ.
+
+Sur l'axe  Y plusieurs données sont être affichées : 
+
+- Le zoom qui aura en référence en Y sa valeur par défaut sur l'axe des absicces , et nous afficherons au dessus de l'axe des abcisses les zooms supérieurs à la valeur par défaut (16) et en dessous les valeurs inférieures. un pixel pour 0.1 
+
+- Le bearing. La référence en Y du  bearing sera le bearing du point 0. Ensuite pour chaque incrément de distance on affichera :
+  
+  - le delta avec le point précédent 3 pixels pour 1° d'ecart
+  
+  - Le delta depuis le Km 0 (1 pixels pour 1°)
+
+- Le  pitch qui aura en référence en Y sa valeur par défaut sur l'axe des absicces , et nous afficherons au dessus de l'axe des abcisses les pitchs supérieurs à la valeur par défaut (16) et en dessous les valeurs inférieures. un pixel pour 1°
+
+Un barre verticale ou un rectangle d'une opacité de 20% doit permettre de nous indiquer ou nous en sommes sur la progression de la caméra.
+
+
 
 ---
 
