@@ -83,7 +83,7 @@ const pitchToPx = 1; // 1px pour 1 degré
 const bearingDeltaToPx = 3; // 3px pour 1 degré de delta
 const bearingTotalDeltaToPx = 1; // 1px pour 1 degré de delta total
 
-const svgWidth = computed(() => props.totalLength * kmToPx);
+const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
 
 const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
 
@@ -228,7 +228,12 @@ const bearingTotalDeltaPath = computed(() => {
 .graph-container {
   width: 100%;
   height: 100%;
-  overflow-x: auto;
+  overflow-x: hidden; /* Hide by default */
+  overflow-y: hidden; /* Prevent vertical scroll caused by horizontal scrollbar */
+}
+
+.graph-container.is-scrollable {
+  overflow-x: auto; /* Show only when needed */
 }
 
 .axis-line {

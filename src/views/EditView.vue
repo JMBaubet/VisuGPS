@@ -9,7 +9,12 @@
     </div>
 
     <!-- Switch Container -->
-    <div class="control-widget" style="position: absolute; top: 10px; left: 132px; z-index: 1000;">
+    <v-sheet
+      class="control-widget"
+      style="position: absolute; top: 10px; left: 132px; z-index: 1000;"
+      height="48"
+      rounded="pill"
+    >
       <v-switch
         v-model="updateCameraOnNav"
         color="primary"
@@ -17,7 +22,23 @@
         hide-details
         density="compact"
       ></v-switch>
-    </div>
+    </v-sheet>
+
+    <!-- Graph Toggle Switch -->
+    <v-sheet
+      class="control-widget"
+      style="position: absolute; bottom: 30px; right: 10px; z-index: 1000;"
+      height="48"
+      rounded="pill"
+    >
+        <v-switch
+          v-model="showGraph"
+          color="primary"
+          label="Graph"
+          hide-details
+          density="compact"
+        ></v-switch>
+    </v-sheet>
 
     <TrackProgressWidget
       :totalLength="totalLineLength"
@@ -33,7 +54,7 @@
     />
 
     <CameraGraph 
-      v-if="trackingPoints.length > 0"
+      v-if="trackingPoints.length > 0 && showGraph"
       :trackingPoints="trackingPoints"
       :totalLength="totalLineLength"
       :currentDistance="currentProgressDistance"
@@ -71,6 +92,7 @@ const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const updateCameraOnNav = ref(true);
+const showGraph = ref(true);
 
 const currentZoom = ref(0);
 const currentPitch = ref(0);
@@ -440,12 +462,8 @@ onUnmounted(() => {
 }
 
 .control-widget {
-  background-color: rgba(var(--v-theme-surface), 0.8);
-  backdrop-filter: blur(4px);
-  border-radius: 28px; /* Pill shape */
   padding: 0 16px 0 8px; /* Adjust padding for switch */
   display: flex;
   align-items: center;
-  height: 40px; /* Match button height */
 }
 </style>
