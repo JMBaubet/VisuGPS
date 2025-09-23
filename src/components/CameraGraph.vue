@@ -1,13 +1,6 @@
 <template>
-  <div class="graph-container-wrapper">
-    <div class="graph-controls">
-      <v-checkbox v-model="showZoom" label="Zoom" color="#4CAF50" density="compact" hide-details></v-checkbox>
-      <v-checkbox v-model="showPitch" label="Pitch" color="#2196F3" density="compact" hide-details></v-checkbox>
-      <v-checkbox v-model="showBearingDelta" label="Δ Bearing (prev)" color="#FFC107" density="compact" hide-details></v-checkbox>
-      <v-checkbox v-model="showBearingTotalDelta" label="Δ Bearing (total)" color="#E91E63" density="compact" hide-details></v-checkbox>
-    </div>
-
-    <div class="graph-container" ref="scrollContainer">
+  <div class="graph-container-wrapper" @wheel.prevent>
+    <div class="graph-container" :class="{ 'is-scrollable': isScrollable }" ref="scrollContainer">
       <svg :width="svgWidth" :height="svgHeight" @click="handleGraphClick">
         <!-- Axe X de référence -->
         <line :x1="0" :y1="graphCenterY" :x2="svgWidth" :y2="graphCenterY" class="axis-line" />
@@ -19,16 +12,16 @@
         </g>
 
         <!-- Graphique du Zoom -->
-        <path v-if="showZoom" :d="zoomPath" class="zoom-path" />
+        <path v-if="props.showZoom" :d="zoomPath" class="zoom-path" />
 
         <!-- Graphique du Pitch -->
-        <path v-if="showPitch" :d="pitchPath" class="pitch-path" />
+        <path v-if="props.showPitch" :d="pitchPath" class="pitch-path" />
 
         <!-- Graphique du Bearing (Delta vs Précédent) -->
-        <path v-if="showBearingDelta" :d="bearingDeltaPath" class="bearing-delta-path" />
+        <path v-if="props.showBearingDelta" :d="bearingDeltaPath" class="bearing-delta-path" />
 
         <!-- Graphique du Bearing (Delta vs Début) -->
-        <path v-if="showBearingTotalDelta" :d="bearingTotalDeltaPath" class="bearing-total-delta-path" />
+        <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" class="bearing-total-delta-path" />
 
         <!-- Indicateur de progression -->
         <rect :x="progressIndicatorX" y="0" width="3" :height="svgHeight" class="progress-indicator" />
@@ -43,22 +36,16 @@ import { ref, computed, watch } from 'vue';
 const emit = defineEmits(['seek-distance']);
 
 const props = defineProps({
-  trackingPoints: {
-    type: Array,
-    required: true,
-  },
-  totalLength: {
-    type: Number,
-    required: true,
-  },
-  currentDistance: {
-    type: Number,
-    required: true,
-  },
+  trackingPoints: { type: Array, required: true },
+  totalLength: { type: Number, required: true },
+  currentDistance: { type: Number, required: true },
+  showZoom: { type: Boolean, default: true },
+  showPitch: { type: Boolean, default: true },
+  showBearingDelta: { type: Boolean, default: true },
+  showBearingTotalDelta: { type: Boolean, default: true },
 });
 
 const handleGraphClick = (event) => {
-  // Get click position relative to the SVG element itself
   const svgRect = event.currentTarget.getBoundingClientRect();
   const x = event.clientX - svgRect.left;
   
@@ -66,26 +53,26 @@ const handleGraphClick = (event) => {
   emit('seek-distance', clickedKm);
 };
 
-// Visibility states
-const showZoom = ref(true);
-const showPitch = ref(true);
-const showBearingDelta = ref(true);
-const showBearingTotalDelta = ref(true);
-
 const scrollContainer = ref(null);
-const svgHeight = 400; // Hauteur fixe pour le widget
+const svgHeight = 400;
 const graphCenterY = svgHeight / 2;
 
 // --- Échelles ---
-const kmToPx = 30; // 30px pour 1 km
-const zoomToPx = 1 / 0.1; // 1px pour 0.1 de zoom
-const pitchToPx = 1; // 1px pour 1 degré
-const bearingDeltaToPx = 3; // 3px pour 1 degré de delta
-const bearingTotalDeltaToPx = 1; // 1px pour 1 degré de delta total
+const kmToPx = 30;
+const zoomToPx = 1 / 0.1;
+const pitchToPx = 1;
+const bearingDeltaToPx = 3;
+const bearingTotalDeltaToPx = 1;
 
 const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
 
 const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
+
+const isScrollable = computed(() => {
+  const contentWidth = props.totalLength * kmToPx;
+  const containerWidth = 1500;
+  return contentWidth > containerWidth;
+});
 
 // --- Génération des repères --- 
 const xMarkers = computed(() => {
@@ -108,8 +95,8 @@ const xMarkers = computed(() => {
 watch(() => props.currentDistance, (newDistance) => {
   if (!scrollContainer.value) return;
 
-  const indicatorMarginKm = 10; // Keep indicator 10km from the left edge
-  const endBufferKm = 40; // Stop auto-scrolling when 40km from the end
+  const indicatorMarginKm = 10;
+  const endBufferKm = 40;
 
   const scrollWidth = scrollContainer.value.scrollWidth;
   const clientWidth = scrollContainer.value.clientWidth;
@@ -117,7 +104,6 @@ watch(() => props.currentDistance, (newDistance) => {
 
   let targetScrollLeft = (newDistance - indicatorMarginKm) * kmToPx;
 
-  // Clamp the scroll position
   if (targetScrollLeft < 0) {
     targetScrollLeft = 0;
   }
@@ -125,12 +111,10 @@ watch(() => props.currentDistance, (newDistance) => {
     targetScrollLeft = maxScrollLeft;
   }
 
-  // Override if near the start or end based on user logic
   if (newDistance <= indicatorMarginKm) {
     targetScrollLeft = 0;
   } else if (newDistance >= props.totalLength - endBufferKm) {
-    // When near the end, we let the clamped value take over, 
-    // which will be maxScrollLeft, so no special action needed.
+    // Let clamped value take over
   }
 
   scrollContainer.value.scrollTo({
@@ -166,7 +150,6 @@ const bearingDeltaPath = computed(() => {
   return props.trackingPoints.map((p, i) => {
     const x = p.distance * kmToPx;
     let delta = p.cap - lastBearing;
-    // Handle circular wrap-around for shortest angle
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
     
@@ -182,7 +165,6 @@ const bearingTotalDeltaPath = computed(() => {
   return props.trackingPoints.map((p, i) => {
     const x = p.distance * kmToPx;
     let delta = p.cap - initialBearing;
-    // Handle circular wrap-around for shortest angle
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
 
@@ -208,21 +190,6 @@ const bearingTotalDeltaPath = computed(() => {
   z-index: 1000;
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
-}
-
-.graph-controls {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1010; /* Above the graph svg */
-  background-color: rgba(var(--v-theme-surface), 0.7);
-  backdrop-filter: blur(2px);
-  border-radius: 6px;
-  padding: 4px 12px;
-}
-
-.graph-controls .v-checkbox {
-  font-size: 0.8rem;
 }
 
 .graph-container {

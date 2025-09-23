@@ -24,20 +24,27 @@
       ></v-switch>
     </v-sheet>
 
-    <!-- Graph Toggle Switch -->
+    <!-- Graph Controls Container -->
     <v-sheet
       class="control-widget"
-      style="position: absolute; bottom: 30px; right: 10px; z-index: 1000;"
-      height="48"
-      rounded="pill"
+      style="position: absolute; bottom: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px;"
+      rounded="lg"
     >
-        <v-switch
-          v-model="showGraph"
-          color="primary"
-          label="Graph"
-          hide-details
-          density="compact"
-        ></v-switch>
+      <v-switch
+        v-model="showGraph"
+        color="primary"
+        label="Graph"
+        hide-details
+        density="compact"
+        style="margin-left: 8px; margin-right: 8px;"
+      ></v-switch>
+
+      <div v-if="showGraph" style="display: flex; flex-direction: column; gap: 4px;">
+        <v-switch v-model="showBearingDelta" label="Δ Bearing" color="amber" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingTotalDelta" label="ΣΔ Bearing" color="pink" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showZoom" label="Zoom" color="green" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showPitch" label="Pitch" color="blue" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+      </div>
     </v-sheet>
 
     <TrackProgressWidget
@@ -53,11 +60,17 @@
       :defaultPitch="defaultPitch"
     />
 
+ 
+
     <CameraGraph 
       v-if="trackingPoints.length > 0 && showGraph"
       :trackingPoints="trackingPoints"
       :totalLength="totalLineLength"
       :currentDistance="currentProgressDistance"
+      :showZoom="showZoom"
+      :showPitch="showPitch"
+      :showBearingDelta="showBearingDelta"
+      :showBearingTotalDelta="showBearingTotalDelta"
       @seek-distance="handleSeekDistance"
     />
   </v-container>
@@ -93,6 +106,11 @@ const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const updateCameraOnNav = ref(true);
 const showGraph = ref(true);
+
+const showZoom = ref(true);
+const showPitch = ref(true);
+const showBearingDelta = ref(true);
+const showBearingTotalDelta = ref(true);
 
 const currentZoom = ref(0);
 const currentPitch = ref(0);
