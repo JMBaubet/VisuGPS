@@ -40,10 +40,10 @@
       ></v-switch>
 
       <div v-if="showGraph" style="display: flex; flex-direction: column; gap: 4px;">
-        <v-switch v-model="showBearingDelta" label="Δ Bearing" color="amber" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showBearingTotalDelta" label="ΣΔ Bearing" color="pink" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showZoom" label="Zoom" color="green" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showPitch" label="Pitch" color="blue" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingDelta" label="Δ Bearing" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingTotalDelta" label="ΣΔ Bearing" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showZoom" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showPitch" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
       </div>
     </v-sheet>
 
@@ -82,6 +82,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
+import { useVuetifyColors } from '@/composables/useVuetifyColors'; // New import
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
@@ -111,6 +112,14 @@ const showZoom = ref(true);
 const showPitch = ref(true);
 const showBearingDelta = ref(true);
 const showBearingTotalDelta = ref(true);
+
+// Graph curve colors
+const graphZoomColor = ref('green'); // Default to green
+const graphPitchColor = ref('blue'); // Default to blue
+const graphBearingDeltaColor = ref('amber'); // Default to amber
+const graphBearingTotalDeltaColor = ref('pink'); // Default to pink
+
+const { toHex } = useVuetifyColors(); // New line
 
 const currentZoom = ref(0);
 const currentPitch = ref(0);
@@ -322,6 +331,12 @@ onMounted(async () => {
       couleurAvancement = await invoke('convert_vuetify_color', { colorName: couleurAvancement });
     }
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
+
+    // Load graph curve colors
+    graphZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
+    graphPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
+    graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
+    graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
 
     cameraCommandSettings.value = {
       zoomInKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomInKey'),

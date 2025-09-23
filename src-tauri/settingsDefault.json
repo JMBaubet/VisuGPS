@@ -253,6 +253,43 @@
             ]
           },
           {
+            "libelle": "Graphe",
+            "parametres": [
+              {
+                "identifiant": "couleurZoom",
+                "libelle": "Couleur du Zoom",
+                "description": "Couleur de la courbe de zoom sur le graphe.",
+                "type": "couleur",
+                "defaut": "green",
+                "materialDesign": true
+              },
+              {
+                "identifiant": "couleurPitch",
+                "libelle": "Couleur du Pitch",
+                "description": "Couleur de la courbe de pitch sur le graphe.",
+                "type": "couleur",
+                "defaut": "blue",
+                "materialDesign": true
+              },
+              {
+                "identifiant": "couleurBearingDelta",
+                "libelle": "Couleur du Delta Bearing",
+                "description": "Couleur de la courbe du delta de cap sur le graphe.",
+                "type": "couleur",
+                "defaut": "amber",
+                "materialDesign": true
+              },
+              {
+                "identifiant": "couleurBearingTotalDelta",
+                "libelle": "Couleur du Somme Delta Bearing",
+                "description": "Couleur de la courbe du delta de cap total sur le graphe.",
+                "type": "couleur",
+                "defaut": "pink",
+                "materialDesign": true
+              }
+            ]
+          },
+          {
             "libelle": "Mapbox",
             "parametres": [
               {

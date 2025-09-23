@@ -12,16 +12,16 @@
         </g>
 
         <!-- Graphique du Zoom -->
-        <path v-if="props.showZoom" :d="zoomPath" class="zoom-path" />
+        <path v-if="props.showZoom" :d="zoomPath" :style="{ stroke: zoomColor }" />
 
         <!-- Graphique du Pitch -->
-        <path v-if="props.showPitch" :d="pitchPath" class="pitch-path" />
+        <path v-if="props.showPitch" :d="pitchPath" :style="{ stroke: pitchColor }" />
 
         <!-- Graphique du Bearing (Delta vs Précédent) -->
-        <path v-if="props.showBearingDelta" :d="bearingDeltaPath" class="bearing-delta-path" />
+        <path v-if="props.showBearingDelta" :d="bearingDeltaPath" :style="{ stroke: bearingDeltaColor }" />
 
         <!-- Graphique du Bearing (Delta vs Début) -->
-        <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" class="bearing-total-delta-path" />
+        <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" :style="{ stroke: bearingTotalDeltaColor }" />
 
         <!-- Indicateur de progression -->
         <rect :x="progressIndicatorX" y="0" width="3" :height="svgHeight" class="progress-indicator" />
@@ -31,9 +31,26 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useSettings } from '@/composables/useSettings';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const emit = defineEmits(['seek-distance']);
+
+const { getSettingValue } = useSettings();
+const { toHex } = useVuetifyColors();
+
+const zoomColor = ref('');
+const pitchColor = ref('');
+const bearingDeltaColor = ref('');
+const bearingTotalDeltaColor = ref('');
+
+onMounted(async () => {
+  zoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
+  pitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
+  bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
+  bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
+});
 
 const props = defineProps({
   trackingPoints: { type: Array, required: true },
@@ -225,21 +242,7 @@ path {
   stroke-width: 1.5;
 }
 
-.zoom-path {
-  stroke: #4CAF50; /* Green */
-}
-
-.pitch-path {
-  stroke: #2196F3; /* Blue */
-}
-
-.bearing-delta-path {
-  stroke: #FFC107; /* Amber */
-}
-
-.bearing-total-delta-path {
-  stroke: #E91E63; /* Pink */
-}
+ 
 
 .progress-indicator {
   fill: rgba(var(--v-theme-primary), 0.4);
