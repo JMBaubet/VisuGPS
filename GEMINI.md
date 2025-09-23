@@ -890,7 +890,7 @@ On ajoutera une couche pour afficher le lineString. La visualisation de la lineS
 
 Sur la vue EditView.vue prévoir un overlay situé en haut à gauche pour revenir sur la vue pricipale.
 
-### Mise en place des interractions clavier -  - []
+### Mise en place des interractions clavier - Réalisé - [0356d6d3]
 
 Dans le vue EditView.vue, nous avons désactivé sur la carte MapBox les commandes de la souris. Nous allons les remplacer par des commandes claviers paramétrables dans le fichier settingDefault.json sous Edition/Mapbox/CommandesCamera
 
@@ -913,6 +913,20 @@ Le modificateur Shift associé au touches définies ci dessus modifira l'incrém
 - Pour le pitch ce sera 5 (paramétrable)
 
 - Pour le bearing ce sera 5 (paramétrable)
+
+### Affichage des paramétres Caméra -  - []
+
+Avec les touches du clavier on peut modifier les paramètres de la camera pour modifier notre point de vue. 
+
+Afin que l'utilisateur sache si il est loin ou proche des valeurs par défaut pour le zoom et le pitch, et qu'il sache dans quelle direction l ecaméra est pointée, nous avons afficher ces paramètres dans un widget qui sera situé en haut à droite de la vue 
+
+ce witget affichera de haut en bas :
+
+- Le bearing
+
+- Le zoom. Si la valeur du zoom est égale à sa valeur par défaut affichage en Vert
+
+- Le pitch. Si la valeur du pitchest égale à sa valeur par défaut affichage en Vert
 
 ---
 

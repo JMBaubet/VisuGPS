@@ -4,6 +4,14 @@
 
     <v-btn icon="mdi-arrow-left" @click="goBack" class="ma-2" style="position: absolute; top: 0; left: 0; z-index: 1000;"></v-btn>
     <v-btn icon="mdi-content-save" @click="saveCameraPosition" class="ma-2" style="position: absolute; top: 0; left: 60px; z-index: 1000;"></v-btn>
+
+    <CameraInfoWidget
+      :bearing="currentBearing"
+      :zoom="currentZoom"
+      :pitch="currentPitch"
+      :defaultZoom="defaultZoom"
+      :defaultPitch="defaultPitch"
+    />
   </v-container>
 </template>
 
@@ -16,6 +24,7 @@ import { useSettings } from '@/composables/useSettings';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
+import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +40,14 @@ const lineStringCoordinates = ref([]); // Pour stocker les coordonnées de la li
 const totalLineLength = ref(0); // Longueur totale de la lineString
 const progressPercentage = ref(0); // Pourcentage de progression
 const cameraCommandSettings = ref({}); // Pour stocker les paramètres des commandes de la caméra
+
+// Reactive state for camera parameters display
+const currentZoom = ref(0);
+const currentPitch = ref(0);
+const currentBearing = ref(0);
+const defaultZoom = ref(0);
+const defaultPitch = ref(0);
+
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -143,6 +160,13 @@ onMounted(async () => {
     const initialPitch = firstPoint.pitch;
     const initialBearing = firstPoint.cap; // Cap est la direction (bearing) en Mapbox
 
+    // Initialize default and current values for the widget
+    defaultZoom.value = initialZoom;
+    defaultPitch.value = initialPitch;
+    currentZoom.value = initialZoom;
+    currentPitch.value = initialPitch;
+    currentBearing.value = initialBearing;
+
     map = new mapboxgl.Map({
       container: mapContainer.value,
       style: styleVisualisation,
@@ -155,6 +179,13 @@ onMounted(async () => {
 
     // Activer la 3D du terrain
     map.on('load', () => {
+      // Update reactive refs on camera move
+      map.on('move', () => {
+        currentZoom.value = map.getZoom();
+        currentPitch.value = map.getPitch();
+        currentBearing.value = map.getBearing();
+      });
+
       // Désactiver toutes les interactions de la souris
       map.boxZoom.disable();
       map.doubleClickZoom.disable();
