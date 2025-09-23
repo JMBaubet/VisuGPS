@@ -928,7 +928,7 @@ ce witget affichera de haut en bas :
 
 - Le pitch. Si la valeur du pitchest égale à sa valeur par défaut affichage en Vert
 
-### Graphe camera
+### Graphe camera - réalisé - [f5bdf092]
 
 Pour avoir une vue synthétique de tous les paramètres de la caméra, nous allons créer sous forme de widget qui sera affiché en bas de la vue un graphe multiple  à 2 dimentions.
 
@@ -940,13 +940,43 @@ Sur l'axe  Y plusieurs données sont être affichées :
 
 - Le bearing. La référence en Y du  bearing sera le bearing du point 0. Ensuite pour chaque incrément de distance on affichera :
   
-  - le delta avec le point précédent 3 pixels pour 1° d'ecart
+  - Le delta avec le point précédent 3 pixels pour 1° d'ecart
   
   - Le delta depuis le Km 0 (1 pixels pour 1°)
 
 - Le  pitch qui aura en référence en Y sa valeur par défaut sur l'axe des absicces , et nous afficherons au dessus de l'axe des abcisses les pitchs supérieurs à la valeur par défaut (16) et en dessous les valeurs inférieures. un pixel pour 1°
 
-Un barre verticale ou un rectangle d'une opacité de 20% doit permettre de nous indiquer ou nous en sommes sur la progression de la caméra.
+Un barre verticale ou un rectangle d'une opacité de 15% doit permettre de nous indiquer ou nous en sommes sur la progression de la caméra.
+
+### Ajout d'un point de control -  - []
+
+Le but de la vue EditView est de mettre à jour le fichier tracking.json.
+
+un point de control est un point qui sert de référence pour le tracking. 
+
+Son ajout est déclenché par le click sur le bouton *mdi-content-save*
+
+Chaque point enregistré aura son attribut pointDeControl à true. 
+
+Un point de control à true, sera représenté sur le graphe par un trait vertical de 20 pixels et d'une épaisseur de 3 pixels sur la partie supérieure du graphe. Par défaut il sera en rouge. 
+
+Lors de la progression si nous sommes  sur un point de control à true un bouton delete devra être affiché.
+
+L'enregistrement d'un point de control sera déclenché par le bouton save. 
+
+Si on fait un enregistrement sur un point de control dejà à true une confirmation devra être demandée.
+
+Quand on enregistre un point de control :
+
+- on met a jour les paramètres de la camera pour le point en cours de traitement. 
+
+- on cherche dans le fichier tracking.json le point de control précédent. Sur ce point de control précedent on met à jour nbrSegment qui correspont au nombre de segment entre les deux points de control. 
+
+- On cherche dans le fichier tracking.json si il existe un point de control suivant. Si c'est le cas on calcul le nombre de segment qui nous sépare de lui et on met à jour notre paramètres nbrSegment. 
+
+- Pour chaque points intermédaires entre le nouveau point de control et ses voisins  on calcule le bearing, le zoom et le pictch  des point intermédiaire pour avoir une progression linéaire entre les points.
+
+- on mets à jour le graphe avec le nouveau point de control et les nouvelles valeurs calculées
 
 
 

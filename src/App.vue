@@ -38,7 +38,7 @@ onMounted(async () => {
   // Restore theme from localStorage
   const savedTheme = window.localStorage.getItem('theme');
   if (savedTheme) {
-    theme.global.name.value = savedTheme;
+    theme.change(savedTheme);
   }
 });
 

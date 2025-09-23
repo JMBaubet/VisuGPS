@@ -26,18 +26,18 @@ const theme = useTheme();
 const isDarkTheme = ref(false);
 
 const toggleTheme = () => {
-  theme.global.name.value = isDarkTheme.value ? 'dark' : 'light';
-  localStorage.setItem('theme', theme.global.name.value);
+  theme.change(isDarkTheme.value ? 'dark' : 'light');
+  localStorage.setItem('theme', isDarkTheme.value ? 'dark' : 'light'); // Update localStorage with the new theme name
 };
 
 onMounted(() => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
-    theme.global.name.value = savedTheme;
+    theme.change(savedTheme);
     isDarkTheme.value = savedTheme === 'dark';
   } else {
     // Default to dark theme if no preference is saved
-    theme.global.name.value = 'dark';
+    theme.change('dark');
     isDarkTheme.value = true;
   }
 });

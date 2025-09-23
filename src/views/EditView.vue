@@ -248,8 +248,22 @@ const updateCameraPosition = (index) => {
     currentProgressDistance.value = point.distance;
     progressPercentage.value = (point.distance / totalLineLength.value) * 100;
 
-    const line = turf.lineString(lineStringCoordinates.value);
-    const slicedLine = turf.lineSliceAlong(line, 0, point.distance, { units: 'kilometers' });
+    const line = turf.lineString(lineStringCoordinates.value); // Use original ref value directly
+    let slicedLine;
+
+    if (point.distance === 0) {
+      // If at the start, set to an empty LineString or a LineString with just the first point
+      slicedLine = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [], // Empty LineString
+        },
+      };
+    } else {
+      slicedLine = turf.lineSliceAlong(line, 0, point.distance, { units: 'kilometers' });
+    }
 
     if (map.getSource('progress-line')) {
       map.getSource('progress-line').setData(slicedLine);
@@ -388,8 +402,7 @@ onMounted(async () => {
     graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
     graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
 
-    console.log('couleurAvancement before passing to widget:', couleurAvancement); // Debug log
-    console.log('traceColor before passing to widget:', traceColor); // Debug log
+ 
 
     cameraCommandSettings.value = {
       zoomInKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomInKey'),
