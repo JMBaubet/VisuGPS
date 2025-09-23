@@ -9,20 +9,30 @@
     </div>
 
     <!-- Switch Container -->
-    <v-sheet
-      class="control-widget"
-      style="position: absolute; top: 10px; left: 132px; z-index: 1000;"
-      height="48"
-      rounded="pill"
-    >
-      <v-switch
-        v-model="updateCameraOnNav"
-        color="primary"
-        label="Sync Cam"
-        hide-details
-        density="compact"
-      ></v-switch>
-    </v-sheet>
+    <div style="position: absolute; top: 10px; left: 132px; z-index: 1000; display: flex; align-items: center;">
+      <v-sheet
+        class="control-widget"
+        height="48"
+        rounded="pill"
+      >
+        <v-switch
+          v-model="updateCameraOnNav"
+          color="primary"
+          label="Sync Cam"
+          hide-details
+          density="compact"
+        ></v-switch>
+      </v-sheet>
+
+      <v-btn
+        v-if="!updateCameraOnNav"
+        icon="mdi-camera-retake"
+        @click="forceUpdateCamera"
+        class="ml-2"
+        color="info"
+        size="small"
+      ></v-btn>
+    </div>
 
     <!-- Graph Controls Container -->
     <v-sheet
@@ -50,6 +60,8 @@
     <TrackProgressWidget
       :totalLength="totalLineLength"
       :currentDistance="currentProgressDistance"
+      :progressColor="couleurAvancement"
+      :lineStringColor="traceColor"
     />
 
     <CameraInfoWidget
@@ -107,9 +119,12 @@ const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const updateCameraOnNav = ref(true);
 const showGraph = ref(true);
+const couleurAvancement = ref(''); // Declare as ref
+const traceColor = ref('#FFA726'); // Initialize traceColor with a default hex color (e.g., orange)
+const mapboxAvancementColorHex = ref(''); // New ref for Mapbox hex color
 
-const showZoom = ref(true);
-const showPitch = ref(true);
+const showZoom = ref(false);
+const showPitch = ref(false);
 const showBearingDelta = ref(true);
 const showBearingTotalDelta = ref(true);
 
@@ -161,6 +176,26 @@ const saveCameraPosition = async () => {
   }
 };
 
+const forceUpdateCamera = () => {
+  if (!updateCameraOnNav.value) { // Only allow if sync is off
+    const point = trackingPoints.value[currentPointIndex.value];
+    if (point) {
+      currentZoom.value = point.zoom;
+      currentPitch.value = point.pitch;
+      currentBearing.value = point.cap;
+
+      map.flyTo({
+        center: point.coordonnee, // Always update center
+        zoom: currentZoom.value,
+        pitch: currentPitch.value,
+        bearing: currentBearing.value,
+        essential: true,
+        duration: 1000 // Add duration for smoother animation (1 second)
+      });
+    }
+  }
+};
+
 const handleSeekDistance = (distanceInKm) => {
   if (!trackingPoints.value || trackingPoints.value.length === 0) return;
 
@@ -183,24 +218,25 @@ const updateCameraPosition = (index) => {
 
   const point = trackingPoints.value[index];
 
+  // Always update the map center
+  const flyToOptions = {
+    center: point.coordonnee,
+    essential: true
+  };
+
   if (updateCameraOnNav.value) {
+    // If Sync Cam is ON, update zoom, pitch, bearing automatically
     currentZoom.value = point.zoom;
     currentPitch.value = point.pitch;
     currentBearing.value = point.cap;
-
-    map.flyTo({
-      center: point.coordonnee,
-      zoom: currentZoom.value,
-      pitch: currentPitch.value,
-      bearing: currentBearing.value,
-      essential: true
-    });
-  } else {
-    map.flyTo({
-      center: point.coordonnee,
-      essential: true
-    });
+    flyToOptions.zoom = currentZoom.value;
+    flyToOptions.pitch = currentPitch.value;
+    flyToOptions.bearing = currentBearing.value;
   }
+  // If Sync Cam is OFF, zoom, pitch, bearing are NOT updated automatically here.
+  // They will only be updated when forceUpdateCamera is called.
+
+  map.flyTo(flyToOptions);
 
   if (totalLineLength.value > 0) {
     currentProgressDistance.value = point.distance;
@@ -320,15 +356,23 @@ onMounted(async () => {
     mapboxgl.accessToken = mapboxToken;
 
     const styleVisualisation = await getSettingValue('Edition/Mapbox/styleVisualisation');
-    let traceColor = await getSettingValue('Edition/Mapbox/Trace/couleur');
-    if (traceColor && !traceColor.startsWith('#')) {
-      traceColor = await invoke('convert_vuetify_color', { colorName: traceColor });
+    let rawTraceColor = await getSettingValue('Edition/Mapbox/Trace/couleur');
+    if (rawTraceColor && !rawTraceColor.startsWith('#')) {
+      traceColor.value = await invoke('convert_vuetify_color', { colorName: rawTraceColor });
+    } else {
+      traceColor.value = rawTraceColor;
     }
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
     const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
-    let couleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
-    if (couleurAvancement && !couleurAvancement.startsWith('#')) {
-      couleurAvancement = await invoke('convert_vuetify_color', { colorName: couleurAvancement });
+    let rawCouleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
+    // Extract the base color name (e.g., "yellow" from "yellow-darken-4")
+    if (rawCouleurAvancement) {
+      const parts = rawCouleurAvancement.split('-');
+      couleurAvancement.value = parts[0]; // Take the first part as the base color name
+      mapboxAvancementColorHex.value = toHex(couleurAvancement.value); // Convert to hex for Mapbox
+    } else {
+      couleurAvancement.value = 'primary'; // Fallback if not found
+      mapboxAvancementColorHex.value = toHex('primary'); // Convert fallback to hex
     }
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
@@ -337,6 +381,9 @@ onMounted(async () => {
     graphPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
     graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
     graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
+
+    console.log('couleurAvancement before passing to widget:', couleurAvancement); // Debug log
+    console.log('traceColor before passing to widget:', traceColor); // Debug log
 
     cameraCommandSettings.value = {
       zoomInKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomInKey'),
@@ -434,11 +481,10 @@ onMounted(async () => {
           'line-join': 'round',
           'line-cap': 'round',
         },
-        paint: {
-          'line-color': traceColor,
-          'line-width': traceWidth,
-        },
-      });
+                  paint: {
+                    'line-color': traceColor.value, // Explicitly use .value
+                    'line-width': traceWidth,
+                  },      });
 
       map.addSource('progress-line', {
         type: 'geojson',
@@ -461,7 +507,7 @@ onMounted(async () => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': couleurAvancement,
+          'line-color': mapboxAvancementColorHex.value, // Use hex color for Mapbox
           'line-width': epaisseurAvancement,
         },
       });

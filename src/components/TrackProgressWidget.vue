@@ -1,7 +1,10 @@
 <template>
   <div class="progress-widget">
     <div class="d-flex flex-column align-center">
-      <span class="value">{{ currentDistance.toFixed(2) }} / {{ totalLength.toFixed(2) }} km</span>
+      <span class="value">
+        <span :style="{ color: progressColor }">{{ currentDistance.toFixed(2) }}</span>
+        <span :style="{ color: lineStringColor }"> / {{ totalLength.toFixed(2) }} km</span>
+      </span>
       <span class="label">Progression</span>
     </div>
   </div>
@@ -16,6 +19,14 @@ defineProps({
   currentDistance: {
     type: Number,
     required: true,
+  },
+  progressColor: {
+    type: String,
+    default: 'rgba(var(--v-theme-primary), 1)', // Default to primary theme color
+  },
+  lineStringColor: {
+    type: String,
+    default: 'rgba(var(--v-theme-on-surface), 0.7)', // Default to a subtle color
   },
 });
 </script>

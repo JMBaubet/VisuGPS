@@ -16,12 +16,10 @@ const findParameterNode = (path) => {
   let current = settings.value.data;
 
   for (const part of parts) {
-    console.log(`[findParameterNode] Searching for group part: "${part}"`);
     if (!current.groupes) {
       console.warn(`[findParameterNode] Current node has no 'groupes' for part: "${part}"`);
       return null;
     }
-    console.log('[findParameterNode] Current groupes:', current.groupes.map(g => g.libelle));
     const nextGroup = current.groupes.find(g => g.libelle === part);
     if (!nextGroup) {
       console.warn(`[findParameterNode] Group not found for part: "${part}"`);
@@ -54,7 +52,6 @@ export function useSettings() {
   const initSettings = async () => {
     try {
       settings.value = await invoke('read_settings');
-      console.log('[useSettings] Settings loaded:', settings.value); // Add this line
     } catch (error) {
       console.error("Erreur lors du chargement initial des paramètres:", error);
       settings.value = null;
@@ -62,18 +59,14 @@ export function useSettings() {
   };
 
   const getSettingValue = (path) => {
-    console.log(`[useSettings] Attempting to get setting for path: ${path}`);
-    console.log('[useSettings] Current settings.value:', settings.value);
     const paramNode = findParameterNode(path);
     if (!paramNode) {
       console.warn(`[useSettings] Paramètre non trouvé pour le chemin: ${path}`);
       return undefined;
     }
     if (paramNode.surcharge != null && paramNode.surcharge !== '') {
-      console.log(`[useSettings] Returning surcharge for ${path}:`, paramNode.surcharge);
       return paramNode.surcharge;
     }
-    console.log(`[useSettings] Returning default for ${path}:`, paramNode.defaut);
     return paramNode.defaut;
   };
 

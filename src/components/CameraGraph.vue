@@ -23,8 +23,8 @@
         <!-- Graphique du Bearing (Delta vs Début) -->
         <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" :style="{ stroke: bearingTotalDeltaColor }" />
 
-        <!-- Indicateur de progression -->
-        <rect :x="progressIndicatorX" y="0" width="3" :height="svgHeight" class="progress-indicator" />
+        <!-- Zone d'avancement -->
+        <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" opacity="0.1" />
       </svg>
     </div>
   </div>
@@ -44,12 +44,14 @@ const zoomColor = ref('');
 const pitchColor = ref('');
 const bearingDeltaColor = ref('');
 const bearingTotalDeltaColor = ref('');
+const progressZoneColor = ref(''); // New ref
 
 onMounted(async () => {
   zoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
   pitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
   bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
   bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
+  progressZoneColor.value = toHex(await getSettingValue('Edition/Mapbox/Trace/couleurAvancement')); // Load existing color
 });
 
 const props = defineProps({
@@ -244,7 +246,5 @@ path {
 
  
 
-.progress-indicator {
-  fill: rgba(var(--v-theme-primary), 0.4);
-}
+ 
 </style>
