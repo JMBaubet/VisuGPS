@@ -3,17 +3,17 @@
     <v-card-text class="pa-2">
       <div class="d-flex justify-space-between align-center">
         <span class="label">Bearing:</span>
-        <span class="value">{{ bearing.toFixed(2) }}°</span>
+        <span class="value">{{ bearing.toFixed(0) }}°</span>
       </div>
       <v-divider class="my-1"></v-divider>
       <div class="d-flex justify-space-between align-center">
         <span class="label">Zoom:</span>
-        <span class="value" :class="{ 'text-green': isZoomDefault }">{{ zoom.toFixed(2) }}</span>
+        <span class="value" :class="{ 'text-green': isZoomDefault }">{{ zoom.toFixed(1) }}</span>
       </div>
       <v-divider class="my-1"></v-divider>
       <div class="d-flex justify-space-between align-center">
         <span class="label">Pitch:</span>
-        <span class="value" :class="{ 'text-green': isPitchDefault }">{{ pitch.toFixed(2) }}°</span>
+        <span class="value" :class="{ 'text-green': isPitchDefault }">{{ pitch.toFixed(0) }}°</span>
       </div>
     </v-card-text>
   </v-card>
@@ -46,8 +46,8 @@ const props = defineProps({
 });
 
 // Compare with a small tolerance to handle floating point inaccuracies
-const isZoomDefault = computed(() => Math.abs(props.zoom - props.defaultZoom) < 0.01);
-const isPitchDefault = computed(() => Math.abs(props.pitch - props.defaultPitch) < 0.01);
+const isZoomDefault = computed(() => Math.abs(props.zoom - props.defaultZoom) < 0.05);
+const isPitchDefault = computed(() => Math.abs(props.pitch - props.defaultPitch) < 0.5);
 </script>
 
 <style scoped>

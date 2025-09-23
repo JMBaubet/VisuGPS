@@ -2,8 +2,22 @@
   <v-container fluid class="pa-0 fill-height">
     <div id="map-container" ref="mapContainer" class="fill-height"></div>
 
-    <v-btn icon="mdi-arrow-left" @click="goBack" class="ma-2" style="position: absolute; top: 0; left: 0; z-index: 1000;"></v-btn>
-    <v-btn icon="mdi-content-save" @click="saveCameraPosition" class="ma-2" style="position: absolute; top: 0; left: 60px; z-index: 1000;"></v-btn>
+    <!-- Buttons Container -->
+    <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex;">
+      <v-btn icon="mdi-arrow-left" @click="goBack" class="mr-2"></v-btn>
+      <v-btn icon="mdi-content-save" @click="saveCameraPosition"></v-btn>
+    </div>
+
+    <!-- Switch Container -->
+    <div class="control-widget" style="position: absolute; top: 10px; left: 132px; z-index: 1000;">
+      <v-switch
+        v-model="updateCameraOnNav"
+        color="primary"
+        label="Sync Cam"
+        hide-details
+        density="compact"
+      ></v-switch>
+    </div>
 
     <CameraInfoWidget
       :bearing="currentBearing"
@@ -40,6 +54,7 @@ const lineStringCoordinates = ref([]); // Pour stocker les coordonnées de la li
 const totalLineLength = ref(0); // Longueur totale de la lineString
 const progressPercentage = ref(0); // Pourcentage de progression
 const cameraCommandSettings = ref({}); // Pour stocker les paramètres des commandes de la caméra
+const updateCameraOnNav = ref(true); // Switch state
 
 // Reactive state for camera parameters display
 const currentZoom = ref(0);
@@ -179,13 +194,6 @@ onMounted(async () => {
 
     // Activer la 3D du terrain
     map.on('load', () => {
-      // Update reactive refs on camera move
-      map.on('move', () => {
-        currentZoom.value = map.getZoom();
-        currentPitch.value = map.getPitch();
-        currentBearing.value = map.getBearing();
-      });
-
       // Désactiver toutes les interactions de la souris
       map.boxZoom.disable();
       map.doubleClickZoom.disable();
@@ -274,13 +282,27 @@ const updateCameraPosition = (index) => {
   if (!map || !trackingPoints.value.length) return;
 
   const point = trackingPoints.value[index];
-  map.flyTo({
-    center: point.coordonnee,
-    zoom: point.zoom,
-    pitch: point.pitch,
-    bearing: point.cap,
-    essential: true // This ensures the animation is smooth
-  });
+
+  if (updateCameraOnNav.value) {
+    // Update the reactive state for the widget and fly to the point's settings
+    currentZoom.value = point.zoom;
+    currentPitch.value = point.pitch;
+    currentBearing.value = point.cap;
+
+    map.flyTo({
+      center: point.coordonnee,
+      zoom: currentZoom.value,
+      pitch: currentPitch.value,
+      bearing: currentBearing.value,
+      essential: true // This ensures the animation is smooth
+    });
+  } else {
+    // Only move the center, keep current camera settings
+    map.flyTo({
+      center: point.coordonnee,
+      essential: true
+    });
+  }
 
   // Mettre à jour la ligne d'avancement et calculer le pourcentage de progression
   if (totalLineLength.value > 0 && lineStringCoordinates.value.length > 1) {
@@ -310,11 +332,7 @@ const updateCameraPosition = (index) => {
 };
 
 const handleKeydown = (event) => {
-  console.log('Keydown event:', event.key, 'Shift:', event.shiftKey);
-  if (!map) {
-    console.log('Map not initialized.');
-    return;
-  }
+  if (!map) return;
 
   const {
     zoomInKey, zoomOutKey, pitchUpKey, pitchDownKey, bearingLeftKey, bearingRightKey,
@@ -322,53 +340,54 @@ const handleKeydown = (event) => {
     shiftZoomIncrement, shiftPitchIncrement, shiftBearingIncrement
   } = cameraCommandSettings.value;
 
-  console.log('Camera Command Settings:', cameraCommandSettings.value);
-
-  let handled = false;
-  let currentZoom = map.getZoom();
-  let currentPitch = map.getPitch();
-  let currentBearing = map.getBearing();
-
-  console.log('Initial Camera State - Zoom:', currentZoom, 'Pitch:', currentPitch, 'Bearing:', currentBearing);
-
   const isShiftPressed = event.shiftKey;
+  let handled = false;
 
   switch (event.key) {
-    case zoomInKey:
-      currentZoom += isShiftPressed ? shiftZoomIncrement : zoomIncrement;
+    case zoomInKey: {
+      const newZoom = currentZoom.value + (isShiftPressed ? shiftZoomIncrement : zoomIncrement);
+      currentZoom.value = parseFloat(Math.max(0, Math.min(22, newZoom)).toFixed(1));
+      map.easeTo({ zoom: currentZoom.value, duration: 50 });
       handled = true;
       break;
-    case zoomOutKey:
-      currentZoom -= isShiftPressed ? shiftZoomIncrement : zoomIncrement;
+    }
+    case zoomOutKey: {
+      const newZoom = currentZoom.value - (isShiftPressed ? shiftZoomIncrement : zoomIncrement);
+      currentZoom.value = parseFloat(Math.max(0, Math.min(22, newZoom)).toFixed(1));
+      map.easeTo({ zoom: currentZoom.value, duration: 50 });
       handled = true;
       break;
-    case pitchUpKey:
-      currentPitch += isShiftPressed ? shiftPitchIncrement : pitchIncrement;
+    }
+    case pitchUpKey: {
+      const newPitch = currentPitch.value + (isShiftPressed ? shiftPitchIncrement : pitchIncrement);
+      currentPitch.value = Math.round(Math.max(0, Math.min(85, newPitch)));
+      map.easeTo({ pitch: currentPitch.value, duration: 50 });
       handled = true;
       break;
-    case pitchDownKey:
-      currentPitch -= isShiftPressed ? shiftPitchIncrement : pitchIncrement;
+    }
+    case pitchDownKey: {
+      const newPitch = currentPitch.value - (isShiftPressed ? shiftPitchIncrement : pitchIncrement);
+      currentPitch.value = Math.round(Math.max(0, Math.min(85, newPitch)));
+      map.easeTo({ pitch: currentPitch.value, duration: 50 });
       handled = true;
       break;
-    case bearingLeftKey:
-      currentBearing -= isShiftPressed ? shiftBearingIncrement : bearingIncrement;
+    }
+    case bearingLeftKey: {
+      let newBearing = currentBearing.value - (isShiftPressed ? shiftBearingIncrement : bearingIncrement);
+      newBearing = (newBearing % 360 + 360) % 360; // Ensure wrap around
+      currentBearing.value = Math.round(newBearing);
+      map.easeTo({ bearing: currentBearing.value, duration: 50 });
       handled = true;
       break;
-    case bearingRightKey:
-      currentBearing += isShiftPressed ? shiftBearingIncrement : bearingIncrement;
+    }
+    case bearingRightKey: {
+      let newBearing = currentBearing.value + (isShiftPressed ? shiftBearingIncrement : bearingIncrement);
+      newBearing = (newBearing % 360 + 360) % 360; // Ensure wrap around
+      currentBearing.value = Math.round(newBearing);
+      map.easeTo({ bearing: currentBearing.value, duration: 50 });
       handled = true;
       break;
-  }
-
-  if (handled) {
-    console.log('New Camera State - Zoom:', currentZoom, 'Pitch:', currentPitch, 'Bearing:', currentBearing);
-    event.preventDefault(); // Empêche le comportement par défaut du navigateur
-    map.easeTo({
-      zoom: currentZoom,
-      pitch: currentPitch,
-      bearing: currentBearing,
-      duration: 100 // Animation douce
-    });
+    }
   }
 
   // Keep the existing logic for 'm' and 'l' keys for tracking point navigation
@@ -376,7 +395,7 @@ const handleKeydown = (event) => {
   let step = 1;
   if (event.ctrlKey) {
     step = 100;
-  } else if (event.shiftKey) {
+  } else if (event.shiftKey && !handled) { // only use shift for step if not used for camera
     step = 10;
   }
 
@@ -416,5 +435,15 @@ onUnmounted(() => {
 #map-container {
   width: 100%;
   height: 100%;
+}
+
+.control-widget {
+  background-color: rgba(var(--v-theme-surface), 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 28px; /* Pill shape */
+  padding: 0 16px 0 8px; /* Adjust padding for switch */
+  display: flex;
+  align-items: center;
+  height: 40px; /* Match button height */
 }
 </style>
