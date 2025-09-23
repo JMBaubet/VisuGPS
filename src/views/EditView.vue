@@ -37,6 +37,7 @@
       :trackingPoints="trackingPoints"
       :totalLength="totalLineLength"
       :currentDistance="currentProgressDistance"
+      @seek-distance="handleSeekDistance"
     />
   </v-container>
 </template>
@@ -111,6 +112,23 @@ const saveCameraPosition = async () => {
   }
 };
 
+const handleSeekDistance = (distanceInKm) => {
+  if (!trackingPoints.value || trackingPoints.value.length === 0) return;
+
+  // Find the closest point in trackingPoints to the clicked distance
+  const closest = trackingPoints.value.reduce((prev, curr) => {
+    return (Math.abs(curr.distance - distanceInKm) < Math.abs(prev.distance - distanceInKm) ? curr : prev);
+  });
+
+  // Find the index of that closest point
+  const closestIndex = trackingPoints.value.findIndex(p => p.increment === closest.increment);
+
+  if (closestIndex !== -1) {
+    currentPointIndex.value = closestIndex;
+    updateCameraPosition(closestIndex);
+  }
+};
+
 const updateCameraPosition = (index) => {
   if (!map || !trackingPoints.value.length) return;
 
@@ -136,11 +154,9 @@ const updateCameraPosition = (index) => {
   }
 
   if (totalLineLength.value > 0) {
-    // Use the pre-calculated distance to avoid ambiguity on out-and-back routes
     currentProgressDistance.value = point.distance;
     progressPercentage.value = (point.distance / totalLineLength.value) * 100;
 
-    // Use turf.lineSliceAlong to draw the progress line based on accurate distance
     const line = turf.lineString(lineStringCoordinates.value);
     const slicedLine = turf.lineSliceAlong(line, 0, point.distance, { units: 'kilometers' });
 
