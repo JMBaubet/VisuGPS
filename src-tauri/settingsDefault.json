@@ -266,44 +266,45 @@
             "groupes": [
               {
                 "libelle": "Trace",
-                                          "parametres": [
-                                            {
-                                              "defaut": "orange-darken-4",
-                                              "description": "Couleur de la trace GPX pour l'édition",
-                                              "identifiant": "couleur",
-                                              "libelle": "Couleur de la trace",
-                                              "type": "couleur",
-                                              "materialDesign": true
-                                            },
-                                            {
-                                              "defaut": 3,
-                                              "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
-                                              "identifiant": "epaisseur",
-                                              "libelle": "Épaisseur de la trace",
-                                              "type": "entier",
-                                              "min": 1,
-                                              "max": 20,
-                                              "unite": "px"
-                                            },
-                                            {
-                                              "defaut": "yellow",
-                                              "description": "Couleur de la ligne d'avancement de la caméra.",
-                                              "identifiant": "couleurAvancement",
-                                              "libelle": "Couleur de l'avancement",
-                                              "type": "couleur",
-                                              "materialDesign": true
-                                            },
-                                            {
-                                              "defaut": 5,
-                                              "description": "Épaisseur de la ligne d'avancement de la caméra en pixels.",
-                                              "identifiant": "epaisseurAvancement",
-                                              "libelle": "Épaisseur de l'avancement",
-                                              "type": "entier",
-                                              "min": 1,
-                                              "max": 20,
-                                              "unite": "px"
-                                            }
-                                          ]              },
+                "parametres": [
+                  {
+                    "defaut": "orange-darken-4",
+                    "description": "Couleur de la trace GPX pour l'édition",
+                    "identifiant": "couleur",
+                    "libelle": "Couleur de la trace",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 3,
+                    "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
+                    "identifiant": "epaisseur",
+                    "libelle": "Épaisseur de la trace",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px"
+                  },
+                  {
+                    "defaut": "yellow",
+                    "description": "Couleur de la ligne d'avancement de la caméra.",
+                    "identifiant": "couleurAvancement",
+                    "libelle": "Couleur de l'avancement",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 5,
+                    "description": "Épaisseur de la ligne d'avancement de la caméra en pixels.",
+                    "identifiant": "epaisseurAvancement",
+                    "libelle": "Épaisseur de l'avancement",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px"
+                  }
+                ]
+              },
               {
                 "libelle": "Relief",
                 "parametres": [
@@ -316,6 +317,97 @@
                     "min": 0.0,
                     "max": 2.0,
                     "decimales": 2
+                  }
+                ]
+              },
+              {
+                "identifiant": "CommandesCamera",
+                "libelle": "Commandes Caméra",
+                "description": "Paramètres des commandes clavier pour la caméra.",
+                "parametres": [
+                  {
+                    "identifiant": "ZoomInKey",
+                    "libelle": "Touche Zoom Avant",
+                    "description": "Touche clavier pour zoomer avant.",
+                    "type": "string",
+                    "defaut": "a"
+                  },
+                  {
+                    "identifiant": "ZoomOutKey",
+                    "libelle": "Touche Zoom Arrière",
+                    "description": "Touche clavier pour dézoomer arrière.",
+                    "type": "string",
+                    "defaut": "z"
+                  },
+                  {
+                    "identifiant": "PitchUpKey",
+                    "libelle": "Touche Inclinaison Haut",
+                    "description": "Touche clavier pour incliner la caméra vers le haut.",
+                    "type": "string",
+                    "defaut": "ArrowUp"
+                  },
+                  {
+                    "identifiant": "PitchDownKey",
+                    "libelle": "Touche Inclinaison Bas",
+                    "description": "Touche clavier pour incliner la caméra vers le bas.",
+                    "type": "string",
+                    "defaut": "ArrowDown"
+                  },
+                  {
+                    "identifiant": "BearingLeftKey",
+                    "libelle": "Touche Rotation Gauche",
+                    "description": "Touche clavier pour faire pivoter la caméra vers la gauche.",
+                    "type": "string",
+                    "defaut": "ArrowLeft"
+                  },
+                  {
+                    "identifiant": "BearingRightKey",
+                    "libelle": "Touche Rotation Droite",
+                    "description": "Touche clavier pour faire pivoter la caméra vers la droite.",
+                    "type": "string",
+                    "defaut": "ArrowRight"
+                  },
+                  {
+                    "identifiant": "ZoomIncrement",
+                    "libelle": "Incrément Zoom",
+                    "description": "Valeur d'incrément par défaut pour le zoom.",
+                    "type": "reel",
+                    "defaut": 0.1
+                  },
+                  {
+                    "identifiant": "PitchIncrement",
+                    "libelle": "Incrément Inclinaison",
+                    "description": "Valeur d'incrément par défaut pour l'inclinaison.",
+                    "type": "reel",
+                    "defaut": 1.0
+                  },
+                  {
+                    "identifiant": "BearingIncrement",
+                    "libelle": "Incrément Rotation",
+                    "description": "Valeur d'incrément par défaut pour la rotation.",
+                    "type": "reel",
+                    "defaut": 1.0
+                  },
+                  {
+                    "identifiant": "ShiftZoomIncrement",
+                    "libelle": "Incrément Zoom (Shift)",
+                    "description": "Valeur d'incrément pour le zoom avec la touche Shift.",
+                    "type": "reel",
+                    "defaut": 1.0
+                  },
+                  {
+                    "identifiant": "ShiftPitchIncrement",
+                    "libelle": "Incrément Inclinaison (Shift)",
+                    "description": "Valeur d'incrément pour l'inclinaison avec la touche Shift.",
+                    "type": "reel",
+                    "defaut": 5.0
+                  },
+                  {
+                    "identifiant": "ShiftBearingIncrement",
+                    "libelle": "Incrément Rotation (Shift)",
+                    "description": "Valeur d'incrément pour la rotation avec la touche Shift.",
+                    "type": "reel",
+                    "defaut": 5.0
                   }
                 ]
               }

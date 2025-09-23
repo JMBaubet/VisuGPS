@@ -30,6 +30,7 @@ const trackingPoints = ref([]);
 const lineStringCoordinates = ref([]); // Pour stocker les coordonnées de la lineString complète
 const totalLineLength = ref(0); // Longueur totale de la lineString
 const progressPercentage = ref(0); // Pourcentage de progression
+const cameraCommandSettings = ref({}); // Pour stocker les paramètres des commandes de la caméra
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -103,6 +104,22 @@ onMounted(async () => {
     }
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
+    // Récupérer les paramètres des commandes de la caméra
+    cameraCommandSettings.value = {
+      zoomInKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomInKey'),
+      zoomOutKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomOutKey'),
+      pitchUpKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchUpKey'),
+      pitchDownKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchDownKey'),
+      bearingLeftKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingLeftKey'),
+      bearingRightKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingRightKey'),
+      zoomIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomIncrement'),
+      pitchIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchIncrement'),
+      bearingIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingIncrement'),
+      shiftZoomIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftZoomIncrement'),
+      shiftPitchIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftPitchIncrement'),
+      shiftBearingIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftBearingIncrement'),
+    };
+
     // Récupérer les données de tracking et lineString
     const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
     const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
@@ -143,7 +160,6 @@ onMounted(async () => {
       map.doubleClickZoom.disable();
       map.dragPan.disable();
       map.dragRotate.disable();
-      map.keyboard.disable();
       map.scrollZoom.disable();
       map.touchZoomRotate.disable();
 
@@ -263,6 +279,68 @@ const updateCameraPosition = (index) => {
 };
 
 const handleKeydown = (event) => {
+  console.log('Keydown event:', event.key, 'Shift:', event.shiftKey);
+  if (!map) {
+    console.log('Map not initialized.');
+    return;
+  }
+
+  const {
+    zoomInKey, zoomOutKey, pitchUpKey, pitchDownKey, bearingLeftKey, bearingRightKey,
+    zoomIncrement, pitchIncrement, bearingIncrement,
+    shiftZoomIncrement, shiftPitchIncrement, shiftBearingIncrement
+  } = cameraCommandSettings.value;
+
+  console.log('Camera Command Settings:', cameraCommandSettings.value);
+
+  let handled = false;
+  let currentZoom = map.getZoom();
+  let currentPitch = map.getPitch();
+  let currentBearing = map.getBearing();
+
+  console.log('Initial Camera State - Zoom:', currentZoom, 'Pitch:', currentPitch, 'Bearing:', currentBearing);
+
+  const isShiftPressed = event.shiftKey;
+
+  switch (event.key) {
+    case zoomInKey:
+      currentZoom += isShiftPressed ? shiftZoomIncrement : zoomIncrement;
+      handled = true;
+      break;
+    case zoomOutKey:
+      currentZoom -= isShiftPressed ? shiftZoomIncrement : zoomIncrement;
+      handled = true;
+      break;
+    case pitchUpKey:
+      currentPitch += isShiftPressed ? shiftPitchIncrement : pitchIncrement;
+      handled = true;
+      break;
+    case pitchDownKey:
+      currentPitch -= isShiftPressed ? shiftPitchIncrement : pitchIncrement;
+      handled = true;
+      break;
+    case bearingLeftKey:
+      currentBearing -= isShiftPressed ? shiftBearingIncrement : bearingIncrement;
+      handled = true;
+      break;
+    case bearingRightKey:
+      currentBearing += isShiftPressed ? shiftBearingIncrement : bearingIncrement;
+      handled = true;
+      break;
+  }
+
+  if (handled) {
+    console.log('New Camera State - Zoom:', currentZoom, 'Pitch:', currentPitch, 'Bearing:', currentBearing);
+    event.preventDefault(); // Empêche le comportement par défaut du navigateur
+    map.easeTo({
+      zoom: currentZoom,
+      pitch: currentPitch,
+      bearing: currentBearing,
+      duration: 100 // Animation douce
+    });
+  }
+
+  // Keep the existing logic for 'm' and 'l' keys for tracking point navigation
   let newIndex = currentPointIndex.value;
   let step = 1;
   if (event.ctrlKey) {
@@ -273,17 +351,19 @@ const handleKeydown = (event) => {
 
   if (event.key === 'm' || event.key === 'M') { // Avancer
     newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
+    handled = true;
   } else if (event.key === 'l' || event.key === 'L') { // Reculer
     newIndex = Math.max(currentPointIndex.value - step, 0);
+    handled = true;
   }
 
   if (newIndex !== currentPointIndex.value) {
     currentPointIndex.value = newIndex;
     updateCameraPosition(currentPointIndex.value);
-    // Optionnel: Mettre à jour le premier point du tracking.json avec la nouvelle position de la caméra
-    // Cela pourrait être fait ici en appelant la commande Tauri 'update_camera_position'
-    // avec les données du point actuel.
-    // Pour l'instant, nous nous contentons de déplacer la caméra.
+  }
+
+  if (handled) {
+    event.preventDefault();
   }
 };
 

@@ -846,8 +846,6 @@ Les touches flêche gauche et flêche droite du clavier permettront de passer d'
 
 Une attention particulière pour l'affichage des n points sera apportée pour les n derniers points du fichier tracking.json.
 
-
-
 ## Suppression d'un circuit. - Réalisé - [bfa06ec9]
 
 Depuis la vue princiaple, on peut voir les circuits déjà importés. Pour chaque circuit on a une icône `mdi-delete` qui sur un click souris appelle la fonction deleteCircuit.
@@ -862,7 +860,7 @@ Cette fonction doit supprimer :
 
 Cette étape est l'une des plus compliquée. Nous allons la construire en plusieurs phases.
 
-### Initialisation de l'édition
+### Initialisation de l'édition - Réalisé - [9cb5c34f]
 
 Cette première phase va consister à la mise en place de la vue édition
 
@@ -891,6 +889,30 @@ On ajoutera une couche pour afficher le lineString. La visualisation de la lineS
 - Epaisseur de la lineString : paramètre à créer dans Edition/mapbox/Trace/Epaisseur
 
 Sur la vue EditView.vue prévoir un overlay situé en haut à gauche pour revenir sur la vue pricipale.
+
+### Mise en place des interractions clavier -  - []
+
+Dans le vue EditView.vue, nous avons désactivé sur la carte MapBox les commandes de la souris. Nous allons les remplacer par des commandes claviers paramétrables dans le fichier settingDefault.json sous Edition/Mapbox/CommandesCamera
+
+Les commandes caméra à réaliser sont : 
+
+-  le zoom  : touche a et z par défaut Avec 'a' on zoom et avec 'z' on dézoom  
+
+- le pitch : touche flêche haute et flêche basse
+
+- le bearing : touche flêche gauche  et flêche droite
+
+Pour le zoom l'incrément par défaut sera de 0.1. Cet incrément est paramétrable
+
+Pour le pitch et le bearing l'incrément par défaut sera de 0 Cet incrément sera paramétrable. Un paramètre pour le pitch et un paramètre pour le bearing 
+
+Le modificateur Shift associé au touches définies ci dessus modifira l'incrément. 
+
+- Pour le zoom ce sera 10 (paramétrable)
+
+- Pour le pitch ce sera 5 (paramétrable)
+
+- Pour le bearing ce sera 5 (paramétrable)
 
 ---
 
