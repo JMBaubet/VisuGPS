@@ -68,7 +68,7 @@
             :x1="point.distance * kmToPx"
             :y1="0"
             :x2="point.distance * kmToPx"
-            :y2="20"
+            :y2="controlPointLength"
             :stroke="controlPointColor"
             :stroke-width="controlPointThickness"
           />
@@ -96,6 +96,7 @@ const progressZoneColor = ref('');
 const progressZoneOpacity = ref(0.1); // New ref for opacity
 const controlPointColor = ref('');
 const controlPointThickness = ref(3);
+const controlPointLength = ref(20);
 
 const editedZoomColor = ref('');
 const editedPitchColor = ref('');
@@ -111,6 +112,7 @@ onMounted(async () => {
   progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
   controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
   controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
+  controlPointLength.value = await getSettingValue('Edition/Graphe/longueurPointDeControle');
 
   editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedZoom'));
   editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedPitch'));
