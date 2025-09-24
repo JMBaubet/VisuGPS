@@ -21,6 +21,11 @@
         </template>
         <v-list-item-title :class="{ 'text-warning': param.critique }">{{ param.libelle }}</v-list-item-title>
         <v-list-item-subtitle>{{ param.description }}</v-list-item-subtitle>
+        <template v-slot:append>
+            <v-avatar v-if="param.type === 'couleur'" :color="param.surcharge || param.defaut" size="24"></v-avatar>
+            <v-chip v-else-if="param.type === 'entier' || param.type === 'reel'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
+            <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
+        </template>
       </v-list-item>
 
       <!-- Appel récursif pour les sous-groupes -->
