@@ -11,28 +11,15 @@
 
     <!-- Switch Container -->
     <div style="position: absolute; top: 10px; left: 180px; z-index: 1000; display: flex; align-items: center;">
-      <v-sheet
-        class="control-widget"
-        height="48"
+      <v-btn-toggle
+        v-model="cameraSyncMode"
         rounded="pill"
+        mandatory
       >
-        <v-switch
-          v-model="updateCameraOnNav"
-          color="primary"
-          label="Sync Cam"
-          hide-details
-          density="compact"
-        ></v-switch>
-      </v-sheet>
-
-      <v-btn
-        v-if="!updateCameraOnNav"
-        icon="mdi-camera-retake"
-        @click="forceUpdateCamera"
-        class="ml-2"
-        color="info"
-        size="small"
-      ></v-btn>
+        <v-btn value="off" icon="mdi-camera-off" color="primary"></v-btn>
+        <v-btn value="original" icon="mdi-camera-outline" color="warning"></v-btn>
+        <v-btn value="edited" icon="mdi-camera-plus-outline" color="success"></v-btn>
+      </v-btn-toggle>
     </div>
 
     <!-- Graph Controls Container -->
@@ -52,12 +39,12 @@
 
       <div v-if="showGraph" style="display: flex; flex-direction: column; gap: 4px;">
         <div style="display: flex; flex-direction: column; margin-left: 8px;">
-            <v-checkbox v-model="showOriginalCurves" label="Origine" hide-details density="compact"></v-checkbox>
-            <v-checkbox v-model="showEditedCurves" label="Edité" hide-details density="compact"></v-checkbox>
+            <v-checkbox v-model="showOriginalCurves" label="Origine" hide-details density="compact" color="warning"></v-checkbox>
+            <v-checkbox v-model="showEditedCurves" label="Edité" hide-details density="compact" color="success"></v-checkbox>
         </div>
         <v-divider class="my-1"></v-divider>
-        <v-switch v-model="showBearingDeltaPair" label="Δ Bearing" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showBearingTotalDeltaPair" label="ΣΔ Bearing" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingDeltaPair" label="Δ Cap" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingTotalDeltaPair" label="Cap" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
         <v-switch v-model="showZoomPair" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
         <v-switch v-model="showPitchPair" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
       </div>
@@ -158,7 +145,8 @@ const totalLineLength = ref(0);
 const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
-const updateCameraOnNav = ref(true);
+const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
+
 const showGraph = ref(true);
 const couleurAvancement = ref('');
 const traceColor = ref('#FFA726');
@@ -317,23 +305,24 @@ const deleteControlPoint = async () => {
 };
 
 const forceUpdateCamera = () => {
-  if (!updateCameraOnNav.value) { // Only allow if sync is off
-    const point = trackingPoints.value[currentPointIndex.value];
-    if (point) {
-      currentZoom.value = point.zoom;
-      currentPitch.value = point.pitch;
-      currentBearing.value = point.cap;
+  if (cameraSyncMode.value !== 'off') return; // Only works in manual mode
 
-      map.flyTo({
-        center: point.coordonnee, // Always update center
-        zoom: currentZoom.value,
-        pitch: currentPitch.value,
-        bearing: currentBearing.value,
-        essential: true,
-        duration: 1000 // Add duration for smoother animation (1 second)
-      });
-    }
-  }
+  const point = trackingPoints.value[currentPointIndex.value];
+  if (!point) return;
+
+  // Snap to ORIGINAL values
+  currentZoom.value = point.zoom;
+  currentPitch.value = point.pitch;
+  currentBearing.value = point.cap;
+
+  map.flyTo({
+    center: point.coordonnee,
+    zoom: currentZoom.value,
+    pitch: currentPitch.value,
+    bearing: currentBearing.value,
+    essential: true,
+    duration: 1000
+  });
 };
 
 const handleSeekDistance = (distanceInKm) => {
@@ -358,23 +347,26 @@ const updateCameraPosition = (index) => {
 
   const point = trackingPoints.value[index];
 
-  // Always update the map center
   const flyToOptions = {
     center: point.coordonnee,
     essential: true
   };
 
-  if (updateCameraOnNav.value) {
-    // If Sync Cam is ON, update zoom, pitch, bearing automatically
+  if (cameraSyncMode.value === 'original') {
     currentZoom.value = point.zoom;
     currentPitch.value = point.pitch;
     currentBearing.value = point.cap;
     flyToOptions.zoom = currentZoom.value;
     flyToOptions.pitch = currentPitch.value;
     flyToOptions.bearing = currentBearing.value;
+  } else if (cameraSyncMode.value === 'edited') {
+    currentZoom.value = point.editedZoom;
+    currentPitch.value = point.editedPitch;
+    currentBearing.value = point.editedCap;
+    flyToOptions.zoom = currentZoom.value;
+    flyToOptions.pitch = currentPitch.value;
+    flyToOptions.bearing = currentBearing.value;
   }
-  // If Sync Cam is OFF, zoom, pitch, bearing are NOT updated automatically here.
-  // They will only be updated when forceUpdateCamera is called.
 
   map.flyTo(flyToOptions);
 

@@ -2,7 +2,7 @@
   <v-card class="camera-widget" elevation="4" variant="tonal">
     <v-card-text class="pa-2">
       <div class="d-flex justify-space-between align-center">
-        <span class="label">Bearing:</span>
+        <span class="label">Cap:</span>
         <span class="value">{{ bearing.toFixed(0) }}°</span>
       </div>
       <v-divider class="my-1"></v-divider>
