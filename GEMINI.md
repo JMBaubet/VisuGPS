@@ -896,7 +896,7 @@ Dans le vue EditView.vue, nous avons désactivé sur la carte MapBox les command
 
 Les commandes caméra à réaliser sont : 
 
--  le zoom  : touche a et z par défaut Avec 'a' on zoom et avec 'z' on dézoom  
+- le zoom  : touche a et z par défaut Avec 'a' on zoom et avec 'z' on dézoom  
 
 - le pitch : touche flêche haute et flêche basse
 
@@ -968,17 +968,23 @@ Si on fait un enregistrement sur un point de control dejà à true une confirmat
 
 Quand on enregistre un point de control :
 
-- on met a jour les paramètres de la camera pour le point en cours de traitement. 
+- on met a jour les paramètres de la camera pour le point en cours de traitement. Les paramètres à mettre à jour sont :
+  
+  - Le zoom, le heading le pictch, les coordonnées de la camera dans coordonneeCamera et l'altitude de la camera dans altitudeCamera. Pour cela tu dois pouvoir t'appuyer sur :
+  
+  - - position =  map.getFreeCameraOptions().position, 
+    
+    - position.toLngLat(),
+    
+    - position.toAltitude. 
 
 - on cherche dans le fichier tracking.json le point de control précédent. Sur ce point de control précedent on met à jour nbrSegment qui correspont au nombre de segment entre les deux points de control. 
 
 - On cherche dans le fichier tracking.json si il existe un point de control suivant. Si c'est le cas on calcul le nombre de segment qui nous sépare de lui et on met à jour notre paramètres nbrSegment. 
 
-- Pour chaque points intermédaires entre le nouveau point de control et ses voisins  on calcule le bearing, le zoom et le pictch  des point intermédiaire pour avoir une progression linéaire entre les points.
+- Pour chaque points intermédaires entre le nouveau point de control et ses voisins  on calcule le bearing, le zoom et le pictch  des points intermédiaires pour avoir une progression linéaire entre les points.
 
 - on mets à jour le graphe avec le nouveau point de control et les nouvelles valeurs calculées
-
-
 
 ---
 

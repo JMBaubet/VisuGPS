@@ -46,6 +46,12 @@
         <!-- Graphique du Bearing (Delta vs Début) -->
         <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" :style="{ stroke: bearingTotalDeltaColor }" />
 
+        <!-- Graphiques des données éditées -->
+        <path v-if="props.showEditedZoom" :d="editedZoomPath" :style="{ stroke: editedZoomColor }" />
+        <path v-if="props.showEditedPitch" :d="editedPitchPath" :style="{ stroke: editedPitchColor }" />
+        <path v-if="props.showEditedBearingDelta" :d="editedBearingDeltaPath" :style="{ stroke: editedBearingDeltaColor }" />
+        <path v-if="props.showEditedBearingTotalDelta" :d="editedBearingTotalDeltaPath" :style="{ stroke: editedBearingTotalDeltaColor }" />
+
         <!-- Indicateur de bearing actuel -->
         <line
           :x1="progressIndicatorX + 2 - 5"
@@ -55,6 +61,18 @@
           :stroke="bearingTotalDeltaColor"
           stroke-width="2"
         />
+
+        <!-- Points de contrôle -->
+        <g v-for="point in controlPoints" :key="`cp-${point.increment}`">
+          <line
+            :x1="point.distance * kmToPx"
+            :y1="0"
+            :x2="point.distance * kmToPx"
+            :y2="20"
+            :stroke="controlPointColor"
+            :stroke-width="controlPointThickness"
+          />
+        </g>
       </svg>
     </div>
   </div>
@@ -76,6 +94,13 @@ const bearingDeltaColor = ref('');
 const bearingTotalDeltaColor = ref('');
 const progressZoneColor = ref('');
 const progressZoneOpacity = ref(0.1); // New ref for opacity
+const controlPointColor = ref('');
+const controlPointThickness = ref(3);
+
+const editedZoomColor = ref('');
+const editedPitchColor = ref('');
+const editedBearingDeltaColor = ref('');
+const editedBearingTotalDeltaColor = ref('');
 
 onMounted(async () => {
   zoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
@@ -83,7 +108,14 @@ onMounted(async () => {
   bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
   bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
   progressZoneColor.value = toHex(await getSettingValue('Edition/Mapbox/Trace/couleurAvancement'));
-  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone'); // Load new opacity
+  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
+  controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
+  controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
+
+  editedZoomColor.value = await getSettingValue('Edition/Graphe/couleurEditedZoom');
+  editedPitchColor.value = await getSettingValue('Edition/Graphe/couleurEditedPitch');
+  editedBearingDeltaColor.value = await getSettingValue('Edition/Graphe/couleurEditedBearingDelta');
+  editedBearingTotalDeltaColor.value = await getSettingValue('Edition/Graphe/couleurEditedBearingTotalDelta');
 });
 
 const props = defineProps({
@@ -94,12 +126,20 @@ const props = defineProps({
   showPitch: { type: Boolean, default: true },
   showBearingDelta: { type: Boolean, default: true },
   showBearingTotalDelta: { type: Boolean, default: true },
+  showEditedZoom: { type: Boolean, default: false },
+  showEditedPitch: { type: Boolean, default: false },
+  showEditedBearingDelta: { type: Boolean, default: false },
+  showEditedBearingTotalDelta: { type: Boolean, default: false },
   currentCameraBearing: { type: Number, default: 0 }, // New prop for current camera bearing
   initialCameraBearing: { type: Number, default: 0 }, // New prop for initial bearing (km 0)
   currentCameraZoom: { type: Number, default: 0 },
   defaultCameraZoom: { type: Number, default: 0 },
   currentCameraPitch: { type: Number, default: 0 },
   defaultCameraPitch: { type: Number, default: 0 },
+});
+
+const controlPoints = computed(() => {
+  return props.trackingPoints.filter(p => p.pointDeControl);
 });
 
 const handleGraphClick = (event) => {
@@ -237,6 +277,56 @@ const bearingTotalDeltaPath = computed(() => {
   return props.trackingPoints.map((p, i) => {
     const x = p.distance * kmToPx;
     let delta = p.cap - initialBearing;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+
+    const y = graphCenterY - (delta * bearingTotalDeltaToPx);
+    return (i === 0 ? 'M' : 'L') + `${x},${y}`;
+  }).join(' ');
+});
+
+// --- Calcul des chemins SVG pour les données éditées ---
+const editedZoomPath = computed(() => {
+  if (props.trackingPoints.length < 2) return '';
+  const defaultZoom = props.trackingPoints[0]?.zoom || 16;
+  return props.trackingPoints.map((p, i) => {
+    const x = p.distance * kmToPx;
+    const y = graphCenterY - ((p.editedZoom - defaultZoom) * zoomToPx);
+    return (i === 0 ? 'M' : 'L') + `${x},${y}`;
+  }).join(' ');
+});
+
+const editedPitchPath = computed(() => {
+  if (props.trackingPoints.length < 2) return '';
+  const defaultPitch = props.trackingPoints[0]?.pitch || 60;
+  return props.trackingPoints.map((p, i) => {
+    const x = p.distance * kmToPx;
+    const y = graphCenterY - ((p.editedPitch - defaultPitch) * pitchToPx);
+    return (i === 0 ? 'M' : 'L') + `${x},${y}`;
+  }).join(' ');
+});
+
+const editedBearingDeltaPath = computed(() => {
+  if (props.trackingPoints.length < 2) return '';
+  let lastBearing = props.trackingPoints[0]?.editedCap || 0;
+  return props.trackingPoints.map((p, i) => {
+    const x = p.distance * kmToPx;
+    let delta = p.editedCap - lastBearing;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    
+    const y = graphCenterY - (delta * bearingDeltaToPx);
+    lastBearing = p.editedCap;
+    return (i === 0 ? 'M' : 'L') + `${x},${y}`;
+  }).join(' ');
+});
+
+const editedBearingTotalDeltaPath = computed(() => {
+  if (props.trackingPoints.length < 2) return '';
+  const initialBearing = props.trackingPoints[0]?.editedCap || 0;
+  return props.trackingPoints.map((p, i) => {
+    const x = p.distance * kmToPx;
+    let delta = p.editedCap - initialBearing;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
 

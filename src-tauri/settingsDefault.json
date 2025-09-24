@@ -304,6 +304,58 @@
                 "min": 0.0,
                 "max": 1.0,
                 "decimales": 2
+              },
+              {
+                "libelle": "Couleur Point de Contrôle",
+                "identifiant": "couleurPointDeControle",
+                "description": "Couleur des indicateurs de points de contrôle sur le graphe.",
+                "type": "couleur",
+                "defaut": "red",
+                "surcharge": null,
+                "critique": false,
+                "materialDesing": true
+              },
+              {
+                "libelle": "Epaisseur Point de Contrôle",
+                "identifiant": "epaisseurPointDeControle",
+                "description": "Epaisseur en pixels des indicateurs de points de contrôle.",
+                "type": "entier",
+                "defaut": 3,
+                "surcharge": null,
+                "min": 1,
+                "max": 10
+              },
+              {
+                "libelle": "Couleur Zoom Edité",
+                "identifiant": "couleurEditedZoom",
+                "description": "Couleur de la courbe du zoom édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "#B2FF59",
+                "materialDesing": false
+              },
+              {
+                "libelle": "Couleur Pitch Edité",
+                "identifiant": "couleurEditedPitch",
+                "description": "Couleur de la courbe du pitch édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "#18FFFF",
+                "materialDesing": false
+              },
+              {
+                "libelle": "Couleur Delta Bearing Edité",
+                "identifiant": "couleurEditedBearingDelta",
+                "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "#FFFF00",
+                "materialDesing": false
+              },
+              {
+                "libelle": "Couleur Somme Delta Bearing Edité",
+                "identifiant": "couleurEditedBearingTotalDelta",
+                "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "#E040FB",
+                "materialDesing": false
               }
             ]
           },

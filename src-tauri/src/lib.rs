@@ -663,6 +663,20 @@ fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(
     Ok(())
 }
 
+#[tauri::command]
+fn save_tracking_file(state: State<Mutex<AppState>>, circuit_id: String, tracking_data: Value) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let tracking_path = state.app_env_path.join("data").join(circuit_id).join("tracking.json");
+
+    let new_content = serde_json::to_string_pretty(&tracking_data)
+        .map_err(|e| format!("Failed to serialize tracking data: {}", e))?;
+
+    fs::write(&tracking_path, new_content)
+        .map_err(|e| format!("Failed to write tracking.json: {}", e))?;
+
+    Ok(())
+}
+
 fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let visugps_dir = app_data_dir.join("VisuGPS");
@@ -777,7 +791,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, convert_vuetify_color, update_camera_position])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

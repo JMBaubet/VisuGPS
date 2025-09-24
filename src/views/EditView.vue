@@ -3,13 +3,14 @@
     <div id="map-container" ref="mapContainer" class="fill-height"></div>
 
     <!-- Buttons Container -->
-    <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex;">
-      <v-btn icon="mdi-arrow-left" @click="goBack" class="mr-2"></v-btn>
-      <v-btn icon="mdi-content-save" @click="saveCameraPosition"></v-btn>
+    <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; gap: 8px;">
+      <v-btn icon="mdi-arrow-left" @click="goBack"></v-btn>
+      <v-btn icon="mdi-content-save" @click="saveControlPoint" color="primary"></v-btn>
+      <v-btn v-if="isCurrentPointControlPoint" icon="mdi-delete" @click="deleteControlPoint" color="warning"></v-btn>
     </div>
 
     <!-- Switch Container -->
-    <div style="position: absolute; top: 10px; left: 132px; z-index: 1000; display: flex; align-items: center;">
+    <div style="position: absolute; top: 10px; left: 180px; z-index: 1000; display: flex; align-items: center;">
       <v-sheet
         class="control-widget"
         height="48"
@@ -54,6 +55,11 @@
         <v-switch v-model="showBearingTotalDelta" label="ΣΔ Bearing" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
         <v-switch v-model="showZoom" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
         <v-switch v-model="showPitch" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-divider class="my-2"></v-divider>
+        <v-switch v-model="showEditedBearingDelta" label="Δ Bearing Edité" :color="graphEditedBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showEditedBearingTotalDelta" label="ΣΔ Bearing Edité" :color="graphEditedBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showEditedZoom" label="Zoom Edité" :color="graphEditedZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showEditedPitch" label="Pitch Edité" :color="graphEditedPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
       </div>
     </v-sheet>
 
@@ -83,6 +89,10 @@
       :showPitch="showPitch"
       :showBearingDelta="showBearingDelta"
       :showBearingTotalDelta="showBearingTotalDelta"
+      :showEditedZoom="showEditedZoom"
+      :showEditedPitch="showEditedPitch"
+      :showEditedBearingDelta="showEditedBearingDelta"
+      :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
       :currentCameraBearing="currentBearing"
       :initialCameraBearing="trackingPoints[0]?.cap"
       :currentCameraZoom="currentZoom"
@@ -91,27 +101,52 @@
       :defaultCameraPitch="defaultPitch"
       @seek-distance="handleSeekDistance"
     />
+
+    <ConfirmationDialog
+      v-model="showConfirmationDialog"
+      :title="confirmationProps.title"
+      :message="confirmationProps.message"
+      @confirm="resolveConfirmation(true)"
+      @cancel="resolveConfirmation(false)"
+    />
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue'; // Import computed
 import { useRoute, useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
-import { useVuetifyColors } from '@/composables/useVuetifyColors'; // New import
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
 import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const route = useRoute();
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { getSettingValue } = useSettings();
+
+// Confirmation Dialog
+const showConfirmationDialog = ref(false);
+const confirmationProps = ref({});
+const resolveConfirmation = ref(null);
+
+const askForConfirmation = (title, message) => {
+  confirmationProps.value = { title, message };
+  showConfirmationDialog.value = true;
+  return new Promise((resolve) => {
+    resolveConfirmation.value = (decision) => {
+      showConfirmationDialog.value = false;
+      resolve(decision);
+    };
+  });
+};
 
 const circuitId = route.params.circuitId;
 const mapContainer = ref(null);
@@ -134,11 +169,21 @@ const showPitch = ref(false);
 const showBearingDelta = ref(true);
 const showBearingTotalDelta = ref(true);
 
+const showEditedZoom = ref(true);
+const showEditedPitch = ref(true);
+const showEditedBearingDelta = ref(false);
+const showEditedBearingTotalDelta = ref(true);
+
 // Graph curve colors
-const graphZoomColor = ref('green'); // Default to green
-const graphPitchColor = ref('blue'); // Default to blue
-const graphBearingDeltaColor = ref('amber'); // Default to amber
-const graphBearingTotalDeltaColor = ref('pink'); // Default to pink
+const graphZoomColor = ref('green');
+const graphPitchColor = ref('blue');
+const graphBearingDeltaColor = ref('amber');
+const graphBearingTotalDeltaColor = ref('pink');
+
+const graphEditedZoomColor = ref('light-green-accent-3');
+const graphEditedPitchColor = ref('cyan-accent-3');
+const graphEditedBearingDeltaColor = ref('yellow-accent-3');
+const graphEditedBearingTotalDeltaColor = ref('purple-accent-3');
 
 const { toHex } = useVuetifyColors(); // New line
 
@@ -148,37 +193,115 @@ const currentBearing = ref(0);
 const defaultZoom = ref(0);
 const defaultPitch = ref(0);
 
+const isCurrentPointControlPoint = computed(() => {
+  if (!trackingPoints.value[currentPointIndex.value]) return false;
+  return trackingPoints.value[currentPointIndex.value].pointDeControl;
+});
+
 const goBack = () => {
   router.push({ name: 'Main' });
 };
 
-const saveCameraPosition = async () => {
-  if (!map) {
-    showSnackbar('Carte non initialisée.', 'error');
-    return;
+const updateInterpolation = () => {
+  const points = trackingPoints.value;
+  const controlPoints = points.map((p, i) => ({ ...p, originalIndex: i })).filter(p => p.pointDeControl);
+
+  for (let i = 0; i < controlPoints.length; i++) {
+    const startCp = controlPoints[i];
+    const endCp = (i + 1 < controlPoints.length) ? controlPoints[i+1] : null;
+
+    if (endCp) {
+      const startIndex = startCp.originalIndex;
+      const endIndex = endCp.originalIndex;
+      const numSegments = endIndex - startIndex;
+      points[startIndex].nbrSegment = numSegments;
+
+      if (numSegments > 0) {
+        const zoomStep = (endCp.editedZoom - startCp.editedZoom) / numSegments;
+        const pitchStep = (endCp.editedPitch - startCp.editedPitch) / numSegments;
+
+        let bearingDiff = endCp.editedCap - startCp.editedCap;
+        if (bearingDiff > 180) bearingDiff -= 360;
+        if (bearingDiff < -180) bearingDiff += 360;
+        const bearingStep = bearingDiff / numSegments;
+
+        for (let j = 1; j < numSegments; j++) {
+          const currentIndex = startIndex + j;
+          points[currentIndex].editedZoom = startCp.editedZoom + j * zoomStep;
+          points[currentIndex].editedPitch = startCp.editedPitch + j * pitchStep;
+          let newBearing = startCp.editedCap + j * bearingStep;
+          points[currentIndex].editedCap = (newBearing + 360) % 360;
+        }
+      }
+    } else {
+      points[startCp.originalIndex].nbrSegment = 0;
+    }
+  }
+  trackingPoints.value = [...points];
+};
+
+const saveControlPoint = async () => {
+  if (!map) return;
+
+  const point = trackingPoints.value[currentPointIndex.value];
+  if (!point) return;
+
+  if (point.pointDeControl) {
+    const confirmed = await askForConfirmation(
+      'Confirmer l\'enregistrement',
+      'Ce point est déjà un point de contrôle. Voulez-vous vraiment écraser ses valeurs ?'
+    );
+    if (!confirmed) return;
   }
 
-  const center = map.getCenter();
-  const zoom = map.getZoom();
-  const pitch = map.getPitch();
-  const bearing = map.getBearing();
+  point.pointDeControl = true;
+  point.editedZoom = currentZoom.value;
+  point.editedPitch = currentPitch.value;
+  point.editedCap = currentBearing.value;
 
-  const altitude = Math.round(5000 * Math.pow(0.8, zoom));
+  const cameraPos = map.getFreeCameraOptions().position;
+  point.coordonneeCamera = [cameraPos.toLngLat().lng, cameraPos.toLngLat().lat];
+  point.altitudeCamera = cameraPos.toAltitude();
+
+  updateInterpolation();
 
   try {
-    await invoke('update_camera_position', {
+    await invoke('save_tracking_file', {
       circuitId: circuitId,
-      longitude: center.lng,
-      latitude: center.lat,
-      altitude: altitude,
-      zoom: zoom,
-      pitch: pitch,
-      bearing: bearing,
+      trackingData: trackingPoints.value,
     });
-    showSnackbar('Position de la caméra sauvegardée avec succès.', 'success');
+    showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde de la position de la caméra:', error);
-    showSnackbar(`Erreur lors de la sauvegarde: ${error.message || error}`, 'error');
+    console.error('Erreur lors de la sauvegarde du fichier de tracking:', error);
+    showSnackbar(`Erreur: ${error.message || error}`, 'error');
+    // Revert on error?
+  }
+};
+
+const deleteControlPoint = async () => {
+  const point = trackingPoints.value[currentPointIndex.value];
+  if (!point || !point.pointDeControl) return;
+
+  const confirmed = await askForConfirmation(
+    'Confirmer la suppression',
+    'Voulez-vous vraiment supprimer ce point de contrôle ? Les valeurs de la caméra pour ce segment seront recalculées.'
+  );
+  if (!confirmed) return;
+
+  point.pointDeControl = false;
+  point.nbrSegment = 0;
+
+  updateInterpolation();
+
+  try {
+    await invoke('save_tracking_file', {
+      circuitId: circuitId,
+      trackingData: trackingPoints.value,
+    });
+    showSnackbar('Point de contrôle supprimé.', 'info');
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde du fichier de tracking:', error);
+    showSnackbar(`Erreur: ${error.message || error}`, 'error');
   }
 };
 
@@ -402,6 +525,12 @@ onMounted(async () => {
     graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
     graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
 
+    // Load edited graph curve colors
+    graphEditedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedZoom'));
+    graphEditedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedPitch'));
+    graphEditedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingDelta'));
+    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingTotalDelta'));
+
  
 
     cameraCommandSettings.value = {
@@ -437,8 +566,15 @@ onMounted(async () => {
     const processedTrackingPoints = rawTrackingData.map((point, index) => ({
       ...point,
       distance: index * segmentLengthKm,
+      // Initialize edited values with original values
+      editedZoom: point.zoom,
+      editedPitch: point.pitch,
+      editedCap: point.cap,
     }));
     trackingPoints.value = processedTrackingPoints;
+
+    // Initial interpolation
+    updateInterpolation();
 
     currentPointIndex.value = 0;
 
