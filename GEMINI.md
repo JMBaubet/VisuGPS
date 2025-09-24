@@ -856,7 +856,7 @@ Cette fonction doit supprimer :
 
 - le répertoire relatif à ce circuit.
 
-## Edition d'un circuit. -  - []
+## Edition d'un circuit. - Réalisé - [a4639117]
 
 Cette étape est l'une des plus compliquée. Nous allons la construire en plusieurs phases.
 
@@ -986,7 +986,7 @@ Quand on enregistre un point de control :
 
 - on mets à jour le graphe avec le nouveau point de control et les nouvelles valeurs calculées
 
-### Suppression d'un point de control
+### Suppression d'un point de control - Réalisé - [a4639117]
 
 Sur clique du bouton `mdi-delete` il faut mettre à jour : 
 
