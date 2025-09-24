@@ -948,7 +948,7 @@ Sur l'axe  Y plusieurs données sont être affichées :
 
 Un barre verticale ou un rectangle d'une opacité de 15% doit permettre de nous indiquer ou nous en sommes sur la progression de la caméra.
 
-### Ajout d'un point de control -  - []
+### Ajout d'un point de control - Réalisé  - [ecb509d2]
 
 Le but de la vue EditView est de mettre à jour le fichier tracking.json.
 
@@ -985,6 +985,34 @@ Quand on enregistre un point de control :
 - Pour chaque points intermédaires entre le nouveau point de control et ses voisins  on calcule le bearing, le zoom et le pictch  des points intermédiaires pour avoir une progression linéaire entre les points.
 
 - on mets à jour le graphe avec le nouveau point de control et les nouvelles valeurs calculées
+
+### Suppression d'un point de control
+
+Sur clique du bouton `mdi-delete` il faut mettre à jour : 
+
+- le fichier tracking.json
+
+- le graphe.
+
+La mise à jour du fichier tracking.jon consiste à :
+
+-  mettre à false pointDeControl pour le point considéré
+
+- Si le point de control supprimé est le denier du fichier tracking.json, il faut remettre pour les paramète edited*  les valeurs originales (cap, pitch et zoom)  pour l'ensembles des points qui sont au delà du nouveau dernier point de control, et mettre à 0 nbrSegment pour le nouveau dernier point de controle. Le
+
+- Sinon, rechercher le point de control précédents et le point de control suivant pour mettre à jour lpour les point intermédiaire les paramètres :
+  
+  - editedCap
+  
+  - editedPitch
+  
+  - editedZoom 
+
+- des points intermédiares en faisant une règle lineaire entre les points de control voisins. 'précédent et prochain)
+
+- Mettre à jour nbrSegements pour le point de control précecent. nbrSegement étant le nombre de point entre le point de control précédent et le point de control suivant. 
+
+
 
 ---
 

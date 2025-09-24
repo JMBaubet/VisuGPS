@@ -205,11 +205,21 @@ const updateInterpolation = () => {
   const points = trackingPoints.value;
   const controlPoints = points.map((p, i) => ({ ...p, originalIndex: i })).filter(p => p.pointDeControl);
 
-  for (let i = 0; i < controlPoints.length; i++) {
-    const startCp = controlPoints[i];
-    const endCp = (i + 1 < controlPoints.length) ? controlPoints[i+1] : null;
+  // Reset all nbrSegment to 0 initially
+  points.forEach(p => p.nbrSegment = 0);
 
-    if (endCp) {
+  if (controlPoints.length === 0) {
+    // No control points, reset all edited values to original
+    for (let i = 0; i < points.length; i++) {
+      points[i].editedZoom = points[i].zoom;
+      points[i].editedPitch = points[i].pitch;
+      points[i].editedCap = points[i].cap;
+    }
+  } else {
+    // Interpolate between control points
+    for (let i = 0; i < controlPoints.length - 1; i++) {
+      const startCp = controlPoints[i];
+      const endCp = controlPoints[i + 1];
       const startIndex = startCp.originalIndex;
       const endIndex = endCp.originalIndex;
       const numSegments = endIndex - startIndex;
@@ -232,10 +242,17 @@ const updateInterpolation = () => {
           points[currentIndex].editedCap = (newBearing + 360) % 360;
         }
       }
-    } else {
-      points[startCp.originalIndex].nbrSegment = 0;
+    }
+
+    // Reset points after the last control point
+    const lastCpIndex = controlPoints[controlPoints.length - 1].originalIndex;
+    for (let i = lastCpIndex + 1; i < points.length; i++) {
+      points[i].editedZoom = points[i].zoom;
+      points[i].editedPitch = points[i].pitch;
+      points[i].editedCap = points[i].cap;
     }
   }
+
   trackingPoints.value = [...points];
 };
 
