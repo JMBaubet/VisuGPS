@@ -264,11 +264,27 @@
                 "materialDesign": true
               },
               {
+                "libelle": "Couleur Zoom Edité",
+                "identifiant": "couleurEditedZoom",
+                "description": "Couleur de la courbe du zoom édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "green-darken-4",
+                "materialDesign": true
+              },
+              {
                 "identifiant": "couleurPitch",
                 "libelle": "Couleur du Pitch",
                 "description": "Couleur de la courbe de pitch sur le graphe.",
                 "type": "couleur",
-                "defaut": "blue",
+                "defaut": "light-blue",
+                "materialDesign": true
+              },
+              {
+                "libelle": "Couleur Pitch Edité",
+                "identifiant": "couleurEditedPitch",
+                "description": "Couleur de la courbe du pitch édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "light-blue-darken-4",
                 "materialDesign": true
               },
               {
@@ -280,11 +296,27 @@
                 "materialDesign": true
               },
               {
+                "libelle": "Couleur Delta Bearing Edité",
+                "identifiant": "couleurEditedBearingDelta",
+                "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "amber-darken-3",
+                "materialDesign": true
+              },
+              {
                 "identifiant": "couleurBearingTotalDelta",
                 "libelle": "Couleur du Somme Delta Bearing",
                 "description": "Couleur de la courbe du delta de cap total sur le graphe.",
                 "type": "couleur",
-                "defaut": "pink",
+                "defaut": "red",
+                "materialDesign": true
+              },
+              {
+                "libelle": "Couleur Somme Delta Bearing Edité",
+                "identifiant": "couleurEditedBearingTotalDelta",
+                "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
+                "type": "couleur",
+                "defaut": "red-darken-4",
                 "materialDesign": true
               },
               {
@@ -292,7 +324,7 @@
                 "libelle": "Couleur de la zone d'avancement",
                 "description": "Couleur de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe.",
                 "type": "couleur",
-                "defaut": "blue",
+                "defaut": "yellow",
                 "materialDesign": true
               },
               {
@@ -310,7 +342,7 @@
                 "identifiant": "couleurPointDeControle",
                 "description": "Couleur des indicateurs de points de contrôle sur le graphe.",
                 "type": "couleur",
-                "defaut": "red",
+                "defaut": "purple",
                 "surcharge": null,
                 "critique": false,
                 "materialDesign": true
@@ -324,38 +356,6 @@
                 "surcharge": null,
                 "min": 1,
                 "max": 10
-              },
-              {
-                "libelle": "Couleur Zoom Edité",
-                "identifiant": "couleurEditedZoom",
-                "description": "Couleur de la courbe du zoom édité sur le graphe.",
-                "type": "couleur",
-                "defaut": "lime",
-                "materialDesign": true
-              },
-              {
-                "libelle": "Couleur Pitch Edité",
-                "identifiant": "couleurEditedPitch",
-                "description": "Couleur de la courbe du pitch édité sur le graphe.",
-                "type": "couleur",
-                "defaut": "cyan-lighten-1",
-                "materialDesign": true
-              },
-              {
-                "libelle": "Couleur Delta Bearing Edité",
-                "identifiant": "couleurEditedBearingDelta",
-                "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
-                "type": "couleur",
-                "defaut": "yellow",
-                "materialDesign": true
-              },
-              {
-                "libelle": "Couleur Somme Delta Bearing Edité",
-                "identifiant": "couleurEditedBearingTotalDelta",
-                "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
-                "type": "couleur",
-                "defaut": "pink",
-                "materialDesign": true
               }
             ]
           },
