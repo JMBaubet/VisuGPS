@@ -93,7 +93,7 @@ pub fn generate_tracking_file(
 
         let tracking_point = TrackingPoint {
             increment,
-            point_de_control: false,
+            point_de_control: increment == 0,
             nbr_segment: 0,
             coordonnee: [(point.x() * 100000.0).round() / 100000.0, (point.y() * 100000.0).round() / 100000.0],
             altitude: (altitude * 10.0).round() / 10.0,

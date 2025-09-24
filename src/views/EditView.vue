@@ -540,16 +540,16 @@ onMounted(async () => {
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
     // Load graph curve colors
-    graphZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurZoom'));
-    graphPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPitch'));
-    graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingDelta'));
-    graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurBearingTotalDelta'));
+    graphZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom'));
+    graphPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch'));
+    graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta'));
+    graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta'));
 
     // Load edited graph curve colors
-    graphEditedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedZoom'));
-    graphEditedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedPitch'));
-    graphEditedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingDelta'));
-    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingTotalDelta'));
+    graphEditedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
+    graphEditedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
+    graphEditedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta'));
+    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
 
  
 
