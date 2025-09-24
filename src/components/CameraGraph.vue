@@ -112,10 +112,10 @@ onMounted(async () => {
   controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
   controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
 
-  editedZoomColor.value = await getSettingValue('Edition/Graphe/couleurEditedZoom');
-  editedPitchColor.value = await getSettingValue('Edition/Graphe/couleurEditedPitch');
-  editedBearingDeltaColor.value = await getSettingValue('Edition/Graphe/couleurEditedBearingDelta');
-  editedBearingTotalDeltaColor.value = await getSettingValue('Edition/Graphe/couleurEditedBearingTotalDelta');
+  editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedZoom'));
+  editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedPitch'));
+  editedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingDelta'));
+  editedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/couleurEditedBearingTotalDelta'));
 });
 
 const props = defineProps({

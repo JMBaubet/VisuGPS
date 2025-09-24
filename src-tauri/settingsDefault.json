@@ -313,7 +313,7 @@
                 "defaut": "red",
                 "surcharge": null,
                 "critique": false,
-                "materialDesing": true
+                "materialDesign": true
               },
               {
                 "libelle": "Epaisseur Point de Contrôle",
@@ -330,32 +330,32 @@
                 "identifiant": "couleurEditedZoom",
                 "description": "Couleur de la courbe du zoom édité sur le graphe.",
                 "type": "couleur",
-                "defaut": "#B2FF59",
-                "materialDesing": false
+                "defaut": "lime",
+                "materialDesign": true
               },
               {
                 "libelle": "Couleur Pitch Edité",
                 "identifiant": "couleurEditedPitch",
                 "description": "Couleur de la courbe du pitch édité sur le graphe.",
                 "type": "couleur",
-                "defaut": "#18FFFF",
-                "materialDesing": false
+                "defaut": "cyan-lighten-1",
+                "materialDesign": true
               },
               {
                 "libelle": "Couleur Delta Bearing Edité",
                 "identifiant": "couleurEditedBearingDelta",
                 "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
                 "type": "couleur",
-                "defaut": "#FFFF00",
-                "materialDesing": false
+                "defaut": "yellow",
+                "materialDesign": true
               },
               {
                 "libelle": "Couleur Somme Delta Bearing Edité",
                 "identifiant": "couleurEditedBearingTotalDelta",
                 "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
                 "type": "couleur",
-                "defaut": "#E040FB",
-                "materialDesing": false
+                "defaut": "pink",
+                "materialDesign": true
               }
             ]
           },
