@@ -51,15 +51,15 @@
       ></v-switch>
 
       <div v-if="showGraph" style="display: flex; flex-direction: column; gap: 4px;">
-        <v-switch v-model="showBearingDelta" label="Δ Bearing" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showBearingTotalDelta" label="ΣΔ Bearing" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showZoom" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showPitch" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-divider class="my-2"></v-divider>
-        <v-switch v-model="showEditedBearingDelta" label="Δ Bearing Edité" :color="graphEditedBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showEditedBearingTotalDelta" label="ΣΔ Bearing Edité" :color="graphEditedBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showEditedZoom" label="Zoom Edité" :color="graphEditedZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showEditedPitch" label="Pitch Edité" :color="graphEditedPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <div style="display: flex; flex-direction: column; margin-left: 8px;">
+            <v-checkbox v-model="showOriginalCurves" label="Origine" hide-details density="compact"></v-checkbox>
+            <v-checkbox v-model="showEditedCurves" label="Edité" hide-details density="compact"></v-checkbox>
+        </div>
+        <v-divider class="my-1"></v-divider>
+        <v-switch v-model="showBearingDeltaPair" label="Δ Bearing" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showBearingTotalDeltaPair" label="ΣΔ Bearing" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showZoomPair" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+        <v-switch v-model="showPitchPair" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
       </div>
     </v-sheet>
 
@@ -160,19 +160,30 @@ const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const updateCameraOnNav = ref(true);
 const showGraph = ref(true);
-const couleurAvancement = ref(''); // Declare as ref
-const traceColor = ref('#FFA726'); // Initialize traceColor with a default hex color (e.g., orange)
-const mapboxAvancementColorHex = ref(''); // New ref for Mapbox hex color
+const couleurAvancement = ref('');
+const traceColor = ref('#FFA726');
+const mapboxAvancementColorHex = ref('');
 
-const showZoom = ref(false);
-const showPitch = ref(false);
-const showBearingDelta = ref(true);
-const showBearingTotalDelta = ref(true);
+// Global visibility toggles
+const showOriginalCurves = ref(true);
+const showEditedCurves = ref(false);
 
-const showEditedZoom = ref(true);
-const showEditedPitch = ref(true);
-const showEditedBearingDelta = ref(false);
-const showEditedBearingTotalDelta = ref(true);
+// Paired visibility toggles
+const showZoomPair = ref(false);
+const showPitchPair = ref(false);
+const showBearingDeltaPair = ref(true);
+const showBearingTotalDeltaPair = ref(true);
+
+// Computed visibility for individual curves
+const showZoom = computed(() => showZoomPair.value && showOriginalCurves.value);
+const showPitch = computed(() => showPitchPair.value && showOriginalCurves.value);
+const showBearingDelta = computed(() => showBearingDeltaPair.value && showOriginalCurves.value);
+const showBearingTotalDelta = computed(() => showBearingTotalDeltaPair.value && showOriginalCurves.value);
+
+const showEditedZoom = computed(() => showZoomPair.value && showEditedCurves.value);
+const showEditedPitch = computed(() => showPitchPair.value && showEditedCurves.value);
+const showEditedBearingDelta = computed(() => showBearingDeltaPair.value && showEditedCurves.value);
+const showEditedBearingTotalDelta = computed(() => showBearingTotalDeltaPair.value && showEditedCurves.value);
 
 // Graph curve colors
 const graphZoomColor = ref('green');
@@ -566,10 +577,10 @@ onMounted(async () => {
     const processedTrackingPoints = rawTrackingData.map((point, index) => ({
       ...point,
       distance: index * segmentLengthKm,
-      // Initialize edited values with original values
-      editedZoom: point.zoom,
-      editedPitch: point.pitch,
-      editedCap: point.cap,
+      // Initialize edited values only if they don't already exist, for persistence
+      editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
+      editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
+      editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
     }));
     trackingPoints.value = processedTrackingPoints;
 

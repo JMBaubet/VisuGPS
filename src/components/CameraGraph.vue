@@ -14,6 +14,12 @@
         <!-- Zone d'avancement -->
         <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" :opacity="progressZoneOpacity" />
 
+        <!-- Graphiques des données éditées (drawn first, to be in the background) -->
+        <path v-if="props.showEditedZoom" :d="editedZoomPath" :style="{ stroke: editedZoomColor }" />
+        <path v-if="props.showEditedPitch" :d="editedPitchPath" :style="{ stroke: editedPitchColor }" />
+        <path v-if="props.showEditedBearingDelta" :d="editedBearingDeltaPath" :style="{ stroke: editedBearingDeltaColor }" />
+        <path v-if="props.showEditedBearingTotalDelta" :d="editedBearingTotalDeltaPath" :style="{ stroke: editedBearingTotalDeltaColor }" />
+
         <!-- Graphique du Pitch -->
         <path v-if="props.showPitch" :d="pitchPath" :style="{ stroke: pitchColor }" />
 
@@ -45,12 +51,6 @@
 
         <!-- Graphique du Bearing (Delta vs Début) -->
         <path v-if="props.showBearingTotalDelta" :d="bearingTotalDeltaPath" :style="{ stroke: bearingTotalDeltaColor }" />
-
-        <!-- Graphiques des données éditées -->
-        <path v-if="props.showEditedZoom" :d="editedZoomPath" :style="{ stroke: editedZoomColor }" />
-        <path v-if="props.showEditedPitch" :d="editedPitchPath" :style="{ stroke: editedPitchColor }" />
-        <path v-if="props.showEditedBearingDelta" :d="editedBearingDeltaPath" :style="{ stroke: editedBearingDeltaColor }" />
-        <path v-if="props.showEditedBearingTotalDelta" :d="editedBearingTotalDeltaPath" :style="{ stroke: editedBearingTotalDeltaColor }" />
 
         <!-- Indicateur de bearing actuel -->
         <line
