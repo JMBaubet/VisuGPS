@@ -1,23 +1,25 @@
 <template>
   <div id="map-container" ref="mapContainer"></div>
-  <div class="overlay-container">
-    <!-- Top group -->
-    <div class="top-overlay">
-      <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
-      <v-chip class="distance-display" variant="elevated" size="large">
-        {{ distanceDisplay }}
-      </v-chip>
-    </div>
-    <!-- Bottom group -->
-    <div class="bottom-overlay">
-        <v-btn 
-          :icon="isPaused ? 'mdi-play' : 'mdi-pause'" 
-          class="play-pause-button" 
-          @click="isPaused = !isPaused"
-          size="large"
-          elevation="8"
-        ></v-btn>
-    </div>
+
+  <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
+
+  <v-card variant="elevated" class="distance-display">
+          <div class="d-flex align-center justify-center fill-height px-4">
+            <span class="font-weight-bold font-monospace">Distance :&nbsp;</span>
+            <span :class="['font-weight-bold', 'font-monospace', `text-${cometColor}`]">{{ distanceDisplay }}</span>
+          </div>  </v-card>
+
+  <div class="bottom-controls">
+    <v-card variant="elevated" class="controls-card">
+        <div class="d-flex align-center pa-1">
+            <v-btn icon="mdi-rewind" variant="text" size="x-small" @mousedown="isRewinding = true" @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
+            <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused"></v-btn>
+            <v-divider vertical class="mx-2"></v-divider>
+            <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small"></v-btn>
+            <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
+            <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small"></v-btn>
+        </div>
+    </v-card>
   </div>
 </template>
 
@@ -47,8 +49,13 @@ let animationFrameId = null;
 let isMapInitialized = false;
 let warningShown = false;
 
-const isPaused = ref(true); // Start in paused state
+const isPaused = ref(true);
+const isRewinding = ref(false);
 const distanceDisplay = ref('0.00 km');
+
+const speedSteps = [0.5, 1, 2, 3, 5, 7, 10];
+const speedIndex = ref(1); // Default to 1x speed (index 1)
+const speedMultiplier = computed(() => speedSteps[speedIndex.value]);
 
 // --- Helper Functions ---
 const lerp = (start, end, t) => start * (1 - t) + end * t;
@@ -58,6 +65,7 @@ const lerpAngle = (start, end, t) => {
     if (delta > 180) delta -= 360;
     else if (delta < -180) delta += 360;
     let result = start + delta * t;
+    result = result % 360;
     if (result < 0) result += 360;
     return result;
 };
@@ -77,9 +85,33 @@ const goBack = () => {
   router.push({ name: 'Main' });
 };
 
-const handleKeyPress = (e) => {
+const decreaseSpeed = () => {
+    if (speedIndex.value > 0) {
+        speedIndex.value--;
+    }
+};
+
+const increaseSpeed = () => {
+    if (speedIndex.value < speedSteps.length - 1) {
+        speedIndex.value++;
+    }
+};
+
+const handleKeyDown = (e) => {
     if (e.key === 'p' || e.key === 'P') {
         isPaused.value = !isPaused.value;
+    } else if (e.key === 'ArrowLeft') {
+        isRewinding.value = true;
+    } else if (e.key === 'ArrowDown') {
+        decreaseSpeed();
+    } else if (e.key === 'ArrowUp') {
+        increaseSpeed();
+    }
+};
+
+const handleKeyUp = (e) => {
+    if (e.key === 'ArrowLeft') {
+        isRewinding.value = false;
     }
 };
 
@@ -101,7 +133,7 @@ const initializeMap = async () => {
     }
 
     const totalDistance = turf.length(lineString, { units: 'kilometers' });
-    const totalDuration = totalDistance * animationSpeed.value;
+    const totalDurationAt1x = totalDistance * animationSpeed.value;
 
     const trackingPointsWithDistance = trackingData.map(p => {
         const pointOnLine = turf.point(p.coordonnee);
@@ -155,89 +187,91 @@ const initializeMap = async () => {
         const deltaTime = timestamp - lastTimestamp;
         lastTimestamp = timestamp;
 
-        if (!isPaused.value) {
-            accumulatedTime += deltaTime;
+        if (isRewinding.value) {
+            accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * speedMultiplier.value));
+        } else if (!isPaused.value) {
+            accumulatedTime += deltaTime * speedMultiplier.value;
         }
 
-        const phase = Math.min(accumulatedTime / totalDuration, 1);
+        const phase = Math.min(accumulatedTime / totalDurationAt1x, 1);
         const distanceTraveled = totalDistance * phase;
         distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
 
-        if (!isPaused.value) {
-            const cometLengthKm = cometLength.value / 1000;
-            const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
-            if (distanceTraveled > startDistance) {
-                const cometSlice = turf.lineSliceAlong(lineString, startDistance, distanceTraveled, { units: 'kilometers' });
-                map.getSource('comet-source').setData(cometSlice);
-            } else {
-                map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+        const cometLengthKm = cometLength.value / 1000;
+        const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
+        if (distanceTraveled > startDistance) {
+            const cometSlice = turf.lineSliceAlong(lineString, startDistance, distanceTraveled, { units: 'kilometers' });
+            map.getSource('comet-source').setData(cometSlice);
+        } else {
+            map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+        }
+
+        let prevKeyframe, nextKeyframe;
+
+        let lastPassedControlPointIndex = -1;
+        for (let i = controlPointIndices.length - 1; i >= 0; i--) {
+            const cpIndex = controlPointIndices[i];
+            if (trackingPointsWithDistance[cpIndex].distance <= distanceTraveled) {
+                lastPassedControlPointIndex = cpIndex;
+                break;
             }
+        }
 
-            let prevKeyframe, nextKeyframe;
-
-            let lastPassedControlPointIndex = -1;
-            for (let i = controlPointIndices.length - 1; i >= 0; i--) {
-                const cpIndex = controlPointIndices[i];
-                if (trackingPointsWithDistance[cpIndex].distance <= distanceTraveled) {
-                    lastPassedControlPointIndex = cpIndex;
-                    break;
-                }
+        if (lastPassedControlPointIndex !== -1) {
+            const controlPoint = trackingPointsWithDistance[lastPassedControlPointIndex];
+            if (controlPoint.nbrSegment > 0) {
+                const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
+                if (nextCpIndex < trackingPointsWithDistance.length) {
+                    prevKeyframe = controlPoint;
+                    nextKeyframe = trackingPointsWithDistance[nextCpIndex];
+                } 
             }
+        }
 
-            if (lastPassedControlPointIndex !== -1) {
-                const controlPoint = trackingPointsWithDistance[lastPassedControlPointIndex];
-                if (controlPoint.nbrSegment > 0) {
-                    const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
-                    if (nextCpIndex < trackingPointsWithDistance.length) {
-                        prevKeyframe = controlPoint;
-                        nextKeyframe = trackingPointsWithDistance[nextCpIndex];
-                    } 
-                }
+        if (!prevKeyframe || !nextKeyframe) {
+            const isLastControlPoint = controlPointIndices.indexOf(lastPassedControlPointIndex) === controlPointIndices.length - 1;
+
+            if (lastPassedControlPointIndex !== -1 && !isLastControlPoint && !warningShown) {
+                showSnackbar("Le tracking n'est pas complétement validé !", 'warning');
+                warningShown = true;
             }
+            let currentPointIndex = trackingPointsWithDistance.findIndex((p, i) => {
+                const nextPoint = trackingPointsWithDistance[i + 1];
+                return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
+            });
+            if (currentPointIndex === -1) currentPointIndex = trackingPointsWithDistance.length - 2;
+            if (currentPointIndex < 0) currentPointIndex = 0;
+            prevKeyframe = trackingPointsWithDistance[currentPointIndex];
+            nextKeyframe = trackingPointsWithDistance[currentPointIndex + 1];
+        }
 
-            if (!prevKeyframe || !nextKeyframe) {
-                            const isLastControlPoint = controlPointIndices.indexOf(lastPassedControlPointIndex) === controlPointIndices.length - 1;
-                
-                            if (lastPassedControlPointIndex !== -1 && !isLastControlPoint && !warningShown) {
-                                showSnackbar("Le tracking n'est pas complétement validé !", 'warning');
-                                warningShown = true;
-                            }                let currentPointIndex = trackingPointsWithDistance.findIndex((p, i) => {
-                    const nextPoint = trackingPointsWithDistance[i + 1];
-                    return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
-                });
-                if (currentPointIndex === -1) currentPointIndex = trackingPointsWithDistance.length - 2;
-                if (currentPointIndex < 0) currentPointIndex = 0;
-                prevKeyframe = trackingPointsWithDistance[currentPointIndex];
-                nextKeyframe = trackingPointsWithDistance[currentPointIndex + 1];
-            }
+        const prevKeyframeDist = prevKeyframe.distance;
+        const nextKeyframeDist = nextKeyframe.distance;
+        const segmentDist = nextKeyframeDist - prevKeyframeDist;
+        const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
 
-            const prevKeyframeDist = prevKeyframe.distance;
-            const nextKeyframeDist = nextKeyframe.distance;
-            const segmentDist = nextKeyframeDist - prevKeyframeDist;
-            const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
+        const prevZoom = prevKeyframe.editedZoom ?? prevKeyframe.zoom;
+        const nextZoom = nextKeyframe.editedZoom ?? nextKeyframe.zoom;
 
-                        const prevZoom = prevKeyframe.editedZoom ?? prevKeyframe.zoom;
-                        const nextZoom = nextKeyframe.editedZoom ?? nextKeyframe.zoom;
-            
-                        const prevPitch = prevKeyframe.editedPitch ?? prevKeyframe.pitch;
-                        const nextPitch = nextKeyframe.editedPitch ?? nextKeyframe.pitch;
-            
-                        const prevCap = prevKeyframe.editedCap ?? prevKeyframe.cap;
-                        const nextCap = nextKeyframe.editedCap ?? nextKeyframe.cap;
-            
-                        const zoom = lerp(prevZoom, nextZoom, progressInSegment);
-                        const pitch = lerp(prevPitch, nextPitch, progressInSegment);
-                        const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
-                        
-                        const lookAtPointLng = lerp(prevKeyframe.coordonnee[0], nextKeyframe.coordonnee[0], progressInSegment);
-                        const lookAtPointLat = lerp(prevKeyframe.coordonnee[1], nextKeyframe.coordonnee[1], progressInSegment);
-            
-                        map.setZoom(zoom);
-                        map.setPitch(pitch);
-                        map.setBearing(bearing);
-                        map.setCenter([lookAtPointLng, lookAtPointLat]);        }
+        const prevPitch = prevKeyframe.editedPitch ?? prevKeyframe.pitch;
+        const nextPitch = nextKeyframe.editedPitch ?? nextKeyframe.pitch;
 
-        if (phase < 1) {
+        const prevCap = prevKeyframe.editedCap ?? prevKeyframe.cap;
+        const nextCap = nextKeyframe.editedCap ?? nextKeyframe.cap;
+
+        const zoom = lerp(prevZoom, nextZoom, progressInSegment);
+        const pitch = lerp(prevPitch, nextPitch, progressInSegment);
+        const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
+        
+        const lookAtPointLng = lerp(prevKeyframe.coordonnee[0], nextKeyframe.coordonnee[0], progressInSegment);
+        const lookAtPointLat = lerp(prevKeyframe.coordonnee[1], nextKeyframe.coordonnee[1], progressInSegment);
+
+        map.setZoom(zoom);
+        map.setPitch(pitch);
+        map.setBearing(bearing);
+        map.setCenter([lookAtPointLng, lookAtPointLat]);
+
+        if (phase < 1 || isRewinding.value) {
           animationFrameId = requestAnimationFrame(animate);
         }
       };
@@ -251,7 +285,8 @@ const initializeMap = async () => {
 };
 
 onMounted(() => {
-  window.addEventListener('keydown', handleKeyPress);
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keyup', handleKeyUp);
   watch(settings, (newSettings) => {
     if (newSettings && mapContainer.value && !isMapInitialized) {
       isMapInitialized = true;
@@ -261,7 +296,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyPress);
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('keyup', handleKeyUp);
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   if (map) map.remove();
   map = null;
@@ -277,44 +313,44 @@ onUnmounted(() => {
   width: 100%;
 }
 
-.overlay-container {
+.back-button {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none; /* Allow map interaction by default */
+  top: 20px;
+  left: 20px;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between; /* Pushes children to top and bottom */
-  padding: 20px;
-  box-sizing: border-box;
+  pointer-events: auto;
 }
 
-.top-overlay, .bottom-overlay {
-    display: flex;
-    justify-content: center; /* Center items horizontally */
-    width: 100%;
-}
-
-/* Override for back-button to be on the left */
-.top-overlay {
-    justify-content: flex-start;
-}
-
-.back-button,
-.distance-display,
-.play-pause-button {
-  pointer-events: auto; /* Make UI elements clickable */
-}
-
-/* Keep distance display centered relative to the whole screen */
 .distance-display {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+  position: absolute;
+  top: -20px; /* User preference */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: auto;
+  width: fit-content;
+  height: 48px; /* Force height to match button */
+}
+
+.bottom-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.controls-card {
+    pointer-events: auto;
+}
+
+.speed-display-text {
     font-family: monospace;
+    font-size: 0.9em;
+    padding: 0 8px;
+    min-width: 45px; /* Ensure space doesn't jump around */
+    text-align: center;
 }
 
 /* Hide mapbox logo/attribution for cleaner view, but ensure it's compliant with Mapbox terms */
