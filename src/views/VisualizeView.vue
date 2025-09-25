@@ -1,7 +1,24 @@
 <template>
   <div id="map-container" ref="mapContainer"></div>
-  <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
-  <div class="distance-display">{{ distanceDisplay }}</div>
+  <div class="overlay-container">
+    <!-- Top group -->
+    <div class="top-overlay">
+      <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
+      <v-chip class="distance-display" variant="elevated" size="large">
+        {{ distanceDisplay }}
+      </v-chip>
+    </div>
+    <!-- Bottom group -->
+    <div class="bottom-overlay">
+        <v-btn 
+          :icon="isPaused ? 'mdi-play' : 'mdi-pause'" 
+          class="play-pause-button" 
+          @click="isPaused = !isPaused"
+          size="large"
+          elevation="8"
+        ></v-btn>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -30,7 +47,7 @@ let animationFrameId = null;
 let isMapInitialized = false;
 let warningShown = false;
 
-const isPaused = ref(false);
+const isPaused = ref(true); // Start in paused state
 const distanceDisplay = ref('0.00 km');
 
 // --- Helper Functions ---
@@ -41,7 +58,6 @@ const lerpAngle = (start, end, t) => {
     if (delta > 180) delta -= 360;
     else if (delta < -180) delta += 360;
     let result = start + delta * t;
-    result = result % 360;
     if (result < 0) result += 360;
     return result;
 };
@@ -180,11 +196,12 @@ const initializeMap = async () => {
             }
 
             if (!prevKeyframe || !nextKeyframe) {
-                if (lastPassedControlPointIndex !== -1 && !warningShown) {
-                    showSnackbar("Le tracking n'est pas complétement validé !", 'warning');
-                    warningShown = true;
-                }
-                let currentPointIndex = trackingPointsWithDistance.findIndex((p, i) => {
+                            const isLastControlPoint = controlPointIndices.indexOf(lastPassedControlPointIndex) === controlPointIndices.length - 1;
+                
+                            if (lastPassedControlPointIndex !== -1 && !isLastControlPoint && !warningShown) {
+                                showSnackbar("Le tracking n'est pas complétement validé !", 'warning');
+                                warningShown = true;
+                            }                let currentPointIndex = trackingPointsWithDistance.findIndex((p, i) => {
                     const nextPoint = trackingPointsWithDistance[i + 1];
                     return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
                 });
@@ -259,25 +276,47 @@ onUnmounted(() => {
   bottom: 0;
   width: 100%;
 }
-.back-button {
+
+.overlay-container {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Allow map interaction by default */
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Pushes children to top and bottom */
+  padding: 20px;
+  box-sizing: border-box;
 }
+
+.top-overlay, .bottom-overlay {
+    display: flex;
+    justify-content: center; /* Center items horizontally */
+    width: 100%;
+}
+
+/* Override for back-button to be on the left */
+.top-overlay {
+    justify-content: flex-start;
+}
+
+.back-button,
+.distance-display,
+.play-pause-button {
+  pointer-events: auto; /* Make UI elements clickable */
+}
+
+/* Keep distance display centered relative to the whole screen */
 .distance-display {
     position: absolute;
-    top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    padding: 5px 15px;
-    border-radius: 10px;
     font-family: monospace;
-    font-size: 1.2em;
-    z-index: 1;
 }
+
 /* Hide mapbox logo/attribution for cleaner view, but ensure it's compliant with Mapbox terms */
 .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right {
   display: none;
