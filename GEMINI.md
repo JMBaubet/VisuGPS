@@ -1012,7 +1012,7 @@ La mise à jour du fichier tracking.jon consiste à :
 
 - Mettre à jour nbrSegements pour le point de control précecent. nbrSegement étant le nombre de point entre le point de control précédent et le point de control suivant. 
 
-## Visualisation d'un circuit
+## Visualisation d'un circuit - Réalisé - [0d732741]
 
 Dans ce chapitre nous allons travailler principalement sur la vue VisualizeView. 
 
