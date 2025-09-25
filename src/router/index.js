@@ -16,9 +16,10 @@ const routes = [
     component: EditView
   },
   {
-    path: '/visualize',
+    path: '/visualize/:circuitId',
     name: 'Visualize',
-    component: VisualizeView
+    component: VisualizeView,
+    props: true
   },
   {
     path: '/settings',

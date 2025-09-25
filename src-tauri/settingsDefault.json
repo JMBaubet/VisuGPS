@@ -551,14 +551,90 @@
                 "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
                 "type": "string"
-              },
+              }
+            ],
+            "groupes": [
               {
-                "defaut": "[2.34498, 48.85349]",
-                "description": "Coordonnées d'initialisation de la visualisation au format [longitude, latitude]",
-                "identifiant": "startPositionVisualisation",
-                "libelle": "Départ de la visualisation",
-                "type": "coord",
-                "decimales": 5
+                "libelle": "Traces",
+                "parametres": [
+                  {
+                    "defaut": "orange",
+                    "description": "Couleur de la trace GPX sur la carte.",
+                    "identifiant": "couleurTrace",
+                    "libelle": "Couleur de la trace",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 8,
+                    "description": "Epaisseur de la trace GPX sur la carte.",
+                    "identifiant": "epaisseurTrace",
+                    "libelle": "Epaisseur de la trace",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20
+                  },
+                  {
+                    "defaut": 0.8,
+                    "description": "Opacité de la trace GPX sur la carte.",
+                    "identifiant": "opaciteTrace",
+                    "libelle": "Opacité de la trace",
+                    "type": "reel",
+                    "min": 0,
+                    "max": 1,
+                    "decimales": 2
+                  },
+                  {
+                    "defaut": "yellow",
+                    "description": "Couleur de la comète qui suit l'avancement.",
+                    "identifiant": "couleurComete",
+                    "libelle": "Couleur de la comète",
+                    "type": "couleur",
+                    "materialDesign": true
+                  },
+                  {
+                    "defaut": 8,
+                    "description": "Epaisseur de la comète.",
+                    "identifiant": "epaisseurComete",
+                    "libelle": "Epaisseur de la comète",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20
+                  },
+                  {
+                    "defaut": 1,
+                    "description": "Opacité de la comète.",
+                    "identifiant": "opaciteComete",
+                    "libelle": "Opacité de la comète",
+                    "type": "reel",
+                    "min": 0,
+                    "max": 1,
+                    "decimales": 2
+                  },
+                  {
+                    "defaut": 1000,
+                    "description": "Longueur de la comète en mètres.",
+                    "identifiant": "longueurComete",
+                    "libelle": "Longueur de la comète (m)",
+                    "type": "entier",
+                    "min": 100,
+                    "max": 5000
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Animation",
+            "parametres": [
+              {
+                "defaut": 3730,
+                "description": "Nombre de millisecondes pour parcourir 1 kilomètre.",
+                "identifiant": "vitesse",
+                "libelle": "Vitesse de l'animation (ms/km)",
+                "type": "entier",
+                "min": 100,
+                "max": 60000
               }
             ]
           }

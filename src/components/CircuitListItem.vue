@@ -56,8 +56,7 @@ const editTracking = () => {
 };
 
 const view3D = () => {
-  console.log('View 3D for circuit:', props.circuit.circuitId);
-  // Future implementation
+  router.push({ name: 'Visualize', params: { circuitId: props.circuit.circuitId } });
 };
 
 const deleteCircuit = async () => {
