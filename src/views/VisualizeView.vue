@@ -75,6 +75,14 @@ const animate = (timestamp) => {
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
 
+  // Debugging logs for animate function
+  // console.log("Animate - accumulatedTime:", accumulatedTime);
+  // console.log("Animate - totalDurationAt1xRef:", totalDurationAt1xRef.value);
+  // console.log("Animate - phase:", phase);
+  // console.log("Animate - distanceTraveled:", distanceTraveled);
+  // console.log("Animate - isPaused:", isPaused.value);
+  // console.log("Animate - isRewinding:", isRewinding.value);
+
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
   if (distanceTraveled > startDistance) {
@@ -143,6 +151,8 @@ const animate = (timestamp) => {
   
   const lookAtPointLng = lerp(prevKeyframe.coordonnee[0], nextKeyframe.coordonnee[0], progressInSegment);
   const lookAtPointLat = lerp(prevKeyframe.coordonnee[1], nextKeyframe.coordonnee[1], progressInSegment);
+
+  // console.log("Animate - Zoom:", zoom, "Pitch:", pitch, "Bearing:", bearing, "Center:", [lookAtPointLng, lookAtPointLat]);
 
   map.setZoom(zoom);
   map.setPitch(pitch);
@@ -256,22 +266,43 @@ const initializeMap = async () => {
       return;
     }
 
-    lineStringRef.value = fetchedLineString;
-    trackingDataRef.value = fetchedTrackingData;
+    console.log("Fetched LineString:", fetchedLineString);
+    console.log("Fetched TrackingData (raw):", fetchedTrackingData);
 
-    totalDistanceRef.value = turf.length(lineStringRef.value, { units: 'kilometers' });
+    lineStringRef.value = fetchedLineString;
+    trackingDataRef.value = fetchedTrackingData; // Garder pour l'initialisation de Mapbox center
+
+    const processedData = await invoke('process_tracking_data', {
+        lineStringGeojson: fetchedLineString,
+        trackingPointsJs: fetchedTrackingData
+    });
+
+    console.log("Processed Data from Rust:", processedData);
+
+    trackingPointsWithDistanceRef.value = processedData.processedPoints;
+    totalDistanceRef.value = processedData.totalDistanceKm;
     totalDurationAt1xRef.value = totalDistanceRef.value * animationSpeed.value;
 
-    trackingPointsWithDistanceRef.value = trackingDataRef.value.map(p => {
-        const pointOnLine = turf.point(p.coordonnee);
-        const snapped = turf.nearestPointOnLine(lineStringRef.value, pointOnLine, {units: 'kilometers'});
-        return { ...p, distance: snapped.properties.location };
-    });
+    console.log("Tracking Points with Distance:", trackingPointsWithDistanceRef.value);
+    console.log("Total Distance (km):", totalDistanceRef.value);
+    console.log("Total Duration at 1x (ms):", totalDurationAt1xRef.value);
 
     controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
         if (p.pointDeControl) acc.push(index);
         return acc;
     }, []);
+
+    console.log("Control Point Indices:", controlPointIndicesRef.value);
+
+    // Vérifier les données initiales pour Mapbox
+    if (!trackingDataRef.value[0]) {
+        console.error("Initial tracking data point is undefined.");
+        return;
+    }
+    console.log("Initial Mapbox Center:", trackingDataRef.value[0].coordonnee);
+    console.log("Initial Mapbox Zoom:", trackingDataRef.value[0].zoom);
+    console.log("Initial Mapbox Pitch:", trackingDataRef.value[0].pitch);
+    console.log("Initial Mapbox Bearing:", trackingDataRef.value[0].cap);
 
     map = new mapboxgl.Map({
       container: mapContainer.value,
