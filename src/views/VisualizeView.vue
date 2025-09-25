@@ -266,9 +266,6 @@ const initializeMap = async () => {
       return;
     }
 
-    console.log("Fetched LineString:", fetchedLineString);
-    console.log("Fetched TrackingData (raw):", fetchedTrackingData);
-
     lineStringRef.value = fetchedLineString;
     trackingDataRef.value = fetchedTrackingData; // Garder pour l'initialisation de Mapbox center
 
@@ -277,32 +274,20 @@ const initializeMap = async () => {
         trackingPointsJs: fetchedTrackingData
     });
 
-    console.log("Processed Data from Rust:", processedData);
-
     trackingPointsWithDistanceRef.value = processedData.processedPoints;
     totalDistanceRef.value = processedData.totalDistanceKm;
     totalDurationAt1xRef.value = totalDistanceRef.value * animationSpeed.value;
-
-    console.log("Tracking Points with Distance:", trackingPointsWithDistanceRef.value);
-    console.log("Total Distance (km):", totalDistanceRef.value);
-    console.log("Total Duration at 1x (ms):", totalDurationAt1xRef.value);
 
     controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
         if (p.pointDeControl) acc.push(index);
         return acc;
     }, []);
 
-    console.log("Control Point Indices:", controlPointIndicesRef.value);
-
     // Vérifier les données initiales pour Mapbox
     if (!trackingDataRef.value[0]) {
         console.error("Initial tracking data point is undefined.");
         return;
     }
-    console.log("Initial Mapbox Center:", trackingDataRef.value[0].coordonnee);
-    console.log("Initial Mapbox Zoom:", trackingDataRef.value[0].zoom);
-    console.log("Initial Mapbox Pitch:", trackingDataRef.value[0].pitch);
-    console.log("Initial Mapbox Bearing:", trackingDataRef.value[0].cap);
 
     map = new mapboxgl.Map({
       container: mapContainer.value,
@@ -331,7 +316,7 @@ const initializeMap = async () => {
         id: 'trace-background-layer',
         type: 'line',
         source: 'trace',
-        paint: { 'line-width': traceWidth.value, 'line-color': traceColor.value, 'line-opacity': traceOpacity.value * 0.4 }
+        paint: { 'line-width': traceWidth.value, 'line-color': traceColor.value, 'line-opacity': traceOpacity.value }
       });
 
       map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
