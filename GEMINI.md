@@ -1196,7 +1196,7 @@ Les travaux à réaliser dans cette étape sont :
 
 - Remplacer dans le fichier `circuits.json` le champ `distanceVerifieeKm` par `trackingKm`. Normalement le champ `distanceVerifieeKm` n'était pas encore utilisé par l'application. Il faut quand même faire une vérification et faire les modification nécessaire à ce changement de nom. 
 
-## Amélioration de CircuitListItem - En cours - []
+## Amélioration de CircuitListItem - Réalisé - [787788b8]
 
 Il faut réaménager les informations présentées dans le composant `CircuitListItem`. Les informations à afficher sont issues du fichier circuits.json et seront affichées sur n colonne
 
@@ -1204,11 +1204,11 @@ Il faut réaménager les informations présentées dans le composant `CircuitLis
   
   - `**nom**`,
   
-  - Distance : `distance`,  Dénivelé : `dénivelé` 
+  - Ville de départ : `VilleDeDépart`
 
 - Colonne 2 :  sur deux lignes (alignée à gauche)
   
-  - **Ville de départ : `VilleDeDépart`**
+  - **Distance : `distance`, Dénivelé : `dénivelé`**
   
   - Sommet : `sommet.alitude`, à `sommet.km` km
 
@@ -1216,9 +1216,7 @@ Il faut réaménager les informations présentées dans le composant `CircuitLis
   
   - une jauge du rapport `trackingKm`/`distanceKm`
   
-  - Traceur : `traceur`
-
-
+  - Par : `traceur`
 
 On ajoute un v-btn informations apres le mdi-bug qui :
 
@@ -1234,8 +1232,6 @@ le bouton d'edition sera :
 
 - sinon orange ( warning)
 
-
-
 le bouton view3D sera 
 
 - rouge (error) si trackingKm== 0
@@ -1243,6 +1239,48 @@ le bouton view3D sera
 - vert (success) si trackingKm== distanceKm
 
 - sinon Orange (warning)
+
+## Filtrage des circuits - en cours - []
+
+Par défaut `CircuitListItem` affiche tous les circuits qui ont été importés page par page. Si  le nombre totoal de circuit est > au paramètre `Accuei:/circuitsPerPage` on affiche avant la v-list-item un bandeau horizontal Filtrage, qui va nous permettre de filtrer les circuits importés.
+
+Le filtre pourra porté sur :
+
+- Le nom du circuit : Un champ de saisie doit permettre de saisir une chaine de caractère. Si la chaine de caractère n'est pas présente dans le nom du circuit, ce dernier sera filtré
+
+- Un interval de distance : un v-range-slider sera initialiser avec la plus petite et la plus grande distance des circuits importés. Lors de l'importation ou de la suppression d'un circuit les valeurs min et max du v-range-slider devront éventuellement être mise à jour. 
+
+- Un intervalde dénivelé : un v-range-slider sera initialiser avec le plus petit et le plus grand dévinevlé des circuits importés. Lors de l'importation ou de la suppression d'un circuit les valeurs min et max du v-range-slider devront éventuellement être mise à jour.
+
+- Le nom de la ville de départ : Un liste présentant les villes de départ connues sera crée. L'id de la ville permettra de filter les circuits qui ne partent pas de cette ville.
+
+- Le nom du traceur : Un liste présentant les traceurs connus sera crée. L'id du traceur permettra de filter les circuits qui n'ont pas été tracé par lui. 
+
+Un bouton permettre de réinitialiser tous les filtres
+
+Un tri croissant décroissant pourra être appliqué a l'ensemble des champs de filtrage 
+
+Les filtres seront disposés en trois colonnes comme les cicuits. La largeur des colonne devra être adaptée à la largeur des colonne du v-llist-item.
+
+Le bouton de reinitialisation sera sur l'extrémité droite du bandeau. 
+
+
+
+## Mise à jour des communes
+
+## Mise à jour de circuits.json lors de l'édition des circuits
+
+## Ajouts d'un évènement Pause
+
+## Ajout d'un évènement Zoom
+
+## Ajout de balises texte (km et autre)
+
+## Zooms automatiques au départ et à l'arrivée.
+
+## Profil d'altitude
+
+## Détection des pentes
 
 ---
 

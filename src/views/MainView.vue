@@ -2,16 +2,26 @@
   <v-container fluid class="fill-height d-flex flex-column pa-0">
     <AppMainBar @open-gpx-import-dialog="gpxImportDialog = true" />
 
-    <v-list lines="two" class="w-100">
+    <div class="w-100">
+      <CircuitFilter 
+        v-if="showFilters && filterData"
+        :filter-data="filterData"
+        v-model="activeFilters"
+        v-model:sortValue="sortOptions"
+      />
+    </div>
+
+    <v-list lines="two" class="w-100 bg-transparent">
       <CircuitListItem
         v-for="circuit in paginatedCircuits"
         :key="circuit.circuitId"
         :circuit="circuit"
-        @circuit-deleted="refreshCircuits"
+        @circuit-deleted="handleCircuitDeleted"
       />
     </v-list>
 
     <v-pagination
+      v-if="pageCount > 1"
       v-model="currentPage"
       :length="pageCount"
       :total-visible="7"
@@ -23,45 +33,144 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, reactive } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import AppMainBar from '../components/AppMainBar.vue';
 import GpxImportDialog from '../components/GpxImportDialog.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
+import CircuitFilter from '@/components/CircuitFilter.vue';
 import { useSettings } from '@/composables/useSettings';
 
 const gpxImportDialog = ref(false);
-const circuits = ref([]);
+const allCircuits = ref([]);
+const filterData = ref(null);
+
 const { getSettingValue } = useSettings();
+
+const activeFilters = ref(null);
+const sortOptions = ref({ by: 'isoDateTime', order: 'desc' });
 
 const currentPage = ref(1);
 const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);
 
+const showFilters = computed(() => {
+  if (!itemsPerPage.value) return false;
+  return allCircuits.value.length > itemsPerPage.value;
+});
+
+const filteredAndSortedCircuits = computed(() => {
+  if (!allCircuits.value.length || !activeFilters.value) {
+    return [];
+  }
+
+  let result = [...allCircuits.value];
+
+  // 1. Filter
+  // Name
+  if (activeFilters.value.nom) {
+    const search = activeFilters.value.nom.toLowerCase();
+    result = result.filter(c => c.nom.toLowerCase().includes(search));
+  }
+  // City
+  if (activeFilters.value.villeId) {
+    result = result.filter(c => c.villeDepartId === activeFilters.value.villeId);
+  }
+  // Tracer
+  if (activeFilters.value.traceurId) {
+    result = result.filter(c => c.traceurId === activeFilters.value.traceurId);
+  }
+  // Distance
+  if (activeFilters.value.distance) {
+    const [min, max] = activeFilters.value.distance;
+    result = result.filter(c => c.distanceKm >= min && c.distanceKm <= max);
+  }
+  // Elevation
+  if (activeFilters.value.denivele) {
+    const [min, max] = activeFilters.value.denivele;
+    result = result.filter(c => c.deniveleM >= min && c.deniveleM <= max);
+  }
+
+  // 2. Sort
+  result.sort((a, b) => {
+    const field = sortOptions.value.by;
+    let valA = a[field];
+    let valB = b[field];
+
+    if (typeof valA === 'string') {
+      valA = valA.toLowerCase();
+      valB = valB.toLowerCase();
+    }
+
+    if (valA < valB) return sortOptions.value.order === 'asc' ? -1 : 1;
+    if (valA > valB) return sortOptions.value.order === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  return result;
+});
+
 const pageCount = computed(() => {
   if (!itemsPerPage.value) return 0;
-  return Math.ceil(circuits.value.length / itemsPerPage.value);
+  return Math.ceil(filteredAndSortedCircuits.value.length / itemsPerPage.value);
 });
 
 const paginatedCircuits = computed(() => {
   if (!itemsPerPage.value) return [];
   const start = (currentPage.value - 1) * itemsPerPage.value;
   const end = start + itemsPerPage.value;
-  return circuits.value.slice(start, end);
+  return filteredAndSortedCircuits.value.slice(start, end);
 });
 
 async function refreshCircuits() {
   try {
-    circuits.value = await invoke('get_circuits_for_display');
+    allCircuits.value = await invoke('get_circuits_for_display');
+    // Reset page to 1 on refresh
+    currentPage.value = 1;
   } catch (error) {
     console.error("Failed to fetch circuits:", error);
   }
 }
 
-function handleGpxImported() {
-  refreshCircuits();
+async function loadFilterData() {
+  try {
+    const data = await invoke('get_filter_data');
+    filterData.value = data;
+    // Initialize filters with default values
+    activeFilters.value = {
+      nom: '',
+      villeId: null,
+      traceurId: null,
+      distance: [data.minDistance, data.maxDistance],
+      denivele: [data.minDenivele, data.maxDenivele],
+    };
+  } catch (error) {
+    console.error("Failed to fetch filter data:", error);
+  }
 }
 
-onMounted(() => {
+function handleGpxImported() {
   refreshCircuits();
+  loadFilterData();
+}
+
+function handleCircuitDeleted() {
+  refreshCircuits();
+  loadFilterData();
+}
+
+onMounted(async () => {
+  await useSettings().initSettings(); // Ensure settings are loaded
+  await refreshCircuits();
+  await loadFilterData();
 });
 </script>
+
+<style scoped>
+.v-list :deep(.v-list-item:nth-child(even)) {
+    background-color: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.v-list {
+    border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+</style>

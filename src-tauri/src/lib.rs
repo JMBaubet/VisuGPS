@@ -431,9 +431,12 @@ pub struct CircuitForDisplay {
     distance_km: f64,
     denivele_m: i32,
     ville_depart: String,
+    ville_depart_id: String, // Ajout de l'ID
     sommet: Option<CircuitSommet>,
     traceur: String,
+    traceur_id: String, // Ajout de l'ID
     tracking_km: f64,
+    iso_date_time: DateTime<Utc>,
 }
 
 #[tauri::command]
@@ -441,7 +444,7 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
 
-    let circuits_for_display = circuits_file.circuits.iter().map(|circuit| {
+    let mut circuits_for_display: Vec<CircuitForDisplay> = circuits_file.circuits.iter().map(|circuit| {
         let ville_depart = circuits_file.villes
             .iter()
             .find(|v| v.id == circuit.ville_depart_id)
@@ -458,11 +461,17 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             distance_km: circuit.distance_km,
             denivele_m: circuit.denivele_m,
             ville_depart,
+            ville_depart_id: circuit.ville_depart_id.clone(), // Ajout de l'ID
             sommet: Some(circuit.sommet.clone()),
             traceur,
+            traceur_id: circuit.traceur_id.clone(), // Ajout de l'ID
             tracking_km: circuit.tracking_km,
+            iso_date_time: circuit.iso_date_time,
         }
     }).collect();
+
+    // Sort by date descending by default
+    circuits_for_display.sort_by(|a, b| b.iso_date_time.cmp(&a.iso_date_time));
 
     Ok(circuits_for_display)
 }
@@ -803,6 +812,61 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FilterData {
+    min_distance: f64,
+    max_distance: f64,
+    min_denivele: i32,
+    max_denivele: i32,
+    villes: Vec<Ville>,
+    traceurs: Vec<Traceur>,
+}
+
+#[tauri::command]
+fn get_filter_data(state: State<Mutex<AppState>>) -> Result<FilterData, String> {
+    let state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+
+    let mut min_distance = f64::MAX;
+    let mut max_distance = f64::MIN;
+    let mut min_denivele = i32::MAX;
+    let mut max_denivele = i32::MIN;
+
+    if circuits_file.circuits.is_empty() {
+        min_distance = 0.0;
+        max_distance = 100.0; // Default value if no circuits
+        min_denivele = 0;
+        max_denivele = 1000; // Default value if no circuits
+    } else {
+        for circuit in &circuits_file.circuits {
+            if circuit.distance_km < min_distance {
+                min_distance = circuit.distance_km;
+            }
+            if circuit.distance_km > max_distance {
+                max_distance = circuit.distance_km;
+            }
+            if circuit.denivele_m < min_denivele {
+                min_denivele = circuit.denivele_m;
+            }
+            if circuit.denivele_m > max_denivele {
+                max_denivele = circuit.denivele_m;
+            }
+        }
+    }
+
+    Ok(FilterData {
+        min_distance: min_distance.floor(),
+        max_distance: max_distance.ceil(),
+        min_denivele,
+        max_denivele,
+        villes: circuits_file.villes,
+        traceurs: circuits_file.traceurs,
+    })
+}
+
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
@@ -823,7 +887,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

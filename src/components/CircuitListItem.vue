@@ -191,6 +191,6 @@ const proceedDeletion = async () => {
 
 <style scoped>
 .v-list-item {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 </style>
