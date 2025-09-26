@@ -1036,7 +1036,7 @@ La vue visualize.view doit :
 
 - Afficher l'avancement avec la lineString issue du fichier `lineString;json`. Pour cela pour les km non encore parcourus la lineString aura une opacité nulle. Un effet de comète suivra le point parcouru en faisant varier l'opacite de la lineString de x à 0 sur une distance paramétrée.
   
-  -   La couleur de la comete sera définie dans le fichier `settingsDefault.json` sous Visualisation/Mapbox/Traces/couleurComete. yellow par défaut
+  - La couleur de la comete sera définie dans le fichier `settingsDefault.json` sous Visualisation/Mapbox/Traces/couleurComete. yellow par défaut
   
   - a l'épaisseur de la comete sera définie dans le fichier `settingsDefault.json` sous Visualisation/Mapbox/Traces/epaisseurComete. 8 par défaut
   
@@ -1176,7 +1176,63 @@ Voici comment la `phase` est utilisée pour synchroniser le tracé et la caméra
                                    +--------------------------------+
 ```
 
+## Création du QRcode et ajout de commune dans circuits.json - En cours - []
 
+Lors de importation d'un fichier gpx dans l'application, nous faisons actuellement :
+
+- La création des fichiers `lineString.json` et `tracking.json`
+
+- La mise à jour du fichier `circuits.json`
+
+Les travaux à réaliser dans cette étape sont : 
+
+- Ajouter dans `tracking.json` un attribut `"commune": null`, pour chaque point. 
+
+- Créer un QRCode de l'URL du circuit, dans un fichier urlQrcode.png. Il sera sauvegardé dans le dossier du circuit.
+
+- Vérifier avant de commencer les traitements sur le fichier gpx, qu'il n'a pas déjà été importé. Pour cela on s'appuiera sur son nom.  On traitera en priorité lors de l'import la détection du nom de la trace, et on vérifiera qu'elle n'est pas déjà présente, via le fichier `circuits.json`. Si c'est le cas on informera l'utilisateur via un message à acquiter.
+
+- Ajouter dans le fichier `circuits.json` le champ `"nomCommmunes": false`
+
+- Remplacer dans le fichier `circuits.json` le champ `distanceVerifieeKm` par `trackingKm`. Normalement le champ `distanceVerifieeKm` n'était pas encore utilisé par l'application. Il faut quand même faire une vérification et faire les modification nécessaire à ce changement de nom. 
+
+## Amélioration de CircuitListItem - Futur - []
+
+Il faut réaménager les informations présentées dans ce composant. Les informations a afficher sont issues du fichier circuits.json et seront affichées sur n colonne
+
+- Colonne 1 : sur deux lignes  (aligné a gauche)
+  
+  - `**nom**`,
+  
+  - Distance : `distance`,  Dénivelé : `dénivelé` 
+
+- Colonne 2 :  sur deux lignes (alignée à gauche)
+  
+  - **Ville de départ : `VilleDeDépart`**
+  
+  - Sommet : `sommet.alitude`, à `sommet.km` km
+
+- Colonne 3 : sur une ligne (aligné à doite)
+  
+  - Traceur : `traceur`
+
+- Colonne  4 : sur une ligne (aligné à droite)
+  
+  - une icone de l'editeur (garmin, openrunner, strava...)
+  
+  - une jauge du rapport `trackingKm`/`distanceKm`
+
+Quand le curseur passe sur l'icone de l'éditeur, on affiche le QRcode de `url` Le QRcode est à créer au moment de l'importation et sera stoché dans le dossier du circuit, sous le nom `urlQrcode.png`
+
+On ajoute un v-btn informations apres le mdi-bug qui ouvrira un composant information qui sera à créer plus tard.
+
+le bouton view3D sera 
+
+- rouge (error) si trackingKm== 0
+
+- vert (success) si trackingKm== distanceKm
+
+- sinon Orange (warning)
 
 ---
 

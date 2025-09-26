@@ -6,13 +6,14 @@ use tauri::{AppHandle, Manager};
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use chrono::{DateTime, Utc};
-use geo::{LineString as GeoLineString, Point};
-use geo::prelude::*;
+use geo::{LineString as GeoLineString, Point, prelude::*};
 use uuid::Uuid;
 use std::sync::Mutex;
+use qrcode::QrCode;
 
 use crate::tracking_processor;
 use super::{AppState, CircuitsFile, Editor, Ville};
+
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -114,8 +115,10 @@ pub struct Circuit {
     pub sommet: CircuitSommet,
     #[serde(rename = "isoDateTime")]
     pub iso_date_time: DateTime<Utc>,
-    #[serde(rename = "distanceVerifieeKm")]
-    pub distance_verifiee_km: f64,
+    #[serde(rename = "trackingKm")]
+    pub tracking_km: f64,
+    #[serde(rename = "nomCommunes")]
+    pub nom_communes: bool,
     pub evt: CircuitEvt,
 }
 
@@ -152,6 +155,15 @@ pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
     }
 
     let (metadata, track_points) = extract_gpx_data(&file_path)?;
+
+    // --- Start of new code for duplicate check ---
+    let circuits_file = super::read_circuits_file(&app_env_path)?;
+    let gpx_name = metadata.name.clone().unwrap_or_else(|| filename.to_string());
+
+    if circuits_file.circuits.iter().any(|c| c.nom == gpx_name) {
+        return Err(format!("Un circuit avec le nom '{}' existe déjà.", gpx_name));
+    }
+    // --- End of new code for duplicate check ---
 
     let rounded_track_points: Vec<Vec<f64>> = track_points.iter().map(|point| {
         vec![
@@ -234,17 +246,36 @@ pub fn commit_new_circuit(
         depart: draft.depart,
         sommet: draft.sommet,
         iso_date_time: draft.iso_date_time,
-        distance_verifiee_km: 0.0, // This could be calculated from track_points if needed
+        tracking_km: 0.0, // Initialized to 0.0
+        nom_communes: false, // Initialized to false
         evt: CircuitEvt {
             compteurs: CircuitCompteurs { zoom: 0, pause: 0, info: 0 },
             affichage: CircuitAffichage { depart: true, arrivee: true, marqueurs_10km: true },
         },
     };
 
-    circuits_file.circuits.push(new_circuit);
+    circuits_file.circuits.push(new_circuit.clone()); // Clone new_circuit here
     circuits_file.index_circuits += 1;
 
     super::write_circuits_file(&app_env_path, &circuits_file)?;
+
+    // --- Start of new code for QR code generation ---
+    if !new_circuit.url.is_empty() {
+        let code = QrCode::new(&new_circuit.url).map_err(|e| format!("Failed to create QR code: {}", e))?;
+        let luma_buf = code
+          .render::<image::Luma<u8>>()
+         .module_dimensions(2, 2)
+          .build();
+
+        let image = image::DynamicImage::ImageLuma8(luma_buf).to_rgba8();
+
+
+        let circuit_data_dir = app_env_path.join("data").join(&new_circuit_id);
+        fs::create_dir_all(&circuit_data_dir).map_err(|e| format!("Failed to create circuit data directory: {}", e))?;
+        let qrcode_path = circuit_data_dir.join("urlQrcode.png");
+        image.save(&qrcode_path).map_err(|e| format!("Failed to save QR code image: {}", e))?;
+    }
+    // --- End of new code for QR code generation ---
 
     create_line_string_file(&app_env_path, &new_circuit_id, &draft.track_points)?;
 
@@ -662,7 +693,6 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 
     r * c
 }
-
 
 
 

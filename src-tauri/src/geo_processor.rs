@@ -11,7 +11,7 @@ pub struct TrackingPointJs {
     pub nbr_segment: u32,
     pub coordonnee: Vec<f64>,
     pub altitude: f64,
-    pub commune: String,
+    pub commune: Option<String>,
     pub cap: f64,
     pub zoom: f64,
     pub pitch: f64,
