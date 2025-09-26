@@ -287,6 +287,25 @@ const saveControlPoint = async () => {
       trackingData: trackingPoints.value,
     });
     showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
+
+    // Update trackingKm in circuits.json if this is the furthest control point
+    const controlPoints = trackingPoints.value.filter(p => p.pointDeControl);
+    if (controlPoints.length > 0) {
+      const furthestControlPoint = controlPoints.reduce((max, p) => p.distance > max.distance ? p : max, controlPoints[0]);
+      if (point.increment === furthestControlPoint.increment) {
+        try {
+          await invoke('update_tracking_km', { 
+            circuitId: circuitId,
+            trackingKm: furthestControlPoint.distance
+          });
+          showSnackbar('Distance de tracking mise à jour.', 'success');
+        } catch (e) {
+          console.error('Erreur lors de la mise à jour de trackingKm:', e);
+          showSnackbar(`Erreur trackingKm: ${e.message || e}`, 'error');
+        }
+      }
+    }
+
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du fichier de tracking:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');

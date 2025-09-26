@@ -865,6 +865,24 @@ fn get_filter_data(state: State<Mutex<AppState>>) -> Result<FilterData, String> 
     })
 }
 
+#[tauri::command]
+fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, tracking_km: f64) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.tracking_km = tracking_km;
+    } else {
+        return Err(format!("Circuit with ID '{}' not found.", circuit_id));
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    Ok(())
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -887,7 +905,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

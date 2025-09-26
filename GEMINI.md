@@ -1240,7 +1240,7 @@ le bouton view3D sera
 
 - sinon Orange (warning)
 
-## Filtrage des circuits - en cours - []
+## Filtrage des circuits - Réalisé - [08151201]
 
 Par défaut `CircuitListItem` affiche tous les circuits qui ont été importés page par page. Si  le nombre totoal de circuit est > au paramètre `Accuei:/circuitsPerPage` on affiche avant la v-list-item un bandeau horizontal Filtrage, qui va nous permettre de filtrer les circuits importés.
 
@@ -1266,9 +1266,15 @@ Le bouton de reinitialisation sera sur l'extrémité droite du bandeau.
 
 
 
-## Mise à jour des communes
+## Mise à jour de circuits.json lors de l'édition des circuits - EN cours - []
 
-## Mise à jour de circuits.json lors de l'édition des circuits
+Dans la vue EditViews.vue on réalise des mises à jour du fichier tracking.json du circuit qui est en cours d'édition.
+
+ C'est la mise à jour de pointDeControle, qui va nous interresser ici. 
+
+A chaque mise à jour d'un pointDeControle, Si c'est le pointDeControl le plus eloigné du km 0 il faut mettre à jour le fichier circuits.json, pour le circuit consiéré en mettant à jour l'attribut  trackingKm, avec la valeur de  increment  * 1000 / Importation/Tracking/LongueurSegment qui correspond au paramètre de settingDeault.json. Cela nous servira à mettre à jour la jauge et les couleurs des boutons edition et visualisation 3D des circuit de la v-list-item de la vue MainView.vue.
+
+## Mise à jour des communes
 
 ## Ajouts d'un évènement Pause
 
