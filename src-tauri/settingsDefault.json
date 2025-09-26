@@ -12,6 +12,16 @@
             "type": "entier",
             "min": 4,
             "max": 20
+          },
+          {
+            "defaut": 512,
+            "description": "Largeur en pixels de la vignette affichée au survol dans la liste des circuits.",
+            "identifiant": "TailleVignette",
+            "libelle": "Taille de la vignette",
+            "type": "entier",
+            "min": 128,
+            "max": 1024,
+            "unite": "px"
           }
         ]
       },

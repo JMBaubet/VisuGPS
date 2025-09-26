@@ -40,7 +40,7 @@
       <v-col cols="12" md="3" class="d-flex justify-end align-center">
         <v-btn icon="mdi-bug" variant="text" v-if="isDev" @click.stop="debugCircuit" color="warning"></v-btn>
         
-        <v-menu open-on-hover location="top" @update:modelValue="loadThumbnailOnOpen">
+        <v-menu open-on-hover location="top" :offset="[0, -48]" @update:modelValue="loadThumbnailOnOpen">
           <template v-slot:activator="{ props: activatorProps }">
             <v-btn
               v-bind="activatorProps"
@@ -49,7 +49,7 @@
             ></v-btn>
           </template>
 
-          <v-card class="pa-0" width="256">
+          <v-card class="pa-0" :width="thumbnailWidth">
             <v-img :src="thumbnailDataUrl" contain>
               <template v-slot:placeholder>
                 <div class="d-flex align-center justify-center fill-height" style="height: 200px;">
@@ -84,6 +84,7 @@ import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
+import { useSettings } from '@/composables/useSettings';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const props = defineProps({
@@ -99,6 +100,11 @@ const isDev = ref(import.meta.env.DEV);
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { appEnvPath } = useEnvironment();
+const { getSettingValue } = useSettings();
+
+const thumbnailWidth = computed(() => {
+  return getSettingValue('Accueil/TailleVignette') || 512;
+});
 
 const showConfirmDialog = ref(false);
 
