@@ -204,6 +204,21 @@
                 "unite": "°"
               }
             ]
+          },
+          {
+            "libelle": "QRCode",
+            "parametres": [
+              {
+                "defaut": 512,
+                "description": "Taille en pixels du côté du QR code généré.",
+                "identifiant": "taille",
+                "libelle": "Taille du QR code",
+                "type": "entier",
+                "min": 100,
+                "max": 2048,
+                "unite": "px"
+              }
+            ]
           }
         ],
         "parametres": [

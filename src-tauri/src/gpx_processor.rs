@@ -261,10 +261,18 @@ pub fn commit_new_circuit(
 
     // --- Start of new code for QR code generation ---
     if !new_circuit.url.is_empty() {
+        let settings_path = app_env_path.join("settings.json");
+        let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+        let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+        let qrcode_size = super::get_setting_value(&settings, "data.groupes.Importation.groupes.QRCode.parametres.taille")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(512) as u32; // Default to 512 if not found or invalid
+
         let code = QrCode::new(&new_circuit.url).map_err(|e| format!("Failed to create QR code: {}", e))?;
         let luma_buf = code
           .render::<image::Luma<u8>>()
-         .module_dimensions(2, 2)
+         .module_dimensions(qrcode_size / code.width() as u32, qrcode_size / code.width() as u32) // Calculate module size
           .build();
 
         let image = image::DynamicImage::ImageLuma8(luma_buf).to_rgba8();
