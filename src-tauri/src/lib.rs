@@ -6,6 +6,7 @@ use reqwest;
 use serde_json::Value;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
+use base64::{engine::general_purpose, Engine as _};
 
 mod gpx_processor;
 pub mod colors;
@@ -14,7 +15,7 @@ pub mod tracking_processor;
 pub mod geo_processor;
 
 use chrono::prelude::*;
-use gpx_processor::{Circuit, DraftCircuit};
+use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
 use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
 
@@ -420,6 +421,8 @@ fn update_camera_position(
     Ok(())
 }
 
+
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitForDisplay {
@@ -428,6 +431,9 @@ pub struct CircuitForDisplay {
     distance_km: f64,
     denivele_m: i32,
     ville_depart: String,
+    sommet: Option<CircuitSommet>,
+    traceur: String,
+    tracking_km: f64,
 }
 
 #[tauri::command]
@@ -440,6 +446,11 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             .iter()
             .find(|v| v.id == circuit.ville_depart_id)
             .map_or("Inconnue".to_string(), |v| v.nom.clone());
+        
+        let traceur = circuits_file.traceurs
+            .iter()
+            .find(|t| t.id == circuit.traceur_id)
+            .map_or("Inconnu".to_string(), |t| t.nom.clone());
 
         CircuitForDisplay {
             circuit_id: circuit.circuit_id.clone(),
@@ -447,6 +458,9 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             distance_km: circuit.distance_km,
             denivele_m: circuit.denivele_m,
             ville_depart,
+            sommet: Some(circuit.sommet.clone()),
+            traceur,
+            tracking_km: circuit.tracking_km,
         }
     }).collect();
 
@@ -666,6 +680,23 @@ fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(
 }
 
 #[tauri::command]
+fn get_thumbnail_as_base64(state: State<Mutex<AppState>>, circuit_id: String) -> Result<String, String> {
+    let state = state.lock().unwrap();
+    let thumbnail_path = state.app_env_path.join("data").join(circuit_id).join("vignette.png");
+
+    if !thumbnail_path.exists() {
+        return Err("Thumbnail not found.".to_string());
+    }
+
+    let image_bytes = fs::read(&thumbnail_path)
+        .map_err(|e| format!("Failed to read thumbnail file: {}", e))?;
+
+    let base64_str = general_purpose::STANDARD.encode(&image_bytes);
+
+    Ok(format!("data:image/png;base64,{}", base64_str))
+}
+
+#[tauri::command]
 fn save_tracking_file(state: State<Mutex<AppState>>, circuit_id: String, tracking_data: Value) -> Result<(), String> {
     let state = state.lock().unwrap();
     let tracking_path = state.app_env_path.join("data").join(circuit_id).join("tracking.json");
@@ -792,7 +823,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

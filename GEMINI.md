@@ -1176,7 +1176,7 @@ Voici comment la `phase` est utilisée pour synchroniser le tracé et la caméra
                                    +--------------------------------+
 ```
 
-## Création du QRcode et ajout de commune dans circuits.json - En cours - []
+## Création du QRcode et ajout de commune dans circuits.json - Réalisé - [f773b733]
 
 Lors de importation d'un fichier gpx dans l'application, nous faisons actuellement :
 
@@ -1196,9 +1196,9 @@ Les travaux à réaliser dans cette étape sont :
 
 - Remplacer dans le fichier `circuits.json` le champ `distanceVerifieeKm` par `trackingKm`. Normalement le champ `distanceVerifieeKm` n'était pas encore utilisé par l'application. Il faut quand même faire une vérification et faire les modification nécessaire à ce changement de nom. 
 
-## Amélioration de CircuitListItem - Futur - []
+## Amélioration de CircuitListItem - En cours - []
 
-Il faut réaménager les informations présentées dans ce composant. Les informations a afficher sont issues du fichier circuits.json et seront affichées sur n colonne
+Il faut réaménager les informations présentées dans le composant `CircuitListItem`. Les informations à afficher sont issues du fichier circuits.json et seront affichées sur n colonne
 
 - Colonne 1 : sur deux lignes  (aligné a gauche)
   
@@ -1214,17 +1214,27 @@ Il faut réaménager les informations présentées dans ce composant. Les inform
 
 - Colonne 3 : sur une ligne (aligné à doite)
   
+  - une jauge du rapport `trackingKm`/`distanceKm`
+  
   - Traceur : `traceur`
 
-- Colonne  4 : sur une ligne (aligné à droite)
-  
-  - une icone de l'editeur (garmin, openrunner, strava...)
-  
-  - une jauge du rapport `trackingKm`/`distanceKm`
 
-Quand le curseur passe sur l'icone de l'éditeur, on affiche le QRcode de `url` Le QRcode est à créer au moment de l'importation et sera stoché dans le dossier du circuit, sous le nom `urlQrcode.png`
 
-On ajoute un v-btn informations apres le mdi-bug qui ouvrira un composant information qui sera à créer plus tard.
+On ajoute un v-btn informations apres le mdi-bug qui :
+
+- quand on le survol affiche la vignette
+
+- quand on clique dessus ouvre un composant information qui sera à créer plus tard.
+
+le bouton d'edition sera :
+
+- rouge (error) si  trackingKm== 0
+
+- bleu  (primary) si trackingKm== distanceKm
+
+- sinon orange ( warning)
+
+
 
 le bouton view3D sera 
 

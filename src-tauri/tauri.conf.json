@@ -28,6 +28,11 @@
       "allowlist": [
         "relaunch"
       ]
+    },
+    "fs": {
+      "scope": [
+        "$APPDATA/com.visugps.app/VisuGPS/**"
+      ]
     }
   },
   "bundle": {
