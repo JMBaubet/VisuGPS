@@ -3,6 +3,8 @@
   "description": "Base de données des circuits GPX",
   "auteur": "VisuGPS",
   "commentaires": "",
+  "majCommunes": false,
+  "circuitId": "",
   "villes": [],
   "traceurs": [],
   "editeurs": [],

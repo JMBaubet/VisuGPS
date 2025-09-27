@@ -119,6 +119,8 @@ pub struct Circuit {
     pub tracking_km: f64,
     #[serde(rename = "nomCommunes")]
     pub nom_communes: bool,
+    #[serde(rename = "avancementCommunes")]
+    pub avancement_communes: i32,
     pub evt: CircuitEvt,
 }
 
@@ -248,6 +250,7 @@ pub fn commit_new_circuit(
         iso_date_time: draft.iso_date_time,
         tracking_km: 0.0, // Initialized to 0.0
         nom_communes: false, // Initialized to false
+        avancement_communes: 0,
         evt: CircuitEvt {
             compteurs: CircuitCompteurs { zoom: 0, pause: 0, info: 0 },
             affichage: CircuitAffichage { depart: true, arrivee: true, marqueurs_10km: true },

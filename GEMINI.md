@@ -1264,9 +1264,7 @@ Les filtres seront disposés en trois colonnes comme les cicuits. La largeur des
 
 Le bouton de reinitialisation sera sur l'extrémité droite du bandeau. 
 
-
-
-## Mise à jour de circuits.json lors de l'édition des circuits - EN cours - []
+## Mise à jour de circuits.json lors de l'édition des circuits - Réalisé - [7f3ad688]
 
 Dans la vue EditViews.vue on réalise des mises à jour du fichier tracking.json du circuit qui est en cours d'édition.
 
@@ -1274,7 +1272,229 @@ Dans la vue EditViews.vue on réalise des mises à jour du fichier tracking.json
 
 A chaque mise à jour d'un pointDeControle, Si c'est le pointDeControl le plus eloigné du km 0 il faut mettre à jour le fichier circuits.json, pour le circuit consiéré en mettant à jour l'attribut  trackingKm, avec la valeur de  increment  * 1000 / Importation/Tracking/LongueurSegment qui correspond au paramètre de settingDeault.json. Cela nous servira à mettre à jour la jauge et les couleurs des boutons edition et visualisation 3D des circuit de la v-list-item de la vue MainView.vue.
 
-## Mise à jour des communes
+## Préparation de la mise à jour des communes - en cours - []
+
+Avant de se lancer dans la mise à jour des communes, nous avons besoin :
+
+- de préparer des données de controle de cette fonctionnalité
+
+- d'avoir une IHM de  lancement. pour la tâche de fond
+
+- d'avoir un visuel sur l'avancement de la tâche de fond
+
+### Données de control
+
+Pour cette fonctionnalite, nous avons besoin :
+
+- de modifier le fichier `circuits.json` pour y ajouter deux nouveaux attributs à la racine du fichier circuits.json :
+  
+  - `majCommunes` : un booleen qui est mis à true au lancement de la tache. 
+    
+    Il sera initialisé à false
+  
+  - `circuitId` : une string qui contient le circuitId du circuit qui est en cours de traitement.
+    
+    Il sera initialisé à "".
+
+- d'un nouvel attribut pour circuits : un entier `avancementCommunes` 
+  
+  Il sera initialisé à 0
+
+### IHM de lancement
+
+Pour pourvoir lancer la tache de fond il faut ajouter un nouveau v-btn (mdi-city) sur la v-list-item du composant CircuitListItem. Ce bouton sera situé apres le mdi-information
+
+Tous les boutons mdi-city seront disabled si la tâche de fond est active.
+
+### Visuel d'avancement
+
+Une nouvelle jauge devra être ajoutée sur la v-list-item du composant CircuitListItem en colonne 3  pour afficher``avancementCommunes` qui va de 0 à 100. 
+
+## Mise à jour des communes - Futur - []
+
+La mise à jour des communes est à réaliser pour tous les points du fichier tracking.json du circuit considéré. C'est un processus qui peut se révéler extrèmement long, surtout pour les communes étrangères, car les services internet liés à cette fonctionnalite nous limitent grandement. (Au pire, une requete par seconde pour les communes étrangères à la france.)
+
+On va donc créer une tache de fond qui va s'en charger. 
+
+L'activité de cette tache de fond sera matérialisée par la présence ou pas d'une icone (verte) sur la toolbar de la mainView, qui sera déterminé par une variable globale `majCommuneIsRunning` par exemple.
+
+### Déclenchement de la tâche
+
+Trois cas sont à considérés :
+
+- <u>Au  lancement de l'application</u> : Une vérification du fichier circuits.json, sera nécessaire, pour savoir si il faut lancer la tache de fond, en vérifiant les attributs `majCommunes`et `circuitId` situés à la racine du fichier settings.json. 
+  
+  Si `majCommunes` est à true, on relance la tache de fond pour le cicuit, pointé par `circuitId`.
+
+- <u>Sur demande de l'utilisateur </u> : Si la tâche de fond n'est pas active, l'utilisateur peut déclencher la tache de fond via un bouton sur la v-list-item du composant CircuitListItem
+
+- <u>Au changement de vue</u> : Quand on quitte la vue VisualizeView.vue
+
+### Interuption de la tâche
+
+- <u>Au changement de vue</u> : Quand on passe sur la vue VisualizeView.vue
+
+### Fonctionnement de la tâche
+
+**A son lancement** la tâche doit :
+
+- Mettre la vaiable globale `majCommuneIsRunnig` à true, afin que l'icône puisse s'aficher sur la toolBar de la MainView.
+
+- Mettre à jour les attributs `"majCommunes": true`et `"circuitId" : "circ-xxxx"` du fichier circuits.json.
+
+- Calculer le nombre de points total à traiter via le fichier tracking.json
+
+- Déactiver les boutons mdi-city
+
+**A la fin de son éxecution** la tâche doit :
+
+- Mettre la vaiable globale `majCommuneIsRunnig` à false pour suppirmer l'icone de la toolBar de la MainView.
+
+- Mettre à jour les attributs `"majCommunes": false`et `"circuitId" : ""` du fichier circuits.json.
+
+- Prévenir l'utilisateur de la fin de la Mise à jour des communes pour le circuit.nom, et lui rappeler qu'il doit selectionner un nouveau circuit si il veut quil ait une maj de ses communes. L'utilisateur devra acquitter le message.
+
+- Réactiver les boutons mdi-city 
+
+### Exécution de la tâche
+
+Pour optimiser un niveau d'information peu précis au début mais un peu plus rapide, de  mise a jour des communes le long de la trace je propose que : 
+
+- A partir du point 0 et tous les  16 points  on demande le nom de la commune si il n'est pas déjà connu (cas de relance de l'application)
+
+- Puis à partir du point 8 et tous les 16 points on demande le nom de la commune si il n'est pas déjà connu,
+
+- puis à partir du point 4 et tous les 8 points, on demande le nom de la commune si il n'est pas déjà connu,
+
+- Puis à partir du point 2 et tous les 4 points, on demande le nom de la commune si il n'est pas déjà connu,
+
+- Aet enfin à partir du point 1 et tous les 2 points, on demande le nom de la commune  si il n'est pas déjà connu.
+
+Ainsi au bout du processus nous devrions avoir toutes les communes connues, avec une precision qui s'améliore au fils du temps.
+
+A chaque maj d'un point on calcule le pourcentage d'avancement, et on met à jour dans circuits.json l'attribut `avancementCommunes` pour le circuit considéré.
+
+
+
+Une attention particulière devra être portée à un possible accès multiple en écriture au fichiers tracking.json. et circuits.json, mais peut être que le backend n'est pas multithread, et que ce risque n'en est pas un !
+
+### algorithme d'obtension d'un nom de commune.
+
+la commune sera déterminée via l'attribut coordonnée du point.
+
+En priorité on fait une requette au geoportail de l'IGN  toutes les 200 ms :
+
+`https://api-adresse.data.gouv.fr/reverse/?lon=2.2945&lat=48.8584`
+
+A cette requette deux cas peuvent se présenter :
+
+- La réponse est OK : 
+  
+  la réponse est un json sous la forme :
+
+{
+"type": "FeatureCollection",
+  "features": [
+    {
+      "geometry": {"type": "Point", "coordinates": [2.2945, 48.8584]},
+      "properties": {
+        "label": "Tour Eiffel, 75007 Paris",
+        "city": "Paris",
+        "context": "75, Île-de-France"
+      },
+      "type": "Feature"
+    }
+  ]
+}
+
+    On a le nom de la commune sur `city`
+
+- La réponse est NOK : 
+
+    La réponse est le json suivant : 
+
+{
+"type": "FeatureCollection",
+  "features": []
+}
+
+    Dans ce cas on fait les prochaines requettes à mapbox toutes les 200 ms :
+
+`https://api.mapbox.com/geocoding/v5/mapbox.places/-3.7038,40.4168.json?access_token=TON_TOKEN`
+
+A cette requette deux cas peuvent se présenter : 
+
+- La réponse est OK :
+
+    La réponse est un json de ce type :
+
+{
+"type": "FeatureCollection",
+  "query": [-3.7038, 40.4168],
+  "features": [
+    {
+      "id": "place.1234567890",
+      "type": "Feature",
+      "place_type": ["place"],
+      "relevance": 1,
+      "properties": {},
+      "text": "Madrid",
+      "place_name": "Madrid, Community of Madrid, Spain",
+      "center": [-3.7038, 40.4168],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-3.7038, 40.4168]
+      },
+      "context": [
+        {
+          "id": "region.987654321",
+          "text": "Community of Madrid"
+        },
+        {
+          "id": "country.11223344",
+          "short_code": "es",
+          "text": "Spain"
+        }
+      ]
+    }
+  ],
+  "attribution": "NOTICE: © 2025 Mapbox and its suppliers. All rights reserved."
+}
+
+- La réponse est NOK :
+
+    On reçoit un code HTTP 429 (Quota dépassé) ou 403 (Pas de droits pour l'API)
+
+    Dans ce cas on fait les prochaines requettes à openStreetMap, toutes les secondes :
+
+`https://nominatim.openstreetmap.org/reverse?format=json&lat=40.4168&lon=-3.7038&zoom=10&addressdetails=1`
+
+- La réponse est un json de ce type : 
+
+{
+"place_id": 123456789,
+  "licence": "Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+  "osm_type": "relation",
+  "osm_id": 12345,
+  "lat": "40.4168",
+  "lon": "-3.7038",
+  "display_name": "Madrid, Área metropolitana de Madrid y Corredor del Henares, Community of Madrid, Spain",
+  "address": {
+    "city": "Madrid",
+    "municipality": "Madrid",
+    "county": "Área metropolitana de Madrid y Corredor del Henares",
+    "state": "Community of Madrid",
+    "country": "Spain",
+    "country_code": "es"
+  },
+  "boundingbox": ["40.3121","40.5733","-3.8880","-3.5179"]
+}
+
+    Avec openStreetMap selon le lieu, la clé peut être `city`, `town`, `village`, ou même `hamlet`.
+
+
+
+
 
 ## Ajouts d'un évènement Pause
 
@@ -1287,6 +1507,10 @@ A chaque mise à jour d'un pointDeControle, Si c'est le pointDeControl le plus e
 ## Profil d'altitude
 
 ## Détection des pentes
+
+## Suppession des fichiers après l'import
+
+## Fiche circuit
 
 ---
 

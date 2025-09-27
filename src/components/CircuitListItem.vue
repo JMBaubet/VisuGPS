@@ -22,22 +22,34 @@
       </v-col>
 
       <!-- Colonne 3: Jauge et Traceur -->
-      <v-col cols="12" md="2" class="text-md-right">
-        <div class="d-flex flex-column align-end">
-          <v-progress-linear
-            :model-value="trackingProgress"
-            :color="progressColor"
-            height="8"
-            rounded
-            class="mb-1"
-            style="width: 100px;"
-          ></v-progress-linear>
-          <span class="text-caption">Par : {{ circuit.traceur }}</span>
+      <v-col cols="12" md="3" class="text-md-right">
+        <div class="d-flex flex-row align-center justify-end">
+          <span class="text-caption mr-4">Par : {{ circuit.traceur }}</span>
+          <div class="d-flex flex-row" style="width: 225px;">
+            <div class="w-50 mr-1" :style="{ visibility: showCommunesProgress ? 'visible' : 'hidden' }">
+              <div class="text-caption text-center">% MAJ Communes</div>
+              <v-progress-linear
+                :model-value="circuit.avancementCommunes"
+                color="info"
+                height="8"
+                rounded
+              ></v-progress-linear>
+            </div>
+            <div class="w-50">
+              <div class="text-caption text-center">% d'édition</div>
+              <v-progress-linear
+                :model-value="trackingProgress"
+                :color="progressColor"
+                height="8"
+                rounded
+              ></v-progress-linear>
+            </div>
+          </div>
         </div>
       </v-col>
 
       <!-- Colonne 4: Actions -->
-      <v-col cols="12" md="3" class="d-flex justify-end align-center">
+      <v-col cols="12" md="2" class="d-flex justify-end align-center">
         <v-btn icon="mdi-bug" variant="text" v-if="isDev" @click.stop="debugCircuit" color="warning"></v-btn>
         
         <v-menu open-on-hover location="top" :offset="[0, -48]" @update:modelValue="loadThumbnailOnOpen">
@@ -59,6 +71,8 @@
             </v-img>
           </v-card>
         </v-menu>
+
+        <v-btn icon="mdi-city" variant="text" @click.stop="updateCommunes"></v-btn>
 
         <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
         <v-btn :color="view3DButtonColor" icon="mdi-eye" variant="text" @click.stop="view3D"></v-btn>
@@ -107,6 +121,7 @@ const thumbnailWidth = computed(() => {
 });
 
 const showConfirmDialog = ref(false);
+const showCommunesProgress = ref(false);
 
 const thumbnailDataUrl = ref('');
 const isLoadingThumbnail = ref(false);
@@ -161,6 +176,12 @@ const thumbnailPath = computed(() => {
 
 const debugCircuit = () => {
   router.push({ name: 'DebugTracking', params: { circuitId: props.circuit.circuitId } });
+};
+
+const updateCommunes = () => {
+  showCommunesProgress.value = true;
+  // TODO: Implement commune update logic
+  console.log('Update communes for circuit:', props.circuit.circuitId);
 };
 
 

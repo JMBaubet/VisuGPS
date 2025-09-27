@@ -318,17 +318,19 @@ pub struct Traceur {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct CircuitsFile {
     pub version: String,
     pub description: String,
     pub auteur: String,
     pub commentaires: String,
+    pub maj_communes: bool,
+    pub circuit_id: String,
     pub villes: Vec<Ville>,
     pub traceurs: Vec<Traceur>,
     pub editeurs: Vec<Editor>,
-    #[serde(rename = "indexCircuits")]
     pub index_circuits: u32,
-    pub circuits: Vec<Circuit>, // Maintenant Vec<Circuit>
+    pub circuits: Vec<Circuit>,
 }
 
 #[derive(serde::Serialize, Clone)]
@@ -431,12 +433,13 @@ pub struct CircuitForDisplay {
     distance_km: f64,
     denivele_m: i32,
     ville_depart: String,
-    ville_depart_id: String, // Ajout de l'ID
+    ville_depart_id: String,
     sommet: Option<CircuitSommet>,
     traceur: String,
-    traceur_id: String, // Ajout de l'ID
+    traceur_id: String,
     tracking_km: f64,
     iso_date_time: DateTime<Utc>,
+    avancement_communes: i32,
 }
 
 #[tauri::command]
@@ -461,12 +464,13 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             distance_km: circuit.distance_km,
             denivele_m: circuit.denivele_m,
             ville_depart,
-            ville_depart_id: circuit.ville_depart_id.clone(), // Ajout de l'ID
+            ville_depart_id: circuit.ville_depart_id.clone(),
             sommet: Some(circuit.sommet.clone()),
             traceur,
-            traceur_id: circuit.traceur_id.clone(), // Ajout de l'ID
+            traceur_id: circuit.traceur_id.clone(),
             tracking_km: circuit.tracking_km,
             iso_date_time: circuit.iso_date_time,
+            avancement_communes: circuit.avancement_communes,
         }
     }).collect();
 
