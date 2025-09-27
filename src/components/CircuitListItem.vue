@@ -29,7 +29,7 @@
             <div class="w-50 mr-1" :style="{ visibility: showCommunesProgress ? 'visible' : 'hidden' }">
               <div class="text-caption text-center">% MAJ Communes</div>
               <v-progress-linear
-                :model-value="circuit.avancementCommunes"
+                :model-value="communeProgress"
                 color="info"
                 height="8"
                 rounded
@@ -72,7 +72,7 @@
           </v-card>
         </v-menu>
 
-        <v-btn icon="mdi-city" variant="text" @click.stop="updateCommunes"></v-btn>
+        <v-btn icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning"></v-btn>
 
         <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
         <v-btn :color="view3DButtonColor" icon="mdi-eye" variant="text" @click.stop="view3D"></v-btn>
@@ -99,6 +99,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
+import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const props = defineProps({
@@ -115,16 +116,26 @@ const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { appEnvPath } = useEnvironment();
 const { getSettingValue } = useSettings();
+const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } = useCommunesUpdate();
 
 const thumbnailWidth = computed(() => {
   return getSettingValue('Accueil/TailleVignette') || 512;
 });
 
 const showConfirmDialog = ref(false);
-const showCommunesProgress = ref(false);
+
+const showCommunesProgress = computed(() => {
+  return communeProgress.value > 0 || updatingCircuitId.value === props.circuit.circuitId;
+});
 
 const thumbnailDataUrl = ref('');
 const isLoadingThumbnail = ref(false);
+
+const communeProgress = computed(() => {
+  return circuitsProgress.value[props.circuit.circuitId] !== undefined
+    ? circuitsProgress.value[props.circuit.circuitId]
+    : props.circuit.avancementCommunes;
+});
 
 const loadThumbnailOnOpen = async (isDialogActive) => {
   if (isDialogActive && !thumbnailDataUrl.value && !isLoadingThumbnail.value) {
@@ -164,27 +175,13 @@ const view3DButtonColor = computed(() => {
   return 'warning';
 });
 
-const thumbnailPath = computed(() => {
-    if (!appEnvPath.value || !props.circuit.circuitId) return '';
-    // Tauri's API works best with forward slashes, even on Windows.
-    const normalizedPath = appEnvPath.value.replace(/\\/g, '/');
-    const path = `${normalizedPath}/data/${props.circuit.circuitId}/vignette.png`;
-    console.log("Attempting to load thumbnail from:", path);
-    return pathApi.convertFileSrc(path);
-});
-
-
 const debugCircuit = () => {
   router.push({ name: 'DebugTracking', params: { circuitId: props.circuit.circuitId } });
 };
 
 const updateCommunes = () => {
-  showCommunesProgress.value = true;
-  // TODO: Implement commune update logic
-  console.log('Update communes for circuit:', props.circuit.circuitId);
+  startUpdate(props.circuit.circuitId);
 };
-
-
 
 const editTracking = () => {
   router.push({ name: 'EditView', params: { circuitId: props.circuit.circuitId } });

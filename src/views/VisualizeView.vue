@@ -33,6 +33,7 @@ import mapboxgl from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
+import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 
 const props = defineProps({
   circuitId: {
@@ -44,6 +45,7 @@ const props = defineProps({
 const router = useRouter();
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
+const { interruptUpdate } = useCommunesUpdate();
 
 const mapContainer = ref(null);
 let map = null;
@@ -331,6 +333,7 @@ const initializeMap = async () => {
 };
 
 onMounted(() => {
+  interruptUpdate(); // Interrupt commune update task
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
   watch(settings, (newSettings) => {

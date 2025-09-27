@@ -1272,7 +1272,7 @@ Dans la vue EditViews.vue on réalise des mises à jour du fichier tracking.json
 
 A chaque mise à jour d'un pointDeControle, Si c'est le pointDeControl le plus eloigné du km 0 il faut mettre à jour le fichier circuits.json, pour le circuit consiéré en mettant à jour l'attribut  trackingKm, avec la valeur de  increment  * 1000 / Importation/Tracking/LongueurSegment qui correspond au paramètre de settingDeault.json. Cela nous servira à mettre à jour la jauge et les couleurs des boutons edition et visualisation 3D des circuit de la v-list-item de la vue MainView.vue.
 
-## Préparation de la mise à jour des communes - en cours - []
+## Préparation de la mise à jour des communes - Réalisé - [ fbc635e5]
 
 Avant de se lancer dans la mise à jour des communes, nous avons besoin :
 
@@ -1310,7 +1310,7 @@ Tous les boutons mdi-city seront disabled si la tâche de fond est active.
 
 Une nouvelle jauge devra être ajoutée sur la v-list-item du composant CircuitListItem en colonne 3  pour afficher``avancementCommunes` qui va de 0 à 100. 
 
-## Mise à jour des communes - Futur - []
+## Mise à jour des communes - En cours - []
 
 La mise à jour des communes est à réaliser pour tous les points du fichier tracking.json du circuit considéré. C'est un processus qui peut se révéler extrèmement long, surtout pour les communes étrangères, car les services internet liés à cette fonctionnalite nous limitent grandement. (Au pire, une requete par seconde pour les communes étrangères à la france.)
 

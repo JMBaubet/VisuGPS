@@ -12,6 +12,7 @@ mod gpx_processor;
 pub mod colors;
 pub mod thumbnail_generator;
 pub mod tracking_processor;
+pub mod communes_updater;
 pub mod geo_processor;
 
 use chrono::prelude::*;
@@ -295,6 +296,7 @@ pub struct AppState {
     execution_mode: String,
     app_env_path: PathBuf,
     mapbox_token: String, // Added mapbox_token
+    updating_circuit_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -810,7 +812,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         app_env,
         execution_mode,
         app_env_path,
-        mapbox_token, // Populate mapbox_token
+        mapbox_token,
+        updating_circuit_id: None, // Initialize to None
     })
 }
 
@@ -905,11 +908,23 @@ pub fn run() {
             // tauri::plugin::process::init();
 
             let state = setup_environment(app)?;
-            app.manage(Mutex::new(state));
+            app.manage(Mutex::new(state.clone()));
+
+            // Check if a commune update was running
+            let circuits_file = read_circuits_file(&state.app_env_path);
+            if let Ok(file) = circuits_file {
+                if file.maj_communes && !file.circuit_id.is_empty() {
+                    let app_handle = app.handle().clone();
+                    let circuit_id = file.circuit_id.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = communes_updater::start_communes_update(app_handle, circuit_id).await;
+                    });
+                }
+            }
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_communes_update_status])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

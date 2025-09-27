@@ -12,11 +12,13 @@ import { onMounted, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
+import { useCommunesUpdate } from '@/composables/useCommunesUpdate'; // Import the composable
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 
 const { executionMode } = useEnvironment();
 const { initSettings } = useSettings();
 const theme = useTheme();
+useCommunesUpdate(); // Initialize the composable
 
 const showFrame = computed(() => {
   return executionMode.value === 'EVAL' || executionMode.value === 'TEST';
