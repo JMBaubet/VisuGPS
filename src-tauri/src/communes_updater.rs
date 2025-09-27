@@ -1,10 +1,10 @@
 
 use serde::Deserialize;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use crate::{AppState, read_circuits_file, write_circuits_file};
+use tokio::time::sleep; // Import tokio sleep
 
 #[derive(Deserialize)]
 struct GeoGouvCommune {
@@ -65,7 +65,7 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     
     let handle_clone = app_handle.clone();
 
-    thread::spawn(move || {
+    tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
         let _ = handle_clone.emit("commune-update-status-changed", &true);
 
@@ -77,7 +77,7 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
             if token_clone.load(Ordering::SeqCst) {
                 break;
             }
-            let _ = process_pass(&app_env_path_clone, &mapbox_token_clone, &circuit_id, *step, *start_offset, &token_clone, &handle_clone);
+            let _ = process_pass_async(&app_env_path_clone, &mapbox_token_clone, &circuit_id, *step, *start_offset, &token_clone, &handle_clone).await;
         }
 
         task_running_clone.store(false, Ordering::SeqCst);
@@ -115,13 +115,12 @@ fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_
     write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)
 }
 
-fn process_pass(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle) -> Result<(), String> {
+async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle) -> Result<(), String> {
     let tracking_path = app_env_path.join("data").join(circuit_id).join("tracking.json");
     let tracking_content = std::fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
     let mut tracking_points: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
 
     let total_points = tracking_points.len();
-    let mut points_processed_in_pass = 0;
 
     for i in (start_offset..total_points).step_by(step) {
         if token.load(Ordering::SeqCst) {
@@ -135,43 +134,40 @@ fn process_pass(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: 
                         let lon = coords[0].as_f64().unwrap_or(0.0);
                         let lat = coords[1].as_f64().unwrap_or(0.0);
 
-                        let commune_name = futures::executor::block_on(fetch_commune_name(lon, lat, mapbox_token));
+                        let commune_name = fetch_commune_name(lon, lat, mapbox_token, i).await;
 
                         if let Ok(name) = commune_name {
-                            point["commune"] = serde_json::Value::String(name);
-                            points_processed_in_pass += 1;
+                            point["commune"] = serde_json::Value::String(name.clone());
+
+                            let new_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
+                            std::fs::write(&tracking_path, new_content).map_err(|e| e.to_string())?;
+
+                            let mut circuits_file = read_circuits_file(&app_env_path.to_path_buf())?;
+                            if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+                                let processed_count = tracking_points.iter().filter(|p| !p["commune"].is_null()).count();
+                                circuit.avancement_communes = ((processed_count as f32 / total_points as f32) * 100.0) as i32;
+                                let _ = app_handle.emit(
+                                    "commune-progress-changed",
+                                    (circuit_id.to_string(), circuit.avancement_communes)
+                                );
+                                write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)?;
+                            }
+                        } else {
+                            println!("[API] Échec de la recherche de commune pour le point {}.", i);
                         }
                     }
                 }
             }
         }
     }
-
-    if points_processed_in_pass > 0 {
-        let new_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
-        std::fs::write(&tracking_path, new_content).map_err(|e| e.to_string())?;
-    }
-
-    // Update overall progress
-    let mut circuits_file = read_circuits_file(&app_env_path.to_path_buf())?;
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
-        let processed_count = tracking_points.iter().filter(|p| !p["commune"].is_null()).count();
-        circuit.avancement_communes = ((processed_count as f32 / total_points as f32) * 100.0) as i32;
-        let _ = app_handle.emit(
-            "commune-progress-changed",
-            (circuit_id.to_string(), circuit.avancement_communes)
-        );
-    }
-    write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)?;
-
-
     Ok(())
 }
 
-async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str) -> Result<String, String> {
-    // 1. IGN
-    thread::sleep(Duration::from_millis(200));
+async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index: usize) -> Result<String, String> {
     let client = reqwest::Client::new();
+
+    // 1. IGN
+    sleep(Duration::from_millis(200)).await;
     let ign_url = format!("https://api-adresse.data.gouv.fr/reverse/?lon={}&lat={}", lon, lat);
     if let Ok(resp) = client.get(&ign_url).send().await {
         if resp.status().is_success() {
@@ -186,9 +182,10 @@ async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str) -> Result<St
             }
         }
     }
+    println!("[API] Échec IGN pour le point {}.", point_index);
 
     // 2. Mapbox
-    thread::sleep(Duration::from_millis(200));
+    sleep(Duration::from_millis(200)).await;
     let mapbox_url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/{},{}.json?access_token={}", lon, lat, mapbox_token);
      if let Ok(resp) = client.get(&mapbox_url).send().await {
         match resp.status() {
@@ -199,27 +196,27 @@ async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str) -> Result<St
                     }
                 }
             },
-            reqwest::StatusCode::TOO_MANY_REQUESTS | reqwest::StatusCode::FORBIDDEN => {
-                // Fall through to OSM
-            },
-            _ => {} // Other errors, fall through
+            _ => {}
         }
     }
+    println!("[API] Échec Mapbox pour le point {}.", point_index);
 
     // 3. OpenStreetMap
-    thread::sleep(Duration::from_secs(1));
+    sleep(Duration::from_secs(1)).await;
     let osm_url = format!("https://nominatim.openstreetmap.org/reverse?format=json&lat={}&lon={}&zoom=10&addressdetails=1", lat, lon);
     if let Ok(resp) = client.get(&osm_url).header("User-Agent", "VisuGPS/0.1").send().await {
         if resp.status().is_success() {
             if let Ok(data) = resp.json::<OsmResponse>().await {
-                return Ok(data.address.city
+                let city = data.address.city
                     .or(data.address.town)
                     .or(data.address.village)
                     .or(data.address.hamlet)
-                    .unwrap_or_else(|| "Inconnue".to_string()));
+                    .unwrap_or_else(|| "Inconnue".to_string());
+                return Ok(city);
             }
         }
     }
+    println!("[API] Échec OSM pour le point {}.", point_index);
 
-    Err("Toutes les API de géocodage ont échoué.".to_string())
+    Err(format!("Toutes les API de géocodage ont échoué pour le point {}.", point_index))
 }
