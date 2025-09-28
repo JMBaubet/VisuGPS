@@ -259,6 +259,46 @@
         ]
       },
       {
+        "libelle": "MajCommunes",
+        "groupes": [
+          {
+            "libelle": "Timers",
+            "parametres": [
+              {
+                "identifiant": "timerIGN",
+                "libelle": "Timer IGN (ms)",
+                "description": "Délai en millisecondes entre chaque interrogation du géoportail de l'IGN.",
+                "type": "entier",
+                "defaut": 200,
+                "min": 100,
+                "max": 1000,
+                "unite": "ms"
+              },
+              {
+                "identifiant": "timerMapbox",
+                "libelle": "Timer Mapbox (ms)",
+                "description": "Délai en millisecondes entre chaque interrogation de l'API Mapbox.",
+                "type": "entier",
+                "defaut": 200,
+                "min": 50,
+                "max": 1000,
+                "unite": "ms"
+              },
+              {
+                "identifiant": "timerOSM",
+                "libelle": "Timer OpenStreetMap (ms)",
+                "description": "Délai en millisecondes entre chaque interrogation de l'API OpenStreetMap.",
+                "type": "entier",
+                "defaut": 1000,
+                "min": 1000,
+                "max": 5000,
+                "unite": "ms"
+              }
+            ]
+          }
+        ]
+      },
+      {
         "libelle": "Edition",
         "groupes": [
           {

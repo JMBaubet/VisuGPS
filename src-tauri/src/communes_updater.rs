@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
-use crate::{AppState, read_circuits_file, write_circuits_file};
+use crate::{AppState, read_circuits_file, write_circuits_file, get_setting_value};
 use tokio::time::sleep; // Import tokio sleep
 
 #[derive(Deserialize)]
@@ -65,6 +65,15 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     
     let handle_clone = app_handle.clone();
 
+    // Read settings to get timers
+    let settings_path = app_env_path_clone.join("settings.json");
+    let settings_content = std::fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let timer_ign = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerIGN").and_then(|v| v.as_u64()).unwrap_or(200);
+    let timer_mapbox = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerMapbox").and_then(|v| v.as_u64()).unwrap_or(200);
+    let timer_osm = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerOSM").and_then(|v| v.as_u64()).unwrap_or(1000);
+
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
         let _ = handle_clone.emit("commune-update-status-changed", &true);
@@ -77,7 +86,7 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
             if token_clone.load(Ordering::SeqCst) {
                 break;
             }
-            let _ = process_pass_async(&app_env_path_clone, &mapbox_token_clone, &circuit_id, *step, *start_offset, &token_clone, &handle_clone).await;
+            let _ = process_pass_async(&app_env_path_clone, &mapbox_token_clone, &circuit_id, *step, *start_offset, &token_clone, &handle_clone, timer_ign, timer_mapbox, timer_osm).await;
         }
 
         task_running_clone.store(false, Ordering::SeqCst);
@@ -115,7 +124,7 @@ fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_
     write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)
 }
 
-async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle) -> Result<(), String> {
+async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
     let tracking_path = app_env_path.join("data").join(circuit_id).join("tracking.json");
     let tracking_content = std::fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
     let mut tracking_points: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
@@ -134,7 +143,7 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
                         let lon = coords[0].as_f64().unwrap_or(0.0);
                         let lat = coords[1].as_f64().unwrap_or(0.0);
 
-                        let commune_name = fetch_commune_name(lon, lat, mapbox_token, i).await;
+                        let commune_name = fetch_commune_name(lon, lat, mapbox_token, i, timer_ign, timer_mapbox, timer_osm).await;
 
                         if let Ok(name) = commune_name {
                             point["commune"] = serde_json::Value::String(name.clone());
@@ -163,11 +172,11 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
     Ok(())
 }
 
-async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index: usize) -> Result<String, String> {
+async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index: usize, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<String, String> {
     let client = reqwest::Client::new();
 
     // 1. IGN
-    sleep(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(timer_ign)).await;
     let ign_url = format!("https://api-adresse.data.gouv.fr/reverse/?lon={}&lat={}", lon, lat);
     if let Ok(resp) = client.get(&ign_url).send().await {
         if resp.status().is_success() {
@@ -185,7 +194,7 @@ async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index:
     println!("[API] Échec IGN pour le point {}.", point_index);
 
     // 2. Mapbox
-    sleep(Duration::from_millis(200)).await;
+    sleep(Duration::from_millis(timer_mapbox)).await;
     let mapbox_url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/{},{}.json?access_token={}", lon, lat, mapbox_token);
      if let Ok(resp) = client.get(&mapbox_url).send().await {
         match resp.status() {
@@ -202,7 +211,7 @@ async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index:
     println!("[API] Échec Mapbox pour le point {}.", point_index);
 
     // 3. OpenStreetMap
-    sleep(Duration::from_secs(1)).await;
+    sleep(Duration::from_millis(timer_osm)).await;
     let osm_url = format!("https://nominatim.openstreetmap.org/reverse?format=json&lat={}&lon={}&zoom=10&addressdetails=1", lat, lon);
     if let Ok(resp) = client.get(&osm_url).header("User-Agent", "VisuGPS/0.1").send().await {
         if resp.status().is_success() {
