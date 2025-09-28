@@ -26,16 +26,7 @@
         <div class="d-flex flex-row align-center justify-end">
           <span class="text-caption mr-4">Par : {{ circuit.traceur }}</span>
           <div class="d-flex flex-row" style="width: 225px;">
-            <div class="w-50 mr-1" :style="{ visibility: showCommunesProgress ? 'visible' : 'hidden' }">
-              <div class="text-caption text-center">% MAJ Communes</div>
-              <v-progress-linear
-                :model-value="communeProgress"
-                color="info"
-                height="8"
-                rounded
-              ></v-progress-linear>
-            </div>
-            <div class="w-50">
+            <div class="w-100">
               <div class="text-caption text-center">% d'édition</div>
               <v-progress-linear
                 :model-value="trackingProgress"
@@ -52,6 +43,8 @@
       <v-col cols="12" md="2" class="d-flex justify-end align-center">
         <v-btn icon="mdi-bug" variant="text" v-if="isDev" @click.stop="debugCircuit" color="warning"></v-btn>
         
+        <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
+
         <v-menu open-on-hover location="top" :offset="[0, -48]" @update:modelValue="loadThumbnailOnOpen">
           <template v-slot:activator="{ props: activatorProps }">
             <v-btn
@@ -71,8 +64,6 @@
             </v-img>
           </v-card>
         </v-menu>
-
-        <v-btn icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning"></v-btn>
 
         <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
         <v-btn :color="view3DButtonColor" icon="mdi-eye" variant="text" @click.stop="view3D"></v-btn>
@@ -100,6 +91,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import { useCommuneColor } from '@/composables/useCommuneColor';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const props = defineProps({
@@ -124,9 +116,7 @@ const thumbnailWidth = computed(() => {
 
 const showConfirmDialog = ref(false);
 
-const showCommunesProgress = computed(() => {
-  return communeProgress.value > 0 || updatingCircuitId.value === props.circuit.circuitId;
-});
+
 
 const thumbnailDataUrl = ref('');
 const isLoadingThumbnail = ref(false);
@@ -136,6 +126,8 @@ const communeProgress = computed(() => {
     ? circuitsProgress.value[props.circuit.circuitId]
     : props.circuit.avancementCommunes;
 });
+
+const { color: communeIconColor } = useCommuneColor(communeProgress);
 
 const loadThumbnailOnOpen = async (isDialogActive) => {
   if (isDialogActive && !thumbnailDataUrl.value && !isLoadingThumbnail.value) {
@@ -180,7 +172,7 @@ const debugCircuit = () => {
 };
 
 const updateCommunes = () => {
-  startUpdate(props.circuit.circuitId);
+  startUpdate(props.circuit.circuitId, props.circuit.nom);
 };
 
 const editTracking = () => {

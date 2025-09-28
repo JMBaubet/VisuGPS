@@ -1,12 +1,12 @@
 <template>
   <v-toolbar flat class="pa-0">
     <v-row align="center" no-gutters>
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="4" class="d-flex align-center">
         <!-- Service Status Icon -->
         <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
-        <!-- Commune Update Status Icon -->
-        <v-icon v-if="majCommuneIsRunning" color="green" class="pl-2" size="36">mdi-city-variant</v-icon>
+        <!-- Commune Update Status Component -->
+        <MajCommunesInfo class="ml-2" />
 
         <!-- Chip for APP_ENV -->
         <v-chip
@@ -47,7 +47,7 @@ import { computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
-import { useCommunesUpdate } from '../composables/useCommunesUpdate';
+import MajCommunesInfo from './MajCommunesInfo.vue';
 
 const emit = defineEmits(['open-gpx-import-dialog']);
 
@@ -57,9 +57,6 @@ function openGpxImportDialog() {
 
 // Environment composable is only for display purposes now (chip)
 const { appEnv, executionMode } = useEnvironment();
-
-// Commune update status
-const { majCommuneIsRunning } = useCommunesUpdate();
 
 // Service status composable handles all checking logic
 const { serviceStatus, checkAllServices } = useServiceStatus();
