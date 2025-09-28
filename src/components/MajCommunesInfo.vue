@@ -18,24 +18,27 @@
     </div>
 
     <!-- API Toggles -->
-    <div class="d-flex align-center ml-4">
-      <v-switch
-        v-model="isIgnEnabled"
-        label="IGN"
-        color="success"
-        base-color="error"
-        density="compact"
-        hide-details
-      ></v-switch>
-      <v-switch
-        v-model="isMapboxEnabled"
-        label="Mapbox"
-        color="success"
-        base-color="error"
-        density="compact"
-        hide-details
-        class="ml-4"
-      ></v-switch>
+    <div class="d-flex align-center ml-8">
+      <div class="d-flex flex-column align-center">
+        <div class="text-caption">IGN</div>
+        <v-switch
+          v-model="isIgnEnabled"
+          color="success"
+          base-color="error"
+          density="compact"
+          hide-details
+        ></v-switch>
+      </div>
+      <div class="d-flex flex-column align-center ml-4">
+        <div class="text-caption">Mapbox</div>
+        <v-switch
+          v-model="isMapboxEnabled"
+          color="success"
+          base-color="error"
+          density="compact"
+          hide-details
+        ></v-switch>
+      </div>
     </div>
 
     <!-- Stop Button -->
