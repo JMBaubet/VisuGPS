@@ -270,8 +270,8 @@
                 "description": "Délai en millisecondes entre chaque interrogation du géoportail de l'IGN.",
                 "type": "entier",
                 "defaut": 200,
-                "min": 100,
-                "max": 1000,
+                "min": 50,
+                "max": 2000,
                 "unite": "ms"
               },
               {
@@ -281,7 +281,7 @@
                 "type": "entier",
                 "defaut": 200,
                 "min": 50,
-                "max": 1000,
+                "max": 2000,
                 "unite": "ms"
               },
               {
@@ -290,9 +290,28 @@
                 "description": "Délai en millisecondes entre chaque interrogation de l'API OpenStreetMap.",
                 "type": "entier",
                 "defaut": 1000,
-                "min": 1000,
+                "min": 250,
                 "max": 5000,
                 "unite": "ms"
+              }
+            ]
+          },
+          {
+            "libelle": "APIs",
+            "parametres": [
+              {
+                "identifiant": "ignActif",
+                "libelle": "Activer l'API IGN par défaut",
+                "description": "Si coché, les requêtes vers l'API de l'IGN seront actives au début de chaque mise à jour des communes.",
+                "type": "booleen",
+                "defaut": true
+              },
+              {
+                "identifiant": "mapboxActif",
+                "libelle": "Activer l'API Mapbox par défaut",
+                "description": "Si coché, les requêtes vers l'API Mapbox seront actives au début de chaque mise à jour des communes.",
+                "type": "booleen",
+                "defaut": true
               }
             ]
           }

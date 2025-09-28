@@ -6,10 +6,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use crate::{AppState, read_circuits_file, write_circuits_file, get_setting_value};
 use tokio::time::sleep; // Import tokio sleep
 
-#[derive(Deserialize)]
-struct GeoGouvCommune {
-    nom: String,
-}
 
 #[derive(Deserialize)]
 struct MapboxFeature {
@@ -40,6 +36,8 @@ struct OsmResponse {
 lazy_static::lazy_static! {
     static ref CANCELLATION_TOKEN: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     static ref TASK_RUNNING: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    static ref IGN_ENABLED: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
+    static ref MAPBOX_ENABLED: Arc<AtomicBool> = Arc::new(AtomicBool::new(true));
 }
 
 #[tauri::command]
@@ -65,7 +63,7 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     
     let handle_clone = app_handle.clone();
 
-    // Read settings to get timers
+    // Read settings to get timers and initial API states
     let settings_path = app_env_path_clone.join("settings.json");
     let settings_content = std::fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
@@ -73,6 +71,12 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     let timer_ign = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerIGN").and_then(|v| v.as_u64()).unwrap_or(200);
     let timer_mapbox = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerMapbox").and_then(|v| v.as_u64()).unwrap_or(200);
     let timer_osm = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerOSM").and_then(|v| v.as_u64()).unwrap_or(1000);
+
+    let ign_actif_default = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.ignActif").and_then(|v| v.as_bool()).unwrap_or(true);
+    let mapbox_actif_default = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.mapboxActif").and_then(|v| v.as_bool()).unwrap_or(true);
+
+    IGN_ENABLED.store(ign_actif_default, Ordering::SeqCst);
+    MAPBOX_ENABLED.store(mapbox_actif_default, Ordering::SeqCst);
 
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
@@ -114,6 +118,26 @@ pub fn interrupt_communes_update() -> Result<(), String> {
 #[tauri::command]
 pub fn get_communes_update_status() -> bool {
     TASK_RUNNING.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn get_ign_status() -> bool {
+    IGN_ENABLED.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn get_mapbox_status() -> bool {
+    MAPBOX_ENABLED.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+pub fn toggle_ign_api(enable: bool) {
+    IGN_ENABLED.store(enable, Ordering::SeqCst);
+}
+
+#[tauri::command]
+pub fn toggle_mapbox_api(enable: bool) {
+    MAPBOX_ENABLED.store(enable, Ordering::SeqCst);
 }
 
 
@@ -162,7 +186,7 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
                                 write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)?;
                             }
                         } else {
-                            println!("[API] Échec de la recherche de commune pour le point {}.", i);
+                            // Error already logged in fetch_commune_name
                         }
                     }
                 }
@@ -176,39 +200,43 @@ async fn fetch_commune_name(lon: f64, lat: f64, mapbox_token: &str, point_index:
     let client = reqwest::Client::new();
 
     // 1. IGN
-    sleep(Duration::from_millis(timer_ign)).await;
-    let ign_url = format!("https://api-adresse.data.gouv.fr/reverse/?lon={}&lat={}", lon, lat);
-    if let Ok(resp) = client.get(&ign_url).send().await {
-        if resp.status().is_success() {
-             if let Ok(data) = resp.json::<serde_json::Value>().await {
-                if let Some(features) = data["features"].as_array() {
-                    if !features.is_empty() {
-                         if let Some(city) = features[0]["properties"]["city"].as_str() {
-                            return Ok(city.to_string());
+    if IGN_ENABLED.load(Ordering::SeqCst) {
+        sleep(Duration::from_millis(timer_ign)).await;
+        let ign_url = format!("https://api-adresse.data.gouv.fr/reverse/?lon={}&lat={}", lon, lat);
+        if let Ok(resp) = client.get(&ign_url).send().await {
+            if resp.status().is_success() {
+                 if let Ok(data) = resp.json::<serde_json::Value>().await {
+                    if let Some(features) = data["features"].as_array() {
+                        if !features.is_empty() {
+                             if let Some(city) = features[0]["properties"]["city"].as_str() {
+                                return Ok(city.to_string());
+                            }
                         }
                     }
                 }
             }
         }
+        println!("[API] Échec IGN pour le point {}.", point_index);
     }
-    println!("[API] Échec IGN pour le point {}.", point_index);
 
     // 2. Mapbox
-    sleep(Duration::from_millis(timer_mapbox)).await;
-    let mapbox_url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/{},{}.json?access_token={}", lon, lat, mapbox_token);
-     if let Ok(resp) = client.get(&mapbox_url).send().await {
-        match resp.status() {
-            reqwest::StatusCode::OK => {
-                if let Ok(data) = resp.json::<MapboxResponse>().await {
-                    if let Some(feature) = data.features.iter().find(|f| f.place_type.contains(&"place".to_string())) {
-                        return Ok(feature.text.clone());
+    if MAPBOX_ENABLED.load(Ordering::SeqCst) {
+        sleep(Duration::from_millis(timer_mapbox)).await;
+        let mapbox_url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/{},{}.json?access_token={}", lon, lat, mapbox_token);
+         if let Ok(resp) = client.get(&mapbox_url).send().await {
+            match resp.status() {
+                reqwest::StatusCode::OK => {
+                    if let Ok(data) = resp.json::<MapboxResponse>().await {
+                        if let Some(feature) = data.features.iter().find(|f| f.place_type.contains(&"place".to_string())) {
+                            return Ok(feature.text.clone());
+                        }
                     }
-                }
-            },
-            _ => {}
+                },
+                _ => {}
+            }
         }
+        println!("[API] Échec Mapbox pour le point {}.", point_index);
     }
-    println!("[API] Échec Mapbox pour le point {}.", point_index);
 
     // 3. OpenStreetMap
     sleep(Duration::from_millis(timer_osm)).await;
