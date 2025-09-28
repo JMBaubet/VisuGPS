@@ -1,11 +1,10 @@
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, State};
 use crate::{AppState, read_circuits_file, write_circuits_file, get_setting_value};
 use tokio::time::sleep; // Import tokio sleep
-
 
 #[derive(Deserialize)]
 struct MapboxFeature {
@@ -31,6 +30,13 @@ struct OsmResponse {
     address: OsmAddress,
 }
 
+#[derive(Clone, Serialize)]
+pub struct CommuneStatusPayload {
+  is_running: bool,
+  circuit_id: Option<String>,
+  circuit_name: Option<String>,
+}
+
 
 // Use a global variable for the cancellation token
 lazy_static::lazy_static! {
@@ -46,21 +52,29 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
         return Err("La mise à jour des communes est déjà en cours.".to_string());
     }
 
-    CANCELLATION_TOKEN.store(false, Ordering::SeqCst);
-    let token_clone = CANCELLATION_TOKEN.clone();
-    let task_running_clone = TASK_RUNNING.clone();
-
     let app_env_path_clone;
     let mapbox_token_clone;
+    let circuit_name_clone;
 
     {
         let state = app_handle.state::<Mutex<AppState>>();
         let mut app_state = state.lock().unwrap();
-        app_state.updating_circuit_id = Some(circuit_id.clone());
         app_env_path_clone = app_state.app_env_path.clone();
         mapbox_token_clone = app_state.mapbox_token.clone();
+
+        // Find circuit name
+        let circuits_file = read_circuits_file(&app_env_path_clone)?;
+        let circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == circuit_id)
+            .ok_or_else(|| format!("Circuit with ID '{}' not found.", circuit_id))?;
+        
+        circuit_name_clone = circuit.nom.clone();
+        app_state.updating_circuit_id = Some(circuit_id.clone());
+        app_state.updating_circuit_name = Some(circuit_name_clone.clone());
     }
-    
+
+    CANCELLATION_TOKEN.store(false, Ordering::SeqCst);
+    let token_clone = CANCELLATION_TOKEN.clone();
+    let task_running_clone = TASK_RUNNING.clone();
     let handle_clone = app_handle.clone();
 
     // Read settings to get timers
@@ -74,7 +88,11 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
 
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
-        let _ = handle_clone.emit("commune-update-status-changed", &true);
+        let _ = handle_clone.emit("commune-update-status-changed", &CommuneStatusPayload {
+            is_running: true,
+            circuit_id: Some(circuit_id.clone()),
+            circuit_name: Some(circuit_name_clone.clone()),
+        });
 
         let passes = [
             (16, 0), (16, 8), (8, 4), (4, 2), (2, 1),
@@ -94,9 +112,14 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
             let state = handle_clone.state::<Mutex<AppState>>();
             let mut app_state = state.lock().unwrap();
             app_state.updating_circuit_id = None;
+            app_state.updating_circuit_name = None;
         }
 
-        let _ = handle_clone.emit("commune-update-status-changed", &false);
+        let _ = handle_clone.emit("commune-update-status-changed", &CommuneStatusPayload {
+            is_running: false,
+            circuit_id: None,
+            circuit_name: None,
+        });
         let _ = handle_clone.emit("show-snackbar", format!("Mise à jour des communes terminée pour le circuit."));
     });
 
@@ -110,8 +133,13 @@ pub fn interrupt_communes_update() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_communes_update_status() -> bool {
-    TASK_RUNNING.load(Ordering::SeqCst)
+pub fn get_current_commune_task_info(state: State<Mutex<AppState>>) -> CommuneStatusPayload {
+    let app_state = state.lock().unwrap();
+    CommuneStatusPayload {
+        is_running: TASK_RUNNING.load(Ordering::SeqCst),
+        circuit_id: app_state.updating_circuit_id.clone(),
+        circuit_name: app_state.updating_circuit_name.clone(),
+    }
 }
 
 #[tauri::command]

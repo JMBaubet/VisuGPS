@@ -172,7 +172,7 @@ const debugCircuit = () => {
 };
 
 const updateCommunes = () => {
-  startUpdate(props.circuit.circuitId, props.circuit.nom);
+  startUpdate(props.circuit.circuitId);
 };
 
 const editTracking = () => {

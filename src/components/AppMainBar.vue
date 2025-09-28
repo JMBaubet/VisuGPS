@@ -6,8 +6,13 @@
         <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
         <!-- Commune Update Status Component -->
-        <MajCommunesInfo class="ml-2" />
+        <MajCommunesInfo class="ml-4" />
 
+      </v-col>
+
+      <v-col clos="12" md="4" class="d-flex justify-center align-center"> <!-- This column will take remaining space and center content -->
+        <!-- Centered Title -->
+        <div class="text-center">Gestion des circuits importés</div>
         <!-- Chip for APP_ENV -->
         <v-chip
           v-if="showAppEnvChip"
@@ -17,11 +22,6 @@
         >
           {{ appEnv }}
         </v-chip>
-      </v-col>
-
-      <v-col clos="12" md="4" class="d-flex justify-center"> <!-- This column will take remaining space and center content -->
-        <!-- Centered Title -->
-        <div class="text-center">Accueil</div>
       </v-col>
 
       <v-col cols="12" md="4" class="d-flex justify-end align-center">

@@ -1310,7 +1310,7 @@ Tous les boutons mdi-city seront disabled si la tâche de fond est active.
 
 Une nouvelle jauge devra être ajoutée sur la v-list-item du composant CircuitListItem en colonne 3  pour afficher``avancementCommunes` qui va de 0 à 100. 
 
-## Mise à jour des communes - En cours - []
+## Mise à jour des communes - Réalisé - [1a22fead]
 
 La mise à jour des communes est à réaliser pour tous les points du fichier tracking.json du circuit considéré. C'est un processus qui peut se révéler extrèmement long, surtout pour les communes étrangères, car les services internet liés à cette fonctionnalite nous limitent grandement. (Au pire, une requete par seconde pour les communes étrangères à la france.)
 
@@ -1373,8 +1373,6 @@ Pour optimiser un niveau d'information peu précis au début mais un peu plus ra
 Ainsi au bout du processus nous devrions avoir toutes les communes connues, avec une precision qui s'améliore au fils du temps.
 
 A chaque maj d'un point on calcule le pourcentage d'avancement, et on met à jour dans circuits.json l'attribut `avancementCommunes` pour le circuit considéré.
-
-
 
 Une attention particulière devra être portée à un possible accès multiple en écriture au fichiers tracking.json. et circuits.json, mais peut être que le backend n'est pas multithread, et que ce risque n'en est pas un !
 
@@ -1491,10 +1489,6 @@ A cette requette deux cas peuvent se présenter :
 }
 
     Avec openStreetMap selon le lieu, la clé peut être `city`, `town`, `village`, ou même `hamlet`.
-
-
-
-
 
 ## Ajouts d'un évènement Pause
 

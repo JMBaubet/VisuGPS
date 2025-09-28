@@ -12,46 +12,39 @@ export function useCommunesUpdate() {
     let unlistenStatus = null;
     let unlistenProgress = null;
 
-    const fetchUpdateState = async () => {
+    const startUpdate = async (circuitId) => {
         try {
-            majCommuneIsRunning.value = await invoke('get_communes_update_status');
-        } catch (e) {
-            console.error("Failed to get initial communes update status", e)
-        }
-    };
-
-    const startUpdate = async (circuitId, circuitName) => {
-        try {
-            updatingCircuitId.value = circuitId; // Set ID immediately
-            updatingCircuitName.value = circuitName; // Set name immediately
             await invoke('start_communes_update', { circuitId });
-            fetchUpdateState(); // Refresh running status
         } catch (error) {
             console.error('Failed to start communes update:', error);
-            updatingCircuitId.value = null; // Clear on error
-            updatingCircuitName.value = null;
         }
     };
 
     const interruptUpdate = async () => {
         try {
             await invoke('interrupt_communes_update');
-            // The event listener will handle clearing the state
         } catch (error) {
             console.error('Failed to interrupt communes update:', error);
         }
     };
 
     onMounted(async () => {
-        fetchUpdateState();
+        // 1. Get current state on mount to avoid race conditions
+        try {
+            const initialState = await invoke('get_current_commune_task_info');
+            majCommuneIsRunning.value = initialState.is_running;
+            updatingCircuitId.value = initialState.circuit_id;
+            updatingCircuitName.value = initialState.circuit_name;
+        } catch (e) {
+            console.error("Failed to get initial commune task info:", e);
+        }
 
+        // 2. Then, listen for future changes
         unlistenStatus = await listen('commune-update-status-changed', (event) => {
-            const isRunning = event.payload;
-            majCommuneIsRunning.value = isRunning;
-            if (!isRunning) {
-                updatingCircuitId.value = null; // Clear ID when task stops
-                updatingCircuitName.value = null; // Clear name when task stops
-            }
+            const payload = event.payload;
+            majCommuneIsRunning.value = payload.is_running;
+            updatingCircuitId.value = payload.circuit_id;
+            updatingCircuitName.value = payload.circuit_name;
         });
 
         unlistenProgress = await listen('commune-progress-changed', (event) => {

@@ -1,7 +1,7 @@
 <template>
-  <div v-if="majCommuneIsRunning && updatingCircuitId" class="d-flex align-center">
+  <v-sheet v-if="majCommuneIsRunning && updatingCircuitId" border rounded class="pa-2 d-flex align-center">
     <!-- Status Icon -->
-    <v-icon color="green" class="pl-2" size="36">mdi-city-variant</v-icon>
+    <v-icon color="green" size="36">mdi-city-variant</v-icon>
 
     <div class="d-flex flex-column ml-4">
         <!-- Circuit Name -->
@@ -43,7 +43,7 @@
 
     <!-- Stop Button -->
     <v-btn icon="mdi-stop-circle-outline" variant="text" @click="interruptUpdate" color="error" class="ml-2"></v-btn>
-  </div>
+  </v-sheet>
 </template>
 
 <script setup>
