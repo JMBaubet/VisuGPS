@@ -328,14 +328,29 @@ const deleteControlPoint = async () => {
 
   updateInterpolation();
 
+  // Find the new furthest control point to update trackingKm
+  const controlPoints = trackingPoints.value.filter(p => p.pointDeControl);
+  let newTrackingKm = 0;
+  if (controlPoints.length > 0) {
+    const furthestControlPoint = controlPoints.reduce((max, p) => p.distance > max.distance ? p : max, controlPoints[0]);
+    newTrackingKm = furthestControlPoint.distance;
+  }
+
   try {
-    await invoke('save_tracking_file', {
-      circuitId: circuitId,
-      trackingData: trackingPoints.value,
-    });
-    showSnackbar('Point de contrôle supprimé.', 'info');
+    // Save tracking file and update trackingKm in parallel
+    await Promise.all([
+      invoke('save_tracking_file', {
+        circuitId: circuitId,
+        trackingData: trackingPoints.value,
+      }),
+      invoke('update_tracking_km', {
+        circuitId: circuitId,
+        trackingKm: newTrackingKm
+      })
+    ]);
+    showSnackbar('Point de contrôle supprimé et tracking mis à jour.', 'info');
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde du fichier de tracking:', error);
+    console.error('Erreur lors de la suppression du point de contrôle:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
   }
 };

@@ -25,12 +25,13 @@
       <v-col cols="12" md="3" class="text-md-right">
         <div class="d-flex flex-row align-center justify-end">
           <span class="text-caption mr-4">Par : {{ circuit.traceur }}</span>
-          <div class="d-flex flex-row" style="width: 225px;">
-            <div class="w-100">
+          <div class="d-flex flex-row" style="width: 150px;">
+            <div class="w-100" v-if="showTrackingProgress">
               <div class="text-caption text-center">% d'édition</div>
               <v-progress-linear
                 :model-value="trackingProgress"
-                :color="progressColor"
+                :bg-color="trackingBgColor"
+                :color="trackingProgressColor"
                 height="8"
                 rounded
               ></v-progress-linear>
@@ -129,6 +130,14 @@ const communeProgress = computed(() => {
 
 const { color: communeIconColor } = useCommuneColor(communeProgress);
 
+const showTrackingProgress = computed(() => {
+  if (!props.circuit.distanceKm || props.circuit.distanceKm === 0) {
+    return false;
+  }
+  // Show only if progress is > 0 and < 100
+  return props.circuit.trackingKm > 0 && props.circuit.trackingKm < props.circuit.distanceKm;
+});
+
 const loadThumbnailOnOpen = async (isDialogActive) => {
   if (isDialogActive && !thumbnailDataUrl.value && !isLoadingThumbnail.value) {
     isLoadingThumbnail.value = true;
@@ -150,15 +159,18 @@ const trackingProgress = computed(() => {
   return (props.circuit.trackingKm / props.circuit.distanceKm) * 100;
 });
 
-const progressColor = computed(() => {
-  if (trackingProgress.value < 100) return 'warning';
-  return 'success';
+const trackingBgColor = computed(() => {
+  return getSettingValue('Edition/Mapbox/Trace/couleur') || 'grey-lighten-2';
+});
+
+const trackingProgressColor = computed(() => {
+  return getSettingValue('Edition/Mapbox/Trace/couleurAvancement') || 'primary';
 });
 
 const editButtonColor = computed(() => {
-  if (props.circuit.trackingKm === 0) return 'error';
-  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'primary';
-  return 'warning';
+  if (props.circuit.trackingKm === 0) return 'red-darken-2';
+  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'green-darken-2';
+  return trackingProgressColor.value;
 });
 
 const view3DButtonColor = computed(() => {
