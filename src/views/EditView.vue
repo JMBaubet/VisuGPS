@@ -63,7 +63,7 @@
         :current-increment="trackProgress"
         :pause-events="pauseEventsForDisplay"
         :flyto-events="flytoEventsForDisplay"
-        :flyto-duration-setting="flytoDurationSetting"
+        v-model:flyto-duration-setting="flytoDurationSetting" 
         :is-current-point-control-point="isCurrentPointControlPoint"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
@@ -273,7 +273,7 @@ const flytoEventsForDisplay = computed(() => {
   return flytos;
 });
 
-const flytoDurationSetting = ref(2.0); // Default value, will be loaded from settings
+const flytoDurationSetting = ref(2000); // Default value, will be loaded from settings
 
 // Synchronize the progress bar widget with the internal point index
 watch(trackProgress, (newProgress) => {
@@ -282,8 +282,7 @@ watch(trackProgress, (newProgress) => {
     updateCameraPosition(newProgress);
   }
 });
-watch(currentPointIndex, (newIndex) => {
-  if (trackProgress.value !== newIndex) {
+          watch(currentPointIndex, (newIndex) => {  if (trackProgress.value !== newIndex) {
     trackProgress.value = newIndex;
   }
 });
@@ -716,16 +715,46 @@ onMounted(async () => {
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
     // Load graph curve colors
-    graphZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom'));
-    graphPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch'));
-    graphBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta'));
-    graphBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta'));
+    const rawGraphZoomColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom');
+    console.log("rawGraphZoomColor:", rawGraphZoomColor);
+    graphZoomColor.value = toHex(rawGraphZoomColor);
+    console.log("graphZoomColor.value:", graphZoomColor.value);
+
+    const rawGraphPitchColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch');
+    console.log("rawGraphPitchColor:", rawGraphPitchColor);
+    graphPitchColor.value = toHex(rawGraphPitchColor);
+    console.log("graphPitchColor.value:", graphPitchColor.value);
+
+    const rawGraphBearingDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta');
+    console.log("rawGraphBearingDeltaColor:", rawGraphBearingDeltaColor);
+    graphBearingDeltaColor.value = toHex(rawGraphBearingDeltaColor);
+    console.log("graphBearingDeltaColor.value:", graphBearingDeltaColor.value);
+
+    const rawGraphBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta');
+    console.log("rawGraphBearingTotalDeltaColor:", rawGraphBearingTotalDeltaColor);
+    graphBearingTotalDeltaColor.value = toHex(rawGraphBearingTotalDeltaColor);
+    console.log("graphBearingTotalDeltaColor.value:", graphBearingTotalDeltaColor.value);
 
     // Load edited graph curve colors
-    graphEditedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
-    graphEditedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
-    graphEditedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta'));
-    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
+    const rawGraphEditedZoomColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom');
+    console.log("rawGraphEditedZoomColor:", rawGraphEditedZoomColor);
+    graphEditedZoomColor.value = toHex(rawGraphEditedZoomColor);
+    console.log("graphEditedZoomColor.value:", graphEditedZoomColor.value);
+
+    const rawGraphEditedPitchColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch');
+    console.log("rawGraphEditedPitchColor:", rawGraphEditedPitchColor);
+    graphEditedPitchColor.value = toHex(rawGraphEditedPitchColor);
+    console.log("graphEditedPitchColor.value:", graphEditedPitchColor.value);
+
+    const rawGraphEditedBearingDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta');
+    console.log("rawGraphEditedBearingDeltaColor:", rawGraphEditedBearingDeltaColor);
+    graphEditedBearingDeltaColor.value = toHex(rawGraphEditedBearingDeltaColor);
+    console.log("graphEditedBearingDeltaColor.value:", graphEditedBearingDeltaColor.value);
+
+    const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta');
+    console.log("rawGraphEditedBearingTotalDeltaColor:", rawGraphEditedBearingTotalDeltaColor);
+    graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
+    console.log("graphEditedBearingTotalDeltaColor.value:", graphEditedBearingTotalDeltaColor.value);
 
  
 

@@ -56,36 +56,18 @@
                   <span class="mr-2">Supprimer la pause</span>
                   <v-icon icon="mdi-delete"></v-icon>
                 </v-btn>
-                <span v-else class="text-caption pa-4">Appuyez sur 'P' pour ajouter une pause.</span>
+                <v-btn v-else color="primary" variant="text" :disabled="isFlytoEvent" @click="emit('add-pause')">
+                  <span class="mr-2">Ajouter Pause</span>
+                  <v-icon icon="mdi-plus"></v-icon>
+                </v-btn>
+                <span v-if="isFlytoEvent" class="text-caption ml-4 text-error">
+                  (Conflit avec Flyto)
+                </span>
               </div>
             </v-window-item>
 
             <v-window-item value="flyto">
               <div class="pa-2 d-flex flex-column">
-                <v-slider
-                  :model-value="props.flytoDurationSetting"
-                  @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
-                  label="Durée (s)"
-                  min="0.2"
-                  max="10"
-                  step="0.2"
-                  thumb-label="always"
-                  hide-details
-                  class="align-center"
-                >
-                  <template v-slot:append>
-                    <v-text-field
-                      :model-value="props.flytoDurationSetting"
-                      @update:model-value="(val) => emit('update:flytoDurationSetting', parseFloat(val))"
-                      density="compact"
-                      style="width: 70px"
-                      type="number"
-                      hide-details
-                      single-line
-                      variant="outlined"
-                    ></v-text-field>
-                  </template>
-                </v-slider>
                 <div class="d-flex align-center mt-2">
                   <v-btn v-if="isFlytoEvent" color="error" variant="text" @click="onDeleteFlyto">
                     <span class="mr-2">Supprimer Flyto</span>
@@ -99,6 +81,20 @@
                     (Conflit avec Pause)
                   </span>
                 </div>
+                <v-divider class="my-2"></v-divider>
+                <div class="d-flex align-center justify-center mb-2">
+                  <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
+                </div>
+                <v-slider
+                  :model-value="props.flytoDurationSetting"
+                  @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
+                  min="200"
+                  max="10000"
+                  step="100"
+                  hide-details
+                  class="align-center"
+                >
+                </v-slider>
               </div>
             </v-window-item>
 
@@ -152,9 +148,10 @@ const emit = defineEmits([
   'update:showPitchPair',
   // Event emits
   'delete-pause',
+  'add-pause', // Added this
   'add-flyto',
   'delete-flyto',
-  'update:flytoDurationSetting', // Added this
+  'update:flytoDurationSetting',
   // Toolbar emits
   'save-control-point',
   'delete-control-point',
