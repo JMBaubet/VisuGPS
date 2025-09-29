@@ -22,78 +22,45 @@
       </v-btn-toggle>
     </div>
 
-    <!-- Graph Controls Container -->
-    <v-sheet
-      class="control-widget"
-      style="position: absolute; bottom: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px;"
-      rounded="lg"
-    >
-      <v-switch
-        v-model="showGraph"
-        color="primary"
-        label="Graph"
-        hide-details
-        density="compact"
-        style="margin-left: 8px; margin-right: 8px;"
-      ></v-switch>
-
-      <div v-if="showGraph" style="display: flex; flex-direction: column; gap: 4px;">
-        <div style="display: flex; flex-direction: column; margin-left: 8px;">
-            <v-checkbox v-model="showOriginalCurves" label="Origine" hide-details density="compact" color="warning"></v-checkbox>
-            <v-checkbox v-model="showEditedCurves" label="Edité" hide-details density="compact" color="success"></v-checkbox>
-        </div>
-        <v-divider class="my-1"></v-divider>
-        <v-switch v-model="showBearingDeltaPair" label="Δ Cap" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showBearingTotalDeltaPair" label="Cap" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showZoomPair" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-        <v-switch v-model="showPitchPair" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-      </div>
-    </v-sheet>
-
-    <TrackProgressWidget 
-      v-model="trackProgress" 
-      :max="trackingPoints.length - 1" 
-      :tracking-data="trackingPoints"
-      :total-length="totalLineLength"
-      :current-distance="currentProgressDistance"
-      :key="circuitId" />
-
-        <EventWidget :current-increment="trackProgress" :pause-events="pauseEvents" @delete-pause="handleDeletePauseEvent"
-            class="mt-2" />
-
-    
-    <CameraInfoWidget
-      :bearing="currentBearing"
-      :zoom="currentZoom"
-      :pitch="currentPitch"
-      :defaultZoom="defaultZoom"
-      :defaultPitch="defaultPitch"
-    />
-
- 
-
-    <CameraGraph 
-      v-if="trackingPoints.length > 0 && showGraph"
-      :trackingPoints="trackingPoints"
-      :totalLength="totalLineLength"
-      :currentDistance="currentProgressDistance"
-      :showZoom="showZoom"
-      :showPitch="showPitch"
-      :showBearingDelta="showBearingDelta"
-      :showBearingTotalDelta="showBearingTotalDelta"
-      :showEditedZoom="showEditedZoom"
-      :showEditedPitch="showEditedPitch"
-      :showEditedBearingDelta="showEditedBearingDelta"
-      :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
-      :currentCameraBearing="currentBearing"
-      :initialCameraBearing="trackingPoints[0]?.cap"
-      :currentCameraZoom="currentZoom"
-      :defaultCameraZoom="defaultZoom"
-      :currentCameraPitch="currentPitch"
-      :defaultCameraPitch="defaultPitch"
-      @seek-distance="handleSeekDistance"
-    />
-
+            <!-- Bottom UI Container -->
+            <div class="bottom-ui-container">
+              <CameraGraph 
+                v-if="trackingPoints.length > 0 && showGraph"
+                :trackingPoints="trackingPoints"
+                :totalLength="totalLineLength"
+                :currentDistance="currentProgressDistance"
+                :showZoom="showZoom"
+                :showPitch="showPitch"
+                :showBearingDelta="showBearingDelta"
+                :showBearingTotalDelta="showBearingTotalDelta"
+                :showEditedZoom="showEditedZoom"
+                :showEditedPitch="showEditedPitch"
+                :showEditedBearingDelta="showEditedBearingDelta"
+                :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
+                :currentCameraBearing="currentBearing"
+                :initialCameraBearing="trackingPoints[0]?.cap"
+                :currentCameraZoom="currentZoom"
+                :defaultCameraZoom="defaultZoom"
+                :currentCameraPitch="currentPitch"
+                :defaultCameraPitch="defaultPitch"
+                @seek-distance="handleSeekDistance"
+              />
+      <ControlTabsWidget
+        v-model:showOriginalCurves="showOriginalCurves"
+        v-model:showEditedCurves="showEditedCurves"
+        v-model:showBearingDeltaPair="showBearingDeltaPair"
+        v-model:showBearingTotalDeltaPair="showBearingTotalDeltaPair"
+        v-model:showZoomPair="showZoomPair"
+        v-model:showPitchPair="showPitchPair"
+        :graph-bearing-delta-color="graphBearingDeltaColor"
+        :graph-bearing-total-delta-color="graphBearingTotalDeltaColor"
+        :graph-zoom-color="graphZoomColor"
+        :graph-pitch-color="graphPitchColor"
+        :current-increment="trackProgress"
+        :pause-events="pauseEvents"
+        @delete-pause="handleDeletePauseEvent"
+      />
+            </div>
     <ConfirmationDialog
       v-model="showConfirmationDialog"
       :title="confirmationProps.title"
@@ -116,7 +83,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
 import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
-import EventWidget from '@/components/EventWidget.vue';
+import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
@@ -795,14 +762,24 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.bottom-ui-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: flex-end; /* Aligns children (graph, widget) to the bottom */
+  gap: 8px; /* Add space between children */
+  z-index: 1000;
+  pointer-events: none; /* Allows map interaction through the container */
+}
+
+.bottom-ui-container > * {
+  pointer-events: auto; /* Re-enables pointer events for children */
+}
+
 #map-container {
   width: 100%;
   height: 100%;
-}
-
-.control-widget {
-  padding: 0 16px 0 8px; /* Adjust padding for switch */
-  display: flex;
-  align-items: center;
 }
 </style>

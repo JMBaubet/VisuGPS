@@ -341,12 +341,8 @@ const editedBearingTotalDeltaPath = computed(() => {
 
 <style scoped>
 .graph-container-wrapper {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1500px;
-  max-width: 95vw; /* Safety for smaller screens */
+  flex-grow: 1;
+  width: 0; /* Allow the container to shrink and not base its size on its content */
   height: 400px;
   background-color: rgba(var(--v-theme-surface), 0.8);
   backdrop-filter: blur(4px);
