@@ -44,7 +44,7 @@
         :defaultCameraZoom="defaultZoom"
         :currentCameraPitch="currentPitch"
         :defaultCameraPitch="defaultPitch"
-        :pause-events="pauseEvents"
+        :pause-events="pauseEventsForDisplay"
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
@@ -58,9 +58,9 @@
         :graph-bearing-delta-color="graphBearingDeltaColor"
         :graph-bearing-total-delta-color="graphBearingTotalDeltaColor"
         :graph-zoom-color="graphZoomColor"
-        :graph-pitch-color="graphPitchColor"
+        :graph-pitch-color="graph-pitch-color"
         :current-increment="trackProgress"
-        :pause-events="pauseEvents"
+        :pause-events="pauseEventsForDisplay"
         :is-current-point-control-point="isCurrentPointControlPoint"
         @delete-pause="handleDeletePauseEvent"
         @save-control-point="saveControlPoint"
@@ -126,29 +126,29 @@ const handleFlytoActive = (isActive) => {
 
 const handleAddPauseEvent = async () => {
     try {
-        const updatedEvents = await invoke('add_pause_event', {
+        const updatedEventsFile = await invoke('add_pause_event', {
             circuitId: circuitId,
             increment: trackProgress.value,
         });
-        pauseEvents.value = updatedEvents.pause;
+        eventsFile.value = updatedEventsFile;
         showSnackbar('Pause ajoutée avec succès', 'success');
     } catch (error) {
         console.error("Failed to add pause event:", error);
-        showSnackbar("Erreur lors de l'ajout de la pause", 'error');
+        showSnackbar(`Erreur lors de l'ajout de la pause: ${error}`, 'error');
     }
 };
 
 const handleDeletePauseEvent = async () => {
     try {
-        const updatedEvents = await invoke('delete_pause_event', {
+        const updatedEventsFile = await invoke('delete_pause_event', {
             circuitId: circuitId,
             increment: trackProgress.value,
         });
-        pauseEvents.value = updatedEvents.pause;
+        eventsFile.value = updatedEventsFile;
         showSnackbar('Pause supprimée avec succès', 'success');
     } catch (error) {
         console.error("Failed to delete pause event:", error);
-        showSnackbar('Erreur lors de la suppression de la pause', 'error');
+        showSnackbar(`Erreur lors de la suppression de la pause: ${error}`, 'error');
     }
 };
 
@@ -176,7 +176,18 @@ const cameraCommandSettings = ref({});
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
-const pauseEvents = ref([]);
+const eventsFile = ref({ events: {} }); // Nouvelle structure pour stocker les événements
+
+// Computed property to extract increments with Pause events for display
+const pauseEventsForDisplay = computed(() => {
+  const pauses = [];
+  for (const increment in eventsFile.value.events) {
+    if (eventsFile.value.events[increment].some(event => event.type === 'Pause')) {
+      pauses.push(parseInt(increment));
+    }
+  }
+  return pauses;
+});
 
 // Synchronize the progress bar widget with the internal point index
 watch(trackProgress, (newProgress) => {
@@ -454,13 +465,6 @@ const updateCameraPosition = (index) => {
     flyToOptions.zoom = currentZoom.value;
     flyToOptions.pitch = currentPitch.value;
     flyToOptions.bearing = currentBearing.value;
-  } else if (cameraSyncMode.value === 'edited') {
-    currentZoom.value = point.editedZoom;
-    currentPitch.value = point.editedPitch;
-    currentBearing.value = point.editedCap;
-    flyToOptions.zoom = currentZoom.value;
-    flyToOptions.pitch = currentPitch.value;
-    flyToOptions.bearing = currentBearing.value;
   }
 
   map.flyTo(flyToOptions);
@@ -677,7 +681,7 @@ onMounted(async () => {
     trackingPoints.value = processedTrackingPoints;
 
     const events = await invoke('get_events', { circuitId: circuitId });
-    pauseEvents.value = events.pause;
+    eventsFile.value = events;
 
     // Initial interpolation
     updateInterpolation();

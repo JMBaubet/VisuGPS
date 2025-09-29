@@ -95,7 +95,7 @@ const props = defineProps({
   graphPitchColor: String,
   // Event props
   currentIncrement: Number,
-  pauseEvents: Array,
+  pauseEvents: Array, // This prop now receives pauseEventsForDisplay from EditView.vue
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
