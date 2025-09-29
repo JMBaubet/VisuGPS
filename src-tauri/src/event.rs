@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap; // Changed from HashMap
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
@@ -43,7 +43,7 @@ pub enum Event {
 pub struct EventsFile {
     // La clé est l'incrément (u32), la valeur est un vecteur d'événements
     // Cela gère le cas où plusieurs événements peuvent se produire au même incrément.
-    pub events: HashMap<u32, Vec<Event>>,
+    pub events: BTreeMap<u32, Vec<Event>>, // Changed from HashMap to BTreeMap
 }
 
 fn get_events_path(app_handle: &AppHandle, circuit_id: &str) -> Result<PathBuf, String> {
