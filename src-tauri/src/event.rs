@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap; // Changed from HashMap
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
@@ -14,7 +14,7 @@ pub struct FlytoEventContent {
     pub coord: Vec<f64>, // [longitude, latitude]
     pub duree: u32,
     pub pitch: u32,
-    pub zoom: u32,
+    pub zoom: f64,
 }
 
 // Contenu de l'événement Message
@@ -43,7 +43,7 @@ pub enum Event {
 pub struct EventsFile {
     // La clé est l'incrément (u32), la valeur est un vecteur d'événements
     // Cela gère le cas où plusieurs événements peuvent se produire au même incrément.
-    pub events: BTreeMap<u32, Vec<Event>>, // Changed from HashMap to BTreeMap
+    pub events: BTreeMap<u32, Vec<Event>>,
 }
 
 fn get_events_path(app_handle: &AppHandle, circuit_id: &str) -> Result<PathBuf, String> {
@@ -91,14 +91,19 @@ pub fn get_events(app_handle: AppHandle, circuit_id: String) -> Result<EventsFil
 }
 
 #[tauri::command]
-pub fn add_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32) -> Result<EventsFile, String> {
+pub fn add_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32, override_existing: bool) -> Result<EventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
     
     let events_at_increment = events_file.events.entry(increment).or_insert_with(Vec::new);
     
     // Validation: Check if a Flyto event already exists at this increment
     if events_at_increment.iter().any(|e| matches!(e, Event::Flyto(_))) {
-        return Err(format!("Cannot add Pause event: A Flyto event already exists at increment {}", increment));
+        if !override_existing {
+            return Err(format!("Cannot add Pause event: A Flyto event already exists at increment {}", increment));
+        } else {
+            // Remove existing Flyto events
+            events_at_increment.retain(|e| !matches!(e, Event::Flyto(_)));
+        }
     }
 
     // Add Pause event if not already present
@@ -117,7 +122,50 @@ pub fn delete_pause_event(app_handle: AppHandle, circuit_id: String, increment: 
         // Remove all Pause events at this increment
         events_at_increment.retain(|e| !matches!(e, Event::Pause));
         
-        // If the event vector is empty after removal, remove the entry from the HashMap
+        // If the event vector is empty after removal, remove the entry from the BTreeMap
+        if events_at_increment.is_empty() {
+            events_file.events.remove(&increment);
+        }
+        write_events(&app_handle, &circuit_id, &events_file)?;
+    }
+    Ok(events_file)
+}
+
+#[tauri::command]
+pub fn add_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32, flyto_content: FlytoEventContent, override_existing: bool) -> Result<EventsFile, String> {
+    let mut events_file = read_events(&app_handle, &circuit_id)?;
+
+    let events_at_increment = events_file.events.entry(increment).or_insert_with(Vec::new);
+
+    // Validation: Check if a Pause event already exists at this increment
+    if events_at_increment.iter().any(|e| matches!(e, Event::Pause)) {
+        if !override_existing {
+            return Err(format!("Cannot add Flyto event: A Pause event already exists at increment {}", increment));
+        } else {
+            // Remove existing Pause events
+            events_at_increment.retain(|e| !matches!(e, Event::Pause));
+        }
+    }
+
+    // Add Flyto event if not already present (or if we allow multiple Flyto, then just push)
+    // For now, let's assume only one Flyto per increment for simplicity, or replace if exists.
+    // If multiple Flyto events are allowed, remove the 'any' check and just push.
+    if !events_at_increment.iter().any(|e| matches!(e, Event::Flyto(_))) {
+        events_at_increment.push(Event::Flyto(flyto_content));
+        write_events(&app_handle, &circuit_id, &events_file)?;
+    }
+    Ok(events_file)
+}
+
+#[tauri::command]
+pub fn delete_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32) -> Result<EventsFile, String> {
+    let mut events_file = read_events(&app_handle, &circuit_id)?;
+
+    if let Some(events_at_increment) = events_file.events.get_mut(&increment) {
+        // Remove all Flyto events at this increment
+        events_at_increment.retain(|e| !matches!(e, Event::Flyto(_)));
+
+        // If the event vector is empty after removal, remove the entry from the BTreeMap
         if events_at_increment.is_empty() {
             events_file.events.remove(&increment);
         }

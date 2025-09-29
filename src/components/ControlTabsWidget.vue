@@ -61,7 +61,45 @@
             </v-window-item>
 
             <v-window-item value="flyto">
-              <div class="pa-4 text-caption">Fonctionnalité à venir.</div>
+              <div class="pa-2 d-flex flex-column">
+                <v-slider
+                  :model-value="props.flytoDurationSetting"
+                  @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
+                  label="Durée (s)"
+                  min="0.2"
+                  max="10"
+                  step="0.2"
+                  thumb-label="always"
+                  hide-details
+                  class="align-center"
+                >
+                  <template v-slot:append>
+                    <v-text-field
+                      :model-value="props.flytoDurationSetting"
+                      @update:model-value="(val) => emit('update:flytoDurationSetting', parseFloat(val))"
+                      density="compact"
+                      style="width: 70px"
+                      type="number"
+                      hide-details
+                      single-line
+                      variant="outlined"
+                    ></v-text-field>
+                  </template>
+                </v-slider>
+                <div class="d-flex align-center mt-2">
+                  <v-btn v-if="isFlytoEvent" color="error" variant="text" @click="onDeleteFlyto">
+                    <span class="mr-2">Supprimer Flyto</span>
+                    <v-icon icon="mdi-delete"></v-icon>
+                  </v-btn>
+                  <v-btn v-else color="primary" variant="text" :disabled="isPauseEvent" @click="onAddFlyto">
+                    <span class="mr-2">Ajouter Flyto</span>
+                    <v-icon icon="mdi-plus"></v-icon>
+                  </v-btn>
+                  <span v-if="isPauseEvent" class="text-caption ml-4 text-error">
+                    (Conflit avec Pause)
+                  </span>
+                </div>
+              </div>
             </v-window-item>
 
             <v-window-item value="marker">
@@ -96,6 +134,8 @@ const props = defineProps({
   // Event props
   currentIncrement: Number,
   pauseEvents: Array, // This prop now receives pauseEventsForDisplay from EditView.vue
+  flytoEvents: Array,
+  flytoDurationSetting: Number,
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
@@ -112,6 +152,9 @@ const emit = defineEmits([
   'update:showPitchPair',
   // Event emits
   'delete-pause',
+  'add-flyto',
+  'delete-flyto',
+  'update:flytoDurationSetting', // Added this
   // Toolbar emits
   'save-control-point',
   'delete-control-point',
@@ -140,8 +183,20 @@ const isPauseEvent = computed(() => {
     return props.pauseEvents.includes(props.currentIncrement);
 });
 
+const isFlytoEvent = computed(() => {
+    return props.flytoEvents.includes(props.currentIncrement);
+});
+
 const onDeletePause = () => {
     emit('delete-pause');
+};
+
+const onAddFlyto = () => {
+    emit('add-flyto', props.flytoDurationSetting);
+};
+
+const onDeleteFlyto = () => {
+    emit('delete-flyto');
 };
 
 // --- Logic for Flyto mode --- 

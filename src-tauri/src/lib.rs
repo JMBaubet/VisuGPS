@@ -938,6 +938,8 @@ pub fn run() {
         event::get_events,
         event::add_pause_event,
         event::delete_pause_event,
+        event::add_flyto_event,
+        event::delete_flyto_event,
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

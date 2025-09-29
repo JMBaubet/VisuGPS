@@ -85,6 +85,18 @@
             stroke-width="3"
           />
         </g>
+
+        <!-- Marqueurs Flyto -->
+        <g v-for="point in flytoPoints" :key="`flyto-${point.increment}`">
+          <line
+            :x1="point.distance * kmToPx"
+            :y1="0"
+            :x2="point.distance * kmToPx"
+            :y2="flytoLength"
+            :stroke="flytoColor"
+            stroke-width="3"
+          />
+        </g>
       </svg>
     </div>
   </div>
@@ -113,6 +125,9 @@ const controlPointLength = ref(20);
 const pauseColor = ref('white');
 const pauseLength = ref(12);
 
+const flytoColor = ref('orange'); // Default, will be loaded from settings
+const flytoLength = ref(12); // Default, will be loaded from settings
+
 const editedZoomColor = ref('');
 const editedPitchColor = ref('');
 const editedBearingDeltaColor = ref('');
@@ -131,6 +146,9 @@ onMounted(async () => {
 
   pauseColor.value = toHex(await getSettingValue('Edition/Evenements/couleurPause'));
   pauseLength.value = await getSettingValue('Edition/Evenements/longueurPause');
+
+  flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Flyto/couleur'));
+  flytoLength.value = await getSettingValue('Edition/Evenements/Flyto/longueur');
 
   editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
   editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
@@ -157,6 +175,7 @@ const props = defineProps({
   currentCameraPitch: { type: Number, default: 0 },
   defaultCameraPitch: { type: Number, default: 0 },
   pauseEvents: { type: Array, default: () => [] },
+  flytoEvents: { type: Array, default: () => [] },
 });
 
 const controlPoints = computed(() => {
@@ -167,6 +186,12 @@ const pausePoints = computed(() => {
   if (!props.pauseEvents || props.pauseEvents.length === 0) return [];
   const pauseIncrements = new Set(props.pauseEvents);
   return props.trackingPoints.filter(p => pauseIncrements.has(p.increment));
+});
+
+const flytoPoints = computed(() => {
+  if (!props.flytoEvents || props.flytoEvents.length === 0) return [];
+  const flytoIncrements = new Set(props.flytoEvents);
+  return props.trackingPoints.filter(p => flytoIncrements.has(p.increment));
 });
 
 const handleGraphClick = (event) => {

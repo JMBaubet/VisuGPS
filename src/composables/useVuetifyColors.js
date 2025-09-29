@@ -141,6 +141,9 @@ export function useVuetifyColors() {
    * @returns {string} The HEX value or the original name if not found.
    */
   const toHex = (name) => {
+    if (name === null || name === undefined) {
+      return '#000000'; // Or any other default fallback color
+    }
     return vuetifyColors[name] || name;
   };
 

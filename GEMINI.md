@@ -1510,7 +1510,7 @@ Pour cela nous allons créer un nouveau widget  identique au control-widget disp
 
 Ce widget aura un v-switch `Evènement`, qui permettre d'ouvrir un div sur lequel nous allons avoir notre IHM pour ajouter/supprimer/modifier les évènements
 
-### Ajout d'un évènement Pause
+### Ajout d'un évènement Pause - Réalisé -
 
 Au cours de visualisation 3D de la carte, j'aimerai avoir des pauses programmées synchronisées avec le fichier tracking.json.
 
@@ -1528,11 +1528,25 @@ Le format des données pour ce type d'évènement sera :
 
 ]`
 
-### Suppression d'un évènement Pause
+### Suppression d'un évènement Pause - Réalisé -
 
 Dans le widget Evenement si la progresson correspond à un évènement pause un bouton sera affiché dans le wiget pour supprimer la pause. On supprime la pause du tableau pause . 
 
-### Ajout d'un évènement Zoom
+### Ajout d'un évènement Flyto
+
+Pour ajouter un évènement flyto, nous avons besoin de paramétrer dans l'onglet EVENEMENT/FLYTO sa durée. Pour cela nous allons ajouter un slider seconde, qui sera paramétré dans setting.json/ sous Edition/Evenement/Flyto/durée en seconde de 0.2 à 10 secondes avec un pas de 0.2 Seconde et une valeur par défaut de 2.
+
+Ensuite via la touche F on ajoute l'evenement dans le fichier evt.json
+
+
+
+Le flyto sera matérialisé dans le graphe comme la pause avec ses propres paramètres dans Edition/Evenements/Flyto/  avec une couleur orange. 
+
+Les flyto et les pause ne peuvent pas être déclarés pour un même point. Ce cas doit être détecté avant la mise à jour du fichier evt.json, et un v-dialog devra prévenir l'utilisateur si il vaut faire le changement ou pas ! 
+
+Si présence d'un flyto sur la progression on doit pourvoir le supprimer via l'onglet EVENEMENT/FLYTO.
+
+Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc... 
 
 ### 
 

@@ -45,6 +45,7 @@
         :currentCameraPitch="currentPitch"
         :defaultCameraPitch="defaultPitch"
         :pause-events="pauseEventsForDisplay"
+        :flyto-events="flytoEventsForDisplay"
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
@@ -61,8 +62,12 @@
         :graph-pitch-color="graph-pitch-color"
         :current-increment="trackProgress"
         :pause-events="pauseEventsForDisplay"
+        :flyto-events="flytoEventsForDisplay"
+        :flyto-duration-setting="flytoDurationSetting"
         :is-current-point-control-point="isCurrentPointControlPoint"
         @delete-pause="handleDeletePauseEvent"
+        @add-flyto="handleAddFlytoEvent"
+        @delete-flyto="handleDeleteFlytoEvent"
         @save-control-point="saveControlPoint"
         @delete-control-point="deleteControlPoint"
         @flyto-active="handleFlytoActive"
@@ -70,6 +75,7 @@
     </div>
 
     <CenterMarker v-if="showCenterMarker" />
+    <ConfirmationDialog
       v-model="showConfirmationDialog"
       :title="confirmationProps.title"
       :message="confirmationProps.message"
@@ -124,17 +130,30 @@ const handleFlytoActive = (isActive) => {
   }
 };
 
-const handleAddPauseEvent = async () => {
+const handleAddPauseEvent = async (override = false) => {
     try {
         const updatedEventsFile = await invoke('add_pause_event', {
             circuitId: circuitId,
             increment: trackProgress.value,
+            overrideExisting: override,
         });
         eventsFile.value = updatedEventsFile;
         showSnackbar('Pause ajoutée avec succès', 'success');
     } catch (error) {
         console.error("Failed to add pause event:", error);
-        showSnackbar(`Erreur lors de l'ajout de la pause: ${error}`, 'error');
+        if (error.includes("Cannot add Pause event: A Flyto event already exists")) {
+            const confirmed = await askForConfirmation(
+                'Conflit d\'événement',
+                'Un événement Flyto existe déjà à cet incrément. Voulez-vous le remplacer par une Pause ?'
+            );
+            if (confirmed) {
+                await handleAddPauseEvent(true); // Retry with override
+            } else {
+                showSnackbar('Ajout de la Pause annulé.', 'info');
+            }
+        } else {
+            showSnackbar(`Erreur lors de l'ajout de la la pause: ${error}`, 'error');
+        }
     }
 };
 
@@ -150,6 +169,60 @@ const handleDeletePauseEvent = async () => {
         console.error("Failed to delete pause event:", error);
         showSnackbar(`Erreur lors de la suppression de la pause: ${error}`, 'error');
     }
+};
+
+const handleAddFlytoEvent = async (duration, override = false) => {
+  if (!map) return;
+  try {
+    const cameraPos = map.getFreeCameraOptions().position;
+    const lngLat = cameraPos.toLngLat();
+
+    const flytoContent = {
+      cap: Math.round((map.getBearing() % 360 + 360) % 360), // Normalize bearing to 0-360
+      coord: [lngLat.lng, lngLat.lat],
+      duree: duration, // Use duration from ControlTabsWidget
+      pitch: Math.round(map.getPitch()),
+      zoom: parseFloat(map.getZoom().toFixed(1)),
+    };
+
+    const updatedEventsFile = await invoke('add_flyto_event', {
+      circuitId: circuitId,
+      increment: trackProgress.value,
+      flytoContent: flytoContent,
+      overrideExisting: override,
+    });
+    eventsFile.value = updatedEventsFile;
+    showSnackbar('Événement Flyto ajouté avec succès', 'success');
+  } catch (error) {
+    console.error("Failed to add flyto event:", error);
+    if (error.includes("Cannot add Flyto event: A Pause event already exists")) {
+        const confirmed = await askForConfirmation(
+            'Conflit d\'événement',
+            'Un événement Pause existe déjà à cet incrément. Voulez-vous le remplacer par un Flyto ?'
+        );
+        if (confirmed) {
+            await handleAddFlytoEvent(duration, true); // Retry with override
+        } else {
+            showSnackbar('Ajout du Flyto annulé.', 'info');
+        }
+    } else {
+        showSnackbar(`Erreur lors de l'ajout de l'événement Flyto: ${error}`, 'error');
+    }
+  }
+};
+
+const handleDeleteFlytoEvent = async () => {
+  try {
+    const updatedEventsFile = await invoke('delete_flyto_event', {
+      circuitId: circuitId,
+      increment: trackProgress.value,
+    });
+    eventsFile.value = updatedEventsFile;
+    showSnackbar('Événement Flyto supprimé avec succès', 'success');
+  } catch (error) {
+    console.error("Failed to delete flyto event:", error);
+    showSnackbar(`Erreur lors de la suppression de l'événement Flyto: ${error}`, 'error');
+  }
 };
 
 const askForConfirmation = (title, message) => {
@@ -188,6 +261,19 @@ const pauseEventsForDisplay = computed(() => {
   }
   return pauses;
 });
+
+// Computed property to extract increments with Flyto events for display
+const flytoEventsForDisplay = computed(() => {
+  const flytos = [];
+  for (const increment in eventsFile.value.events) {
+    if (eventsFile.value.events[increment].some(event => event.type === 'Flyto')) {
+      flytos.push(parseInt(increment));
+    }
+  }
+  return flytos;
+});
+
+const flytoDurationSetting = ref(2.0); // Default value, will be loaded from settings
 
 // Synchronize the progress bar widget with the internal point index
 watch(trackProgress, (newProgress) => {
@@ -514,6 +600,9 @@ const handleKeydown = (event) => {
   if (event.key === 'p' || event.key === 'P') {
     handleAddPauseEvent();
     handled = true;
+  } else if (event.key === 'f' || event.key === 'F') {
+    handleAddFlytoEvent(flytoDurationSetting.value);
+    handled = true;
   }
 
   switch (event.key) {
@@ -682,6 +771,9 @@ onMounted(async () => {
 
     const events = await invoke('get_events', { circuitId: circuitId });
     eventsFile.value = events;
+
+    // Load Flyto duration setting
+    flytoDurationSetting.value = await getSettingValue('Edition/Evenements/Flyto/duree');
 
     // Initial interpolation
     updateInterpolation();
