@@ -1532,13 +1532,11 @@ Le format des données pour ce type d'évènement sera :
 
 Dans le widget Evenement si la progresson correspond à un évènement pause un bouton sera affiché dans le wiget pour supprimer la pause. On supprime la pause du tableau pause . 
 
-### Ajout d'un évènement Flyto
+### Ajout d'un évènement Flyto - Réalise - [15673c6d]
 
 Pour ajouter un évènement flyto, nous avons besoin de paramétrer dans l'onglet EVENEMENT/FLYTO sa durée. Pour cela nous allons ajouter un slider seconde, qui sera paramétré dans setting.json/ sous Edition/Evenement/Flyto/durée en seconde de 0.2 à 10 secondes avec un pas de 0.2 Seconde et une valeur par défaut de 2.
 
 Ensuite via la touche F on ajoute l'evenement dans le fichier evt.json
-
-
 
 Le flyto sera matérialisé dans le graphe comme la pause avec ses propres paramètres dans Edition/Evenements/Flyto/  avec une couleur orange. 
 
@@ -1546,13 +1544,75 @@ Les flyto et les pause ne peuvent pas être déclarés pour un même point. Ce c
 
 Si présence d'un flyto sur la progression on doit pourvoir le supprimer via l'onglet EVENEMENT/FLYTO.
 
-Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc... 
+Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc...  
 
-### 
+### Ajout de Message (Mobile et Fixe)
 
-### Ajout de balises texte (Geo et widget)
+Cette étape va consister à ajouter des évènement de type Message dans le fichier evt.json.
 
-## 
+Les paramètres de Messages seront mis dans le fichier settingDefault.json sous Edition/Evenements/Message
+
+Deux types de messages pourront être créés :
+
+- Message avec coordonnées géographique - "coord": [6.864787, 45.828381]
+
+- Message sans coordonnées géographique - "coord": []
+
+Dans tous les cas nous devons avoir un text - "text" : "TextDuMessage"
+
+Pour les messages avec coordonnées, nous devons avoir en plus : 
+
+- La couleur du fond (Couleur MatérialDesing)
+
+- La couleur de la bordure
+
+- l'épaisseur  de la bordure,
+
+- Le rayon de la bordure
+
+Le message pourra être afficher n increment avant le point de contrôle en cours
+
+Le message pourra être afficher n incrément après le point de contrôle en cours 
+
+La couleur du text sera calculée automatiquement en fonction de la couleur de fond.
+
+Pour mette à jour le ficheir evt.json le point de controle sera le preAffichage et la durationIncrements devra être calculée en fonction de preAffichage et postAffichage.
+
+
+
+L'IHM de paramétrage sera dans EditView sous ControlTabsWidget  dans le v-tabs Marqueur.
+
+Dans l'IHM, nous devons avoir :
+
+-  un v-combobox qui présentera les textes déja connus. Ces textes devront être archivés dans evt.json pour pouvoir alimenter la v-combobox  à chaque relance de l'application. Les messages seront classés alphabetiquement dans la bomboBox
+
+- un v-btn pour ouvir un selecteur de couleur MaterialDesing pour le fond  
+
+- un v-btn pour ouvir un selecteur de couleur MaterialDesing pour la bordure
+
+- un v-slider pour la taille de la bordure.
+
+- un v-slider preAffichage
+
+- un v-slider  postAffichage.
+
+- un v-switch pour message Mobile vs Fixe Coordonnées vs Vide  true vs false.
+
+Les paramètres à mettre dans settingsDefault.json sont : 
+
+- La couleur de fond : Indigo par défaut
+
+- La couleur de la bordure : White par défaut
+
+- Taille de la bordure : 4 px par defaut de 0 à 10 increment de 1 
+
+- Le pré affichage : 10 par défaut de 50 à 0 increment de 1
+
+- Le post affichage ; 20 par defaut. de 0 à 100 increment de 1
+
+- Type message : Booleen Mobile : True
+
+
 
 ## Zooms automatiques au départ et à l'arrivée.
 
