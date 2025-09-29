@@ -162,6 +162,18 @@ pub fn toggle_mapbox_api(enable: bool) {
     MAPBOX_ENABLED.store(enable, Ordering::SeqCst);
 }
 
+#[tauri::command]
+pub fn get_commune_update_progress(app_handle: AppHandle, circuit_id: String) -> Result<i32, String> {
+    let state = app_handle.state::<Mutex<AppState>>();
+    let app_state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&app_state.app_env_path)?;
+    
+    let circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == circuit_id)
+        .ok_or_else(|| format!("Circuit with ID '{}' not found.", circuit_id))?;
+        
+    Ok(circuit.avancement_communes)
+}
+
 
 fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_id: &str) -> Result<(), String> {
     let mut circuits_file = read_circuits_file(&app_env_path.to_path_buf())?;

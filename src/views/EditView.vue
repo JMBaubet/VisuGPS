@@ -50,13 +50,18 @@
       </div>
     </v-sheet>
 
-    <TrackProgressWidget
-      :totalLength="totalLineLength"
-      :currentDistance="currentProgressDistance"
-      :progressColor="couleurAvancement"
-      :lineStringColor="traceColor"
-    />
+    <TrackProgressWidget 
+      v-model="trackProgress" 
+      :max="trackingPoints.length - 1" 
+      :tracking-data="trackingPoints"
+      :total-length="totalLineLength"
+      :current-distance="currentProgressDistance"
+      :key="circuitId" />
 
+        <EventWidget :current-increment="trackProgress" :pause-events="pauseEvents" @delete-pause="handleDeletePauseEvent"
+            class="mt-2" />
+
+    
     <CameraInfoWidget
       :bearing="currentBearing"
       :zoom="currentZoom"
@@ -100,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'; // Import computed
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'; // Import computed
 import { useRoute, useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
@@ -111,6 +116,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
 import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
+import EventWidget from '@/components/EventWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
@@ -123,6 +129,34 @@ const { getSettingValue } = useSettings();
 const showConfirmationDialog = ref(false);
 const confirmationProps = ref({});
 const resolveConfirmation = ref(null);
+
+const handleAddPauseEvent = async () => {
+    try {
+        const updatedEvents = await invoke('add_pause_event', {
+            circuitId: circuitId,
+            increment: trackProgress.value,
+        });
+        pauseEvents.value = updatedEvents.pause;
+        showSnackbar('Pause ajoutée avec succès', 'success');
+    } catch (error) {
+        console.error("Failed to add pause event:", error);
+        showSnackbar("Erreur lors de l'ajout de la pause", 'error');
+    }
+};
+
+const handleDeletePauseEvent = async () => {
+    try {
+        const updatedEvents = await invoke('delete_pause_event', {
+            circuitId: circuitId,
+            increment: trackProgress.value,
+        });
+        pauseEvents.value = updatedEvents.pause;
+        showSnackbar('Pause supprimée avec succès', 'success');
+    } catch (error) {
+        console.error("Failed to delete pause event:", error);
+        showSnackbar('Erreur lors de la suppression de la pause', 'error');
+    }
+};
 
 const askForConfirmation = (title, message) => {
   confirmationProps.value = { title, message };
@@ -146,6 +180,21 @@ const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
+const trackProgress = ref(0);
+const pauseEvents = ref([]);
+
+// Synchronize the progress bar widget with the internal point index
+watch(trackProgress, (newProgress) => {
+  if (currentPointIndex.value !== newProgress) {
+    currentPointIndex.value = newProgress;
+    updateCameraPosition(newProgress);
+  }
+});
+watch(currentPointIndex, (newIndex) => {
+  if (trackProgress.value !== newIndex) {
+    trackProgress.value = newIndex;
+  }
+});
 
 const showGraph = ref(true);
 const couleurAvancement = ref('');
@@ -463,6 +512,11 @@ const handleKeydown = (event) => {
   const isShiftPressed = event.shiftKey;
   let handled = false;
 
+  if (event.key === 'p' || event.key === 'P') {
+    handleAddPauseEvent();
+    handled = true;
+  }
+
   switch (event.key) {
     case zoomInKey: {
       const newZoom = currentZoom.value + (isShiftPressed ? shiftZoomIncrement : zoomIncrement);
@@ -627,6 +681,9 @@ onMounted(async () => {
     }));
     trackingPoints.value = processedTrackingPoints;
 
+    const events = await invoke('get_events', { circuitId: circuitId });
+    pauseEvents.value = events.pause;
+
     // Initial interpolation
     updateInterpolation();
 
@@ -735,13 +792,7 @@ onMounted(async () => {
   window.addEventListener('keydown', handleKeydown);
 });
 
-onUnmounted(() => {
-  if (map) {
-    map.remove();
-    map = null;
-  }
-  window.removeEventListener('keydown', handleKeydown);
-});</script>
+</script>
 
 <style scoped>
 #map-container {

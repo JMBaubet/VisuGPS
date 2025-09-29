@@ -1310,7 +1310,7 @@ Tous les boutons mdi-city seront disabled si la tâche de fond est active.
 
 Une nouvelle jauge devra être ajoutée sur la v-list-item du composant CircuitListItem en colonne 3  pour afficher``avancementCommunes` qui va de 0 à 100. 
 
-## Mise à jour des communes - Réalisé - [1a22fead]
+## Mise à jour des communes - Réalisé - [1c39bd32]
 
 La mise à jour des communes est à réaliser pour tous les points du fichier tracking.json du circuit considéré. C'est un processus qui peut se révéler extrèmement long, surtout pour les communes étrangères, car les services internet liés à cette fonctionnalite nous limitent grandement. (Au pire, une requete par seconde pour les communes étrangères à la france.)
 
@@ -1490,11 +1490,55 @@ A cette requette deux cas peuvent se présenter :
 
     Avec openStreetMap selon le lieu, la clé peut être `city`, `town`, `village`, ou même `hamlet`.
 
-## Ajouts d'un évènement Pause
+## Création des évènements - En cours - []
 
-## Ajout d'un évènement Zoom
+Au cours de visualisation 3D de la trace, j'aimerai avoir 4  types d'évènements programmés qui sont :
 
-## Ajout de balises texte (km et autre)
+- les `pause`, qui mettent automatiquement la visualisation 3D en pause
+
+- Les `zoom` qui permettent de faire un zoom sur un point particulier puis de revenir à la vision normale de la trace. Durant cette séquence le déroulement de la visualisation 3D est en pause.
+
+- Les `infoGeo`, qui permettre d'afficher une information sur la visualisation 3D durant un certain temps à une coordonnées géographique précise.
+
+- les `info` qui affichent une information dans un widget dédié durant un certain temps. 
+
+Les paramètres de ces évènements seront regroupés dans le fichier evt.json qui sera sauvegardé dans le repertoire du circuit. Si le fichier n'existe pas il faudra le créer. Je propose de créer dans le backend, un fichier event.rs pour gérer ce fichier
+
+C'est dans EditView que l'on va ajouter et parametrer ces évèments.
+
+Pour cela nous allons créer un nouveau widget  identique au control-widget disposé avant le graphe
+
+Ce widget aura un v-switch `Evènement`, qui permettre d'ouvrir un div sur lequel nous allons avoir notre IHM pour ajouter/supprimer/modifier les évènements
+
+### Ajout d'un évènement Pause
+
+Au cours de visualisation 3D de la carte, j'aimerai avoir des pauses programmées synchronisées avec le fichier tracking.json.
+
+L'ajout d'une pause se fera via la touche `p` on récupère la progression et on l'ajoute dans le fichier evt.json. Les points devront être classés dans l'ordre croissant.
+
+Le format des données pour ce type d'évènement sera : 
+
+`[
+
+    {
+
+        "pause" :  [99, 190,139...]
+
+    }
+
+]`
+
+### Suppression d'un évènement Pause
+
+Dans le widget Evenement si la progresson correspond à un évènement pause un bouton sera affiché dans le wiget pour supprimer la pause. On supprime la pause du tableau pause . 
+
+### Ajout d'un évènement Zoom
+
+### 
+
+### Ajout de balises texte (Geo et widget)
+
+## 
 
 ## Zooms automatiques au départ et à l'arrivée.
 

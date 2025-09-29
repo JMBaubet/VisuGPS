@@ -14,6 +14,7 @@ pub mod thumbnail_generator;
 pub mod tracking_processor;
 pub mod communes_updater;
 pub mod geo_processor;
+pub mod event;
 
 use chrono::prelude::*;
 use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
@@ -933,7 +934,11 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api, communes_updater::toggle_mapbox_api, communes_updater::get_ign_status, communes_updater::get_mapbox_status])
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api, communes_updater::toggle_mapbox_api, communes_updater::get_ign_status,         communes_updater::get_commune_update_progress,
+        event::get_events,
+        event::add_pause_event,
+        event::delete_pause_event,
+    ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
