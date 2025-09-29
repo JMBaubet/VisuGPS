@@ -1546,7 +1546,7 @@ Si présence d'un flyto sur la progression on doit pourvoir le supprimer via l'o
 
 Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc...  
 
-### Ajout de Message (Mobile et Fixe)
+### Ajout de Message (Mobile et Fixe) - en cours -
 
 Cette étape va consister à ajouter des évènement de type Message dans le fichier evt.json.
 

@@ -460,66 +460,139 @@
               }
             ]
           },
-                        {
-                          "libelle": "Evenements",
-                          "parametres": [
-                            {
-                              "identifiant": "couleurPause",
-                              "libelle": "Couleur des pauses",
-                              "description": "Couleur des marqueurs de pause sur le graphe.",
-                              "type": "couleur",
-                              "defaut": "purple",
-                              "surcharge": null
-                            },
-                            {
-                              "identifiant": "longueurPause",
-                              "libelle": "Longueur des pauses (px)",
-                              "description": "Longueur des marqueurs de pause sur le graphe.",
-                              "type": "entier",
-                              "defaut": 12,
-                              "surcharge": null,
-                              "min": 5,
-                              "max": 50
-                            }
-                          ],
-                          "groupes": [
-                            {
-                              "libelle": "Flyto",
-                              "parametres": [
-                                                      {
-                                                        "identifiant": "duree",
-                                                        "libelle": "Durée Flyto",
-                                                        "description": "Durée de l'événement Flyto en millisecondes.",
-                                                        "type": "entier",
-                                                        "defaut": 2000,
-                                                        "min": 200,
-                                                        "max": 10000,
-                                                        "step": 100,
-                                                        "unite": "ms"
-                                                      },                                {
-                                  "identifiant": "couleur",
-                                  "libelle": "Couleur Flyto",
-                                  "description": "Couleur du marqueur Flyto sur le graphe.",
-                                  "type": "couleur",
-                                  "defaut": "orange",
-                                  "materialDesign": true
-                                },
-                                {
-                                  "identifiant": "longueur",
-                                  "libelle": "Longueur Flyto (px)",
-                                  "description": "Longueur du marqueur Flyto sur le graphe.",
-                                  "type": "entier",
-                                  "defaut": 12,
-                                  "min": 5,
-                                  "max": 50,
-                                  "unite": "px"
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          "libelle": "Mapbox",            "parametres": [
+          {
+            "libelle": "Evenements",
+            "parametres": [
+              {
+                "identifiant": "couleurPause",
+                "libelle": "Couleur des pauses",
+                "description": "Couleur des marqueurs de pause sur le graphe.",
+                "type": "couleur",
+                "defaut": "purple",
+                "surcharge": null
+              },
+              {
+                "identifiant": "longueurPause",
+                "libelle": "Longueur des pauses (px)",
+                "description": "Longueur des marqueurs de pause sur le graphe.",
+                "type": "entier",
+                "defaut": 12,
+                "surcharge": null,
+                "min": 5,
+                "max": 50
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Flyto",
+                "parametres": [
+                  {
+                    "identifiant": "duree",
+                    "libelle": "Durée (secondes)",
+                    "description": "Durée de l'événement Flyto en secondes.",
+                    "type": "float",
+                    "valeur_par_defaut": 2.0,
+                    "min": 0.2,
+                    "max": 10.0,
+                    "step": 0.2,
+                    "unite": "s",
+                    "critique": false,
+                    "documentation": null
+                  }
+                ]
+              },
+              {
+                "libelle": "Message",
+                "parametres": [
+                  {
+                    "identifiant": "couleurMarqueur",
+                    "libelle": "Couleur du marqueur",
+                    "description": "Couleur du marqueur de message sur le graphe.",
+                    "type": "couleur",
+                    "defaut": "purple",
+                    "surcharge": null
+                  },
+                  {
+                    "identifiant": "longueurMarqueur",
+                    "libelle": "Longueur du marqueur (px)",
+                    "description": "Longueur du marqueur de message sur le graphe.",
+                    "type": "entier",
+                    "defaut": 12,
+                    "surcharge": null,
+                    "min": 5,
+                    "max": 50
+                  },
+                  {
+                    "identifiant": "couleurFond",
+                    "libelle": "Couleur de fond",
+                    "description": "Couleur de fond du message (Material Design).",
+                    "type": "couleur",
+                    "defaut": "indigo",
+                    "critique": false,
+                    "documentation": null
+                  },
+                  {
+                    "identifiant": "couleurBordure",
+                    "libelle": "Couleur de bordure",
+                    "description": "Couleur de bordure du message (Material Design).",
+                    "type": "couleur",
+                    "defaut": "white",
+                    "critique": false,
+                    "documentation": null
+                  },
+                  {
+                    "identifiant": "tailleBordure",
+                    "libelle": "Taille de la bordure",
+                    "description": "Épaisseur de la bordure du message en pixels.",
+                    "type": "entier",
+                    "defaut": 4,
+                    "min": 0,
+                    "max": 10,
+                    "step": 1,
+                    "unite": "px",
+                    "critique": false,
+                    "documentation": null
+                  },
+                  {
+                    "identifiant": "preAffichage",
+                    "libelle": "Pré-affichage (incréments)",
+                    "description": "Nombre d'incréments avant le point de contrôle où le message commence à s'afficher.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 0,
+                    "max": 50,
+                    "step": 1,
+                    "critique": false,
+                    "documentation": null
+                  },
+                  {
+                    "identifiant": "postAffichage",
+                    "libelle": "Post-affichage (incréments)",
+                    "description": "Nombre d'incréments après le point de contrôle où le message cesse de s'afficher.",
+                    "type": "entier",
+                    "defaut": 20,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                    "critique": false,
+                    "documentation": null
+                  },
+                  {
+                    "identifiant": "typeMessageMobile",
+                    "libelle": "Message mobile (sans coordonnées)",
+                    "description": "Indique si le message est mobile (sans coordonnées géographiques fixes).",
+                    "type": "booleen",
+                    "defaut": true,
+                    "critique": false,
+                    "documentation": null
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Mapbox",
+            "parametres": [
               {
                 "defaut": "mapbox://styles/mapbox/satellite-v9",
                 "description": "Style de carte lors de l'édition",

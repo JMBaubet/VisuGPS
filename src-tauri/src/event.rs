@@ -22,9 +22,14 @@ pub struct FlytoEventContent {
 #[serde(rename_all = "camelCase")]
 pub struct MessageEventContent {
     pub text: String,
-    pub duration_increments: u32,
-    pub coord: Vec<f64>, // [longitude, latitude]
-    pub color: String,
+    pub pre_affichage: u32,
+    pub post_affichage: u32,
+    pub mobile: bool,
+    pub coord: Option<Vec<f64>>,
+    pub background_color: Option<String>,
+    pub border_color: Option<String>,
+    pub border_width: Option<u32>,
+    pub border_radius: Option<u32>,
 }
 
 // Énumération pour les différents types d'événements
@@ -41,8 +46,8 @@ pub enum Event {
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EventsFile {
-    // La clé est l'incrément (u32), la valeur est un vecteur d'événements
-    // Cela gère le cas où plusieurs événements peuvent se produire au même incrément.
+    pub schema_version: String,
+    pub texts: Option<Vec<String>>, // Pour stocker les textes de messages connus
     pub events: BTreeMap<u32, Vec<Event>>,
 }
 
@@ -58,20 +63,18 @@ fn get_events_path(app_handle: &AppHandle, circuit_id: &str) -> Result<PathBuf, 
 
 fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFile, String> {
     let path = get_events_path(app_handle, circuit_id)?;
-    if !path.exists() {
-        let default_events = EventsFile::default();
+    if !path.exists() || fs::read_to_string(&path).map_err(|e| format!("Failed to read evt.json: {}", e))?.trim().is_empty() {
+        let default_events = EventsFile {
+            schema_version: "1.0".to_string(),
+            texts: Some(Vec::new()),
+            events: BTreeMap::new(),
+        };
         write_events(app_handle, circuit_id, &default_events)?;
         return Ok(default_events);
     }
 
     let content = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read evt.json: {}", e))?;
-    
-    if content.trim().is_empty() {
-        let default_events = EventsFile::default();
-        write_events(app_handle, circuit_id, &default_events)?;
-        return Ok(default_events);
-    }
 
     serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse evt.json: {}", e))
@@ -96,13 +99,13 @@ pub fn add_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32
     
     let events_at_increment = events_file.events.entry(increment).or_insert_with(Vec::new);
     
-    // Validation: Check if a Flyto event already exists at this increment
-    if events_at_increment.iter().any(|e| matches!(e, Event::Flyto(_))) {
+    // Validation: Check if a Flyto or Message event already exists at this increment
+    if events_at_increment.iter().any(|e| matches!(e, Event::Flyto(_) | Event::Message(_))) {
         if !override_existing {
-            return Err(format!("Cannot add Pause event: A Flyto event already exists at increment {}", increment));
+            return Err(format!("Cannot add Pause event: A Flyto or Message event already exists at increment {}", increment));
         } else {
-            // Remove existing Flyto events
-            events_at_increment.retain(|e| !matches!(e, Event::Flyto(_)));
+            // Remove existing Flyto and Message events
+            events_at_increment.retain(|e| !matches!(e, Event::Flyto(_) | Event::Message(_)));
         }
     }
 
@@ -137,13 +140,13 @@ pub fn add_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32
 
     let events_at_increment = events_file.events.entry(increment).or_insert_with(Vec::new);
 
-    // Validation: Check if a Pause event already exists at this increment
-    if events_at_increment.iter().any(|e| matches!(e, Event::Pause)) {
+    // Validation: Check if a Pause or Message event already exists at this increment
+    if events_at_increment.iter().any(|e| matches!(e, Event::Pause | Event::Message(_))) {
         if !override_existing {
-            return Err(format!("Cannot add Flyto event: A Pause event already exists at increment {}", increment));
+            return Err(format!("Cannot add Flyto event: A Pause or Message event already exists at increment {}", increment));
         } else {
-            // Remove existing Pause events
-            events_at_increment.retain(|e| !matches!(e, Event::Pause));
+            // Remove existing Pause and Message events
+            events_at_increment.retain(|e| !matches!(e, Event::Pause | Event::Message(_)));
         }
     }
 
@@ -172,4 +175,74 @@ pub fn delete_flyto_event(app_handle: AppHandle, circuit_id: String, increment: 
         write_events(&app_handle, &circuit_id, &events_file)?;
     }
     Ok(events_file)
+}
+
+#[tauri::command]
+pub fn add_message_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+    message_content: MessageEventContent,
+    override_existing: bool,
+) -> Result<EventsFile, String> {
+    let mut events_file = read_events(&app_handle, &circuit_id)?;
+
+    let events_at_increment = events_file.events.entry(increment).or_insert_with(Vec::new);
+
+    // Validation: Check for existing Pause or Flyto events
+    if events_at_increment.iter().any(|e| matches!(e, Event::Pause | Event::Flyto(_))) {
+        if !override_existing {
+            return Err(format!(
+                "Cannot add Message event: A Pause or Flyto event already exists at increment {}",
+                increment
+            ));
+        } else {
+            events_at_increment.retain(|e| !matches!(e, Event::Pause | Event::Flyto(_)));
+        }
+    }
+
+    // Add or update message event
+    if let Some(existing_message_index) = events_at_increment.iter().position(|e| matches!(e, Event::Message(_))) {
+        events_at_increment[existing_message_index] = Event::Message(message_content.clone());
+    } else {
+        events_at_increment.push(Event::Message(message_content.clone()));
+    }
+
+    // Add text to known texts if not already present
+    if let Some(ref mut texts) = events_file.texts {
+        if !texts.contains(&message_content.text) {
+            texts.push(message_content.text.clone());
+            texts.sort(); // Keep texts sorted
+        }
+    } else {
+        events_file.texts = Some(vec![message_content.text.clone()]);
+    }
+
+    write_events(&app_handle, &circuit_id, &events_file)?;
+    Ok(events_file)
+}
+
+#[tauri::command]
+pub fn delete_message_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+) -> Result<EventsFile, String> {
+    let mut events_file = read_events(&app_handle, &circuit_id)?;
+
+    if let Some(events_at_increment) = events_file.events.get_mut(&increment) {
+        events_at_increment.retain(|e| !matches!(e, Event::Message(_)));
+
+        if events_at_increment.is_empty() {
+            events_file.events.remove(&increment);
+        }
+        write_events(&app_handle, &circuit_id, &events_file)?;
+    }
+    Ok(events_file)
+}
+
+#[tauri::command]
+pub fn get_known_message_texts(app_handle: AppHandle, circuit_id: String) -> Result<Vec<String>, String> {
+    let events_file = read_events(&app_handle, &circuit_id)?;
+    Ok(events_file.texts.unwrap_or_default())
 }

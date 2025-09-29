@@ -46,7 +46,7 @@
           <v-tabs v-model="eventTab" density="compact" bg-color="surface" color="orange-darken-1">
             <v-tab value="pause">Pause</v-tab>
             <v-tab value="flyto">Flyto</v-tab>
-            <v-tab value="marker">Marqueur</v-tab>
+            <v-tab value="message">Message</v-tab>
           </v-tabs>
 
           <v-window v-model="eventTab" style="flex-grow: 1;">
@@ -98,9 +98,97 @@
               </div>
             </v-window-item>
 
-            <v-window-item value="marker">
-              <div class="pa-4 text-caption">Fonctionnalité à venir.</div>
+            <v-window-item value="message">
+              <div class="pa-2 d-flex flex-column">
+                <v-combobox
+                  label="Texte du message"
+                  :items="knownMessageTexts"
+                  v-model="messageText"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  class="mb-2"
+                ></v-combobox>
+
+                <div class="d-flex align-center mb-2">
+                  <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
+                  <span class="ml-2 text-caption">Fond</span>
+                  <v-spacer></v-spacer>
+                  <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
+                  <span class="ml-2 text-caption">Bordure</span>
+                </div>
+
+                <v-slider
+                  label="Taille bordure (px)"
+                  v-model="messageBorderWidth"
+                  :min="messageBorderWidthMin"
+                  :max="messageBorderWidthMax"
+                  :step="messageBorderWidthStep"
+                  thumb-label
+                  hide-details
+                  class="mb-2"
+                ></v-slider>
+
+                <v-slider
+                  label="Pré-affichage (incréments)"
+                  v-model="messagePreAffichage"
+                  :min="messagePreAffichageMin"
+                  :max="messagePreAffichageMax"
+                  :step="messagePreAffichageStep"
+                  thumb-label
+                  hide-details
+                  class="mb-2"
+                ></v-slider>
+
+                <v-slider
+                  label="Post-affichage (incréments)"
+                  v-model="messagePostAffichage"
+                  :min="messagePostAffichageMin"
+                  :max="messagePostAffichageMax"
+                  :step="messagePostAffichageStep"
+                  thumb-label
+                  hide-details
+                  class="mb-2"
+                ></v-slider>
+
+                <v-switch
+                  label="Message mobile (sans coordonnées)"
+                  v-model="messageMobile"
+                  color="primary"
+                  hide-details
+                  class="mb-2"
+                ></v-switch>
+
+                <div class="d-flex justify-space-around align-center mt-2">
+                  <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
+                    <span class="mr-2">Supprimer Message</span>
+                    <v-icon icon="mdi-delete"></v-icon>
+                  </v-btn>
+                  <v-btn v-else color="primary" variant="text" :disabled="isPauseEvent || isFlytoEvent" @click="onAddMessage">
+                    <span class="mr-2">Ajouter Message</span>
+                    <v-icon icon="mdi-plus"></v-icon>
+                  </v-btn>
+                  <span v-if="isPauseEvent || isFlytoEvent" class="text-caption ml-4 text-error">
+                    (Conflit avec Pause/Flyto)
+                  </span>
+                </div>
+              </div>
             </v-window-item>
+
+            <v-dialog v-model="colorPickerDialog" max-width="300">
+              <v-card>
+                <v-card-title>Sélectionner une couleur</v-card-title>
+                <v-card-text>
+                  <v-color-picker v-model="selectedColor" hide-canvas hide-inputs show-swatches></v-color-picker>
+                </v-card-text>
+                <v-card-actions>
+                  <v-spacer></v-spacer>
+                  <v-btn text @click="colorPickerDialog = false">Annuler</v-btn>
+                  <v-btn color="primary" @click="applyColor">Appliquer</v-btn>
+                </v-card-actions>
+              </v-card>
+            </v-dialog>
+
           </v-window>
         </div>
       </v-window-item>
@@ -132,6 +220,15 @@ const props = defineProps({
   pauseEvents: Array, // This prop now receives pauseEventsForDisplay from EditView.vue
   flytoEvents: Array,
   flytoDurationSetting: Number,
+  // Message props
+  messageEvents: Array,
+  knownMessageTexts: Array,
+  messageBackgroundColorSetting: String,
+  messageBorderColorSetting: String,
+  messageBorderWidthSetting: Number,
+  messagePreAffichageSetting: Number,
+  messagePostAffichageSetting: Number,
+  messageMobileSetting: Boolean,
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
@@ -152,6 +249,15 @@ const emit = defineEmits([
   'add-flyto',
   'delete-flyto',
   'update:flytoDurationSetting',
+  // Message emits
+  'add-message',
+  'delete-message',
+  'update:messageBackgroundColorSetting',
+  'update:messageBorderColorSetting',
+  'update:messageBorderWidthSetting',
+  'update:messagePreAffichageSetting',
+  'update:messagePostAffichageSetting',
+  'update:messageMobileSetting',
   // Toolbar emits
   'save-control-point',
   'delete-control-point',
@@ -174,6 +280,72 @@ const showZoomPairModel = createModel('showZoomPair');
 const showPitchPairModel = createModel('showPitchPair');
 
 const cameraSyncModeModel = createModel('cameraSyncMode');
+
+// --- Message Event Logic ---
+const messageText = ref('');
+const messageBackgroundColor = createModel('messageBackgroundColorSetting');
+const messageBorderColor = createModel('messageBorderColorSetting');
+const messageBorderWidth = createModel('messageBorderWidthSetting');
+const messagePreAffichage = createModel('messagePreAffichageSetting');
+const messagePostAffichage = createModel('messagePostAffichageSetting');
+const messageMobile = createModel('messageMobileSetting');
+
+const messageBorderWidthMin = ref(0); // TODO: Get from settings
+const messageBorderWidthMax = ref(10); // TODO: Get from settings
+const messageBorderWidthStep = ref(1); // TODO: Get from settings
+
+const messagePreAffichageMin = ref(0); // TODO: Get from settings
+const messagePreAffichageMax = ref(50); // TODO: Get from settings
+const messagePreAffichageStep = ref(1); // TODO: Get from settings
+
+const messagePostAffichageMin = ref(0); // TODO: Get from settings
+const messagePostAffichageMax = ref(100); // TODO: Get from settings
+const messagePostAffichageStep = ref(1); // TODO: Get from settings
+
+const colorPickerDialog = ref(false);
+const selectedColor = ref('');
+const colorPickerTarget = ref(''); // 'background' or 'border'
+
+const showColorPicker = (target) => {
+  colorPickerTarget.value = target;
+  selectedColor.value = target === 'background' ? messageBackgroundColor.value : messageBorderColor.value;
+  colorPickerDialog.value = true;
+};
+
+const applyColor = () => {
+  if (colorPickerTarget.value === 'background') {
+    messageBackgroundColor.value = selectedColor.value;
+  } else {
+    messageBorderColor.value = selectedColor.value;
+  }
+  colorPickerDialog.value = false;
+};
+
+const isMessageEvent = computed(() => {
+  return props.messageEvents.includes(props.currentIncrement);
+});
+
+const onAddMessage = () => {
+  if (!messageText.value) {
+    // Optionally show a snackbar error
+    return;
+  }
+  const messageData = {
+    text: messageText.value,
+    preAffichage: messagePreAffichage.value,
+    postAffichage: messagePostAffichage.value,
+    mobile: messageMobile.value,
+    backgroundColor: messageBackgroundColor.value,
+    borderColor: messageBorderColor.value,
+    borderWidth: messageBorderWidth.value,
+  };
+  emit('add-message', messageData);
+};
+
+const onDeleteMessage = () => {
+  emit('delete-message');
+};
+
 
 // --- Logic for Events Tab --- 
 const isPauseEvent = computed(() => {

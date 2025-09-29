@@ -65,9 +65,19 @@
         :flyto-events="flytoEventsForDisplay"
         v-model:flyto-duration-setting="flytoDurationSetting" 
         :is-current-point-control-point="isCurrentPointControlPoint"
+        :message-events="messageEventsForDisplay"
+        :known-message-texts="knownMessageTexts"
+        v-model:message-background-color-setting="messageBackgroundColorSetting"
+        v-model:message-border-color-setting="messageBorderColorSetting"
+        v-model:message-border-width-setting="messageBorderWidthSetting"
+        v-model:message-pre-affichage-setting="messagePreAffichageSetting"
+        v-model:message-post-affichage-setting="messagePostAffichageSetting"
+        v-model:message-mobile-setting="messageMobileSetting"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
         @delete-flyto="handleDeleteFlytoEvent"
+        @add-message="handleAddMessageEvent"
+        @delete-message="handleDeleteMessageEvent"
         @save-control-point="saveControlPoint"
         @delete-control-point="deleteControlPoint"
         @flyto-active="handleFlytoActive"
@@ -272,6 +282,67 @@ const flytoEventsForDisplay = computed(() => {
   }
   return flytos;
 });
+
+// Computed property to extract increments with Message events for display
+const messageEventsForDisplay = computed(() => {
+  const messages = [];
+  for (const increment in eventsFile.value.events) {
+    if (eventsFile.value.events[increment].some(event => event.type === 'Message')) {
+      messages.push(parseInt(increment));
+    }
+  }
+  return messages;
+});
+
+const knownMessageTexts = ref([]);
+const messageBackgroundColorSetting = ref('');
+const messageBorderColorSetting = ref('');
+const messageBorderWidthSetting = ref(0);
+const messagePreAffichageSetting = ref(0);
+const messagePostAffichageSetting = ref(0);
+const messageMobileSetting = ref(true);
+
+const handleAddMessageEvent = async (messageData, override = false) => {
+  try {
+    const updatedEventsFile = await invoke('add_message_event', {
+      circuitId: circuitId,
+      increment: trackProgress.value,
+      messageContent: messageData,
+      overrideExisting: override,
+    });
+    eventsFile.value = updatedEventsFile;
+    showSnackbar('Message ajouté avec succès', 'success');
+  } catch (error) {
+    console.error("Failed to add message event:", error);
+    if (error.includes("Cannot add Message event: A Pause or Flyto event already exists")) {
+      const confirmed = await askForConfirmation(
+        'Conflit d\'événement',
+        'Un événement Pause ou Flyto existe déjà à cet incrément. Voulez-vous le remplacer par un Message ?'
+      );
+      if (confirmed) {
+        await handleAddMessageEvent(messageData, true); // Retry with override
+      } else {
+        showSnackbar('Ajout du Message annulé.', 'info');
+      }
+    } else {
+      showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
+    }
+  }
+};
+
+const handleDeleteMessageEvent = async () => {
+  try {
+    const updatedEventsFile = await invoke('delete_message_event', {
+      circuitId: circuitId,
+      increment: trackProgress.value,
+    });
+    eventsFile.value = updatedEventsFile;
+    showSnackbar('Message supprimé avec succès', 'success');
+  } catch (error) {
+    console.error("Failed to delete message event:", error);
+    showSnackbar(`Erreur lors de la suppression du message: ${error}`, 'error');
+  }
+};
 
 const flytoDurationSetting = ref(2000); // Default value, will be loaded from settings
 
@@ -602,6 +673,19 @@ const handleKeydown = (event) => {
   } else if (event.key === 'f' || event.key === 'F') {
     handleAddFlytoEvent(flytoDurationSetting.value);
     handled = true;
+  } else if (event.key === 'm' || event.key === 'M') {
+    // Trigger add message event with current settings
+    const messageData = {
+      text: "Nouveau message", // Placeholder, will be updated by user in ControlTabsWidget
+      preAffichage: messagePreAffichageSetting.value,
+      postAffichage: messagePostAffichageSetting.value,
+      mobile: messageMobileSetting.value,
+      backgroundColor: messageBackgroundColorSetting.value,
+      borderColor: messageBorderColorSetting.value,
+      borderWidth: messageBorderWidthSetting.value,
+    };
+    handleAddMessageEvent(messageData);
+    handled = true;
   }
 
   switch (event.key) {
@@ -787,6 +871,15 @@ onMounted(async () => {
 
     // Load Flyto duration setting
     flytoDurationSetting.value = await getSettingValue('Edition/Evenements/Flyto/duree');
+
+    // Load Message settings
+    knownMessageTexts.value = await invoke('get_known_message_texts', { circuitId: circuitId });
+    messageBackgroundColorSetting.value = await getSettingValue('Edition/Evenements/Message/couleurFond');
+    messageBorderColorSetting.value = await getSettingValue('Edition/Evenements/Message/couleurBordure');
+    messageBorderWidthSetting.value = await getSettingValue('Edition/Evenements/Message/tailleBordure');
+    messagePreAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
+    messagePostAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
+    messageMobileSetting.value = await getSettingValue('Edition/Evenements/Message/typeMessageMobile');
 
     // Initial interpolation
     updateInterpolation();

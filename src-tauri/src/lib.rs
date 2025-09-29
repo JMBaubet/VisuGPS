@@ -940,6 +940,9 @@ pub fn run() {
         event::delete_pause_event,
         event::add_flyto_event,
         event::delete_flyto_event,
+        event::add_message_event,
+        event::delete_message_event,
+        event::get_known_message_texts,
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
