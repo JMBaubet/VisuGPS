@@ -461,6 +461,29 @@
             ]
           },
           {
+            "libelle": "Evenements",
+            "parametres": [
+              {
+                "identifiant": "couleurPause",
+                "libelle": "Couleur des pauses",
+                "description": "Couleur des marqueurs de pause sur le graphe.",
+                "type": "couleur",
+                "defaut": "purple",
+                "surcharge": null
+              },
+              {
+                "identifiant": "longueurPause",
+                "libelle": "Longueur des pauses (px)",
+                "description": "Longueur des marqueurs de pause sur le graphe.",
+                "type": "entier",
+                "defaut": 12,
+                "surcharge": null,
+                "min": 5,
+                "max": 50
+              }
+            ]
+          },
+          {
             "libelle": "Mapbox",
             "parametres": [
               {

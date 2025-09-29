@@ -73,6 +73,18 @@
             :stroke-width="controlPointThickness"
           />
         </g>
+
+        <!-- Marqueurs de pause -->
+        <g v-for="point in pausePoints" :key="`pause-${point.increment}`">
+          <line
+            :x1="point.distance * kmToPx"
+            :y1="0"
+            :x2="point.distance * kmToPx"
+            :y2="pauseLength"
+            :stroke="pauseColor"
+            stroke-width="3"
+          />
+        </g>
       </svg>
     </div>
   </div>
@@ -98,6 +110,9 @@ const controlPointColor = ref('');
 const controlPointThickness = ref(3);
 const controlPointLength = ref(20);
 
+const pauseColor = ref('white');
+const pauseLength = ref(12);
+
 const editedZoomColor = ref('');
 const editedPitchColor = ref('');
 const editedBearingDeltaColor = ref('');
@@ -113,6 +128,9 @@ onMounted(async () => {
   controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
   controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
   controlPointLength.value = await getSettingValue('Edition/Graphe/longueurPointDeControle');
+
+  pauseColor.value = toHex(await getSettingValue('Edition/Evenements/couleurPause'));
+  pauseLength.value = await getSettingValue('Edition/Evenements/longueurPause');
 
   editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
   editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
@@ -138,10 +156,17 @@ const props = defineProps({
   defaultCameraZoom: { type: Number, default: 0 },
   currentCameraPitch: { type: Number, default: 0 },
   defaultCameraPitch: { type: Number, default: 0 },
+  pauseEvents: { type: Array, default: () => [] },
 });
 
 const controlPoints = computed(() => {
   return props.trackingPoints.filter(p => p.pointDeControl);
+});
+
+const pausePoints = computed(() => {
+  if (!props.pauseEvents || props.pauseEvents.length === 0) return [];
+  const pauseIncrements = new Set(props.pauseEvents);
+  return props.trackingPoints.filter(p => pauseIncrements.has(p.increment));
 });
 
 const handleGraphClick = (event) => {

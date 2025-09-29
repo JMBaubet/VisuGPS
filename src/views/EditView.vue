@@ -5,21 +5,6 @@
     <!-- Buttons Container -->
     <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; gap: 8px;">
       <v-btn icon="mdi-arrow-left" @click="goBack"></v-btn>
-      <v-btn icon="mdi-content-save" @click="saveControlPoint" color="primary"></v-btn>
-      <v-btn v-if="isCurrentPointControlPoint" icon="mdi-delete" @click="deleteControlPoint" color="warning"></v-btn>
-    </div>
-
-    <!-- Switch Container -->
-    <div style="position: absolute; top: 10px; left: 180px; z-index: 1000; display: flex; align-items: center;">
-      <v-btn-toggle
-        v-model="cameraSyncMode"
-        rounded="pill"
-        mandatory
-      >
-        <v-btn value="off" icon="mdi-camera-off" color="primary"></v-btn>
-        <v-btn value="original" icon="mdi-camera-outline" color="warning"></v-btn>
-        <v-btn value="edited" icon="mdi-camera-plus-outline" color="success"></v-btn>
-      </v-btn-toggle>
     </div>
 
             <!-- Bottom UI Container -->
@@ -41,24 +26,28 @@
                 :initialCameraBearing="trackingPoints[0]?.cap"
                 :currentCameraZoom="currentZoom"
                 :defaultCameraZoom="defaultZoom"
-                :currentCameraPitch="currentPitch"
-                :defaultCameraPitch="defaultPitch"
-                @seek-distance="handleSeekDistance"
-              />
-      <ControlTabsWidget
+                        :currentCameraPitch="currentPitch"
+                        :defaultCameraPitch="defaultPitch"
+                        :pause-events="pauseEvents"
+                        @seek-distance="handleSeekDistance"
+                      />      <ControlTabsWidget
         v-model:showOriginalCurves="showOriginalCurves"
         v-model:showEditedCurves="showEditedCurves"
         v-model:showBearingDeltaPair="showBearingDeltaPair"
         v-model:showBearingTotalDeltaPair="showBearingTotalDeltaPair"
         v-model:showZoomPair="showZoomPair"
         v-model:showPitchPair="showPitchPair"
+        v-model:cameraSyncMode="cameraSyncMode"
         :graph-bearing-delta-color="graphBearingDeltaColor"
         :graph-bearing-total-delta-color="graphBearingTotalDeltaColor"
         :graph-zoom-color="graphZoomColor"
         :graph-pitch-color="graphPitchColor"
         :current-increment="trackProgress"
         :pause-events="pauseEvents"
+        :is-current-point-control-point="isCurrentPointControlPoint"
         @delete-pause="handleDeletePauseEvent"
+        @save-control-point="saveControlPoint"
+        @delete-control-point="deleteControlPoint"
       />
             </div>
     <ConfirmationDialog

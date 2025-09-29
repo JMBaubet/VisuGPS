@@ -8,8 +8,25 @@
     <v-window v-model="tab" style="flex-grow: 1;" class="fill-height">
       <!-- Onglet Caméra -->
       <v-window-item value="camera" class="fill-height">
-        <div class="pa-2" style="height: 100%; overflow-y: auto;">
-          <div style="display: flex; flex-direction: column; gap: 4px;">
+        <div style="height: 100%; overflow-y: auto;">
+          <!-- Toolbar Buttons -->
+          <div class="d-flex justify-space-around align-center pa-2">
+            <v-btn icon="mdi-content-save" @click="emit('save-control-point')" color="primary"></v-btn>
+            <v-btn v-if="isCurrentPointControlPoint" icon="mdi-delete" @click="emit('delete-control-point')" color="warning"></v-btn>
+            <v-btn-toggle
+              v-model="cameraSyncModeModel"
+              rounded="pill"
+              mandatory
+            >
+              <v-btn value="off" icon="mdi-camera-off" color="primary"></v-btn>
+              <v-btn value="original" icon="mdi-camera-outline" color="warning"></v-btn>
+              <v-btn value="edited" icon="mdi-camera-plus-outline" color="success"></v-btn>
+            </v-btn-toggle>
+          </div>
+          <v-divider></v-divider>
+
+          <!-- Graph Controls -->
+          <div class="pa-2" style="display: flex; flex-direction: column; gap: 4px;">
             <div style="display: flex; flex-direction: column; margin-left: 8px;">
               <v-checkbox v-model="showOriginalCurvesModel" label="Origine" hide-details density="compact" color="warning"></v-checkbox>
               <v-checkbox v-model="showEditedCurvesModel" label="Edité" hide-details density="compact" color="success"></v-checkbox>
@@ -25,9 +42,11 @@
 
       <!-- Onglet Événements -->
       <v-window-item value="events" class="fill-height">
-        <div class="pa-2">
-            <v-btn v-if="isPauseEvent" icon="mdi-delete" color="error" variant="text"
-                @click="onDeletePause" title="Supprimer la pause"></v-btn>
+        <div class="pa-2 d-flex align-center">
+            <v-btn v-if="isPauseEvent" color="error" variant="text" @click="onDeletePause">
+              <span class="mr-2">Supprimer la pause</span>
+              <v-icon icon="mdi-delete"></v-icon>
+            </v-btn>
             <span v-else class="text-caption pa-4">Appuyez sur 'P' pour ajouter une pause.</span>
         </div>
       </v-window-item>
@@ -56,6 +75,9 @@ const props = defineProps({
   // Event props
   currentIncrement: Number,
   pauseEvents: Array,
+  // Toolbar props
+  isCurrentPointControlPoint: Boolean,
+  cameraSyncMode: String,
 });
 
 // --- Emits --- 
@@ -69,6 +91,10 @@ const emit = defineEmits([
   'update:showPitchPair',
   // Event emits
   'delete-pause',
+  // Toolbar emits
+  'save-control-point',
+  'delete-control-point',
+  'update:cameraSyncMode',
 ]);
 
 // --- Models for Graph Tab --- 
@@ -83,6 +109,8 @@ const showBearingDeltaPairModel = createModel('showBearingDeltaPair');
 const showBearingTotalDeltaPairModel = createModel('showBearingTotalDeltaPair');
 const showZoomPairModel = createModel('showZoomPair');
 const showPitchPairModel = createModel('showPitchPair');
+
+const cameraSyncModeModel = createModel('cameraSyncMode');
 
 // --- Logic for Events Tab --- 
 const isPauseEvent = computed(() => {
@@ -104,4 +132,5 @@ const onDeletePause = () => {
   display: flex;
   flex-direction: column;
 }
+
 </style>
