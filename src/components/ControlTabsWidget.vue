@@ -1,6 +1,6 @@
 <template>
   <v-sheet rounded="lg" class="control-tabs-widget">
-    <v-tabs v-model="tab" bg-color="primary" grow height="48">
+    <v-tabs v-model="tab" bg-color="surface" density="compact" color="orange-darken-1">
       <v-tab value="camera">Caméra</v-tab>
       <v-tab value="events">Événements</v-tab>
     </v-tabs>
@@ -42,12 +42,32 @@
 
       <!-- Onglet Événements -->
       <v-window-item value="events" class="fill-height">
-        <div class="pa-2 d-flex align-center">
-            <v-btn v-if="isPauseEvent" color="error" variant="text" @click="onDeletePause">
-              <span class="mr-2">Supprimer la pause</span>
-              <v-icon icon="mdi-delete"></v-icon>
-            </v-btn>
-            <span v-else class="text-caption pa-4">Appuyez sur 'P' pour ajouter une pause.</span>
+        <div style="height: 100%; display: flex; flex-direction: column;">
+          <v-tabs v-model="eventTab" density="compact" bg-color="surface" color="orange-darken-1">
+            <v-tab value="pause">Pause</v-tab>
+            <v-tab value="flyto">Flyto</v-tab>
+            <v-tab value="marker">Marqueur</v-tab>
+          </v-tabs>
+
+          <v-window v-model="eventTab" style="flex-grow: 1;">
+            <v-window-item value="pause">
+              <div class="pa-2 d-flex align-center">
+                <v-btn v-if="isPauseEvent" color="error" variant="text" @click="onDeletePause">
+                  <span class="mr-2">Supprimer la pause</span>
+                  <v-icon icon="mdi-delete"></v-icon>
+                </v-btn>
+                <span v-else class="text-caption pa-4">Appuyez sur 'P' pour ajouter une pause.</span>
+              </div>
+            </v-window-item>
+
+            <v-window-item value="flyto">
+              <div class="pa-4 text-caption">Fonctionnalité à venir.</div>
+            </v-window-item>
+
+            <v-window-item value="marker">
+              <div class="pa-4 text-caption">Fonctionnalité à venir.</div>
+            </v-window-item>
+          </v-window>
         </div>
       </v-window-item>
     </v-window>
@@ -55,9 +75,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const tab = ref('camera');
+const eventTab = ref('pause');
 
 // --- Props --- 
 const props = defineProps({
@@ -95,6 +116,8 @@ const emit = defineEmits([
   'save-control-point',
   'delete-control-point',
   'update:cameraSyncMode',
+  // Mode emits
+  'flyto-active',
 ]);
 
 // --- Models for Graph Tab --- 
@@ -120,6 +143,15 @@ const isPauseEvent = computed(() => {
 const onDeletePause = () => {
     emit('delete-pause');
 };
+
+// --- Logic for Flyto mode --- 
+const isFlytoActive = computed(() => {
+  return tab.value === 'events' && eventTab.value === 'flyto';
+});
+
+watch(isFlytoActive, (newValue) => {
+  emit('flyto-active', newValue);
+});
 </script>
 
 <style scoped>

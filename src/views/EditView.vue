@@ -2,35 +2,52 @@
   <v-container fluid class="pa-0 fill-height">
     <div id="map-container" ref="mapContainer" class="fill-height"></div>
 
-    <!-- Buttons Container -->
-    <div style="position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; gap: 8px;">
+    <!-- Top UI Container -->
+    <div style="position: absolute; top: 10px; left: 10px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 16px;">
       <v-btn icon="mdi-arrow-left" @click="goBack"></v-btn>
+      <TrackProgressWidget 
+        v-model="trackProgress" 
+        :max="trackingPoints.length - 1" 
+        :tracking-data="trackingPoints"
+        :total-length="totalLineLength"
+        :current-distance="currentProgressDistance"
+        :key="circuitId" 
+        style="flex-grow: 1;"
+      />
     </div>
 
-            <!-- Bottom UI Container -->
-            <div class="bottom-ui-container">
-              <CameraGraph 
-                v-if="trackingPoints.length > 0 && showGraph"
-                :trackingPoints="trackingPoints"
-                :totalLength="totalLineLength"
-                :currentDistance="currentProgressDistance"
-                :showZoom="showZoom"
-                :showPitch="showPitch"
-                :showBearingDelta="showBearingDelta"
-                :showBearingTotalDelta="showBearingTotalDelta"
-                :showEditedZoom="showEditedZoom"
-                :showEditedPitch="showEditedPitch"
-                :showEditedBearingDelta="showEditedBearingDelta"
-                :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
-                :currentCameraBearing="currentBearing"
-                :initialCameraBearing="trackingPoints[0]?.cap"
-                :currentCameraZoom="currentZoom"
-                :defaultCameraZoom="defaultZoom"
-                        :currentCameraPitch="currentPitch"
-                        :defaultCameraPitch="defaultPitch"
-                        :pause-events="pauseEvents"
-                        @seek-distance="handleSeekDistance"
-                      />      <ControlTabsWidget
+    <CameraInfoWidget
+      :bearing="currentBearing"
+      :zoom="currentZoom"
+      :pitch="currentPitch"
+      :defaultZoom="defaultZoom"
+      :defaultPitch="defaultPitch"
+    />
+
+    <div class="bottom-ui-container">
+      <CameraGraph 
+        v-if="trackingPoints.length > 0 && showGraph"
+        :trackingPoints="trackingPoints"
+        :totalLength="totalLineLength"
+        :currentDistance="currentProgressDistance"
+        :showZoom="showZoom"
+        :showPitch="showPitch"
+        :showBearingDelta="showBearingDelta"
+        :showBearingTotalDelta="showBearingTotalDelta"
+        :showEditedZoom="showEditedZoom"
+        :showEditedPitch="showEditedPitch"
+        :showEditedBearingDelta="showEditedBearingDelta"
+        :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
+        :currentCameraBearing="currentBearing"
+        :initialCameraBearing="trackingPoints[0]?.cap"
+        :currentCameraZoom="currentZoom"
+        :defaultCameraZoom="defaultZoom"
+        :currentCameraPitch="currentPitch"
+        :defaultCameraPitch="defaultPitch"
+        :pause-events="pauseEvents"
+        @seek-distance="handleSeekDistance"
+      />
+      <ControlTabsWidget
         v-model:showOriginalCurves="showOriginalCurves"
         v-model:showEditedCurves="showEditedCurves"
         v-model:showBearingDeltaPair="showBearingDeltaPair"
@@ -48,9 +65,11 @@
         @delete-pause="handleDeletePauseEvent"
         @save-control-point="saveControlPoint"
         @delete-control-point="deleteControlPoint"
+        @flyto-active="handleFlytoActive"
       />
-            </div>
-    <ConfirmationDialog
+    </div>
+
+    <CenterMarker v-if="showCenterMarker" />
       v-model="showConfirmationDialog"
       :title="confirmationProps.title"
       :message="confirmationProps.message"
@@ -71,6 +90,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
+import CenterMarker from '@/components/CenterMarker.vue';
 import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
 import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
@@ -85,6 +105,24 @@ const { getSettingValue } = useSettings();
 const showConfirmationDialog = ref(false);
 const confirmationProps = ref({});
 const resolveConfirmation = ref(null);
+
+const updateCameraInfo = () => {
+  if (!map) return;
+  currentZoom.value = parseFloat(map.getZoom().toFixed(1));
+  currentPitch.value = Math.round(map.getPitch());
+  currentBearing.value = Math.round(map.getBearing());
+};
+
+const handleFlytoActive = (isActive) => {
+  if (!map) return;
+  showCenterMarker.value = isActive;
+  if (isActive) {
+    map.dragPan.enable();
+    showSnackbar('Mode Flyto: Déplacement de la carte activé.', 'info');
+  } else {
+    map.dragPan.disable();
+  }
+};
 
 const handleAddPauseEvent = async () => {
     try {
@@ -136,6 +174,7 @@ const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraCommandSettings = ref({});
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
+const showCenterMarker = ref(false);
 const trackProgress = ref(0);
 const pauseEvents = ref([]);
 
@@ -665,6 +704,8 @@ onMounted(async () => {
       pitch: initialPitch,
       bearing: initialBearing,
       antialias: true,
+      scrollZoom: { around: 'center' },
+      pitchWithRotate: false,
     });
 
     map.on('load', () => {
@@ -672,9 +713,12 @@ onMounted(async () => {
       map.boxZoom.disable();
       map.doubleClickZoom.disable();
       map.dragPan.disable();
-      map.dragRotate.disable();
-      map.scrollZoom.disable();
       map.touchZoomRotate.disable();
+
+      // Listen for map movements to update the info widget
+      map.on('zoom', updateCameraInfo);
+      map.on('pitch', updateCameraInfo);
+      map.on('rotate', updateCameraInfo);
 
       map.addSource('mapbox-dem', {
         'type': 'raster-dem',
