@@ -309,6 +309,7 @@ const messageBorderColorSetting = ref('');
 const messageBorderWidthSetting = ref(0);
 const messagePreAffichageSetting = ref(0);
 const messagePostAffichageSetting = ref(0);
+const messageBorderRadiusSetting = ref(5); // Déclaration de la ref manquante
 const handleAddMessageEvent = async (messageData) => {
   // Always add coordinates
   if (map) {
@@ -846,6 +847,7 @@ onMounted(async () => {
     messageBorderWidthSetting.value = await getSettingValue('Edition/Evenements/Message/tailleBordure');
     messagePreAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
     messagePostAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
+    messageBorderRadiusSetting.value = await getSettingValue('Edition/Evenements/Message/rayonBordure');
 
     // Initial interpolation
     updateInterpolation();

@@ -208,7 +208,6 @@
 
           <v-row dense>
             <v-col cols="12">
-              <div class="text-caption mb-n2">Durée d'affichage (incréments)</div>
               <v-range-slider
                 v-model="messageDisplayRange"
                 :min="messagePreAffichageMin"
@@ -222,10 +221,10 @@
                   <span v-else>{{ modelValue }}</span>
                 </template>
               </v-range-slider>
+              <div class="text-caption text-center">Durée d'affichage (Pré et Post incréments)</div>
             </v-col>
           </v-row>
 
-          <v-divider class="my-4"></v-divider>
 
           <v-row dense>
             <v-col cols="12" class="d-flex justify-space-around align-center">
@@ -237,6 +236,19 @@
                 <span class="mr-2">Ajouter Message</span>
                 <v-icon icon="mdi-plus"></v-icon>
               </v-btn>
+            </v-col>
+          </v-row>
+
+          <v-row dense>
+            <v-col cols="12">
+              <v-card
+                class="mt-1 mb-1 mx-auto"
+                :style="previewMessageStyle"
+                elevation="2"
+              >
+                <span v-if="messageText">{{ messageText }}</span>
+                <span v-else class="text-disabled">Prévisualisation du message</span>
+              </v-card>
             </v-col>
           </v-row>
         </div>
@@ -267,6 +279,8 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
 
 const mainTab = ref('camera');
+
+const { toHex, toName, baseSwatches } = useVuetifyColors();
 
 // --- Props --- 
 const props = defineProps({
@@ -394,6 +408,59 @@ const props = defineProps({
       emit('update:messagePostAffichageSetting', newPostAffichage);
     },
   });
+
+// Function to determine contrast color (black or white)
+const getContrastColor = (hexColor) => {
+  if (!hexColor) return 'black'; // Default to black if no color
+
+  // Convert hex to RGB
+  let r = 0, g = 0, b = 0;
+  if (hexColor.length === 7) { // #RRGGBB
+    r = parseInt(hexColor.substring(1, 3), 16);
+    g = parseInt(hexColor.substring(3, 5), 16);
+    b = parseInt(hexColor.substring(5, 7), 16);
+  } else if (hexColor.length === 4) { // #RGB
+    r = parseInt(hexColor[1] + hexColor[1], 16);
+    g = parseInt(hexColor[2] + hexColor[2], 16);
+    b = parseInt(hexColor[3] + hexColor[3], 16);
+  }
+
+  // Calculate luminance (perceived brightness)
+  // Formula: (0.299*R + 0.587*G + 0.114*B)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  // Use a threshold to decide between black and white
+  return luminance > 0.5 ? 'black' : 'white';
+};
+
+const previewTextColor = computed(() => {
+  // Convert Vuetify color name to hex for luminance calculation
+  const hexBgColor = toHex(messageBackgroundColor.value);
+  return getContrastColor(hexBgColor);
+});
+
+const previewMessageStyle = computed(() => {
+  const hexBgColor = toHex(messageBackgroundColor.value);
+  const hexBorderColor = toHex(messageBorderColor.value);
+
+  return {
+    backgroundColor: hexBgColor,
+    color: previewTextColor.value,
+    border: `${messageBorderWidth.value}px solid ${hexBorderColor}`,
+    borderRadius: `${messageBorderRadius.value}px`,
+    padding: '4px 8px',
+    textAlign: 'center',
+    minHeight: '40px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    wordBreak: 'break-word',
+    whiteSpace: 'pre-wrap',
+    width: 'fit-content',
+    fontWeight: 'bold',
+  };
+});
+
 const colorPickerDialog = ref(false);
 const selectedColor = ref('');
 const colorPickerTarget = ref(''); // 'background' or 'border'
@@ -412,8 +479,6 @@ const showColorPicker = async (target) => {
   
   colorPickerDialog.value = true;
 };
-
-const { toName, baseSwatches } = useVuetifyColors();
 
 const applyColor = () => {
   // Convert the selected hex color back to its closest Vuetify name

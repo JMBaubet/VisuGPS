@@ -594,6 +594,19 @@
                     "step": 1,
                     "critique": false,
                     "documentation": null
+                  },
+                  {
+                    "identifiant": "rayonBordure",
+                    "libelle": "Rayon de la bordure",
+                    "description": "Rayon de la bordure du message en pixels.",
+                    "type": "entier",
+                    "defaut": 5,
+                    "min": 0,
+                    "max": 20,
+                    "step": 1,
+                    "unite": "px",
+                    "critique": false,
+                    "documentation": null
                   }
                 ]
               }

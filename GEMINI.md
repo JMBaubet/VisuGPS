@@ -1600,8 +1600,6 @@ Les paramètres à mettre dans settingsDefault.json sont :
 
 - Le post affichage ; 20 par defaut. de 0 à 100 increment de 1
 
-- 
-
 ## Zooms automatiques au départ et à l'arrivée.
 
 ## Profil d'altitude
