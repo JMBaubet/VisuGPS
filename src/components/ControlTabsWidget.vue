@@ -151,68 +151,94 @@
       <!-- Onglet Message -->
       <v-window-item value="message">
         <div class="pa-2 d-flex flex-column">
-          <v-combobox
-            label="Texte du message"
-            :items="knownMessageTexts"
-            v-model="messageText"
-            density="compact"
-            variant="outlined"
-            hide-details
-            class="mb-2"
-          ></v-combobox>
+          <v-row dense>
+            <v-col cols="12">
+              <v-combobox
+                label="Texte du message"
+                :items="knownMessageTexts"
+                v-model="messageText"
+                density="compact"
+                variant="outlined"
+                hide-details
+              ></v-combobox>
+            </v-col>
+          </v-row>
 
-          <div class="d-flex align-center mb-2">
-            <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
-            <span class="ml-2 text-caption">Fond</span>
-            <v-spacer></v-spacer>
-            <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
-            <span class="ml-2 text-caption">Bordure</span>
-          </div>
+          <v-divider class="my-4"></v-divider>
 
-          <v-slider
-            label="Taille bordure (px)"
-            v-model="messageBorderWidth"
-            :min="messageBorderWidthMin"
-            :max="messageBorderWidthMax"
-            :step="messageBorderWidthStep"
-            thumb-label
-            hide-details
-            class="mb-2"
-          ></v-slider>
+          <v-row dense class="align-center">
+            <v-col cols="2" class="d-flex justify-center">
+              <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
+            </v-col>
+            <v-col cols="2" class="d-flex justify-center">
+              <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
+            </v-col>
+            <v-col cols="4">
+              <v-slider
+                v-model="messageBorderWidth"
+                :min="messageBorderWidthMin"
+                :max="messageBorderWidthMax"
+                :step="messageBorderWidthStep"
+                thumb-label
+                hide-details
+                :thumb-color="messageBorderColor"
+              ></v-slider>
+            </v-col>
+            <v-col cols="4">
+              <v-slider
+                v-model="messageBorderRadius"
+                :min="messageBorderRadiusMin"
+                :max="messageBorderRadiusMax"
+                :step="messageBorderRadiusStep"
+                thumb-label
+                hide-details
+                :thumb-color="messageBorderColor"
+              ></v-slider>
+            </v-col>
+          </v-row>
 
-          <v-slider
-            label="Pré-affichage (incréments)"
-            v-model="messagePreAffichage"
-            :min="messagePreAffichageMin"
-            :max="messagePreAffichageMax"
-            :step="messagePreAffichageStep"
-            thumb-label
-            hide-details
-            class="mb-2"
-          ></v-slider>
+          <v-row dense>
+            <v-col cols="2" class="text-center text-caption">Fond</v-col>
+            <v-col cols="2" class="text-center text-caption">Bordure</v-col>
+            <v-col cols="4" class="text-center text-caption">Taille (px)</v-col>
+            <v-col cols="4" class="text-center text-caption">Rayon (px)</v-col>
+          </v-row>
 
-          <v-slider
-            label="Post-affichage (incréments)"
-            v-model="messagePostAffichage"
-            :min="messagePostAffichageMin"
-            :max="messagePostAffichageMax"
-            :step="messagePostAffichageStep"
-            thumb-label
-            hide-details
-            class="mb-2"
-          ></v-slider>
+          <v-divider class="my-4"></v-divider>
 
+          <v-row dense>
+            <v-col cols="12">
+              <div class="text-caption mb-n2">Durée d'affichage (incréments)</div>
+              <v-range-slider
+                v-model="messageDisplayRange"
+                :min="messagePreAffichageMin"
+                :max="messagePostAffichageMax"
+                :step="messagePreAffichageStep"
+                thumb-label="always"
+                hide-details
+              >
+                <template v-slot:thumb-label="{ modelValue }">
+                  <span v-if="modelValue < 0">{{ Math.abs(modelValue) }}</span>
+                  <span v-else>{{ modelValue }}</span>
+                </template>
+              </v-range-slider>
+            </v-col>
+          </v-row>
 
-          <div class="d-flex justify-space-around align-center mt-2">
-            <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
-              <span class="mr-2">Supprimer Message</span>
-              <v-icon icon="mdi-delete"></v-icon>
-            </v-btn>
-            <v-btn v-else color="primary" variant="text" @click="onAddMessage">
-              <span class="mr-2">Ajouter Message</span>
-              <v-icon icon="mdi-plus"></v-icon>
-            </v-btn>
-          </div>
+          <v-divider class="my-4"></v-divider>
+
+          <v-row dense>
+            <v-col cols="12" class="d-flex justify-space-around align-center">
+              <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
+                <span class="mr-2">Supprimer Message</span>
+                <v-icon icon="mdi-delete"></v-icon>
+              </v-btn>
+              <v-btn v-else color="primary" variant="text" @click="onAddMessage">
+                <span class="mr-2">Ajouter Message</span>
+                <v-icon icon="mdi-plus"></v-icon>
+              </v-btn>
+            </v-col>
+          </v-row>
         </div>
       </v-window-item>
 
@@ -275,83 +301,99 @@ const props = defineProps({
   messageBorderColorSetting: String,
   messageBorderWidthSetting: Number,
   messagePreAffichageSetting: Number,
-  messagePostAffichageSetting: Number,
-  // Toolbar props
-  isCurrentPointControlPoint: Boolean,
-  cameraSyncMode: String,
-});
+    messagePostAffichageSetting: Number,
+    messageBorderRadiusSetting: Number,
+    // Toolbar props
+    isCurrentPointControlPoint: Boolean,
+    cameraSyncMode: String,
+  });
+  
+  // --- Emits ---
+  const emit = defineEmits([
+    // Graph emits
+    'update:showCalculeeBearingDelta',
+    'update:showEditeeBearingDelta',
+    'update:showCalculeeBearingTotalDelta',
+    'update:showEditeeBearingTotalDelta',
+    'update:showEditeeZoom',
+    'update:showEditeePitch',
+    // Event emits
+    'delete-pause',
+    'add-pause', // Added this
+    'add-flyto',
+    'delete-flyto',
+    'update:flytoDurationSetting',
+    // Message emits
+    'add-message',
+    'delete-message',
+    'update:messageBackgroundColorSetting',
+    'update:messageBorderColorSetting',
+    'update:messageBorderWidthSetting',
+    'update:messagePreAffichageSetting',
+    'update:messagePostAffichageSetting',
+    'update:messageBorderRadiusSetting',
+    // Toolbar emits
+    'save-control-point',
+    'delete-control-point',
+    'update:cameraSyncMode',
+    // Mode emits
+    'update:marker-visible',
+    'tab-changed',
+  ]);
+  
+  watch(mainTab, (newTab) => {
+    emit('tab-changed', newTab);
+  });
+  
+  // --- Models for Graph Tab ---
+  const createModel = (propName) => computed({
+    get: () => props[propName],
+    set: (value) => emit(`update:${propName}`, value),
+  });
+  
+  const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
+  const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
+  const showCalculeeBearingTotalDeltaModel = createModel('showCalculeeBearingTotalDelta');
+  const showEditeeBearingTotalDeltaModel = createModel('showEditeeBearingTotalDelta');
+  const showEditeeZoomModel = createModel('showEditeeZoom');
+  const showEditeePitchModel = createModel('showEditeePitch');
+  
+  const cameraSyncModeModel = createModel('cameraSyncMode');
+  
+  // --- Message Event Logic ---
+  const messageText = ref('');
+  const messageBackgroundColor = createModel('messageBackgroundColorSetting');
+  const messageBorderColor = createModel('messageBorderColorSetting');
+  const messageBorderWidth = createModel('messageBorderWidthSetting');
+  const messageBorderRadius = createModel('messageBorderRadiusSetting');
+  
+  const messageBorderWidthMin = ref(0); // TODO: Get from settings
+  const messageBorderWidthMax = ref(10); // TODO: Get from settings
+  const messageBorderWidthStep = ref(1); // TODO: Get from settings
+  
+  const messageBorderRadiusMin = ref(0); // TODO: Get from settings
+  const messageBorderRadiusMax = ref(20); // TODO: Get from settings
+  const messageBorderRadiusStep = ref(1); // TODO: Get from settings
+  
+  const messagePreAffichageMin = ref(-50); // From settings, now negative for pre-display
+  const messagePostAffichageMax = ref(100); // From settings
+  const messagePreAffichageStep = ref(1); // From settings
+  
+  const messageDisplayRange = computed({
+    get: () => [-props.messagePreAffichageSetting, props.messagePostAffichageSetting],
+    set: (value) => {
+      let newPreAffichage = -value[0]; // Convert negative slider value to positive preAffichage
+      let newPostAffichage = value[1];
+  
+      // Ensure preAffichage is within its valid range (0 to 50)
+      newPreAffichage = Math.max(0, Math.min(50, newPreAffichage));
+      // Ensure postAffichage is within its valid range (0 to 100)
+      newPostAffichage = Math.max(0, Math.min(100, newPostAffichage));
 
-// --- Emits --- 
-const emit = defineEmits([
-  // Graph emits
-  'update:showCalculeeBearingDelta',
-  'update:showEditeeBearingDelta',
-  'update:showCalculeeBearingTotalDelta',
-  'update:showEditeeBearingTotalDelta',
-  'update:showEditeeZoom',
-  'update:showEditeePitch',
-  // Event emits
-  'delete-pause',
-  'add-pause', // Added this
-  'add-flyto',
-  'delete-flyto',
-  'update:flytoDurationSetting',
-  // Message emits
-  'add-message',
-  'delete-message',
-  'update:messageBackgroundColorSetting',
-  'update:messageBorderColorSetting',
-  'update:messageBorderWidthSetting',
-  'update:messagePreAffichageSetting',
-  'update:messagePostAffichageSetting',
-  // Toolbar emits
-  'save-control-point',
-  'delete-control-point',
-  'update:cameraSyncMode',
-  // Mode emits
-  'update:marker-visible',
-  'tab-changed',
-]);
-
-watch(mainTab, (newTab) => {
-  emit('tab-changed', newTab);
-});
-
-// --- Models for Graph Tab --- 
-const createModel = (propName) => computed({
-  get: () => props[propName],
-  set: (value) => emit(`update:${propName}`, value),
-});
-
-const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
-const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
-const showCalculeeBearingTotalDeltaModel = createModel('showCalculeeBearingTotalDelta');
-const showEditeeBearingTotalDeltaModel = createModel('showEditeeBearingTotalDelta');
-const showEditeeZoomModel = createModel('showEditeeZoom');
-const showEditeePitchModel = createModel('showEditeePitch');
-
-const cameraSyncModeModel = createModel('cameraSyncMode');
-
-// --- Message Event Logic ---
-const messageText = ref('');
-const messageBackgroundColor = createModel('messageBackgroundColorSetting');
-const messageBorderColor = createModel('messageBorderColorSetting');
-const messageBorderWidth = createModel('messageBorderWidthSetting');
-const messagePreAffichage = createModel('messagePreAffichageSetting');
-const messagePostAffichage = createModel('messagePostAffichageSetting');
-
-const messageBorderWidthMin = ref(0); // TODO: Get from settings
-const messageBorderWidthMax = ref(10); // TODO: Get from settings
-const messageBorderWidthStep = ref(1); // TODO: Get from settings
-
-const messagePreAffichageMin = ref(0); // TODO: Get from settings
-const messagePreAffichageMax = ref(50); // TODO: Get from settings
-const messagePreAffichageStep = ref(1); // TODO: Get from settings
-
-const messagePostAffichageMin = ref(0); // TODO: Get from settings
-const messagePostAffichageMax = ref(100); // TODO: Get from settings
-const messagePostAffichageStep = ref(1); // TODO: Get from settings
-
+      emit('update:messagePreAffichageSetting', newPreAffichage);
+      emit('update:messagePostAffichageSetting', newPostAffichage);
+    },
+  });
 const colorPickerDialog = ref(false);
 const selectedColor = ref('');
 const colorPickerTarget = ref(''); // 'background' or 'border'
@@ -396,13 +438,13 @@ const onAddMessage = () => {
   }
   const messageData = {
     text: messageText.value,
-    preAffichage: messagePreAffichage.value,
-    postAffichage: messagePostAffichage.value,
-    coord: null, // Placeholder, will be filled in parent
+    preAffichage: messageDisplayRange.value[0],
+    postAffichage: messageDisplayRange.value[1],
+    coord: null, // Always null, parent will fill with map center
     backgroundColor: messageBackgroundColor.value,
     borderColor: messageBorderColor.value,
     borderWidth: messageBorderWidth.value,
-    borderRadius: 5, // TODO: Get from settings
+    borderRadius: messageBorderRadius.value,
   };
   console.log('Emitting add-message with data:', JSON.stringify(messageData, null, 2));
   emit('add-message', messageData);

@@ -1552,15 +1552,11 @@ Cette étape va consister à ajouter des évènement de type Message dans le fic
 
 Les paramètres de Messages seront mis dans le fichier settingDefault.json sous Edition/Evenements/Message
 
-Deux types de messages pourront être créés :
+Les  messages doivent avoir les paramètres suivants : :
 
-- Message avec coordonnées géographique - "coord": [6.864787, 45.828381]
+- "coord": [6.864787, 45.828381]
 
-- Message sans coordonnées géographique - "coord": []
-
-Dans tous les cas nous devons avoir un text - "text" : "TextDuMessage"
-
-Pour les messages avec coordonnées, nous devons avoir en plus : 
+- "text" : "TextDuMessage" 
 
 - La couleur du fond (Couleur MatérialDesing)
 
@@ -1576,7 +1572,7 @@ Le message pourra être afficher n incrément après le point de contrôle en co
 
 La couleur du text sera calculée automatiquement en fonction de la couleur de fond.
 
-Pour mette à jour le ficheir evt.json le point de controle sera le preAffichage et la durationIncrements devra être calculée en fonction de preAffichage et postAffichage.
+Pour mette à jour le fichier evt.json le point de controle sera le preAffichage et la durationIncrements devra être calculée en fonction de preAffichage et postAffichage.
 
 L'IHM de paramétrage sera dans EditView sous ControlTabsWidget  dans le v-tabs Marqueur.
 
@@ -1590,11 +1586,7 @@ Dans l'IHM, nous devons avoir :
 
 - un v-slider pour la taille de la bordure.
 
-- un v-slider preAffichage
-
-- un v-slider  postAffichage.
-
-- un v-switch pour message Mobile vs Fixe Coordonnées vs Vide  true vs false.
+- un v-range-slider preAffichage et  postAffichage.
 
 Les paramètres à mettre dans settingsDefault.json sont : 
 
@@ -1608,7 +1600,7 @@ Les paramètres à mettre dans settingsDefault.json sont :
 
 - Le post affichage ; 20 par defaut. de 0 à 100 increment de 1
 
-- Type message : Booleen Mobile : True
+- 
 
 ## Zooms automatiques au départ et à l'arrivée.
 

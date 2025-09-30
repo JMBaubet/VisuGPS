@@ -79,6 +79,7 @@
         v-model:message-border-width-setting="messageBorderWidthSetting"
         v-model:message-pre-affichage-setting="messagePreAffichageSetting"
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
+        v-model:message-border-radius-setting="messageBorderRadiusSetting"
         @add-pause="handleAddPauseEvent"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
