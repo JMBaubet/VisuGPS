@@ -488,16 +488,34 @@
                 "parametres": [
                   {
                     "identifiant": "duree",
-                    "libelle": "Durée (secondes)",
-                    "description": "Durée de l'événement Flyto en secondes.",
-                    "type": "float",
-                    "valeur_par_defaut": 2.0,
-                    "min": 0.2,
-                    "max": 10.0,
-                    "step": 0.2,
-                    "unite": "s",
+                    "libelle": "Durée du survol (ms)",
+                    "description": "Durée par défaut de l'animation de survol (flyto) en millisecondes.",
+                    "type": "entier",
+                    "defaut": 2000,
+                    "min": 200,
+                    "max": 10000,
+                    "step": 100,
+                    "unite": "ms",
                     "critique": false,
                     "documentation": null
+                  },
+                  {
+                    "identifiant": "couleur",
+                    "libelle": "Couleur du marqueur (Graphe)",
+                    "description": "Couleur du marqueur représentant un événement Flyto dans le graphe.",
+                    "type": "couleur",
+                    "defaut": "orange-darken-1",
+                    "materialDesign": true
+                  },
+                  {
+                    "identifiant": "longueur",
+                    "libelle": "Longueur du marqueur (Graphe)",
+                    "description": "Longueur en pixels du marqueur représentant un événement Flyto dans le graphe.",
+                    "type": "entier",
+                    "defaut": 20,
+                    "min": 5,
+                    "max": 50,
+                    "unite": "px"
                   }
                 ]
               },
@@ -574,15 +592,6 @@
                     "min": 0,
                     "max": 100,
                     "step": 1,
-                    "critique": false,
-                    "documentation": null
-                  },
-                  {
-                    "identifiant": "typeMessageMobile",
-                    "libelle": "Message mobile (sans coordonnées)",
-                    "description": "Indique si le message est mobile (sans coordonnées géographiques fixes).",
-                    "type": "booleen",
-                    "defaut": true,
                     "critique": false,
                     "documentation": null
                   }

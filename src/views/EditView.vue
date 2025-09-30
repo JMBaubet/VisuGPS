@@ -72,7 +72,7 @@
         v-model:message-border-width-setting="messageBorderWidthSetting"
         v-model:message-pre-affichage-setting="messagePreAffichageSetting"
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
-        v-model:message-mobile-setting="messageMobileSetting"
+        @add-pause="handleAddPauseEvent"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
         @delete-flyto="handleDeleteFlytoEvent"
@@ -259,13 +259,14 @@ const cameraCommandSettings = ref({});
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
-const eventsFile = ref({ events: {} }); // Nouvelle structure pour stocker les événements
+const eventsFile = ref({ pointEvents: {}, rangeEvents: [] }); // Nouvelle structure pour stocker les événements
 
 // Computed property to extract increments with Pause events for display
 const pauseEventsForDisplay = computed(() => {
+  if (!eventsFile.value.pointEvents) return [];
   const pauses = [];
-  for (const increment in eventsFile.value.events) {
-    if (eventsFile.value.events[increment].some(event => event.type === 'Pause')) {
+  for (const increment in eventsFile.value.pointEvents) {
+    if (eventsFile.value.pointEvents[increment].some(event => event.type === 'Pause')) {
       pauses.push(parseInt(increment));
     }
   }
@@ -274,9 +275,10 @@ const pauseEventsForDisplay = computed(() => {
 
 // Computed property to extract increments with Flyto events for display
 const flytoEventsForDisplay = computed(() => {
+  if (!eventsFile.value.pointEvents) return [];
   const flytos = [];
-  for (const increment in eventsFile.value.events) {
-    if (eventsFile.value.events[increment].some(event => event.type === 'Flyto')) {
+  for (const increment in eventsFile.value.pointEvents) {
+    if (eventsFile.value.pointEvents[increment].some(event => event.type === 'Flyto')) {
       flytos.push(parseInt(increment));
     }
   }
@@ -285,13 +287,10 @@ const flytoEventsForDisplay = computed(() => {
 
 // Computed property to extract increments with Message events for display
 const messageEventsForDisplay = computed(() => {
-  const messages = [];
-  for (const increment in eventsFile.value.events) {
-    if (eventsFile.value.events[increment].some(event => event.type === 'Message')) {
-      messages.push(parseInt(increment));
-    }
-  }
-  return messages;
+  if (!eventsFile.value.rangeEvents) return [];
+  // Use a Set to get unique anchor increments
+  const messageIncrements = new Set(eventsFile.value.rangeEvents.map(event => event.anchorIncrement));
+  return Array.from(messageIncrements);
 });
 
 const knownMessageTexts = ref([]);
@@ -300,41 +299,49 @@ const messageBorderColorSetting = ref('');
 const messageBorderWidthSetting = ref(0);
 const messagePreAffichageSetting = ref(0);
 const messagePostAffichageSetting = ref(0);
-const messageMobileSetting = ref(true);
+const handleAddMessageEvent = async (messageData) => {
+  // Always add coordinates
+  if (map) {
+    const center = map.getCenter();
+    messageData.coord = [center.lng, center.lat];
+  } else {
+    showSnackbar('Erreur: La carte n\'est pas initialisée.', 'error');
+    return;
+  }
 
-const handleAddMessageEvent = async (messageData, override = false) => {
   try {
+    console.log('Invoking add_message_event with payload:', JSON.stringify(messageData, null, 2));
     const updatedEventsFile = await invoke('add_message_event', {
       circuitId: circuitId,
       increment: trackProgress.value,
-      messageContent: messageData,
-      overrideExisting: override,
+      messagePayload: messageData,
     });
     eventsFile.value = updatedEventsFile;
     showSnackbar('Message ajouté avec succès', 'success');
   } catch (error) {
     console.error("Failed to add message event:", error);
-    if (error.includes("Cannot add Message event: A Pause or Flyto event already exists")) {
-      const confirmed = await askForConfirmation(
-        'Conflit d\'événement',
-        'Un événement Pause ou Flyto existe déjà à cet incrément. Voulez-vous le remplacer par un Message ?'
-      );
-      if (confirmed) {
-        await handleAddMessageEvent(messageData, true); // Retry with override
-      } else {
-        showSnackbar('Ajout du Message annulé.', 'info');
-      }
-    } else {
-      showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
-    }
+    showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
   }
 };
 
 const handleDeleteMessageEvent = async () => {
+  if (!eventsFile.value.rangeEvents) return;
+
+  // Find the first message at the current increment to delete it.
+  // This is a limitation of the current UI.
+  const eventToDelete = eventsFile.value.rangeEvents.find(
+    event => event.anchorIncrement === trackProgress.value
+  );
+
+  if (!eventToDelete) {
+    showSnackbar('Aucun message à supprimer à ce point.', 'info');
+    return;
+  }
+
   try {
     const updatedEventsFile = await invoke('delete_message_event', {
       circuitId: circuitId,
-      increment: trackProgress.value,
+      eventId: eventToDelete.id,
     });
     eventsFile.value = updatedEventsFile;
     showSnackbar('Message supprimé avec succès', 'success');
@@ -879,7 +886,6 @@ onMounted(async () => {
     messageBorderWidthSetting.value = await getSettingValue('Edition/Evenements/Message/tailleBordure');
     messagePreAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
     messagePostAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
-    messageMobileSetting.value = await getSettingValue('Edition/Evenements/Message/typeMessageMobile');
 
     // Initial interpolation
     updateInterpolation();

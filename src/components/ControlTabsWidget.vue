@@ -151,26 +151,16 @@
                   class="mb-2"
                 ></v-slider>
 
-                <v-switch
-                  label="Message mobile (sans coordonnées)"
-                  v-model="messageMobile"
-                  color="primary"
-                  hide-details
-                  class="mb-2"
-                ></v-switch>
 
                 <div class="d-flex justify-space-around align-center mt-2">
                   <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
                     <span class="mr-2">Supprimer Message</span>
                     <v-icon icon="mdi-delete"></v-icon>
                   </v-btn>
-                  <v-btn v-else color="primary" variant="text" :disabled="isPauseEvent || isFlytoEvent" @click="onAddMessage">
+                  <v-btn v-else color="primary" variant="text" @click="onAddMessage">
                     <span class="mr-2">Ajouter Message</span>
                     <v-icon icon="mdi-plus"></v-icon>
                   </v-btn>
-                  <span v-if="isPauseEvent || isFlytoEvent" class="text-caption ml-4 text-error">
-                    (Conflit avec Pause/Flyto)
-                  </span>
                 </div>
               </div>
             </v-window-item>
@@ -228,7 +218,6 @@ const props = defineProps({
   messageBorderWidthSetting: Number,
   messagePreAffichageSetting: Number,
   messagePostAffichageSetting: Number,
-  messageMobileSetting: Boolean,
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
@@ -257,7 +246,6 @@ const emit = defineEmits([
   'update:messageBorderWidthSetting',
   'update:messagePreAffichageSetting',
   'update:messagePostAffichageSetting',
-  'update:messageMobileSetting',
   // Toolbar emits
   'save-control-point',
   'delete-control-point',
@@ -283,12 +271,10 @@ const cameraSyncModeModel = createModel('cameraSyncMode');
 
 // --- Message Event Logic ---
 const messageText = ref('');
-const messageBackgroundColor = createModel('messageBackgroundColorSetting');
 const messageBorderColor = createModel('messageBorderColorSetting');
 const messageBorderWidth = createModel('messageBorderWidthSetting');
 const messagePreAffichage = createModel('messagePreAffichageSetting');
 const messagePostAffichage = createModel('messagePostAffichageSetting');
-const messageMobile = createModel('messageMobileSetting');
 
 const messageBorderWidthMin = ref(0); // TODO: Get from settings
 const messageBorderWidthMax = ref(10); // TODO: Get from settings
@@ -334,11 +320,13 @@ const onAddMessage = () => {
     text: messageText.value,
     preAffichage: messagePreAffichage.value,
     postAffichage: messagePostAffichage.value,
-    mobile: messageMobile.value,
+    coord: null, // Placeholder, will be filled in parent
     backgroundColor: messageBackgroundColor.value,
     borderColor: messageBorderColor.value,
     borderWidth: messageBorderWidth.value,
+    borderRadius: 5, // TODO: Get from settings
   };
+  console.log('Emitting add-message with data:', JSON.stringify(messageData, null, 2));
   emit('add-message', messageData);
 };
 

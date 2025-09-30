@@ -1546,7 +1546,7 @@ Si présence d'un flyto sur la progression on doit pourvoir le supprimer via l'o
 
 Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc...  
 
-### Ajout de Message (Mobile et Fixe) - en cours -
+### Ajout de Message (Mobile et Fixe) - en debug -
 
 Cette étape va consister à ajouter des évènement de type Message dans le fichier evt.json.
 
@@ -1578,13 +1578,11 @@ La couleur du text sera calculée automatiquement en fonction de la couleur de f
 
 Pour mette à jour le ficheir evt.json le point de controle sera le preAffichage et la durationIncrements devra être calculée en fonction de preAffichage et postAffichage.
 
-
-
 L'IHM de paramétrage sera dans EditView sous ControlTabsWidget  dans le v-tabs Marqueur.
 
 Dans l'IHM, nous devons avoir :
 
--  un v-combobox qui présentera les textes déja connus. Ces textes devront être archivés dans evt.json pour pouvoir alimenter la v-combobox  à chaque relance de l'application. Les messages seront classés alphabetiquement dans la bomboBox
+- un v-combobox qui présentera les textes déja connus. Ces textes devront être archivés dans evt.json pour pouvoir alimenter la v-combobox  à chaque relance de l'application. Les messages seront classés alphabetiquement dans la bomboBox
 
 - un v-btn pour ouvir un selecteur de couleur MaterialDesing pour le fond  
 
@@ -1611,8 +1609,6 @@ Les paramètres à mettre dans settingsDefault.json sont :
 - Le post affichage ; 20 par defaut. de 0 à 100 increment de 1
 
 - Type message : Booleen Mobile : True
-
-
 
 ## Zooms automatiques au départ et à l'arrivée.
 
@@ -1789,4 +1785,4 @@ Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBU
 
 ## 📄 Licence
 
-Ce projet est sous licence **Apache 2.0**. Pour plus de détails, consultez le fichier **`LICENSE`** à la racine de ce projet.
+Ce projet est sous licence **Apache 2.0**. Pour plus de détails, consultez le fichier **`LICENSE`** à la racine de ce projet./auth
