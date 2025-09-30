@@ -205,7 +205,7 @@ const handleAddFlytoEvent = async (duration, override = false) => {
       overrideExisting: override,
     });
     eventsFile.value = updatedEventsFile;
-    showSnackbar('Événement Flyto ajouté avec succès', 'success');
+    showSnackbar('Événement Survol ajouté avec succès', 'success');
   } catch (error) {
     console.error("Failed to add flyto event:", error);
     if (error.includes("Cannot add Flyto event: A Pause event already exists")) {
@@ -216,10 +216,10 @@ const handleAddFlytoEvent = async (duration, override = false) => {
         if (confirmed) {
             await handleAddFlytoEvent(duration, true); // Retry with override
         } else {
-            showSnackbar('Ajout du Flyto annulé.', 'info');
+            showSnackbar('Ajout du Survol annulé.', 'info');
         }
     } else {
-        showSnackbar(`Erreur lors de l'ajout de l'événement Flyto: ${error}`, 'error');
+        showSnackbar(`Erreur lors de l'ajout de l'événement Survol: ${error}`, 'error');
     }
   }
 };
@@ -231,10 +231,10 @@ const handleDeleteFlytoEvent = async () => {
       increment: trackProgress.value,
     });
     eventsFile.value = updatedEventsFile;
-    showSnackbar('Événement Flyto supprimé avec succès', 'success');
+    showSnackbar('Événement Survol supprimé avec succès', 'success');
   } catch (error) {
     console.error("Failed to delete flyto event:", error);
-    showSnackbar(`Erreur lors de la suppression de l'événement Flyto: ${error}`, 'error');
+    showSnackbar(`Erreur lors de la suppression de l'événement Survol: ${error}`, 'error');
   }
 };
 

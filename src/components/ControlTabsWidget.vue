@@ -44,44 +44,14 @@
       <v-window-item value="events" class="fill-height">
         <div style="height: 100%; display: flex; flex-direction: column;">
           <v-tabs v-model="eventTab" density="compact" bg-color="surface" color="orange-darken-1">
-            <v-tab value="pause">Pause</v-tab>
-            <v-tab value="flyto">Flyto</v-tab>
+            <v-tab value="stop">Pause / Survol</v-tab>
             <v-tab value="message">Message</v-tab>
           </v-tabs>
 
           <v-window v-model="eventTab" style="flex-grow: 1;">
-            <v-window-item value="pause">
-              <div class="pa-2 d-flex align-center">
-                <v-btn v-if="isPauseEvent" color="error" variant="text" @click="onDeletePause">
-                  <span class="mr-2">Supprimer la pause</span>
-                  <v-icon icon="mdi-delete"></v-icon>
-                </v-btn>
-                <v-btn v-else color="primary" variant="text" :disabled="isFlytoEvent" @click="emit('add-pause')">
-                  <span class="mr-2">Ajouter Pause</span>
-                  <v-icon icon="mdi-plus"></v-icon>
-                </v-btn>
-                <span v-if="isFlytoEvent" class="text-caption ml-4 text-error">
-                  (Conflit avec Flyto)
-                </span>
-              </div>
-            </v-window-item>
-
-            <v-window-item value="flyto">
+            <v-window-item value="stop">
               <div class="pa-2 d-flex flex-column">
-                <div class="d-flex align-center mt-2">
-                  <v-btn v-if="isFlytoEvent" color="error" variant="text" @click="onDeleteFlyto">
-                    <span class="mr-2">Supprimer Flyto</span>
-                    <v-icon icon="mdi-delete"></v-icon>
-                  </v-btn>
-                  <v-btn v-else color="primary" variant="text" :disabled="isPauseEvent" @click="onAddFlyto">
-                    <span class="mr-2">Ajouter Flyto</span>
-                    <v-icon icon="mdi-plus"></v-icon>
-                  </v-btn>
-                  <span v-if="isPauseEvent" class="text-caption ml-4 text-error">
-                    (Conflit avec Pause)
-                  </span>
-                </div>
-                <v-divider class="my-2"></v-divider>
+                <!-- Flyto duration slider (always visible) -->
                 <div class="d-flex align-center justify-center mb-2">
                   <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
                 </div>
@@ -95,6 +65,36 @@
                   class="align-center"
                 >
                 </v-slider>
+                <v-divider class="my-2"></v-divider>
+
+                <!-- Conditional Buttons -->
+                <!-- Case 1: A Pause event exists -->
+                <div v-if="isPauseEvent" class="d-flex align-center mt-2">
+                  <v-btn color="error" variant="text" @click="onDeletePause">
+                    <span class="mr-2">Supprimer la Pause</span>
+                    <v-icon icon="mdi-delete"></v-icon>
+                  </v-btn>
+                </div>
+
+                <!-- Case 2: A Flyto event exists -->
+                <div v-else-if="isFlytoEvent" class="d-flex align-center mt-2">
+                  <v-btn color="error" variant="text" @click="onDeleteFlyto">
+                    <span class="mr-2">Supprimer le Survol</span>
+                    <v-icon icon="mdi-delete"></v-icon>
+                  </v-btn>
+                </div>
+
+                <!-- Case 3: No event exists -->
+                <div v-else class="d-flex justify-space-around align-center mt-2">
+                  <v-btn color="primary" variant="text" @click="emit('add-pause')">
+                    <span class="mr-2">Ajouter Pause</span>
+                    <v-icon icon="mdi-plus"></v-icon>
+                  </v-btn>
+                  <v-btn color="primary" variant="text" @click="onAddFlyto">
+                    <span class="mr-2">Ajouter Survol</span>
+                    <v-icon icon="mdi-plus"></v-icon>
+                  </v-btn>
+                </div>
               </div>
             </v-window-item>
 
@@ -192,7 +192,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const tab = ref('camera');
-const eventTab = ref('pause');
+const eventTab = ref('stop');
 
 // --- Props --- 
 const props = defineProps({
@@ -379,7 +379,7 @@ const onDeleteFlyto = () => {
 };
 
 const isMarkerVisible = computed(() => {
-  return tab.value === 'events' && (eventTab.value === 'flyto' || eventTab.value === 'message');
+  return tab.value === 'events' && (eventTab.value === 'stop' || eventTab.value === 'message');
 });
 
 watch(isMarkerVisible, (newValue) => {
