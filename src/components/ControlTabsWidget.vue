@@ -1,11 +1,12 @@
 <template>
   <v-sheet rounded="lg" class="control-tabs-widget">
-    <v-tabs v-model="tab" bg-color="surface" density="compact" color="orange-darken-1">
+    <v-tabs v-model="mainTab" bg-color="surface" density="compact" color="orange-darken-1">
       <v-tab value="camera">Caméra</v-tab>
-      <v-tab value="events">Événements</v-tab>
+      <v-tab value="stop">Pause / Survol</v-tab>
+      <v-tab value="message">Message</v-tab>
     </v-tabs>
 
-    <v-window v-model="tab" style="flex-grow: 1;" class="fill-height">
+    <v-window v-model="mainTab" style="flex-grow: 1;" class="fill-height">
       <!-- Onglet Caméra -->
       <v-window-item value="camera" class="fill-height">
         <div style="height: 100%; overflow-y: auto;">
@@ -40,148 +41,138 @@
         </div>
       </v-window-item>
 
-      <!-- Onglet Événements -->
-      <v-window-item value="events" class="fill-height">
-        <div style="height: 100%; display: flex; flex-direction: column;">
-          <v-tabs v-model="eventTab" density="compact" bg-color="surface" color="orange-darken-1">
-            <v-tab value="stop">Pause / Survol</v-tab>
-            <v-tab value="message">Message</v-tab>
-          </v-tabs>
+      <!-- Onglet Pause / Survol -->
+      <v-window-item value="stop">
+        <div class="pa-2 d-flex flex-column">
+          <!-- Flyto duration slider (always visible) -->
+          <div class="d-flex align-center justify-center mb-2">
+            <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
+          </div>
+          <v-slider
+            :model-value="props.flytoDurationSetting"
+            @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
+            min="200"
+            max="10000"
+            step="100"
+            hide-details
+            class="align-center"
+          >
+          </v-slider>
+          <v-divider class="my-2"></v-divider>
 
-          <v-window v-model="eventTab" style="flex-grow: 1;">
-            <v-window-item value="stop">
-              <div class="pa-2 d-flex flex-column">
-                <!-- Flyto duration slider (always visible) -->
-                <div class="d-flex align-center justify-center mb-2">
-                  <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
-                </div>
-                <v-slider
-                  :model-value="props.flytoDurationSetting"
-                  @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
-                  min="200"
-                  max="10000"
-                  step="100"
-                  hide-details
-                  class="align-center"
-                >
-                </v-slider>
-                <v-divider class="my-2"></v-divider>
+          <!-- Conditional Buttons -->
+          <!-- Case 1: A Pause event exists -->
+          <div v-if="isPauseEvent" class="d-flex align-center mt-2">
+            <v-btn color="error" variant="text" @click="onDeletePause">
+              <span class="mr-2">Supprimer la Pause</span>
+              <v-icon icon="mdi-delete"></v-icon>
+            </v-btn>
+          </div>
 
-                <!-- Conditional Buttons -->
-                <!-- Case 1: A Pause event exists -->
-                <div v-if="isPauseEvent" class="d-flex align-center mt-2">
-                  <v-btn color="error" variant="text" @click="onDeletePause">
-                    <span class="mr-2">Supprimer la Pause</span>
-                    <v-icon icon="mdi-delete"></v-icon>
-                  </v-btn>
-                </div>
+          <!-- Case 2: A Flyto event exists -->
+          <div v-else-if="isFlytoEvent" class="d-flex align-center mt-2">
+            <v-btn color="error" variant="text" @click="onDeleteFlyto">
+              <span class="mr-2">Supprimer le Survol</span>
+              <v-icon icon="mdi-delete"></v-icon>
+            </v-btn>
+          </div>
 
-                <!-- Case 2: A Flyto event exists -->
-                <div v-else-if="isFlytoEvent" class="d-flex align-center mt-2">
-                  <v-btn color="error" variant="text" @click="onDeleteFlyto">
-                    <span class="mr-2">Supprimer le Survol</span>
-                    <v-icon icon="mdi-delete"></v-icon>
-                  </v-btn>
-                </div>
-
-                <!-- Case 3: No event exists -->
-                <div v-else class="d-flex justify-space-around align-center mt-2">
-                  <v-btn color="primary" variant="text" @click="emit('add-pause')">
-                    <span class="mr-2">Ajouter Pause</span>
-                    <v-icon icon="mdi-plus"></v-icon>
-                  </v-btn>
-                  <v-btn color="primary" variant="text" @click="onAddFlyto">
-                    <span class="mr-2">Ajouter Survol</span>
-                    <v-icon icon="mdi-plus"></v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </v-window-item>
-
-            <v-window-item value="message">
-              <div class="pa-2 d-flex flex-column">
-                <v-combobox
-                  label="Texte du message"
-                  :items="knownMessageTexts"
-                  v-model="messageText"
-                  density="compact"
-                  variant="outlined"
-                  hide-details
-                  class="mb-2"
-                ></v-combobox>
-
-                <div class="d-flex align-center mb-2">
-                  <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
-                  <span class="ml-2 text-caption">Fond</span>
-                  <v-spacer></v-spacer>
-                  <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
-                  <span class="ml-2 text-caption">Bordure</span>
-                </div>
-
-                <v-slider
-                  label="Taille bordure (px)"
-                  v-model="messageBorderWidth"
-                  :min="messageBorderWidthMin"
-                  :max="messageBorderWidthMax"
-                  :step="messageBorderWidthStep"
-                  thumb-label
-                  hide-details
-                  class="mb-2"
-                ></v-slider>
-
-                <v-slider
-                  label="Pré-affichage (incréments)"
-                  v-model="messagePreAffichage"
-                  :min="messagePreAffichageMin"
-                  :max="messagePreAffichageMax"
-                  :step="messagePreAffichageStep"
-                  thumb-label
-                  hide-details
-                  class="mb-2"
-                ></v-slider>
-
-                <v-slider
-                  label="Post-affichage (incréments)"
-                  v-model="messagePostAffichage"
-                  :min="messagePostAffichageMin"
-                  :max="messagePostAffichageMax"
-                  :step="messagePostAffichageStep"
-                  thumb-label
-                  hide-details
-                  class="mb-2"
-                ></v-slider>
-
-
-                <div class="d-flex justify-space-around align-center mt-2">
-                  <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
-                    <span class="mr-2">Supprimer Message</span>
-                    <v-icon icon="mdi-delete"></v-icon>
-                  </v-btn>
-                  <v-btn v-else color="primary" variant="text" @click="onAddMessage">
-                    <span class="mr-2">Ajouter Message</span>
-                    <v-icon icon="mdi-plus"></v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </v-window-item>
-
-            <v-dialog v-model="colorPickerDialog" max-width="400px">
-              <v-card>
-                <v-card-title>Sélectionner une couleur</v-card-title>
-                <v-card-text>
-                  <v-color-picker v-model="selectedColor" :swatches="baseSwatches" show-swatches hide-inputs class="mx-auto"></v-color-picker>
-                </v-card-text>
-                <v-card-actions>
-                  <v-spacer></v-spacer>
-                  <v-btn text @click="colorPickerDialog = false">Annuler</v-btn>
-                  <v-btn color="primary" @click="applyColor">Appliquer</v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-dialog>
-
-          </v-window>
+          <!-- Case 3: No event exists -->
+          <div v-else class="d-flex justify-space-around align-center mt-2">
+            <v-btn color="primary" variant="text" @click="emit('add-pause')">
+              <span class="mr-2">Ajouter Pause</span>
+              <v-icon icon="mdi-plus"></v-icon>
+            </v-btn>
+            <v-btn color="primary" variant="text" @click="onAddFlyto">
+              <span class="mr-2">Ajouter Survol</span>
+              <v-icon icon="mdi-plus"></v-icon>
+            </v-btn>
+          </div>
         </div>
       </v-window-item>
+
+      <!-- Onglet Message -->
+      <v-window-item value="message">
+        <div class="pa-2 d-flex flex-column">
+          <v-combobox
+            label="Texte du message"
+            :items="knownMessageTexts"
+            v-model="messageText"
+            density="compact"
+            variant="outlined"
+            hide-details
+            class="mb-2"
+          ></v-combobox>
+
+          <div class="d-flex align-center mb-2">
+            <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
+            <span class="ml-2 text-caption">Fond</span>
+            <v-spacer></v-spacer>
+            <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
+            <span class="ml-2 text-caption">Bordure</span>
+          </div>
+
+          <v-slider
+            label="Taille bordure (px)"
+            v-model="messageBorderWidth"
+            :min="messageBorderWidthMin"
+            :max="messageBorderWidthMax"
+            :step="messageBorderWidthStep"
+            thumb-label
+            hide-details
+            class="mb-2"
+          ></v-slider>
+
+          <v-slider
+            label="Pré-affichage (incréments)"
+            v-model="messagePreAffichage"
+            :min="messagePreAffichageMin"
+            :max="messagePreAffichageMax"
+            :step="messagePreAffichageStep"
+            thumb-label
+            hide-details
+            class="mb-2"
+          ></v-slider>
+
+          <v-slider
+            label="Post-affichage (incréments)"
+            v-model="messagePostAffichage"
+            :min="messagePostAffichageMin"
+            :max="messagePostAffichageMax"
+            :step="messagePostAffichageStep"
+            thumb-label
+            hide-details
+            class="mb-2"
+          ></v-slider>
+
+
+          <div class="d-flex justify-space-around align-center mt-2">
+            <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
+              <span class="mr-2">Supprimer Message</span>
+              <v-icon icon="mdi-delete"></v-icon>
+            </v-btn>
+            <v-btn v-else color="primary" variant="text" @click="onAddMessage">
+              <span class="mr-2">Ajouter Message</span>
+              <v-icon icon="mdi-plus"></v-icon>
+            </v-btn>
+          </div>
+        </div>
+      </v-window-item>
+
+      <v-dialog v-model="colorPickerDialog" max-width="400px">
+        <v-card>
+          <v-card-title>Sélectionner une couleur</v-card-title>
+          <v-card-text>
+            <v-color-picker v-model="selectedColor" :swatches="baseSwatches" show-swatches hide-inputs class="mx-auto"></v-color-picker>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn text @click="colorPickerDialog = false">Annuler</v-btn>
+            <v-btn color="primary" @click="applyColor">Appliquer</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
     </v-window>
   </v-sheet>
 </template>
@@ -191,8 +182,7 @@ import { ref, computed, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
-const tab = ref('camera');
-const eventTab = ref('stop');
+const mainTab = ref('camera');
 
 // --- Props --- 
 const props = defineProps({
@@ -257,7 +247,7 @@ const emit = defineEmits([
   'tab-changed',
 ]);
 
-watch(tab, (newTab) => {
+watch(mainTab, (newTab) => {
   emit('tab-changed', newTab);
 });
 
@@ -379,7 +369,7 @@ const onDeleteFlyto = () => {
 };
 
 const isMarkerVisible = computed(() => {
-  return tab.value === 'events' && (eventTab.value === 'stop' || eventTab.value === 'message');
+  return mainTab.value === 'stop' || mainTab.value === 'message';
 });
 
 watch(isMarkerVisible, (newValue) => {

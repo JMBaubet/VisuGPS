@@ -666,6 +666,13 @@ const updateCameraPosition = (index) => {
 
 
 
+const destroyMap = () => {
+  if (map) {
+    map.remove();
+    map = null;
+  }
+};
+
 onUnmounted(() => {
   destroyMap();
   window.removeEventListener('keydown', handleKeydown);
