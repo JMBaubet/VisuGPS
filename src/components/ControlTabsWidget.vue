@@ -253,8 +253,13 @@ const emit = defineEmits([
   'delete-control-point',
   'update:cameraSyncMode',
   // Mode emits
-  'flyto-active',
+  'update:marker-visible',
+  'tab-changed',
 ]);
+
+watch(tab, (newTab) => {
+  emit('tab-changed', newTab);
+});
 
 // --- Models for Graph Tab --- 
 const createModel = (propName) => computed({
@@ -373,13 +378,12 @@ const onDeleteFlyto = () => {
     emit('delete-flyto');
 };
 
-// --- Logic for Flyto mode --- 
-const isFlytoActive = computed(() => {
-  return tab.value === 'events' && eventTab.value === 'flyto';
+const isMarkerVisible = computed(() => {
+  return tab.value === 'events' && (eventTab.value === 'flyto' || eventTab.value === 'message');
 });
 
-watch(isFlytoActive, (newValue) => {
-  emit('flyto-active', newValue);
+watch(isMarkerVisible, (newValue) => {
+  emit('update:marker-visible', newValue);
 });
 </script>
 

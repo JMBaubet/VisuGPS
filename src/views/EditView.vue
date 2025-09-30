@@ -80,7 +80,8 @@
         @delete-message="handleDeleteMessageEvent"
         @save-control-point="saveControlPoint"
         @delete-control-point="deleteControlPoint"
-        @flyto-active="handleFlytoActive"
+        @update:marker-visible="showCenterMarker = $event"
+        @tab-changed="handleTabChange"
       />
     </div>
 
@@ -129,14 +130,16 @@ const updateCameraInfo = () => {
   currentBearing.value = Math.round(map.getBearing());
 };
 
-const handleFlytoActive = (isActive) => {
+
+
+const handleTabChange = (newTab) => {
   if (!map) return;
-  showCenterMarker.value = isActive;
-  if (isActive) {
-    map.dragPan.enable();
-    showSnackbar('Mode Flyto: Déplacement de la carte activé.', 'info');
-  } else {
+  if (newTab === 'camera') {
     map.dragPan.disable();
+    showSnackbar('Déplacement de la carte désactivé.', 'info');
+  } else {
+    map.dragPan.enable();
+    showSnackbar('Déplacement de la carte activé.', 'info');
   }
 };
 
@@ -255,7 +258,6 @@ const lineStringCoordinates = ref([]);
 const totalLineLength = ref(0);
 const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
-const cameraCommandSettings = ref({});
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
@@ -662,109 +664,60 @@ const updateCameraPosition = (index) => {
   }
 };
 
+
+
+onUnmounted(() => {
+  destroyMap();
+  window.removeEventListener('keydown', handleKeydown);
+});
+
 const handleKeydown = (event) => {
-  if (!map) return;
-
-  const {
-    zoomInKey, zoomOutKey, pitchUpKey, pitchDownKey, bearingLeftKey, bearingRightKey,
-    zoomIncrement, pitchIncrement, bearingIncrement,
-    shiftZoomIncrement, shiftPitchIncrement, shiftBearingIncrement
-  } = cameraCommandSettings.value;
-
-  const isShiftPressed = event.shiftKey;
-  let handled = false;
-
-  if (event.key === 'p' || event.key === 'P') {
-    handleAddPauseEvent();
-    handled = true;
-  } else if (event.key === 'f' || event.key === 'F') {
-    handleAddFlytoEvent(flytoDurationSetting.value);
-    handled = true;
-  } else if (event.key === 'm' || event.key === 'M') {
-    // Trigger add message event with current settings
-    const messageData = {
-      text: "Nouveau message", // Placeholder, will be updated by user in ControlTabsWidget
-      preAffichage: messagePreAffichageSetting.value,
-      postAffichage: messagePostAffichageSetting.value,
-      mobile: messageMobileSetting.value,
-      backgroundColor: messageBackgroundColorSetting.value,
-      borderColor: messageBorderColorSetting.value,
-      borderWidth: messageBorderWidthSetting.value,
-    };
-    handleAddMessageEvent(messageData);
-    handled = true;
+  const targetNodeName = event.target.nodeName;
+  if (targetNodeName === 'INPUT' || targetNodeName === 'TEXTAREA' || event.target.isContentEditable) {
+    return;
   }
 
-  switch (event.key) {
-    case zoomInKey: {
-      const newZoom = currentZoom.value + (isShiftPressed ? shiftZoomIncrement : zoomIncrement);
-      currentZoom.value = parseFloat(Math.max(0, Math.min(22, newZoom)).toFixed(1));
-      map.easeTo({ zoom: currentZoom.value, duration: 50 });
-      handled = true;
-      break;
-    }
-    case zoomOutKey: {
-      const newZoom = currentZoom.value - (isShiftPressed ? shiftZoomIncrement : zoomIncrement);
-      currentZoom.value = parseFloat(Math.max(0, Math.min(22, newZoom)).toFixed(1));
-      map.easeTo({ zoom: currentZoom.value, duration: 50 });
-      handled = true;
-      break;
-    }
-    case pitchUpKey: {
-      const newPitch = currentPitch.value + (isShiftPressed ? shiftPitchIncrement : pitchIncrement);
-      currentPitch.value = Math.round(Math.max(0, Math.min(85, newPitch)));
-      map.easeTo({ pitch: currentPitch.value, duration: 50 });
-      handled = true;
-      break;
-    }
-    case pitchDownKey: {
-      const newPitch = currentPitch.value - (isShiftPressed ? shiftPitchIncrement : pitchIncrement);
-      currentPitch.value = Math.round(Math.max(0, Math.min(85, newPitch)));
-      map.easeTo({ pitch: currentPitch.value, duration: 50 });
-      handled = true;
-      break;
-    }
-    case bearingLeftKey: {
-      let newBearing = currentBearing.value - (isShiftPressed ? shiftBearingIncrement : bearingIncrement);
-      newBearing = (newBearing % 360 + 360) % 360;
-      currentBearing.value = Math.round(newBearing);
-      map.easeTo({ bearing: currentBearing.value, duration: 50 });
-      handled = true;
-      break;
-    }
-    case bearingRightKey: {
-      let newBearing = currentBearing.value + (isShiftPressed ? shiftBearingIncrement : bearingIncrement);
-      newBearing = (newBearing % 360 + 360) % 360;
-      currentBearing.value = Math.round(newBearing);
-      map.easeTo({ bearing: currentBearing.value, duration: 50 });
-      handled = true;
-      break;
-    }
-  }
-
-  let newIndex = currentPointIndex.value;
   let step = 1;
   if (event.ctrlKey) {
     step = 100;
-  } else if (event.shiftKey && !handled) {
+  } else if (event.shiftKey) {
     step = 10;
   }
 
-  if (event.key === 'm' || event.key === 'M') {
-    newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
-    handled = true;
-  } else if (event.key === 'l' || event.key === 'L') {
-    newIndex = Math.max(currentPointIndex.value - step, 0);
-    handled = true;
-  }
+  let newIndex = currentPointIndex.value;
+  let handled = false;
 
-  if (newIndex !== currentPointIndex.value) {
-    currentPointIndex.value = newIndex;
-    updateCameraPosition(currentPointIndex.value);
+  switch (event.key) {
+    case 'ArrowRight':
+      newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
+      handled = true;
+      break;
+    case 'ArrowLeft':
+      newIndex = Math.max(currentPointIndex.value - step, 0);
+      handled = true;
+      break;
+    case 'ArrowUp': {
+      if (!map) return;
+      const newPitch = Math.min(map.getPitch() + 1, 85);
+      map.easeTo({ pitch: newPitch, duration: 50 });
+      handled = true;
+      break;
+    }
+    case 'ArrowDown': {
+      if (!map) return;
+      const newPitch = Math.max(map.getPitch() - 1, 0);
+      map.easeTo({ pitch: newPitch, duration: 50 });
+      handled = true;
+      break;
+    }
   }
 
   if (handled) {
     event.preventDefault();
+    if (newIndex !== currentPointIndex.value) {
+      currentPointIndex.value = newIndex;
+      updateCameraPosition(newIndex);
+    }
   }
 };
 
@@ -831,22 +784,7 @@ onMounted(async () => {
     const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta');
     graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
 
- 
 
-    cameraCommandSettings.value = {
-      zoomInKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomInKey'),
-      zoomOutKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomOutKey'),
-      pitchUpKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchUpKey'),
-      pitchDownKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchDownKey'),
-      bearingLeftKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingLeftKey'),
-      bearingRightKey: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingRightKey'),
-      zoomIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ZoomIncrement'),
-      pitchIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/PitchIncrement'),
-      bearingIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/BearingIncrement'),
-      shiftZoomIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftZoomIncrement'),
-      shiftPitchIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftPitchIncrement'),
-      shiftBearingIncrement: await getSettingValue('Edition/Mapbox/Commandes Caméra/ShiftBearingIncrement'),
-    };
 
     const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
     const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
@@ -917,11 +855,7 @@ onMounted(async () => {
     });
 
     map.on('load', () => {
-      map.keyboard.disable();
-      map.boxZoom.disable();
-      map.doubleClickZoom.disable();
-      map.dragPan.disable();
-      map.touchZoomRotate.disable();
+      map.dragPan.disable(); // Disable pan by default as the initial tab is 'camera'
 
       // Listen for map movements to update the info widget
       map.on('zoom', updateCameraInfo);
