@@ -271,6 +271,7 @@ const cameraSyncModeModel = createModel('cameraSyncMode');
 
 // --- Message Event Logic ---
 const messageText = ref('');
+const messageBackgroundColor = createModel('messageBackgroundColorSetting');
 const messageBorderColor = createModel('messageBorderColorSetting');
 const messageBorderWidth = createModel('messageBorderWidthSetting');
 const messagePreAffichage = createModel('messagePreAffichageSetting');
