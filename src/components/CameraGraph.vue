@@ -20,21 +20,7 @@
         <path v-if="props.showEditedBearingDelta" :d="editedBearingDeltaPath" :style="{ stroke: editedBearingDeltaColor }" />
         <path v-if="props.showEditedBearingTotalDelta" :d="editedBearingTotalDeltaPath" :style="{ stroke: editedBearingTotalDeltaColor }" />
 
-        <!-- Graphique du Pitch -->
-        <path v-if="props.showPitch" :d="pitchPath" :style="{ stroke: pitchColor }" />
 
-        <!-- Indicateur de pitch actuel -->
-        <line
-          :x1="progressIndicatorX + 2 - 15"
-          :y1="currentPitchDeltaY"
-          :x2="progressIndicatorX + 2 + 15"
-          :y2="currentPitchDeltaY"
-          :stroke="pitchColor"
-          stroke-width="2"
-        />
-
-        <!-- Graphique du Zoom -->
-        <path v-if="props.showZoom" :d="zoomPath" :style="{ stroke: zoomColor }" />
 
         <!-- Indicateur de zoom actuel -->
         <line
@@ -160,8 +146,6 @@ const props = defineProps({
   trackingPoints: { type: Array, required: true },
   totalLength: { type: Number, required: true },
   currentDistance: { type: Number, required: true },
-  showZoom: { type: Boolean, default: true },
-  showPitch: { type: Boolean, default: true },
   showBearingDelta: { type: Boolean, default: true },
   showBearingTotalDelta: { type: Boolean, default: true },
   showEditedZoom: { type: Boolean, default: false },

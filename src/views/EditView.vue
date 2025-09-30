@@ -30,14 +30,13 @@
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
-        :showZoom="showZoom"
-        :showPitch="showPitch"
-        :showBearingDelta="showBearingDelta"
-        :showBearingTotalDelta="showBearingTotalDelta"
-        :showEditedZoom="showEditedZoom"
-        :showEditedPitch="showEditedPitch"
-        :showEditedBearingDelta="showEditedBearingDelta"
-        :showEditedBearingTotalDelta="showEditedBearingTotalDelta"
+
+        :show-bearing-delta="showCalculeeBearingDelta"
+        :show-bearing-total-delta="showCalculeeBearingTotalDelta"
+        :show-edited-zoom="showEditeeZoom"
+        :show-edited-pitch="showEditeePitch"
+        :show-edited-bearing-delta="showEditeeBearingDelta"
+        :show-edited-bearing-total-delta="showEditeeBearingTotalDelta"
         :currentCameraBearing="currentBearing"
         :initialCameraBearing="trackingPoints[0]?.cap"
         :currentCameraZoom="currentZoom"
@@ -49,12 +48,20 @@
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
-        v-model:showOriginalCurves="showOriginalCurves"
-        v-model:showEditedCurves="showEditedCurves"
-        v-model:showBearingDeltaPair="showBearingDeltaPair"
-        v-model:showBearingTotalDeltaPair="showBearingTotalDeltaPair"
-        v-model:showZoomPair="showZoomPair"
-        v-model:showPitchPair="showPitchPair"
+        v-model:show-calculee-bearing-delta="showCalculeeBearingDelta"
+        v-model:show-editee-bearing-delta="showEditeeBearingDelta"
+        v-model:show-calculee-bearing-total-delta="showCalculeeBearingTotalDelta"
+        v-model:show-editee-bearing-total-delta="showEditeeBearingTotalDelta"
+        v-model:show-editee-zoom="showEditeeZoom"
+        v-model:show-editee-pitch="showEditeePitch"
+        :color-origine-bearing-delta="colorOrigineBearingDelta"
+        :color-edited-bearing-delta="colorEditedBearingDelta"
+        :color-origine-bearing-total-delta="colorOrigineBearingTotalDelta"
+        :color-edited-bearing-total-delta="colorEditedBearingTotalDelta"
+        :color-origine-zoom="colorOrigineZoom"
+        :color-edited-zoom="colorEditedZoom"
+        :color-origine-pitch="colorOriginePitch"
+        :color-edited-pitch="colorEditedPitch"
         v-model:cameraSyncMode="cameraSyncMode"
         :graph-bearing-delta-color="graphBearingDeltaColor"
         :graph-bearing-total-delta-color="graphBearingTotalDeltaColor"
@@ -372,26 +379,13 @@ const couleurAvancement = ref('');
 const traceColor = ref('#FFA726');
 const mapboxAvancementColorHex = ref('');
 
-// Global visibility toggles
-const showOriginalCurves = ref(true);
-const showEditedCurves = ref(false);
-
-// Paired visibility toggles
-const showZoomPair = ref(false);
-const showPitchPair = ref(false);
-const showBearingDeltaPair = ref(true);
-const showBearingTotalDeltaPair = ref(true);
-
-// Computed visibility for individual curves
-const showZoom = computed(() => showZoomPair.value && showOriginalCurves.value);
-const showPitch = computed(() => showPitchPair.value && showOriginalCurves.value);
-const showBearingDelta = computed(() => showBearingDeltaPair.value && showOriginalCurves.value);
-const showBearingTotalDelta = computed(() => showBearingTotalDeltaPair.value && showOriginalCurves.value);
-
-const showEditedZoom = computed(() => showZoomPair.value && showEditedCurves.value);
-const showEditedPitch = computed(() => showPitchPair.value && showEditedCurves.value);
-const showEditedBearingDelta = computed(() => showBearingDeltaPair.value && showEditedCurves.value);
-const showEditedBearingTotalDelta = computed(() => showBearingTotalDeltaPair.value && showEditedCurves.value);
+// New granular visibility toggles
+const showCalculeeBearingDelta = ref(true);
+const showEditeeBearingDelta = ref(true);
+const showCalculeeBearingTotalDelta = ref(true);
+const showEditeeBearingTotalDelta = ref(true);
+const showEditeeZoom = ref(true);
+const showEditeePitch = ref(true);
 
 // Graph curve colors
 const graphZoomColor = ref('green');
@@ -402,7 +396,17 @@ const graphBearingTotalDeltaColor = ref('pink');
 const graphEditedZoomColor = ref('light-green-accent-3');
 const graphEditedPitchColor = ref('cyan-accent-3');
 const graphEditedBearingDeltaColor = ref('yellow-accent-3');
-const graphEditedBearingTotalDeltaColor = ref('purple-accent-3');
+const graphEditedBearingTotalDeltaColor = ref('#000000');
+
+// Refs for checkbox colors to be passed to ControlTabsWidget
+const colorOrigineBearingDelta = ref('#000000');
+const colorEditedBearingDelta = ref('#000000');
+const colorOrigineBearingTotalDelta = ref('#000000');
+const colorEditedBearingTotalDelta = ref('#000000');
+const colorOrigineZoom = ref('#000000');
+const colorEditedZoom = ref('#000000');
+const colorOriginePitch = ref('#000000');
+const colorEditedPitch = ref('#000000');
 
 const { toHex } = useVuetifyColors(); // New line
 
@@ -789,7 +793,17 @@ onMounted(async () => {
     graphEditedBearingDeltaColor.value = toHex(rawGraphEditedBearingDeltaColor);
 
     const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta');
-    graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
+    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
+
+    // Load colors for checkboxes
+    colorOrigineBearingDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta'));
+    colorEditedBearingDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta'));
+    colorOrigineBearingTotalDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta'));
+    colorEditedBearingTotalDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
+    colorOrigineZoom.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom'));
+    colorEditedZoom.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
+    colorOriginePitch.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch'));
+    colorEditedPitch.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
 
 
 

@@ -9,34 +9,89 @@
     <v-window v-model="mainTab" style="flex-grow: 1;" class="fill-height">
       <!-- Onglet Caméra -->
       <v-window-item value="camera" class="fill-height">
-        <div style="height: 100%; overflow-y: auto;">
-          <!-- Toolbar Buttons -->
-          <div class="d-flex justify-space-around align-center pa-2">
-            <v-btn icon="mdi-content-save" @click="emit('save-control-point')" color="primary"></v-btn>
-            <v-btn v-if="isCurrentPointControlPoint" icon="mdi-delete" @click="emit('delete-control-point')" color="warning"></v-btn>
-            <v-btn-toggle
-              v-model="cameraSyncModeModel"
-              rounded="pill"
-              mandatory
-            >
-              <v-btn value="off" icon="mdi-camera-off" color="primary"></v-btn>
-              <v-btn value="original" icon="mdi-camera-outline" color="warning"></v-btn>
-              <v-btn value="edited" icon="mdi-camera-plus-outline" color="success"></v-btn>
-            </v-btn-toggle>
+        <div style="height: 100%; overflow-y: auto;" class="d-flex flex-column">
+          <!-- Top Toolbar -->
+          <div class="pa-2">
+            <CameraSyncModeSelector v-model="cameraSyncModeModel" />
           </div>
           <v-divider></v-divider>
 
-          <!-- Graph Controls -->
-          <div class="pa-2" style="display: flex; flex-direction: column; gap: 4px;">
-            <div style="display: flex; flex-direction: column; margin-left: 8px;">
-              <v-checkbox v-model="showOriginalCurvesModel" label="Origine" hide-details density="compact" color="warning"></v-checkbox>
-              <v-checkbox v-model="showEditedCurvesModel" label="Edité" hide-details density="compact" color="success"></v-checkbox>
-            </div>
-            <v-divider class="my-1"></v-divider>
-            <v-switch v-model="showBearingDeltaPairModel" label="Δ Cap" :color="graphBearingDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-            <v-switch v-model="showBearingTotalDeltaPairModel" label="Cap" :color="graphBearingTotalDeltaColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-            <v-switch v-model="showZoomPairModel" label="Zoom" :color="graphZoomColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
-            <v-switch v-model="showPitchPairModel" label="Pitch" :color="graphPitchColor" hide-details density="compact" style="margin-left: 8px; margin-right: 8px;"></v-switch>
+          <!-- Checkbox Table -->
+          <div class="pa-2">
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th class="text-left">Courbe</th>
+                  <th class="text-left">Calculée</th>
+                  <th class="text-left">Editée</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Δ Cap</td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showCalculeeBearingDeltaModel" :color="props.colorOrigineBearingDelta"></v-checkbox-btn>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showEditeeBearingDeltaModel" :color="props.colorEditedBearingDelta"></v-checkbox-btn>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Cap</td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showCalculeeBearingTotalDeltaModel" :color="props.colorOrigineBearingTotalDelta"></v-checkbox-btn>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showEditeeBearingTotalDeltaModel" :color="props.colorEditedBearingTotalDelta"></v-checkbox-btn>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Zoom</td>
+                  <td class="text-center">
+                    <!-- Empty cell -->
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showEditeeZoomModel" :color="props.colorEditedZoom"></v-checkbox-btn>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>Pitch</td>
+                  <td class="text-center">
+                    <!-- Empty cell -->
+                  </td>
+                  <td class="text-center">
+                    <div class="d-flex justify-center">
+                      <v-checkbox-btn v-model="showEditeePitchModel" :color="props.colorEditedPitch"></v-checkbox-btn>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+
+          <v-spacer></v-spacer>
+
+          <!-- Bottom Buttons -->
+          <v-divider></v-divider>
+          <div class="pa-2 d-flex flex-column align-center">
+              <v-btn color="primary" variant="text" @click="emit('save-control-point')">
+                  <span class="mr-2">Ajouter Point</span>
+                  <v-icon icon="mdi-plus"></v-icon>
+              </v-btn>
+              <v-btn v-if="isCurrentPointControlPoint" color="error" variant="text" @click="emit('delete-control-point')">
+                  <span class="mr-2">Supprimer Point</span>
+                  <v-icon icon="mdi-delete"></v-icon>
+              </v-btn>
           </div>
         </div>
       </v-window-item>
@@ -44,6 +99,8 @@
       <!-- Onglet Pause / Survol -->
       <v-window-item value="stop">
         <div class="pa-2 d-flex flex-column">
+          <CameraSyncModeSelector v-model="cameraSyncModeModel" class="mb-4"/>
+          <v-divider class="mb-4"></v-divider>
           <!-- Flyto duration slider (always visible) -->
           <div class="d-flex align-center justify-center mb-2">
             <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
@@ -181,18 +238,27 @@
 import { ref, computed, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
 
 const mainTab = ref('camera');
 
 // --- Props --- 
 const props = defineProps({
   // Graph props
-  showOriginalCurves: Boolean,
-  showEditedCurves: Boolean,
-  showBearingDeltaPair: Boolean,
-  showBearingTotalDeltaPair: Boolean,
-  showZoomPair: Boolean,
-  showPitchPair: Boolean,
+  showCalculeeBearingDelta: Boolean,
+  showEditeeBearingDelta: Boolean,
+  showCalculeeBearingTotalDelta: Boolean,
+  showEditeeBearingTotalDelta: Boolean,
+  showEditeeZoom: Boolean,
+  showEditeePitch: Boolean,
+  colorOrigineBearingDelta: String,
+  colorEditedBearingDelta: String,
+  colorOrigineBearingTotalDelta: String,
+  colorEditedBearingTotalDelta: String,
+  colorOrigineZoom: String,
+  colorEditedZoom: String,
+  colorOriginePitch: String,
+  colorEditedPitch: String,
   graphBearingDeltaColor: String,
   graphBearingTotalDeltaColor: String,
   graphZoomColor: String,
@@ -218,12 +284,12 @@ const props = defineProps({
 // --- Emits --- 
 const emit = defineEmits([
   // Graph emits
-  'update:showOriginalCurves',
-  'update:showEditedCurves',
-  'update:showBearingDeltaPair',
-  'update:showBearingTotalDeltaPair',
-  'update:showZoomPair',
-  'update:showPitchPair',
+  'update:showCalculeeBearingDelta',
+  'update:showEditeeBearingDelta',
+  'update:showCalculeeBearingTotalDelta',
+  'update:showEditeeBearingTotalDelta',
+  'update:showEditeeZoom',
+  'update:showEditeePitch',
   // Event emits
   'delete-pause',
   'add-pause', // Added this
@@ -257,12 +323,12 @@ const createModel = (propName) => computed({
   set: (value) => emit(`update:${propName}`, value),
 });
 
-const showOriginalCurvesModel = createModel('showOriginalCurves');
-const showEditedCurvesModel = createModel('showEditedCurves');
-const showBearingDeltaPairModel = createModel('showBearingDeltaPair');
-const showBearingTotalDeltaPairModel = createModel('showBearingTotalDeltaPair');
-const showZoomPairModel = createModel('showZoomPair');
-const showPitchPairModel = createModel('showPitchPair');
+const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
+const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
+const showCalculeeBearingTotalDeltaModel = createModel('showCalculeeBearingTotalDelta');
+const showEditeeBearingTotalDeltaModel = createModel('showEditeeBearingTotalDelta');
+const showEditeeZoomModel = createModel('showEditeeZoom');
+const showEditeePitchModel = createModel('showEditeePitch');
 
 const cameraSyncModeModel = createModel('cameraSyncMode');
 
