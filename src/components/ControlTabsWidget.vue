@@ -165,11 +165,11 @@
               </div>
             </v-window-item>
 
-            <v-dialog v-model="colorPickerDialog" max-width="300">
+            <v-dialog v-model="colorPickerDialog" max-width="400px">
               <v-card>
                 <v-card-title>Sélectionner une couleur</v-card-title>
                 <v-card-text>
-                  <v-color-picker v-model="selectedColor" hide-canvas hide-inputs show-swatches></v-color-picker>
+                  <v-color-picker v-model="selectedColor" :swatches="baseSwatches" show-swatches hide-inputs class="mx-auto"></v-color-picker>
                 </v-card-text>
                 <v-card-actions>
                   <v-spacer></v-spacer>
@@ -188,6 +188,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { invoke } from '@tauri-apps/api/core';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const tab = ref('camera');
 const eventTab = ref('pause');
@@ -293,17 +295,31 @@ const colorPickerDialog = ref(false);
 const selectedColor = ref('');
 const colorPickerTarget = ref(''); // 'background' or 'border'
 
-const showColorPicker = (target) => {
+const showColorPicker = async (target) => {
   colorPickerTarget.value = target;
-  selectedColor.value = target === 'background' ? messageBackgroundColor.value : messageBorderColor.value;
+  const colorName = target === 'background' ? messageBackgroundColor.value : messageBorderColor.value;
+  
+  try {
+    // Convert Vuetify name to hex for the color picker
+    selectedColor.value = await invoke('convert_vuetify_color', { colorName: colorName });
+  } catch (error) {
+    console.error(`Failed to convert color ${colorName}:`, error);
+    selectedColor.value = '#000000'; // Fallback to black on error
+  }
+  
   colorPickerDialog.value = true;
 };
 
+const { toName, baseSwatches } = useVuetifyColors();
+
 const applyColor = () => {
+  // Convert the selected hex color back to its closest Vuetify name
+  const colorName = toName(selectedColor.value);
+
   if (colorPickerTarget.value === 'background') {
-    messageBackgroundColor.value = selectedColor.value;
+    messageBackgroundColor.value = colorName;
   } else {
-    messageBorderColor.value = selectedColor.value;
+    messageBorderColor.value = colorName;
   }
   colorPickerDialog.value = false;
 };
