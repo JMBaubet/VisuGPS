@@ -1,48 +1,132 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-title: EventTimeline
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Schema for evt.json"
+description: "Describes the structure for storing events (pauses, fly-tos, messages) related to a specific GPX track."
 type: object
 properties:
-  events:
+  schemaVersion:
+    type: string
+    description: "The version of the schema. Used for migration purposes."
+    example: "2.0"
+  texts:
+    type: array
+    description: "A sorted list of unique message texts used in range events, to avoid duplication and populate UI selectors."
+    items:
+      type: string
+    default: []
+  pointEvents:
     type: object
-    description: "Liste des événements indexés par timecode (string représentant un nombre)"
+    description: "A map of events that occur at a specific moment (increment). The key is the increment number."
     patternProperties:
       "^[0-9]+$":
         type: array
-        description: "Liste des événements à exécuter pour ce timecode"
+        description: "A list of events occurring at this specific increment."
         items:
-          type: object
-          required: [type]
-          properties:
-            type:
-              type: string
-              enum: [Pause, Flyto, Message]
-            data:
-              type: object
-              description: "Paramètres spécifiques selon le type"
-              oneOf:
-                - properties: {} # Pause n’a pas besoin de data
-                - properties:
-                    cap: { type: number }
-                    coord:
-                      type: array
-                      items: { type: number }
-                      minItems: 2
-                      maxItems: 2
-                    duree: { type: number }
-                    pitch: { type: number }
-                    zoom: { type: number }
-                  required: [cap, coord, duree, pitch, zoom]
-                  additionalProperties: false
-                - properties:
-                    text: { type: string }
-                    durationIncrements: { type: number }
-                    coord:
-                      type: array
-                      items: { type: number }
-                      minItems: 2
-                      maxItems: 2
-                    color: { type: string }
-                  required: [text, durationIncrements, coord, color]
-                  additionalProperties: false
-additionalProperties: false
+          $ref: "#/definitions/PointEvent"
+    default: {}
+  rangeEvents:
+    type: array
+    description: "A list of events that span over a duration (e.g., displaying a message)."
+    items:
+      $ref: "#/definitions/RangeEvent"
+    default: []
+required:
+  - schemaVersion
+  - pointEvents
+  - rangeEvents
 
+definitions:
+  PointEvent:
+    type: object
+    description: "An event that occurs at a single point in time. It can be a Pause or a Flyto."
+    required:
+      - type
+    oneOf:
+      - title: "Pause Event"
+        properties:
+          type:
+            const: "Pause"
+      - title: "Flyto Event"
+        properties:
+          type:
+            const: "Flyto"
+          data:
+            $ref: "#/definitions/FlytoEventContent"
+        required:
+          - data
+
+  FlytoEventContent:
+    type: object
+    description: "Defines the camera parameters for a 'fly-to' animation sequence."
+    properties:
+      cap:
+        type: integer
+        description: "The camera bearing (direction) in degrees at the end of the fly-to."
+      coord:
+        type: array
+        description: "The longitude and latitude of the camera's target position."
+        items:
+          type: number
+        minItems: 2
+        maxItems: 2
+      duree:
+        type: integer
+        description: "The duration of the fly-to animation in milliseconds."
+      pitch:
+        type: integer
+        description: "The camera pitch (tilt) in degrees at the end of the fly-to."
+      zoom:
+        type: number
+        description: "The camera zoom level at the end of the fly-to."
+    required:
+      - cap
+      - coord
+      - duree
+      - pitch
+      - zoom
+
+  RangeEvent:
+    type: object
+    description: "Defines an event that occurs over a range of increments, such as displaying a message."
+    properties:
+      id:
+        type: string
+        format: uuid
+        description: "Unique identifier for the event."
+      anchorIncrement:
+        type: integer
+        description: "The central increment point around which the event is anchored."
+      startIncrement:
+        type: integer
+        description: "The increment at which the event begins (e.g., message appears)."
+      endIncrement:
+        type: integer
+        description: "The increment at which the event ends (e.g., message disappears)."
+      text:
+        type: string
+        description: "The content of the message to display."
+      coord:
+        type: array
+        description: "The longitude and latitude where the message anchor should be placed on the map."
+        items:
+          type: number
+        minItems: 2
+        maxItems: 2
+      backgroundColor:
+        type: string
+        description: "Optional background color for the message box (e.g., 'blue', '#FF0000')."
+      borderColor:
+        type: string
+        description: "Optional border color for the message box."
+      borderWidth:
+        type: integer
+        description: "Optional border width in pixels."
+      borderRadius:
+        type: integer
+        description: "Optional border radius in pixels for rounded corners."
+    required:
+      - id
+      - anchorIncrement
+      - startIncrement
+      - endIncrement
+      - text
+      - coord

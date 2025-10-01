@@ -61,6 +61,8 @@ const totalDistanceRef = ref(0);
 const totalDurationAt1xRef = ref(0);
 const trackingPointsWithDistanceRef = ref([]);
 const controlPointIndicesRef = ref([]);
+const pauseIncrements = ref([]);
+const triggeredPauseIncrement = ref(null);
 
 const animate = (timestamp) => {
   if (lastTimestamp === 0) lastTimestamp = timestamp;
@@ -132,6 +134,16 @@ const animate = (timestamp) => {
       prevKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex];
       nextKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex + 1];
   }
+
+    // Handle programmed pause events
+    const currentIncrement = prevKeyframe?.increment;
+    if (currentIncrement !== undefined && pauseIncrements.value.includes(currentIncrement)) {
+        if (triggeredPauseIncrement.value !== currentIncrement) {
+            isPaused.value = true;
+            triggeredPauseIncrement.value = currentIncrement;
+            showSnackbar('Pause programmée atteinte.', 'info');
+        }
+    }
 
   const prevKeyframeDist = prevKeyframe.distance;
   const nextKeyframeDist = nextKeyframe.distance;
@@ -213,6 +225,7 @@ const resetAnimation = () => {
     isPaused.value = true;
     isAnimationFinished.value = false;
     warningShown = false;
+    triggeredPauseIncrement.value = null;
     // Reset comet to start
     map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
     // Restart animation loop if it was stopped
@@ -258,10 +271,19 @@ const initializeMap = async () => {
   mapboxgl.accessToken = mapboxToken.value;
 
   try {
-    const [fetchedLineString, fetchedTrackingData] = await Promise.all([
+    const [fetchedLineString, fetchedTrackingData, fetchedEvents] = await Promise.all([
       invoke('read_line_string_file', { circuitId: props.circuitId }),
-      invoke('read_tracking_file', { circuitId: props.circuitId })
+      invoke('read_tracking_file', { circuitId: props.circuitId }),
+      invoke('get_events', { circuitId: props.circuitId })
     ]);
+
+    if (fetchedEvents && fetchedEvents.pointEvents) {
+        pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
+            .filter(increment =>
+                fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
+            )
+            .map(Number);
+    }
 
     if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {
       console.error("Failed to load valid circuit data.");

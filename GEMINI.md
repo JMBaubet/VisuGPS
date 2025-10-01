@@ -1490,7 +1490,7 @@ A cette requette deux cas peuvent se présenter :
 
     Avec openStreetMap selon le lieu, la clé peut être `city`, `town`, `village`, ou même `hamlet`.
 
-## Création des évènements - En cours - []
+## Création des évènements - Réalisé - [a69a420f]
 
 Au cours de visualisation 3D de la trace, j'aimerai avoir 4  types d'évènements programmés qui sont :
 
@@ -1546,7 +1546,7 @@ Si présence d'un flyto sur la progression on doit pourvoir le supprimer via l'o
 
 Un refonte du fichier evt.json peut être nécessaire. Si c'est le cas bien penser à vérifier l'ensemble des impact sur le graphe etc...  
 
-### Ajout de Message (Mobile et Fixe) - en debug -
+### Ajout de Message (Mobile et Fixe) - Réalisé - [a69a420f]
 
 Cette étape va consister à ajouter des évènement de type Message dans le fichier evt.json.
 
