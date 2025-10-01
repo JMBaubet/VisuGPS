@@ -1600,6 +1600,12 @@ Les paramètres à mettre dans settingsDefault.json sont :
 
 - Le post affichage ; 20 par defaut. de 0 à 100 increment de 1
 
+## Visualisation des Flyto
+
+Nous allons travailler sur la vue VisualizeView, pour la prise en compte des evenements décrits dans le fichier evt.json
+
+## Visualisation des Messages
+
 ## Zooms automatiques au départ et à l'arrivée.
 
 ## Profil d'altitude

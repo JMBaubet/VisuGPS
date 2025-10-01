@@ -3,14 +3,12 @@
 
   <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
 
-  <v-card variant="elevated" class="distance-display">
-          <div class="d-flex align-center justify-center fill-height px-4">
-            <span class="font-weight-bold font-monospace">Distance :&nbsp;</span>
-            <span :class="['font-weight-bold', 'font-monospace', `text-${cometColor}`]">{{ distanceDisplay }}</span>
-          </div>  
-  </v-card>
-
-  <div class="bottom-controls">
+              <v-card variant="elevated" class="distance-display">
+                      <div class="d-flex align-center justify-center fill-height px-4">
+                        <span class="font-weight-bold">Distance :&nbsp;</span>
+                        <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span>
+                      </div>  
+              </v-card>  <div class="bottom-controls">
     <v-card variant="elevated" class="controls-card">
         <div class="d-flex align-center pa-1">
             <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
@@ -185,7 +183,7 @@ const animate = (timestamp) => {
                   if (newMsg) {
                       const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom', className: 'map-message-popup' })
                           .setLngLat(newMsg.coord)
-                          .setHTML(`<div style="background-color: ${newMsg.backgroundColor || 'white'}; color: black; border-color: ${newMsg.borderColor || 'black'}; border-width: ${newMsg.borderWidth != null ? newMsg.borderWidth + 'px' : '1px'}; border-radius: ${newMsg.borderRadius != null ? newMsg.borderRadius + 'px' : '4px'}; padding: 5px 10px; border-style: solid;">${newMsg.text}</div>`)
+                          .setHTML(`<div style="background-color: ${newMsg.backgroundColor || 'white'}; color: black; font-weight: bold; font-size: 16px; border-color: ${newMsg.borderColor || 'black'}; border-width: ${newMsg.borderWidth != null ? newMsg.borderWidth + 'px' : '1px'}; border-radius: ${newMsg.borderRadius != null ? newMsg.borderRadius + 'px' : '4px'}; padding: 5px 10px; border-style: solid;">${newMsg.text}</div>`)
                           .addTo(map);
                       activePopups.set(id, popup);
                   }

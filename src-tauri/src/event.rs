@@ -7,6 +7,8 @@ use uuid::Uuid;
 use crate::AppState;
 use std::sync::Mutex;
 
+use crate::colors;
+
 // --- Data Structures ---
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -113,7 +115,22 @@ fn write_events(app_handle: &AppHandle, circuit_id: &str, events_file: &EventsFi
 
 #[tauri::command]
 pub fn get_events(app_handle: AppHandle, circuit_id: String) -> Result<EventsFile, String> {
-    read_events(&app_handle, &circuit_id)
+    let mut events_file = read_events(&app_handle, &circuit_id)?;
+
+    for event in &mut events_file.range_events {
+        if let Some(color_name) = &event.background_color {
+            if !color_name.starts_with('#') {
+                event.background_color = Some(format!("#{}", colors::convert_vuetify_color_to_hex(color_name)));
+            }
+        }
+        if let Some(color_name) = &event.border_color {
+            if !color_name.starts_with('#') {
+                event.border_color = Some(format!("#{}", colors::convert_vuetify_color_to_hex(color_name)));
+            }
+        }
+    }
+
+    Ok(events_file)
 }
 
 #[tauri::command]
