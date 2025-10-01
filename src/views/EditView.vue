@@ -74,6 +74,7 @@
         v-model:flyto-duration-setting="flytoDurationSetting" 
         :is-current-point-control-point="isCurrentPointControlPoint"
         :message-events="messageEventsForDisplay"
+        :full-message-events="eventsFile.rangeEvents"
         :known-message-texts="knownMessageTexts"
         v-model:message-background-color-setting="messageBackgroundColorSetting"
         v-model:message-border-color-setting="messageBorderColorSetting"

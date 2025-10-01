@@ -310,6 +310,7 @@ const props = defineProps({
   flytoDurationSetting: Number,
   // Message props
   messageEvents: Array,
+  fullMessageEvents: { type: Array, default: () => [] },
   knownMessageTexts: Array,
   messageBackgroundColorSetting: String,
   messageBorderColorSetting: String,
@@ -404,8 +405,12 @@ const props = defineProps({
       // Ensure postAffichage is within its valid range (1 to 100)
       newPostAffichage = Math.max(1, Math.min(100, newPostAffichage));
 
-      emit('update:messagePreAffichageSetting', newPreAffichage);
-      emit('update:messagePostAffichageSetting', newPostAffichage);
+      if (props.messagePreAffichageSetting !== newPreAffichage) {
+        emit('update:messagePreAffichageSetting', newPreAffichage);
+      }
+      if (props.messagePostAffichageSetting !== newPostAffichage) {
+        emit('update:messagePostAffichageSetting', newPostAffichage);
+      }
     },
   });
 
@@ -548,6 +553,28 @@ const isMarkerVisible = computed(() => {
 watch(isMarkerVisible, (newValue) => {
   emit('update:marker-visible', newValue);
 });
+
+watch(() => props.currentIncrement, (newIncrement) => {
+  const currentEvent = props.fullMessageEvents.find(
+    event => event.anchorIncrement === newIncrement
+  );
+
+  if (currentEvent) {
+    // Recalculate pre/post from the event's increments
+    const preAffichage = currentEvent.anchorIncrement - currentEvent.startIncrement;
+    const postAffichage = currentEvent.endIncrement - currentEvent.anchorIncrement;
+
+    messageText.value = currentEvent.text;
+    messageBackgroundColor.value = currentEvent.backgroundColor;
+    messageBorderColor.value = currentEvent.borderColor;
+    messageBorderWidth.value = currentEvent.borderWidth;
+    messageBorderRadius.value = currentEvent.borderRadius;
+    
+    emit('update:messagePreAffichageSetting', preAffichage);
+    emit('update:messagePostAffichageSetting', postAffichage);
+  }
+  // No 'else' block: if no event is found, the controls retain their current state.
+}, { immediate: true });
 </script>
 
 <style scoped>
