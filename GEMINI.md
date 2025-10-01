@@ -1614,6 +1614,12 @@ Nous allons travailler sur la vue VisualizeView, pour la prise en compte des eve
 
 ## Suppession des fichiers après l'import
 
+### Correction des styles des popups de message - Réalisé - [e48e3afd]
+
+- Correction d'un bug où les styles personnalisés (couleur, bordure, rayon) des messages n'étaient pas appliqués dans la vue de visualisation.
+- La conversion des noms de couleur Vuetify en codes hexadécimaux se fait maintenant côté backend pour assurer la compatibilité CSS.
+- Harmonisation de la police (famille, taille, graisse) entre les popups de message et le widget de distance pour une meilleure cohérence visuelle.
+
 ## Fiche circuit
 
 ---

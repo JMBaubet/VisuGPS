@@ -3,6 +3,10 @@
 
   <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
 
+  <div v-if="shouldShowCommuneWidget" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
+    <span class="font-weight-bold">{{ currentCommuneName }}</span>
+  </div>
+
               <v-card variant="elevated" class="distance-display">
                       <div class="d-flex align-center justify-center fill-height px-4">
                         <span class="font-weight-bold">Distance :&nbsp;</span>
@@ -30,6 +34,7 @@ import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import mapboxgl from 'mapbox-gl';
 import * as turf from '@turf/turf';
+import { useTheme } from 'vuetify';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
@@ -45,6 +50,7 @@ const router = useRouter();
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
+const { current: theme } = useTheme();
 
 const mapContainer = ref(null);
 let map = null;
@@ -64,6 +70,12 @@ const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
+
+// --- Commune Widget State ---
+const avancementCommunes = ref(0);
+const currentCommuneName = ref('');
+const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
+const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
 
 const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
@@ -158,7 +170,13 @@ const animate = (timestamp) => {
   if (currentPointIndex < 0) { // If not found (e.g., at the very end), use the last valid index
       currentPointIndex = trackingPointsWithDistanceRef.value.length - 2;
   }
-  const currentIncrement = trackingPointsWithDistanceRef.value[currentPointIndex]?.increment;
+
+  const currentPoint = trackingPointsWithDistanceRef.value[currentPointIndex];
+  if (currentPoint && currentPoint.commune) {
+      currentCommuneName.value = currentPoint.commune;
+  }
+
+  const currentIncrement = currentPoint?.increment;
 
   // 2. Handle events using the accurate increment
   if (currentIncrement !== undefined) {
@@ -370,11 +388,17 @@ const initializeMap = async () => {
   mapboxgl.accessToken = mapboxToken.value;
 
   try {
-    const [fetchedLineString, fetchedTrackingData, fetchedEvents] = await Promise.all([
+    const [fetchedLineString, fetchedTrackingData, fetchedEvents, allCircuits] = await Promise.all([
       invoke('read_line_string_file', { circuitId: props.circuitId }),
       invoke('read_tracking_file', { circuitId: props.circuitId }),
-      invoke('get_events', { circuitId: props.circuitId })
+      invoke('get_events', { circuitId: props.circuitId }),
+      invoke('get_circuits_for_display')
     ]);
+
+    const currentCircuit = allCircuits.find(c => c.circuitId === props.circuitId);
+    if (currentCircuit) {
+        avancementCommunes.value = currentCircuit.avancementCommunes;
+    }
 
     if (fetchedEvents) {
         if (fetchedEvents.pointEvents) {
@@ -552,5 +576,24 @@ onUnmounted(() => {
 /* Hide mapbox logo/attribution for cleaner view, but ensure it's compliant with Mapbox terms */
 .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right {
   display: none;
+}
+
+.commune-display {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 250px;
+  height: 40px;
+  background-color: white;
+  border-width: 4px;
+  border-style: solid;
+  border-radius: 5px;
+  color: black;
+  padding: 4px;
+  z-index: 1;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
