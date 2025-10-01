@@ -7,7 +7,8 @@
           <div class="d-flex align-center justify-center fill-height px-4">
             <span class="font-weight-bold font-monospace">Distance :&nbsp;</span>
             <span :class="['font-weight-bold', 'font-monospace', `text-${cometColor}`]">{{ distanceDisplay }}</span>
-          </div>  </v-card>
+          </div>  
+  </v-card>
 
   <div class="bottom-controls">
     <v-card variant="elevated" class="controls-card">
@@ -54,6 +55,7 @@ let isMapInitialized = false;
 let warningShown = false;
 let accumulatedTime = 0;
 let lastTimestamp = 0;
+let activePopups = new Map();
 
 const lineStringRef = ref(null);
 const trackingDataRef = ref(null);
@@ -63,6 +65,8 @@ const trackingPointsWithDistanceRef = ref([]);
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
+const rangeEvents = ref([]);
+
 const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
 const isFlytoActive = ref(false);
@@ -145,8 +149,71 @@ const animate = (timestamp) => {
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
   }
 
-  let prevKeyframe, nextKeyframe;
+  // --- Event and Camera Logic ---
+  if (!trackingPointsWithDistanceRef.value || trackingPointsWithDistanceRef.value.length < 2) return;
 
+  // 1. Find the current, real-time increment on the dense track for event handling
+  let currentPointIndex = trackingPointsWithDistanceRef.value.findIndex((p, i) => {
+      const nextPoint = trackingPointsWithDistanceRef.value[i + 1];
+      return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
+  });
+  if (currentPointIndex < 0) { // If not found (e.g., at the very end), use the last valid index
+      currentPointIndex = trackingPointsWithDistanceRef.value.length - 2;
+  }
+  const currentIncrement = trackingPointsWithDistanceRef.value[currentPointIndex]?.increment;
+
+  // 2. Handle events using the accurate increment
+  if (currentIncrement !== undefined) {
+      // Popups
+      if (map && rangeEvents.value.length > 0) {
+          const newVisibleIds = new Set();
+          for (const msg of rangeEvents.value) {
+              if (currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement) {
+                  newVisibleIds.add(msg.id);
+              }
+          }
+          const currentVisibleIds = new Set(activePopups.keys());
+          for (const id of currentVisibleIds) {
+              if (!newVisibleIds.has(id)) {
+                  activePopups.get(id)?.remove();
+                  activePopups.delete(id);
+              }
+          }
+          for (const id of newVisibleIds) {
+              if (!currentVisibleIds.has(id)) {
+                  const newMsg = rangeEvents.value.find(m => m.id === id);
+                  if (newMsg) {
+                      const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom', className: 'map-message-popup' })
+                          .setLngLat(newMsg.coord)
+                          .setHTML(`<div style="background-color: ${newMsg.backgroundColor || 'white'}; color: black; border-color: ${newMsg.borderColor || 'black'}; border-width: ${newMsg.borderWidth != null ? newMsg.borderWidth + 'px' : '1px'}; border-radius: ${newMsg.borderRadius != null ? newMsg.borderRadius + 'px' : '4px'}; padding: 5px 10px; border-style: solid;">${newMsg.text}</div>`)
+                          .addTo(map);
+                      activePopups.set(id, popup);
+                  }
+              }
+          }
+      }
+
+      // Flyto
+      const flytoData = flytoEvents.value[currentIncrement];
+      if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
+          triggeredFlytoIncrement.value = currentIncrement;
+          executeFlytoSequence(flytoData);
+          animationFrameId = requestAnimationFrame(animate);
+          return;
+      }
+
+      // Pause
+      if (pauseIncrements.value.includes(currentIncrement)) {
+          if (triggeredPauseIncrement.value !== currentIncrement) {
+              isPaused.value = true;
+              triggeredPauseIncrement.value = currentIncrement;
+              showSnackbar('Pause programmée atteinte.', 'info');
+          }
+      }
+  }
+
+  // 3. Determine camera keyframes (can be optimized with control points)
+  let prevCamKeyframe, nextCamKeyframe;
   let lastPassedControlPointIndex = -1;
   for (let i = controlPointIndicesRef.value.length - 1; i >= 0; i--) {
       const cpIndex = controlPointIndicesRef.value[i];
@@ -156,77 +223,49 @@ const animate = (timestamp) => {
       }
   }
 
-  if (lastPassedControlPointIndex !== -1) {
+  if (lastPassedControlPointIndex !== -1 && trackingPointsWithDistanceRef.value[lastPassedControlPointIndex].nbrSegment > 0) {
       const controlPoint = trackingPointsWithDistanceRef.value[lastPassedControlPointIndex];
-      if (controlPoint.nbrSegment > 0) {
-          const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
-          if (nextCpIndex < trackingPointsWithDistanceRef.value.length) {
-              prevKeyframe = controlPoint;
-              nextKeyframe = trackingPointsWithDistanceRef.value[nextCpIndex];
-          } 
+      const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
+      if (nextCpIndex < trackingPointsWithDistanceRef.value.length) {
+          prevCamKeyframe = controlPoint;
+          nextCamKeyframe = trackingPointsWithDistanceRef.value[nextCpIndex];
       }
   }
 
-  if (!prevKeyframe || !nextKeyframe) {
-      const isLastControlPoint = controlPointIndicesRef.value.indexOf(lastPassedControlPointIndex) === controlPointIndicesRef.value.length - 1;
-
-      if (lastPassedControlPointIndex !== -1 && !isLastControlPoint && !warningShown) {
-          showSnackbar("Le tracking n'est pas complétement validé !", 'warning');
-          warningShown = true;
-      }
-      let currentPointIndex = trackingPointsWithDistanceRef.value.findIndex((p, i) => {
-          const nextPoint = trackingPointsWithDistanceRef.value[i + 1];
-          return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
-      });
-      if (currentPointIndex === -1) currentPointIndex = trackingPointsWithDistanceRef.value.length - 2;
-      if (currentPointIndex < 0) currentPointIndex = 0;
-      prevKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex];
-      nextKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex + 1];
+  // Fallback to dense keyframes if no control point segment is active
+  if (!prevCamKeyframe || !nextCamKeyframe) {
+      prevCamKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex];
+      nextCamKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex + 1];
   }
 
-    const currentIncrement = prevKeyframe?.increment;
-
-    const flytoData = flytoEvents.value[currentIncrement];
-    if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
-        triggeredFlytoIncrement.value = currentIncrement;
-        executeFlytoSequence(flytoData);
-        animationFrameId = requestAnimationFrame(animate);
-        return;
-    }
-
-    if (currentIncrement !== undefined && pauseIncrements.value.includes(currentIncrement)) {
-        if (triggeredPauseIncrement.value !== currentIncrement) {
-            isPaused.value = true;
-            triggeredPauseIncrement.value = currentIncrement;
-            showSnackbar('Pause programmée atteinte.', 'info');
-        }
-    }
-
-  const prevKeyframeDist = prevKeyframe.distance;
-  const nextKeyframeDist = nextKeyframe.distance;
+  // 4. Interpolate and set camera position
+  const prevKeyframeDist = prevCamKeyframe.distance;
+  const nextKeyframeDist = nextCamKeyframe.distance;
   const segmentDist = nextKeyframeDist - prevKeyframeDist;
   const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
 
-  const prevZoom = prevKeyframe.editedZoom ?? prevKeyframe.zoom;
-  const nextZoom = nextKeyframe.editedZoom ?? nextKeyframe.zoom;
+  const prevZoom = prevCamKeyframe.editedZoom ?? prevCamKeyframe.zoom;
+  const nextZoom = nextCamKeyframe.editedZoom ?? nextCamKeyframe.zoom;
 
-  const prevPitch = prevKeyframe.editedPitch ?? prevKeyframe.pitch;
-  const nextPitch = nextKeyframe.editedPitch ?? nextKeyframe.pitch;
+  const prevPitch = prevCamKeyframe.editedPitch ?? prevCamKeyframe.pitch;
+  const nextPitch = nextCamKeyframe.editedPitch ?? nextCamKeyframe.pitch;
 
-  const prevCap = prevKeyframe.editedCap ?? prevKeyframe.cap;
-  const nextCap = nextKeyframe.editedCap ?? nextKeyframe.cap;
+  const prevCap = prevCamKeyframe.editedCap ?? prevCamKeyframe.cap;
+  const nextCap = nextCamKeyframe.editedCap ?? nextCamKeyframe.cap;
 
   const zoom = lerp(prevZoom, nextZoom, progressInSegment);
   const pitch = lerp(prevPitch, nextPitch, progressInSegment);
   const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
   
-  const lookAtPointLng = lerp(prevKeyframe.coordonnee[0], nextKeyframe.coordonnee[0], progressInSegment);
-  const lookAtPointLat = lerp(prevKeyframe.coordonnee[1], nextKeyframe.coordonnee[1], progressInSegment);
+  const lookAtPointLng = lerp(prevCamKeyframe.coordonnee[0], nextCamKeyframe.coordonnee[0], progressInSegment);
+  const lookAtPointLat = lerp(prevCamKeyframe.coordonnee[1], nextCamKeyframe.coordonnee[1], progressInSegment);
 
   map.setZoom(zoom);
   map.setPitch(pitch);
   map.setBearing(bearing);
   map.setCenter([lookAtPointLng, lookAtPointLat]);
+
+  if (map) map.triggerRepaint();
 
   if (phase < 1 || isRewinding.value) {
     animationFrameId = requestAnimationFrame(animate);
@@ -284,6 +323,10 @@ const resetAnimation = () => {
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
     preFlytoCameraOptions.value = null;
+
+    activePopups.forEach(popup => popup.remove());
+    activePopups.clear();
+
     // Reset comet to start
     map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
     // Restart animation loop if it was stopped
@@ -335,22 +378,25 @@ const initializeMap = async () => {
       invoke('get_events', { circuitId: props.circuitId })
     ]);
 
-    if (fetchedEvents && fetchedEvents.pointEvents) {
-        pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
-            .filter(increment =>
-                fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
-            )
-            .map(Number);
-        
-        const flytos = {};
-        for (const incrementStr in fetchedEvents.pointEvents) {
-            const increment = Number(incrementStr);
-            const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
-            if (flytoEvent) {
-                flytos[increment] = flytoEvent.data;
+    if (fetchedEvents) {
+        if (fetchedEvents.pointEvents) {
+            pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
+                .filter(increment =>
+                    fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
+                )
+                .map(Number);
+            
+            const flytos = {};
+            for (const incrementStr in fetchedEvents.pointEvents) {
+                const increment = Number(incrementStr);
+                const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
+                if (flytoEvent) {
+                    flytos[increment] = flytoEvent.data;
+                }
             }
+            flytoEvents.value = flytos;
         }
-        flytoEvents.value = flytos;
+        rangeEvents.value = fetchedEvents.rangeEvents || [];
     }
 
     if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {
@@ -438,6 +484,8 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
+  activePopups.forEach(popup => popup.remove());
+  activePopups.clear();
   if (map) map.remove();
   map = null;
   isMapInitialized = false;
@@ -490,6 +538,17 @@ onUnmounted(() => {
     padding: 0 8px;
     min-width: 45px; /* Ensure space doesn't jump around */
     text-align: center;
+}
+
+/* Remove the default white box and pointer/tip from our custom popups */
+.map-message-popup .mapboxgl-popup-content {
+  background: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.map-message-popup .mapboxgl-popup-tip {
+  display: none;
 }
 
 /* Hide mapbox logo/attribution for cleaner view, but ensure it's compliant with Mapbox terms */
