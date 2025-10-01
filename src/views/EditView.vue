@@ -45,6 +45,7 @@
         :defaultCameraPitch="defaultPitch"
         :pause-events="pauseEventsForDisplay"
         :flyto-events="flytoEventsForDisplay"
+        :range-events="eventsFile.rangeEvents"
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget

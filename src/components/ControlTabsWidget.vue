@@ -503,8 +503,8 @@ const onAddMessage = () => {
   }
   const messageData = {
     text: messageText.value,
-    preAffichage: messageDisplayRange.value[0],
-    postAffichage: messageDisplayRange.value[1],
+    preAffichage: props.messagePreAffichageSetting,
+    postAffichage: props.messagePostAffichageSetting,
     coord: null, // Always null, parent will fill with map center
     backgroundColor: messageBackgroundColor.value,
     borderColor: messageBorderColor.value,

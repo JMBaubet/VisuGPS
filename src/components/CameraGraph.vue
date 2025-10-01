@@ -2,6 +2,26 @@
   <div class="graph-container-wrapper" @wheel.prevent>
     <div class="graph-container" :class="{ 'is-scrollable': isScrollable }" ref="scrollContainer">
       <svg :width="svgWidth" :height="svgHeight" @click="handleGraphClick">
+        <!-- Range Events (Messages) -->
+        <g v-for="(event, index) in processedRangeEvents" :key="`re-${index}`">
+          <rect
+            :x="event.x"
+            :y="event.y"
+            :width="event.width"
+            :height="event.height"
+            :fill="event.fillColor"
+            rx="2"
+          />
+          <line
+            :x1="event.anchorX"
+            :y1="event.y - 1"
+            :x2="event.anchorX"
+            :y2="event.y + event.height + 1"
+            :stroke="event.strokeColor"
+            stroke-width="3"
+          />
+        </g>
+
         <!-- Axe X de référence -->
         <line :x1="0" :y1="graphCenterY" :x2="svgWidth" :y2="graphCenterY" class="axis-line" />
 
@@ -170,6 +190,7 @@ const props = defineProps({
   defaultCameraPitch: { type: Number, default: 0 },
   pauseEvents: { type: Array, default: () => [] },
   flytoEvents: { type: Array, default: () => [] },
+  rangeEvents: { type: Array, default: () => [] },
 });
 
 const controlPoints = computed(() => {
@@ -186,6 +207,73 @@ const flytoPoints = computed(() => {
   if (!props.flytoEvents || props.flytoEvents.length === 0) return [];
   const flytoIncrements = new Set(props.flytoEvents);
   return props.trackingPoints.filter(p => flytoIncrements.has(p.increment));
+});
+
+const processedRangeEvents = computed(() => {
+  if (!props.rangeEvents || props.rangeEvents.length === 0 || props.trackingPoints.length === 0) {
+    return [];
+  }
+
+  const trackingMap = new Map(props.trackingPoints.map(p => [p.increment, p.distance]));
+
+  const eventsWithCoords = props.rangeEvents.map(event => {
+    // Use the start/end increments provided directly by the event data
+    const startIncrement = event.startIncrement;
+    const endIncrement = event.endIncrement;
+    const anchorIncrement = event.anchorIncrement;
+
+    const startDistance = trackingMap.get(startIncrement);
+    const endDistance = trackingMap.get(endIncrement);
+    const anchorDistance = trackingMap.get(anchorIncrement);
+
+    if (startDistance === undefined || endDistance === undefined || anchorDistance === undefined) {
+      return null; // Event is out of bounds or invalid
+    }
+
+    return {
+      ...event,
+      startX: startDistance * kmToPx,
+      endX: endDistance * kmToPx,
+      anchorX: anchorDistance * kmToPx,
+    };
+  }).filter(Boolean);
+
+  // Sort events by startX
+  eventsWithCoords.sort((a, b) => a.startX - b.startX);
+
+  const lanes = []; // Each lane stores the endX of the last event
+  const rectangleHeight = 3;
+  const verticalGap = 3;
+  const baseOffsetY = 5; // Offset from the bottom of the graph
+
+  return eventsWithCoords.map(event => {
+    let assignedLane = -1;
+
+    // Find an available lane
+    for (let i = 0; i < lanes.length; i++) {
+      if (event.startX >= lanes[i]) {
+        assignedLane = i;
+        lanes[i] = event.endX;
+        break;
+      }
+    }
+
+    // If no lane was found, create a new one
+    if (assignedLane === -1) {
+      assignedLane = lanes.length;
+      lanes.push(event.endX);
+    }
+
+    return {
+      ...event,
+      x: event.startX,
+      y: svgHeight - baseOffsetY - (assignedLane * (rectangleHeight + verticalGap)),
+      width: event.endX - event.startX,
+      height: rectangleHeight,
+      fillColor: toHex(event.backgroundColor),
+      strokeColor: toHex(event.borderColor),
+    };
+  });
 });
 
 const handleGraphClick = (event) => {
