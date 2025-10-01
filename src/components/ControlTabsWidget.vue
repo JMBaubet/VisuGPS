@@ -401,8 +401,8 @@ const props = defineProps({
   
       // Ensure preAffichage is within its valid range (0 to 50)
       newPreAffichage = Math.max(0, Math.min(50, newPreAffichage));
-      // Ensure postAffichage is within its valid range (0 to 100)
-      newPostAffichage = Math.max(0, Math.min(100, newPostAffichage));
+      // Ensure postAffichage is within its valid range (1 to 100)
+      newPostAffichage = Math.max(1, Math.min(100, newPostAffichage));
 
       emit('update:messagePreAffichageSetting', newPreAffichage);
       emit('update:messagePostAffichageSetting', newPostAffichage);
