@@ -22,11 +22,21 @@
 
 
 
+        <!-- Indicateur de pitch actuel -->
+        <line
+          :x1="progressIndicatorX + 2 - 13"
+          :y1="currentPitchDeltaY"
+          :x2="progressIndicatorX + 2 + 13"
+          :y2="currentPitchDeltaY"
+          :stroke="pitchColor"
+          stroke-width="2"
+        />
+
         <!-- Indicateur de zoom actuel -->
         <line
-          :x1="progressIndicatorX + 2 - 10"
+          :x1="progressIndicatorX + 2 - 9"
           :y1="currentZoomDeltaY"
-          :x2="progressIndicatorX + 2 + 10"
+          :x2="progressIndicatorX + 2 + 9"
           :y2="currentZoomDeltaY"
           :stroke="zoomColor"
           stroke-width="2"

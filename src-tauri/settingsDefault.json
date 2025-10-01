@@ -545,6 +545,7 @@
                     "libelle": "Couleur de fond",
                     "description": "Couleur de fond du message (Material Design).",
                     "type": "couleur",
+                    "materialDesign": true,
                     "defaut": "indigo",
                     "critique": false,
                     "documentation": null
@@ -554,6 +555,7 @@
                     "libelle": "Couleur de bordure",
                     "description": "Couleur de bordure du message (Material Design).",
                     "type": "couleur",
+                    "materialDesign": true,
                     "defaut": "white",
                     "critique": false,
                     "documentation": null

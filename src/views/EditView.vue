@@ -622,39 +622,70 @@ const handleSeekDistance = (distanceInKm) => {
 const updateCameraPosition = (index) => {
   if (!map || !trackingPoints.value.length) return;
 
+  // Detach listeners to prevent state corruption during animation
+  map.off('zoom', updateCameraInfo);
+  map.off('pitch', updateCameraInfo);
+  map.off('rotate', updateCameraInfo);
+
   const point = trackingPoints.value[index];
 
   const flyToOptions = {
     center: point.coordonnee,
-    essential: true
+    essential: true,
+    duration: 150 // A short duration for smoother repeated calls
   };
 
+  // Determine target camera values based on mode and set them for the animation
   if (cameraSyncMode.value === 'original') {
-    currentZoom.value = point.zoom;
-    currentPitch.value = point.pitch;
-    currentBearing.value = point.cap;
+    flyToOptions.zoom = point.zoom;
+    flyToOptions.pitch = point.pitch;
+    flyToOptions.bearing = point.cap;
+  } else if (cameraSyncMode.value === 'edited') {
+    flyToOptions.zoom = point.editedZoom;
+    flyToOptions.pitch = point.editedPitch;
+    flyToOptions.bearing = point.editedCap;
+  } else if (cameraSyncMode.value === 'off') {
+    // In 'off' mode, maintain the current user-set camera values
     flyToOptions.zoom = currentZoom.value;
     flyToOptions.pitch = currentPitch.value;
     flyToOptions.bearing = currentBearing.value;
   }
 
+  map.once('moveend', () => {
+    // After movement, forcefully sync the component state with the intended final values
+    // This prevents the state from reflecting intermediate, incorrect animation values.
+    if (flyToOptions.zoom !== undefined) {
+        currentZoom.value = flyToOptions.zoom;
+        currentPitch.value = flyToOptions.pitch;
+        currentBearing.value = flyToOptions.bearing;
+    } else {
+        // Fallback: if options weren't set for some reason, sync from map's final state
+        updateCameraInfo();
+    }
+
+    // Re-attach listeners for manual user control
+    map.on('zoom', updateCameraInfo);
+    map.on('pitch', updateCameraInfo);
+    map.on('rotate', updateCameraInfo);
+  });
+
   map.flyTo(flyToOptions);
 
+  // This part of the function handles the progress line and can run immediately
   if (totalLineLength.value > 0) {
     currentProgressDistance.value = point.distance;
     progressPercentage.value = (point.distance / totalLineLength.value) * 100;
 
-    const line = turf.lineString(lineStringCoordinates.value); // Use original ref value directly
+    const line = turf.lineString(lineStringCoordinates.value);
     let slicedLine;
 
     if (point.distance === 0) {
-      // If at the start, set to an empty LineString or a LineString with just the first point
       slicedLine = {
         type: 'Feature',
         properties: {},
         geometry: {
           type: 'LineString',
-          coordinates: [], // Empty LineString
+          coordinates: [],
         },
       };
     } else {
