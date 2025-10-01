@@ -12,7 +12,7 @@
                         <span class="font-weight-bold">Distance :&nbsp;</span>
                         <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span>
                       </div>  
-              </v-card>  <div class="bottom-controls">
+              </v-card>  <div class="bottom-controls" :style="controlsStyle">
     <v-card variant="elevated" class="controls-card">
         <div class="d-flex align-center pa-1">
             <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
@@ -26,6 +26,13 @@
         </div>
     </v-card>
   </div>
+
+  <AltitudeProfile
+    v-if="lineStringRef"
+    :line-string="lineStringRef"
+    :current-distance-km="distanceTraveled"
+    @update:height="graphHeight = $event"
+  />
 </template>
 
 <script setup>
@@ -38,6 +45,7 @@ import { useTheme } from 'vuetify';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import AltitudeProfile from '@/components/AltitudeProfile.vue';
 
 const props = defineProps({
   circuitId: {
@@ -70,6 +78,12 @@ const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
+const distanceTraveled = ref(0);
+const graphHeight = ref(150); // Default height
+
+const controlsStyle = computed(() => ({
+  bottom: `${graphHeight.value + 25}px`, // graph height + 20px padding + 5px graph margin
+}));
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -147,13 +161,13 @@ const animate = (timestamp) => {
   }
 
   const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
-  const distanceTraveled = totalDistanceRef.value * phase;
-  distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
+  distanceTraveled.value = totalDistanceRef.value * phase;
+  distanceDisplay.value = `${distanceTraveled.value.toFixed(2)} km`;
 
   const cometLengthKm = cometLength.value / 1000;
-  const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
-  if (distanceTraveled > startDistance) {
-      const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
+  const startDistance = Math.max(0, distanceTraveled.value - cometLengthKm);
+  if (distanceTraveled.value > startDistance) {
+      const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled.value, { units: 'kilometers' });
       map.getSource('comet-source').setData(cometSlice);
   } else {
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
@@ -165,7 +179,7 @@ const animate = (timestamp) => {
   // 1. Find the current, real-time increment on the dense track for event handling
   let currentPointIndex = trackingPointsWithDistanceRef.value.findIndex((p, i) => {
       const nextPoint = trackingPointsWithDistanceRef.value[i + 1];
-      return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
+      return nextPoint && distanceTraveled.value >= p.distance && distanceTraveled.value < nextPoint.distance;
   });
   if (currentPointIndex < 0) { // If not found (e.g., at the very end), use the last valid index
       currentPointIndex = trackingPointsWithDistanceRef.value.length - 2;
@@ -233,7 +247,7 @@ const animate = (timestamp) => {
   let lastPassedControlPointIndex = -1;
   for (let i = controlPointIndicesRef.value.length - 1; i >= 0; i--) {
       const cpIndex = controlPointIndicesRef.value[i];
-      if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled) {
+      if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled.value) {
           lastPassedControlPointIndex = cpIndex;
           break;
       }
@@ -258,7 +272,7 @@ const animate = (timestamp) => {
   const prevKeyframeDist = prevCamKeyframe.distance;
   const nextKeyframeDist = nextCamKeyframe.distance;
   const segmentDist = nextKeyframeDist - prevKeyframeDist;
-  const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
+  const progressInSegment = segmentDist > 0 ? (distanceTraveled.value - prevKeyframeDist) / segmentDist : 0;
 
   const prevZoom = prevCamKeyframe.editedZoom ?? prevCamKeyframe.zoom;
   const nextZoom = nextCamKeyframe.editedZoom ?? nextCamKeyframe.zoom;
@@ -339,6 +353,7 @@ const resetAnimation = () => {
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
     preFlytoCameraOptions.value = null;
+    distanceTraveled.value = 0;
 
     activePopups.forEach(popup => popup.remove());
     activePopups.clear();
@@ -543,11 +558,12 @@ onUnmounted(() => {
 
 .bottom-controls {
   position: absolute;
-  bottom: 20px;
+  /* bottom is now controlled by a dynamic style */
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1;
+  z-index: 3; /* Ensure it's above the graph */
   pointer-events: auto;
+  transition: bottom 0.3s ease;
 }
 
 .controls-card {
