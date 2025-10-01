@@ -62,9 +62,66 @@ const totalDurationAt1xRef = ref(0);
 const trackingPointsWithDistanceRef = ref([]);
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
+const flytoEvents = ref({});
 const triggeredPauseIncrement = ref(null);
+const triggeredFlytoIncrement = ref(null);
+const isFlytoActive = ref(false);
+const preFlytoCameraOptions = ref(null);
+
+async function executeFlytoSequence(flytoData) {
+    isFlytoActive.value = true;
+    isPaused.value = true;
+
+    preFlytoCameraOptions.value = {
+        center: map.getCenter(),
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+    };
+
+    showSnackbar('Début du survol programmé...', 'info');
+    
+    await new Promise(resolve => {
+        map.once('moveend', resolve);
+        map.flyTo({
+            center: flytoData.coord,
+            zoom: flytoData.zoom,
+            pitch: flytoData.pitch,
+            bearing: flytoData.cap,
+            duration: flytoData.duree,
+        });
+    });
+
+    await new Promise(resolve => {
+        const unwatch = watch(() => isPaused.value, (newVal) => {
+            if (newVal === false) {
+                unwatch();
+                resolve();
+            }
+        });
+    });
+
+    showSnackbar('Retour à la trace...', 'info');
+    
+    await new Promise(resolve => {
+        map.once('moveend', resolve);
+        map.flyTo({
+            ...preFlytoCameraOptions.value,
+            duration: flytoData.duree,
+        });
+    });
+
+    isFlytoActive.value = false;
+}
 
 const animate = (timestamp) => {
+  if (isFlytoActive.value) {
+    if (map) map.triggerRepaint();
+    lastTimestamp = timestamp; 
+    animationFrameId = requestAnimationFrame(animate);
+    return;
+  }
+
   if (lastTimestamp === 0) lastTimestamp = timestamp;
   const deltaTime = timestamp - lastTimestamp;
   lastTimestamp = timestamp;
@@ -78,14 +135,6 @@ const animate = (timestamp) => {
   const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
-
-  // Debugging logs for animate function
-  // console.log("Animate - accumulatedTime:", accumulatedTime);
-  // console.log("Animate - totalDurationAt1xRef:", totalDurationAt1xRef.value);
-  // console.log("Animate - phase:", phase);
-  // console.log("Animate - distanceTraveled:", distanceTraveled);
-  // console.log("Animate - isPaused:", isPaused.value);
-  // console.log("Animate - isRewinding:", isRewinding.value);
 
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
@@ -135,8 +184,16 @@ const animate = (timestamp) => {
       nextKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex + 1];
   }
 
-    // Handle programmed pause events
     const currentIncrement = prevKeyframe?.increment;
+
+    const flytoData = flytoEvents.value[currentIncrement];
+    if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
+        triggeredFlytoIncrement.value = currentIncrement;
+        executeFlytoSequence(flytoData);
+        animationFrameId = requestAnimationFrame(animate);
+        return;
+    }
+
     if (currentIncrement !== undefined && pauseIncrements.value.includes(currentIncrement)) {
         if (triggeredPauseIncrement.value !== currentIncrement) {
             isPaused.value = true;
@@ -165,8 +222,6 @@ const animate = (timestamp) => {
   
   const lookAtPointLng = lerp(prevKeyframe.coordonnee[0], nextKeyframe.coordonnee[0], progressInSegment);
   const lookAtPointLat = lerp(prevKeyframe.coordonnee[1], nextKeyframe.coordonnee[1], progressInSegment);
-
-  // console.log("Animate - Zoom:", zoom, "Pitch:", pitch, "Bearing:", bearing, "Center:", [lookAtPointLng, lookAtPointLat]);
 
   map.setZoom(zoom);
   map.setPitch(pitch);
@@ -226,6 +281,9 @@ const resetAnimation = () => {
     isAnimationFinished.value = false;
     warningShown = false;
     triggeredPauseIncrement.value = null;
+    triggeredFlytoIncrement.value = null;
+    isFlytoActive.value = false;
+    preFlytoCameraOptions.value = null;
     // Reset comet to start
     map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
     // Restart animation loop if it was stopped
@@ -283,6 +341,16 @@ const initializeMap = async () => {
                 fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
             )
             .map(Number);
+        
+        const flytos = {};
+        for (const incrementStr in fetchedEvents.pointEvents) {
+            const increment = Number(incrementStr);
+            const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
+            if (flytoEvent) {
+                flytos[increment] = flytoEvent.data;
+            }
+        }
+        flytoEvents.value = flytos;
     }
 
     if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {
