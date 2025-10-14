@@ -47,7 +47,7 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue';
-import { core } from '@tauri-apps/api';
+import { core, path } from '@tauri-apps/api';
 import { useSnackbar } from '@/composables/useSnackbar';
 import TraceurSelectionDialog from './TraceurSelectionDialog.vue';
 
@@ -141,7 +141,7 @@ async function importFile() {
     const appEnvPath = appState.app_env_path;
 
     // Construire le chemin du lineString.json
-    const lineStringPath = `${appEnvPath}\\data\\${circuitId}\\lineString.json`;
+    const lineStringPath = await path.join(appEnvPath, 'data', circuitId, 'lineString.json');
 
     // Récupérer les paramètres actuels
     const settings = await core.invoke('read_settings');
