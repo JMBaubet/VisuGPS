@@ -136,12 +136,8 @@ async function importFile() {
       traceurId: traceurId 
     });
 
-    // Récupérer l'état de l'application pour obtenir app_env_path
-    const appState = await core.invoke('get_app_state');
-    const appEnvPath = appState.app_env_path;
-
-    // Construire le chemin du lineString.json
-    const lineStringPath = `${appEnvPath}\\data\\${circuitId}\\lineString.json`;
+    // Construire le chemin RELATIF du lineString.json
+    const lineStringPath = `data/${circuitId}/lineString.json`;
 
     // Récupérer les paramètres actuels
     const settings = await core.invoke('read_settings');
@@ -149,7 +145,7 @@ async function importFile() {
     // Phase 4: Génération de la vignette
     await core.invoke('generate_gpx_thumbnail', {
       circuitId: circuitId,
-      lineStringPath: lineStringPath,
+      lineStringPath: lineStringPath, // Envoi du chemin relatif
       settings: settings
     });
 

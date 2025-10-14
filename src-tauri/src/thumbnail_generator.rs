@@ -26,7 +26,8 @@ pub async fn generate_gpx_thumbnail(
     };
 
     // 1. Lire le lineString.json
-    let line_string_content = fs::read_to_string(&line_string_path)
+    let absolute_line_string_path = app_env_path.join(line_string_path);
+    let line_string_content = fs::read_to_string(&absolute_line_string_path)
         .map_err(|e| format!("Failed to read lineString.json: {}", e))?;
     let line_string_data: Value = serde_json::from_str(&line_string_content)
         .map_err(|e| format!("Failed to parse lineString.json: {}", e))?;

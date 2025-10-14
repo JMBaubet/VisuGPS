@@ -9,7 +9,7 @@ fi
 
 # Supprimer src-tauri/target
 echo "Suppression de src-tauri/target..."
-cd scr-tauri 
+cd src-tauri 
 rm -rf target
 cd ..
 
@@ -18,11 +18,14 @@ echo "Suppression de node_modules..."
 rm -rf node_modules
 
 # Nettoyer le cache npm
-echo "Nettoyage du cache npm..."
-npm cache clean --force
+#echo "Nettoyage du cache npm..."
+#npm cache clean --force
 
 # Réinstallation des modules 
 echo "Installation des node_modules"
 npm install
+
+# Lancement de l'application en mode dev
+npm run tauri dev
 
 echo "Opération terminée."
