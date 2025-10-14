@@ -805,12 +805,6 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let settings_content = fs::read_to_string(&settings_path)?;
     let settings: Value = serde_json::from_str(&settings_content)?;
 
-    // Initialize API states from settings once at startup
-    let ign_actif_default = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.ignActif").and_then(|v| v.as_bool()).unwrap_or(true);
-    let mapbox_actif_default = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.mapboxActif").and_then(|v| v.as_bool()).unwrap_or(true);
-    communes_updater::IGN_ENABLED.store(ign_actif_default, std::sync::atomic::Ordering::SeqCst);
-    communes_updater::MAPBOX_ENABLED.store(mapbox_actif_default, std::sync::atomic::Ordering::SeqCst);
-
     let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())

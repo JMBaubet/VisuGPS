@@ -52,10 +52,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
 
-const { majCommuneIsRunning, circuitsProgress, updatingCircuitId, updatingCircuitName, interruptUpdate } = useCommunesUpdate();
-
-const isIgnEnabled = ref(true);
-const isMapboxEnabled = ref(true);
+const { majCommuneIsRunning, circuitsProgress, updatingCircuitId, updatingCircuitName, interruptUpdate, isIgnEnabled, isMapboxEnabled } = useCommunesUpdate();
 
 const progress = computed(() => {
   if (!updatingCircuitId.value || !circuitsProgress.value[updatingCircuitId.value]) {
@@ -66,19 +63,7 @@ const progress = computed(() => {
 
 const { color: progressColor } = useCommuneColor(progress);
 
-// Fetch initial switch states when the component becomes active
-watch(majCommuneIsRunning, async (isRunning) => {
-  if (isRunning) {
-    try {
-      isIgnEnabled.value = await invoke('get_ign_status');
-      isMapboxEnabled.value = await invoke('get_mapbox_status');
-    } catch (e) {
-      console.error("Failed to get initial API statuses:", e);
-    }
-  }
-});
-
-// Watch for changes and call Tauri commands
+// Watch for user changes and call Tauri commands
 watch(isIgnEnabled, (newValue) => {
   invoke('toggle_ign_api', { enable: newValue });
 });
