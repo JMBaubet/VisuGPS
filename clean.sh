@@ -7,8 +7,11 @@ if [ "$(id -u)" -ne 0 ]; then
   exit
 fi
 
-# Naviguer vers le répertoire de ton projet
-cd /chemin/vers/ton/projet  # Remplace ce chemin par le chemin de ton projet
+# Supprimer src-tauri/target
+echo "Suppression de src-tauri/target..."
+cd scr-tauri 
+rm -rf target
+cd ..
 
 # Supprimer les dossiers node_modules
 echo "Suppression de node_modules..."
