@@ -890,7 +890,7 @@ fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, trackin
     let mut circuits_file = read_circuits_file(app_env_path)?;
 
     if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
-        circuit.tracking_km = tracking_km;
+        circuit.tracking_km = (tracking_km * 10.0).round() / 10.0;
     } else {
         return Err(format!("Circuit with ID '{}' not found.", circuit_id));
     }

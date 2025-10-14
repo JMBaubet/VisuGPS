@@ -169,7 +169,7 @@ const trackingProgressColor = computed(() => {
 
 const editButtonColor = computed(() => {
   if (props.circuit.trackingKm === 0) return 'red-darken-2';
-  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'green-darken-2';
+  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'primary';
   return trackingProgressColor.value;
 });
 
