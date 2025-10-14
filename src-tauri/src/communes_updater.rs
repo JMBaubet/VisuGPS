@@ -86,6 +86,16 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     let timer_mapbox = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerMapbox").and_then(|v| v.as_u64()).unwrap_or(200);
     let timer_osm = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerOSM").and_then(|v| v.as_u64()).unwrap_or(1000);
 
+    // Reset API enabled status from settings at the start of each task
+    let ign_actif = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.ignActif").and_then(|v| v.as_bool()).unwrap_or(true);
+    let mapbox_actif = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.mapboxActif").and_then(|v| v.as_bool()).unwrap_or(true);
+    
+    println!("[DEBUG] Valeur ignActif depuis settings: {}", ign_actif);
+    println!("[DEBUG] Valeur mapboxActif depuis settings: {}", mapbox_actif);
+
+    IGN_ENABLED.store(ign_actif, Ordering::SeqCst);
+    MAPBOX_ENABLED.store(mapbox_actif, Ordering::SeqCst);
+
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
         let _ = handle_clone.emit("commune-update-status-changed", &CommuneStatusPayload {
