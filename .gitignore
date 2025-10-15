@@ -27,6 +27,7 @@ pnpm-debug.log*
 *.tmp
 *.swp
 *.swo
+tmp/
 
 # --- IDE / OS ---
 .vscode/

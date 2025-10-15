@@ -136,13 +136,26 @@ const animate = (timestamp) => {
     return;
   }
 
-  if (lastTimestamp === 0) lastTimestamp = timestamp;
-  const deltaTime = timestamp - lastTimestamp;
+  // New, robust timing logic
+  if (isPaused.value) {
+    lastTimestamp = 0; // Invalidate lastTimestamp while paused
+    animationFrameId = requestAnimationFrame(animate);
+    return;
+  }
+  if (lastTimestamp === 0) {
+    // First frame after start or pause, just set the timestamp and skip a frame
+    lastTimestamp = timestamp;
+    animationFrameId = requestAnimationFrame(animate);
+    return;
+  }
+
+  // Cap deltaTime to prevent large jumps when the tab is inactive
+  const deltaTime = Math.min(timestamp - lastTimestamp, 100);
   lastTimestamp = timestamp;
 
   if (isRewinding.value) {
       accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * speedMultiplier.value));
-  } else if (!isPaused.value) {
+  } else {
       accumulatedTime += deltaTime * speedMultiplier.value;
   }
 
@@ -163,12 +176,12 @@ const animate = (timestamp) => {
   if (!trackingPointsWithDistanceRef.value || trackingPointsWithDistanceRef.value.length < 2) return;
 
   // 1. Find the current, real-time increment on the dense track for event handling
-  let currentPointIndex = trackingPointsWithDistanceRef.value.findIndex((p, i) => {
-      const nextPoint = trackingPointsWithDistanceRef.value[i + 1];
-      return nextPoint && distanceTraveled >= p.distance && distanceTraveled < nextPoint.distance;
-  });
-  if (currentPointIndex < 0) { // If not found (e.g., at the very end), use the last valid index
-      currentPointIndex = trackingPointsWithDistanceRef.value.length - 2;
+  let currentPointIndex = 0;
+  for (let i = trackingPointsWithDistanceRef.value.length - 1; i >= 0; i--) {
+    if (trackingPointsWithDistanceRef.value[i].distance <= distanceTraveled) {
+      currentPointIndex = i;
+      break;
+    }
   }
 
   const currentPoint = trackingPointsWithDistanceRef.value[currentPointIndex];
@@ -228,58 +241,100 @@ const animate = (timestamp) => {
       }
   }
 
-  // 3. Determine camera keyframes (can be optimized with control points)
+  // 3. Determine camera keyframes and set camera
   let prevCamKeyframe, nextCamKeyframe;
+
+  // Find the last control point we have passed
   let lastPassedControlPointIndex = -1;
   for (let i = controlPointIndicesRef.value.length - 1; i >= 0; i--) {
-      const cpIndex = controlPointIndicesRef.value[i];
-      if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled) {
-          lastPassedControlPointIndex = cpIndex;
-          break;
-      }
+    const cpIndex = controlPointIndicesRef.value[i];
+    if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled) {
+      lastPassedControlPointIndex = cpIndex;
+      break;
+    }
   }
 
-  if (lastPassedControlPointIndex !== -1 && trackingPointsWithDistanceRef.value[lastPassedControlPointIndex].nbrSegment > 0) {
-      const controlPoint = trackingPointsWithDistanceRef.value[lastPassedControlPointIndex];
+  if (lastPassedControlPointIndex !== -1) {
+    const controlPoint = trackingPointsWithDistanceRef.value[lastPassedControlPointIndex];
+    if (controlPoint.nbrSegment > 0) {
       const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
       if (nextCpIndex < trackingPointsWithDistanceRef.value.length) {
-          prevCamKeyframe = controlPoint;
-          nextCamKeyframe = trackingPointsWithDistanceRef.value[nextCpIndex];
+        // We found a valid segment defined by a control point
+        prevCamKeyframe = controlPoint;
+        nextCamKeyframe = trackingPointsWithDistanceRef.value[nextCpIndex];
       }
+    }
   }
 
-  // Fallback to dense keyframes if no control point segment is active
-  if (!prevCamKeyframe || !nextCamKeyframe) {
-      prevCamKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex];
-      nextCamKeyframe = trackingPointsWithDistanceRef.value[currentPointIndex + 1];
+  // If we are between two control points of a valid segment, interpolate.
+  if (prevCamKeyframe && nextCamKeyframe && distanceTraveled < nextCamKeyframe.distance) {
+    const prevKeyframeDist = prevCamKeyframe.distance;
+    const nextKeyframeDist = nextCamKeyframe.distance;
+    const segmentDist = nextKeyframeDist - prevKeyframeDist;
+    const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
+
+    const lookAtPointLng = lerp(prevCamKeyframe.coordonnee[0], nextCamKeyframe.coordonnee[0], progressInSegment);
+    const lookAtPointLat = lerp(prevCamKeyframe.coordonnee[1], nextCamKeyframe.coordonnee[1], progressInSegment);
+
+    const prevZoom = prevCamKeyframe.editedZoom ?? prevCamKeyframe.zoom;
+    const nextZoom = nextCamKeyframe.editedZoom ?? nextCamKeyframe.zoom;
+    const prevPitch = prevCamKeyframe.editedPitch ?? prevCamKeyframe.pitch;
+    const nextPitch = nextCamKeyframe.editedPitch ?? nextCamKeyframe.pitch;
+    const prevCap = prevCamKeyframe.editedCap ?? prevCamKeyframe.cap;
+    const nextCap = nextCamKeyframe.editedCap ?? nextCamKeyframe.cap;
+
+    const zoom = lerp(prevZoom, nextZoom, progressInSegment);
+    const pitch = lerp(prevPitch, nextPitch, progressInSegment);
+    const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
+    
+    map.setZoom(zoom);
+    map.setPitch(pitch);
+    map.setBearing(bearing);
+    map.setCenter([lookAtPointLng, lookAtPointLat]);
+  } else {
+    // Otherwise (no CPs, after last CP segment, or on a non-CP point), interpolate point-by-point for smooth movement.
+    if (currentPoint) {
+        const nextPointIndex = currentPointIndex + 1;
+        if (nextPointIndex < trackingPointsWithDistanceRef.value.length) {
+            const nextPoint = trackingPointsWithDistanceRef.value[nextPointIndex];
+
+            const prevKeyframeDist = currentPoint.distance;
+            const nextKeyframeDist = nextPoint.distance;
+            const segmentDist = nextKeyframeDist - prevKeyframeDist;
+            const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
+
+            const lookAtPointLng = lerp(currentPoint.coordonnee[0], nextPoint.coordonnee[0], progressInSegment);
+            const lookAtPointLat = lerp(currentPoint.coordonnee[1], nextPoint.coordonnee[1], progressInSegment);
+
+            const prevZoom = currentPoint.editedZoom ?? currentPoint.zoom;
+            const nextZoom = nextPoint.editedZoom ?? nextPoint.zoom;
+            const prevPitch = currentPoint.editedPitch ?? currentPoint.pitch;
+            const nextPitch = nextPoint.editedPitch ?? nextPoint.pitch;
+            const prevCap = currentPoint.editedCap ?? currentPoint.cap;
+            const nextCap = nextPoint.editedCap ?? nextPoint.cap;
+
+            const zoom = lerp(prevZoom, nextZoom, progressInSegment);
+            const pitch = lerp(prevPitch, nextPitch, progressInSegment);
+            const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
+            
+            map.setZoom(zoom);
+            map.setPitch(pitch);
+            map.setBearing(bearing);
+            map.setCenter([lookAtPointLng, lookAtPointLat]);
+        } else {
+            // At the very last point, just set the camera to its values
+            const zoom = currentPoint.editedZoom ?? currentPoint.zoom;
+            const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
+            const bearing = currentPoint.editedCap ?? currentPoint.cap;
+            const center = currentPoint.coordonnee;
+
+            map.setZoom(zoom);
+            map.setPitch(pitch);
+            map.setBearing(bearing);
+            map.setCenter(center);
+        }
+    }
   }
-
-  // 4. Interpolate and set camera position
-  const prevKeyframeDist = prevCamKeyframe.distance;
-  const nextKeyframeDist = nextCamKeyframe.distance;
-  const segmentDist = nextKeyframeDist - prevKeyframeDist;
-  const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
-
-  const prevZoom = prevCamKeyframe.editedZoom ?? prevCamKeyframe.zoom;
-  const nextZoom = nextCamKeyframe.editedZoom ?? nextCamKeyframe.zoom;
-
-  const prevPitch = prevCamKeyframe.editedPitch ?? prevCamKeyframe.pitch;
-  const nextPitch = nextCamKeyframe.editedPitch ?? nextCamKeyframe.pitch;
-
-  const prevCap = prevCamKeyframe.editedCap ?? prevCamKeyframe.cap;
-  const nextCap = nextCamKeyframe.editedCap ?? nextCamKeyframe.cap;
-
-  const zoom = lerp(prevZoom, nextZoom, progressInSegment);
-  const pitch = lerp(prevPitch, nextPitch, progressInSegment);
-  const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
-  
-  const lookAtPointLng = lerp(prevCamKeyframe.coordonnee[0], nextCamKeyframe.coordonnee[0], progressInSegment);
-  const lookAtPointLat = lerp(prevCamKeyframe.coordonnee[1], nextCamKeyframe.coordonnee[1], progressInSegment);
-
-  map.setZoom(zoom);
-  map.setPitch(pitch);
-  map.setBearing(bearing);
-  map.setCenter([lookAtPointLng, lookAtPointLat]);
 
   if (map) map.triggerRepaint();
 

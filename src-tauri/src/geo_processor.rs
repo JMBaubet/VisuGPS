@@ -93,49 +93,26 @@ pub fn distance_along_line_to_point(line: &LineString<f64>, point: &Point<f64>) 
 
 #[tauri::command]
 pub fn process_tracking_data(
-    line_string_geojson: GeoJson,
+    line_string_geojson: GeoJson, // This is kept for compatibility but not used
     tracking_points_js: Vec<TrackingPointJs>,
 ) -> Result<ProcessedTrackingDataResult, String> {
-    let line_string_geo = match line_string_geojson {
-        GeoJson::Feature(feature) => {
-            if let Some(Geometry { value: GeoJsonValue::LineString(ls_geojson), .. }) = feature.geometry {
-                LineString::new(ls_geojson.into_iter().map(|pos| Coord { x: pos[0], y: pos[1] }).collect())
-            } else {
-                return Err("GeoJSON Feature does not contain a LineString geometry.".to_string());
-            }
-        },
-        GeoJson::Geometry(geometry) => {
-            if let GeoJsonValue::LineString(ls_geojson) = geometry.value {
-                LineString::new(ls_geojson.into_iter().map(|pos| Coord { x: pos[0], y: pos[1] }).collect())
-            } else {
-                return Err("GeoJSON Geometry is not a LineString.".to_string());
-            }
-        },
-        _ => return Err("Invalid GeoJSON type. Expected Feature or Geometry with LineString.".to_string()),
-    };
-
     let mut processed_points = Vec::new();
-
-    // Calculate total distance of the line string
-    let total_distance_km = (line_string_geo.haversine_length() / 1000.0 * 100.0).round() / 100.0;
+    let segment_length_m = 100.0; // Based on user confirmation that each increment is 100m
 
     for tp_js in tracking_points_js {
-        let point_geo = Point::new(tp_js.coordonnee[0], tp_js.coordonnee[1]);
-
-        // Find the nearest point on the line string
-        let nearest_point_on_line = line_string_geo.closest_point(&point_geo);
-
-        let distance_km = match nearest_point_on_line {
-            Closest::SinglePoint(np) => (distance_along_line_to_point(&line_string_geo, &np) / 1000.0 * 100.0).round() / 100.0, // Convert meters to kilometers
-            Closest::Intersection(np) => (distance_along_line_to_point(&line_string_geo, &np) / 1000.0 * 100.0).round() / 100.0, // Treat intersection as a point
-            _ => 0.0, // Fallback for other Closest variants if necessary
-        };
+        let distance_m = tp_js.increment as f64 * segment_length_m;
 
         processed_points.push(ProcessedTrackingPoint {
-            tracking_point: tp_js,
-            distance: distance_km,
+            tracking_point: tp_js.clone(),
+            distance: distance_m / 1000.0, // distance in km
         });
     }
+
+    let total_distance_km = if let Some(last_point) = processed_points.last() {
+        (last_point.distance * 100.0).round() / 100.0
+    } else {
+        0.0
+    };
 
     Ok(ProcessedTrackingDataResult {
         processed_points,
