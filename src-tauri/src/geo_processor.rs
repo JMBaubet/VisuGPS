@@ -117,7 +117,7 @@ pub fn process_tracking_data(
     let mut processed_points = Vec::new();
 
     // Calculate total distance of the line string
-    let total_distance_km = line_string_geo.haversine_length() / 1000.0;
+    let total_distance_km = (line_string_geo.haversine_length() / 1000.0 * 100.0).round() / 100.0;
 
     for tp_js in tracking_points_js {
         let point_geo = Point::new(tp_js.coordonnee[0], tp_js.coordonnee[1]);
@@ -126,8 +126,8 @@ pub fn process_tracking_data(
         let nearest_point_on_line = line_string_geo.closest_point(&point_geo);
 
         let distance_km = match nearest_point_on_line {
-            Closest::SinglePoint(np) => distance_along_line_to_point(&line_string_geo, &np) / 1000.0, // Convert meters to kilometers
-            Closest::Intersection(np) => distance_along_line_to_point(&line_string_geo, &np) / 1000.0, // Treat intersection as a point
+            Closest::SinglePoint(np) => (distance_along_line_to_point(&line_string_geo, &np) / 1000.0 * 100.0).round() / 100.0, // Convert meters to kilometers
+            Closest::Intersection(np) => (distance_along_line_to_point(&line_string_geo, &np) / 1000.0 * 100.0).round() / 100.0, // Treat intersection as a point
             _ => 0.0, // Fallback for other Closest variants if necessary
         };
 

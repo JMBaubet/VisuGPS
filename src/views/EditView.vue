@@ -202,10 +202,13 @@ const handleAddFlytoEvent = async (duration, override = false) => {
 
     const flytoContent = {
       cap: Math.round((map.getBearing() % 360 + 360) % 360), // Normalize bearing to 0-360
-      coord: [lngLat.lng, lngLat.lat],
+      coord: [
+        parseFloat(lngLat.lng.toFixed(5)),
+        parseFloat(lngLat.lat.toFixed(5))
+      ],
       duree: duration, // Use duration from ControlTabsWidget
       pitch: Math.round(map.getPitch()),
-      zoom: parseFloat(map.getZoom().toFixed(1)),
+      zoom: Math.round(map.getZoom()),
     };
 
     const updatedEventsFile = await invoke('add_flyto_event', {
@@ -464,10 +467,10 @@ const updateInterpolation = () => {
 
         for (let j = 1; j < numSegments; j++) {
           const currentIndex = startIndex + j;
-          points[currentIndex].editedZoom = startCp.editedZoom + j * zoomStep;
-          points[currentIndex].editedPitch = startCp.editedPitch + j * pitchStep;
+          points[currentIndex].editedZoom = Math.round(startCp.editedZoom + j * zoomStep);
+          points[currentIndex].editedPitch = Math.round(startCp.editedPitch + j * pitchStep);
           let newBearing = startCp.editedCap + j * bearingStep;
-          points[currentIndex].editedCap = (newBearing + 360) % 360;
+          points[currentIndex].editedCap = Math.round((newBearing + 360) % 360);
         }
       }
     }
@@ -499,13 +502,17 @@ const saveControlPoint = async () => {
   }
 
   point.pointDeControl = true;
-  point.editedZoom = currentZoom.value;
-  point.editedPitch = currentPitch.value;
-  point.editedCap = currentBearing.value;
+  point.editedZoom = Math.round(currentZoom.value);
+  point.editedPitch = Math.round(currentPitch.value);
+  point.editedCap = Math.round(currentBearing.value);
 
   const cameraPos = map.getFreeCameraOptions().position;
-  point.coordonneeCamera = [cameraPos.toLngLat().lng, cameraPos.toLngLat().lat];
-  point.altitudeCamera = cameraPos.toAltitude();
+  const lngLat = cameraPos.toLngLat();
+  point.coordonneeCamera = [
+    parseFloat(lngLat.lng.toFixed(5)),
+    parseFloat(lngLat.lat.toFixed(5))
+  ];
+  point.altitudeCamera = Math.round(cameraPos.toAltitude());
 
   updateInterpolation();
 
@@ -859,7 +866,7 @@ onMounted(async () => {
     const segmentLengthKm = 0.1; // Each tracking point represents a 100m segment
     const processedTrackingPoints = rawTrackingData.map((point, index) => ({
       ...point,
-      distance: index * segmentLengthKm,
+      distance: parseFloat((index * segmentLengthKm).toFixed(2)),
       // Initialize edited values only if they don't already exist, for persistence
       editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
       editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,

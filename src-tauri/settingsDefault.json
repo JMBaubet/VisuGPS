@@ -19,7 +19,7 @@
             "identifiant": "TailleVignette",
             "libelle": "Taille de la vignette",
             "type": "entier",
-            "min": 128,
+            "min": 400,
             "max": 1024,
             "unite": "px"
           }
@@ -44,12 +44,12 @@
                 "libelle": "Dimentions",
                 "parametres": [
                   {
-                    "defaut": 400,
+                    "defaut": 512,
                     "description": "Largeur de la vignette générée en pixels.",
                     "identifiant": "largeur",
                     "libelle": "Largeur de la vignette",
                     "type": "entier",
-                    "min": 100,
+                    "min": 400,
                     "max": 1280,
                     "unite": "px"
                   },
@@ -178,6 +178,7 @@
                 "type": "entier",
                 "min": 10,
                 "max": 1000,
+                "critique": true,
                 "unite": "m"
               },
               {
@@ -187,7 +188,8 @@
                 "libelle": "Lissage du cap",
                 "type": "entier",
                 "min": 1,
-                "max": 50
+                "max": 50,
+                "critique": true
               }
             ]
           },
@@ -224,7 +226,7 @@
                 "identifiant": "taille",
                 "libelle": "Taille du QR code",
                 "type": "entier",
-                "min": 100,
+                "min": 400,
                 "max": 2048,
                 "unite": "px"
               }
@@ -302,16 +304,17 @@
               {
                 "identifiant": "ignActif",
                 "libelle": "Activer l'API IGN par défaut",
-                "description": "Si coché, les requêtes vers l'API de l'IGN seront actives au début de chaque mise à jour des communes.",
+                "description": "Si coché, les requêtes vers l'API de l'IGN seront activeés.",
                 "type": "booleen",
                 "defaut": true
               },
               {
                 "identifiant": "mapboxActif",
                 "libelle": "Activer l'API Mapbox par défaut",
-                "description": "Si coché, les requêtes vers l'API Mapbox seront actives au début de chaque mise à jour des communes.",
+                "description": "Si coché, les requêtes vers l'API Mapbox seront activées.",
                 "type": "booleen",
-                "defaut": true
+                "defaut": false,
+                "critique": true
               }
             ]
           }
