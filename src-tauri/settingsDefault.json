@@ -882,6 +882,188 @@
         ]
       },
       {
+        "libelle": "Altitude",
+        "description": "Paramètres pour le profil altimétrique.",
+        "type": "groupe",
+        "groupes": [
+            {
+                "libelle": "Visualisation",
+                "description": "Paramètres d'affichage du profil altimétrique.",
+                "type": "groupe",
+                "parametres": [
+                    {
+                        "identifiant": "Affichage",
+                        "libelle": "Afficher le profil",
+                        "description": "Affiche ou masque le profil altimétrique dans la vue de visualisation.",
+                        "type": "booleen",
+                        "defaut": true,
+                        "surcharge": null,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Abscisse",
+                        "libelle": "Échelle Abscisse (px/100m)",
+                        "description": "Définit l'échelle de l'axe des abscisses (distance). Nombre de pixels pour 100 mètres.",
+                        "type": "entier",
+                        "defaut": 2,
+                        "surcharge": null,
+                        "min": 1,
+                        "max": 10,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Ordonnee",
+                        "libelle": "Échelle Ordonnée (px/10m)",
+                        "description": "Définit l'échelle de l'axe des ordonnées (altitude). Nombre de pixels pour 10 mètres de dénivelé.",
+                        "type": "entier",
+                        "defaut": 1,
+                        "surcharge": null,
+                        "min": 1,
+                        "max": 10,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "AvancementCouleur",
+                        "libelle": "Couleur du curseur d'avancement",
+                        "description": "Couleur de la ligne verticale indiquant la progression sur le profil.",
+                        "type": "couleur",
+                        "defaut": "white",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "RepereDistance",
+                        "libelle": "Intervalle repère distance (km)",
+                        "description": "Intervalle en kilomètres pour les repères sur l'axe des distances.",
+                        "type": "entier",
+                        "defaut": 10,
+                        "surcharge": null,
+                        "min": 1,
+                        "max": 100,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "RepereAltitude",
+                        "libelle": "Intervalle repère altitude (m)",
+                        "description": "Intervalle en mètres pour les repères sur l'axe des altitudes.",
+                        "type": "entier",
+                        "defaut": 500,
+                        "surcharge": null,
+                        "min": 50,
+                        "max": 2000,
+                        "critique": false
+                    },,
+                    {
+                        "identifiant": "CurseurPositionKm",
+                        "libelle": "Position du curseur (km)",
+                        "description": "Définit la position en km où le curseur se bloque lorsque le graphique défile.",
+                        "type": "entier",
+                        "defaut": 10,
+                        "min": 1,
+                        "critique": false
+                    }
+                ]
+            },
+            {
+                "libelle": "Couleurs",
+                "description": "Définit les couleurs utilisées pour représenter les différentes pentes.",
+                "type": "groupe",
+                "parametres": [
+                    {
+                        "identifiant": "Tranche1",
+                        "libelle": "Pente <= 0%",
+                        "description": "Couleur pour les pentes négatives ou nulles.",
+                        "type": "couleur",
+                        "defaut": "teal",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche2",
+                        "libelle": "Pente > 0% et <= 2%",
+                        "description": "Couleur pour les pentes de 0% à 2%.",
+                        "type": "couleur",
+                        "defaut": "green",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche3",
+                        "libelle": "Pente > 2% et <= 4%",
+                        "description": "Couleur pour les pentes de 2% à 4%.",
+                        "type": "couleur",
+                        "defaut": "yellow",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche4",
+                        "libelle": "Pente > 4% et <= 7%",
+                        "description": "Couleur pour les pentes de 4% à 7%.",
+                        "type": "couleur",
+                        "defaut": "orange",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche5",
+                        "libelle": "Pente > 7% et <= 10%",
+                        "description": "Couleur pour les pentes de 7% à 10%.",
+                        "type": "couleur",
+                        "defaut": "deep-orange",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche6",
+                        "libelle": "Pente > 10% et <= 12%",
+                        "description": "Couleur pour les pentes de 10% à 12%.",
+                        "type": "couleur",
+                        "defaut": "deep-purple",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche7",
+                        "libelle": "Pente > 12% et <= 15%",
+                        "description": "Couleur pour les pentes de 12% à 15%.",
+                        "type": "couleur",
+                        "defaut": "brown",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "Tranche8",
+                        "libelle": "Pente > 15%",
+                        "description": "Couleur pour les pentes supérieures à 15%.",
+                        "type": "couleur",
+                        "defaut": "black",
+                        "surcharge": null,
+                        "materialDesing": true,
+                        "critique": false
+                    },
+                    {
+                        "identifiant": "NegativeSlopeFactor",
+                        "libelle": "Variation pentes négatives",
+                        "description": "Variation de couleur (ex: lighten-2, darken-1) pour les pentes négatives.",
+                        "type": "string",
+                        "defaut": "lighten-2",
+                        "surcharge": null,
+                        "critique": false
+                    }
+                ]
+            }
+        ]
+      },
+      {
         "libelle": "Système",
         "groupes": [
           {

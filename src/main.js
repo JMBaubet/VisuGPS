@@ -1,26 +1,36 @@
-import { createApp } from 'vue'
-import { createVuetify } from 'vuetify'
-import 'vuetify/styles'
-import App from './App.vue'
-import router from './router'
-import { useSettings } from './composables/useSettings'
+import { createApp } from 'vue';
+import App from './App.vue';
+import router from './router';
+import { useSettings } from './composables/useSettings';
 
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
+// Vuetify
+import 'vuetify/styles';
+import { createVuetify } from 'vuetify';
+import * as components from 'vuetify/components';
+import * as directives from 'vuetify/directives';
+
+// ECharts
+import ECharts from 'vue-echarts';
+import 'echarts';
 
 const vuetify = createVuetify({
   components,
   directives,
-})
+});
 
 async function startApp() {
+  // Attendre que les paramètres soient initialisés
   const { initSettings } = useSettings();
   await initSettings();
 
-  createApp(App)
-    .use(router)
-    .use(vuetify)
-    .mount('#app');
+  const app = createApp(App);
+
+  app.use(router);
+  app.use(vuetify);
+  app.component('v-chart', ECharts);
+
+
+  app.mount('#app');
 }
 
 startApp();

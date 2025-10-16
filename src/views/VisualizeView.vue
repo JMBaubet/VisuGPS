@@ -26,6 +26,12 @@
         </div>
     </v-card>
   </div>
+
+  <div v-if="showAltitudeProfile" class="altitude-svg-container">
+      <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
+  </div>
+
+
 </template>
 
 <script setup>
@@ -38,6 +44,7 @@ import { useTheme } from 'vuetify';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import AltitudeSVG from '@/components/AltitudeSVG.vue';
 
 const props = defineProps({
   circuitId: {
@@ -70,6 +77,7 @@ const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
+const currentDistanceInMeters = ref(0);
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -162,6 +170,7 @@ const animate = (timestamp) => {
   const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
+  currentDistanceInMeters.value = distanceTraveled * 1000;
 
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
@@ -380,6 +389,11 @@ const traceOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces
 const cometColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
+const showAltitudeProfile = computed(() => {
+    const value = getSettingValue('Altitude/Visualisation/Affichage');
+    console.log('showAltitudeProfile computed value:', value);
+    return value;
+});
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -603,6 +617,30 @@ onUnmounted(() => {
   transform: translateX(-50%);
   z-index: 1;
   pointer-events: auto;
+}
+
+.altitude-svg-container {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    z-index: 1;
+    pointer-events: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+}
+
+.altitude-profile-container {
+    position: absolute;
+    bottom: 80px; /* Position above the bottom controls */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%; /* Or as desired */
+    z-index: 1;
+    pointer-events: auto;
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
 }
 
 .controls-card {
