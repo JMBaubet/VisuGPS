@@ -3,9 +3,11 @@
 
   <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
 
-  <div v-if="shouldShowCommuneWidget" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
-    <span class="font-weight-bold">{{ currentCommuneName }}</span>
-  </div>
+  <transition name="fade">
+    <div v-if="shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
+      <span class="font-weight-bold">{{ currentCommuneName }}</span>
+    </div>
+  </transition>
 
               <v-card variant="elevated" class="distance-display">
                       <div class="d-flex align-center justify-center fill-height px-4">
@@ -27,9 +29,11 @@
     </v-card>
   </div>
 
-  <div v-if="showAltitudeProfile" class="altitude-svg-container">
-      <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
-  </div>
+  <transition name="fade">
+    <div v-if="isAltitudeVisible" class="altitude-svg-container">
+        <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
+    </div>
+  </transition>
 
 
 </template>
@@ -82,6 +86,7 @@ const currentDistanceInMeters = ref(0);
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
 const currentCommuneName = ref('');
+const isCommuneWidgetVisible = ref(true);
 const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
 const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
 
@@ -389,11 +394,16 @@ const traceOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces
 const cometColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
-const showAltitudeProfile = computed(() => {
+const isAltitudeVisible = ref(false);
+const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
-    console.log('showAltitudeProfile computed value:', value);
+    console.log('showAltitudeProfileSetting computed value:', value);
     return value;
 });
+
+watch(showAltitudeProfileSetting, (newValue) => {
+    isAltitudeVisible.value = newValue;
+}, { immediate: true });
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -441,6 +451,10 @@ const handleKeyDown = (e) => {
         decreaseSpeed();
     } else if (e.key === 'ArrowUp') {
         increaseSpeed();
+    } else if (e.key === 'a' || e.key === 'A') {
+        isAltitudeVisible.value = !isAltitudeVisible.value;
+    } else if (e.key === 'c' || e.key === 'C') {
+        isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
     }
 };
 
@@ -688,5 +702,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
