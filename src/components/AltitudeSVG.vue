@@ -65,8 +65,11 @@
 
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
+
 import { invoke } from '@tauri-apps/api/core';
+
 import { useSettings } from '@/composables/useSettings';
+
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const props = defineProps({
@@ -311,14 +314,13 @@ watch(() => props.currentDistance, (newDistance) => {
 <style scoped>
 .altitude-graph-wrapper {
   display: flex;
-  width: 100%;
+  max-width: 90vw; /* Max width is 80% of the viewport width */
   background-color: rgba(0,0,0,0.3);
 }
 
 .svg-container {
     position: relative; /* Needed for absolute positioning of children */
     overflow-x: auto; /* Use native browser scrolling */
-    flex-grow: 1;
 }
 
 .y-axis-labels-container {

@@ -624,7 +624,7 @@ onUnmounted(() => {
     bottom: 80px;
     left: 50%;
     transform: translateX(-50%);
-    width: 80%;
+    justify-content: center; /* Center the child if it's smaller */
     z-index: 1;
     pointer-events: auto;
     background-color: rgba(0, 0, 0, 0.7);
