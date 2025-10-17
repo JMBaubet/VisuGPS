@@ -12,7 +12,6 @@
       <div
         v-if="tooltipVisible"
         class="tooltip"
-
         :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
       >
         <div>{{ Math.round(tooltipData.distance / 100) / 10 }} km</div>
@@ -65,771 +64,248 @@
 </template>
 
 <script setup>
-
 import { ref, onMounted, watch, computed } from 'vue';
-
 import { invoke } from '@tauri-apps/api/core';
-
 import { useSettings } from '@/composables/useSettings';
-
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
-
-
 const props = defineProps({
-
     circuitId: { type: String, required: true },
-
     currentDistance: { type: Number, required: true },
-
     padding: {
-
         type: Object,
-
         default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
-
     }
-
 });
-
-
 
 // --- Refs ---
-
 const containerRef = ref(null);
-
 const viewBoxWidth = ref(1000);
-
 const svgHeight = ref(210);
-
 const progressX = ref(0);
-
 const pathSegments = ref([]);
-
 const xTicks = ref([]);
-
 const yTicks = ref([]);
-
 const totalDistance = ref(0);
-
 let lastUpdatedDistance = 0;
-
 const minAltitude = ref(0);
-
 const maxAltitude = ref(0);
-
 const zeroAltitudeY = ref(0);
 
-
-
 const innerWidth = computed(() => viewBoxWidth.value - props.padding.left - props.padding.right);
-
 const innerHeight = computed(() => svgHeight.value - props.padding.top - props.padding.bottom);
 
-
-
 // --- Tooltip Refs ---
-
 const tooltipVisible = ref(false);
-
 const tooltipData = ref({ distance: 0, altitude: 0, slope: 0 });
-
 const tooltipPosition = ref({ x: 0, y: 0 });
-
 const hoverLineX = ref(0);
-
 const dataPointsForTooltip = ref([]);
 
-
-
-
-
 // --- Composables ---
-
 const { getSettingValue } = useSettings();
-
 const { toHex } = useVuetifyColors();
 
-
-
 // --- Data Loading and Processing ---
-
 async function processData() {
-
     if (!props.circuitId) return;
-
     try {
-
         const trackingData = await invoke('read_tracking_file', { circuitId: props.circuitId });
-
         if (trackingData.length < 2) return;
 
-
-
         // Filter trackingData to ensure valid altitudes
-
         const filteredTrackingData = trackingData.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
 
-
-
         if (filteredTrackingData.length < 2) {
-
             console.warn("AltitudeSVG: Not enough valid data points after filtering for altitude profile.");
-
             pathSegments.value = [];
-
             return;
-
         }
-
-
 
         const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
-
-        
-
-                minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
-
-        
-
-                maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
-
-        
-
-        
-
-        
-
-                const altitudeTickInterval = getSettingValue('Altitude/Visualisation/RepereAltitude') || 200;
-
-        
-
-                const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
-
-        
-
-                const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
-
-        
-
-        
-
-        
-
-                const effectiveMinAltitude = graphMinY;
-
-        
-
-                const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
-
-        
-
-        
-
-        
-
-                const pixelsFor10Meters = getSettingValue('Altitude/Visualisation/Ordonnee') || 10; // Default to 10 pixels for 10 meters
-
-        
-
-                const pixelsPerMeter = pixelsFor10Meters / 10;
-
-        
-
-                const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
-
-        
-
-                svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
-
-        
-
-        
-
-        
-
-                const dataPoints = filteredTrackingData.map((point, index) => {
-
-        
-
-                    let slope = 0;
-
-        
-
-                    if (index > 0) {
-
-        
-
-                        const prevPoint = filteredTrackingData[index - 1]; // Use filtered data for prevPoint
-
-        
-
-                        const altitudeChange = point.altitude - prevPoint.altitude;
-
-        
-
-                        slope = (altitudeChange / segmentLength) * 100;
-
-        
-
-                    }
-
-        
-
-                    const distance = index * segmentLength;
-
-        
-
-                    return { distance, altitude: point.altitude, slope };
-
-        
-
-                });
-
-        
-
-        
-
-        
-
-                totalDistance.value = dataPoints[dataPoints.length - 1].distance;
-
-        
-
-                dataPointsForTooltip.value = dataPoints;
-
-        
-
-                const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
-
-        
-
-                viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
-
-        
-
-        
-
-        
-
-                console.log("AltitudeSVG Debug:", {
-
-        
-
-                    minAltitude: minAltitude.value,
-
-        
-
-                    maxAltitude: maxAltitude.value,
-
-        
-
-                    effectiveMinAltitude: effectiveMinAltitude,
-
-        
-
-                    effectiveAltitudeSpan: effectiveAltitudeSpan,
-
-        
-
-                    innerHeight: innerHeight.value,
-
-        
-
-                    propsPaddingTop: props.padding.top
-
-        
-
-                });
-
-        
-
-        
-
-        
-
-                const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
-
-        
-
-        
-
-        
-
-                zeroAltitudeY.value = yScale(0);
-
-        
-
-        
-
-        
-
-                        const getSlopeColor = (slope) => {
-
-        
-
-        
-
-        
-
-                            if (slope <= 0) return toHex(getSettingValue('Altitude/Couleurs/TrancheNegative') || 'light-blue');
-
-        
-
-        
-
-        
-
-                            if (slope < 3) return toHex(getSettingValue('Altitude/Couleurs/Tranche1') || 'green');
-
-        
-
-        
-
-        
-
-                            if (slope < 6) return toHex(getSettingValue('Altitude/Couleurs/Tranche2') || 'yellow');
-
         
-
-        
-
-        
-
-                            if (slope < 9) return toHex(getSettingValue('Altitude/Couleurs/Tranche3') || 'orange');
-
-        
-
-        
-
-        
-
-                            if (slope < 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche4') || 'red');
-
-        
-
-        
-
-        
-
-                            return toHex(getSettingValue('Altitude/Couleurs/Tranche5') || 'purple');
-
-        
-
-        
-
-        
-
-                        };
-
-        
-
-        
-
-        
-
-                        const segments = [];
-
-        
-
-        
-
-        
-
-                        const graphBottomY = svgHeight.value - props.padding.bottom;
-
-        
-
-        
-
-        
-
-                        for (let i = 1; i < dataPoints.length; i++) {
-
-        
-
-        
-
-        
-
-                            const p1 = dataPoints[i - 1];
-
-        
-
-        
-
-        
-
-                            const p2 = dataPoints[i];
-
-        
-
-        
-
-        
-
-                            const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
-
-        
-
-        
-
-        
-
-                            const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
-
-        
-
-        
-
-        
-
-                            const y1 = yScale(p1.altitude);
-
-        
-
-        
-
-        
-
-                            const y2 = yScale(p2.altitude);
-
-        
-
-        
-
-        
-
-                
-
-        
-
-        
-
-        
-
-                            segments.push({
-
-        
-
-        
-
-        
-
-                                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
-
-        
-
-        
-
-        
-
-                                linePath: `M ${x1},${y1} L ${x2},${y2}`,
-
-        
-
-        
-
-        
-
-                                color: getSlopeColor(p2.slope)
-
-        
-
-        
-
-        
-
-                            });
-
-        
-
-        
-
-        
-
-                        }
-
-        
-
-                pathSegments.value = segments;
-
-        
-
-        
-
-        
-
-                yTicks.value = []; // Clear previous ticks
-
-        
-
-                for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
-
-        
-
-                    const y = yScale(alt);
-
-        
-
-                    yTicks.value.push({ y, label: `${alt}m` });
-
-        
-
-                }
-
-
-
-        const distanceTicks = [];
-
-        const tickInterval = (getSettingValue('Altitude/Visualisation/RepereDistance') || 10) * 1000;
-
-        for (let d = 0; d <= totalDistance.value; d += tickInterval) {
-
-            distanceTicks.push({ value: d, position: (d / totalDistance.value) * viewBoxWidth.value, label: `${d / 1000}km` });
-
+        minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
+        maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
+        
+        const altitudeTickInterval = getSettingValue('Altitude/Visualisation/RepereAltitude') || 200;
+        const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
+        const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
+        
+        const effectiveMinAltitude = graphMinY;
+        const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
+        
+        const pixelsFor10Meters = getSettingValue('Altitude/Visualisation/Ordonnee') || 10; // Default to 10 pixels for 10 meters
+        const pixelsPerMeter = pixelsFor10Meters / 10;
+        const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
+        svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
+        
+        const dataPoints = filteredTrackingData.map((point, index) => {
+            let slope = 0;
+            if (index > 0) {
+                const prevPoint = filteredTrackingData[index - 1]; // Use filtered data for prevPoint
+                const altitudeChange = point.altitude - prevPoint.altitude;
+                slope = (altitudeChange / segmentLength) * 100;
+            }
+            const distance = index * segmentLength;
+            return { distance, altitude: point.altitude, slope };
+        });
+        
+        totalDistance.value = dataPoints[dataPoints.length - 1].distance;
+        dataPointsForTooltip.value = dataPoints;
+        const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
+        viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
+        
+        console.log("AltitudeSVG Debug:", {
+            minAltitude: minAltitude.value,
+            maxAltitude: maxAltitude.value,
+            effectiveMinAltitude: effectiveMinAltitude,
+            effectiveAltitudeSpan: effectiveAltitudeSpan,
+            innerHeight: innerHeight.value,
+            propsPaddingTop: props.padding.top
+        });
+        
+        const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
+        
+        zeroAltitudeY.value = yScale(0);
+        
+        const getSlopeColor = (slope) => {
+            if (slope <= 0) return toHex(getSettingValue('Altitude/Couleurs/TrancheNegative') || 'light-blue');
+            if (slope < 3) return toHex(getSettingValue('Altitude/Couleurs/Tranche1') || 'green');
+            if (slope < 6) return toHex(getSettingValue('Altitude/Couleurs/Tranche2') || 'yellow');
+            if (slope < 9) return toHex(getSettingValue('Altitude/Couleurs/Tranche3') || 'orange');
+            if (slope < 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche4') || 'red');
+            return toHex(getSettingValue('Altitude/Couleurs/Tranche5') || 'purple');
+        };
+        
+        const segments = [];
+        const graphBottomY = svgHeight.value - props.padding.bottom;
+        for (let i = 1; i < dataPoints.length; i++) {
+            const p1 = dataPoints[i - 1];
+            const p2 = dataPoints[i];
+            const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
+            const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
+            const y1 = yScale(p1.altitude);
+            const y2 = yScale(p2.altitude);
+
+            segments.push({
+                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
+                linePath: `M ${x1},${y1} L ${x2},${y2}`,
+                color: getSlopeColor(p2.slope)
+            });
+        }
+        pathSegments.value = segments;
+        
+        yTicks.value = []; // Clear previous ticks
+        for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
+            const y = yScale(alt);
+            yTicks.value.push({ y, label: `${alt}m` });
         }
 
+        const distanceTicks = [];
+        const tickInterval = (getSettingValue('Altitude/Visualisation/RepereDistance') || 10) * 1000;
+        for (let d = 0; d <= totalDistance.value; d += tickInterval) {
+            distanceTicks.push({ value: d, position: (d / totalDistance.value) * viewBoxWidth.value, label: `${d / 1000}km` });
+        }
         xTicks.value = distanceTicks;
 
-
-
     } catch (error) {
-
         console.error("AltitudeSVG: Error processing data:", error);
-
     }
-
 }
 
-
-
 onMounted(() => {
-
     processData();
-
 });
 
-
-
 function handleMouseMove(event) {
-
     if (!containerRef.value || dataPointsForTooltip.value.length === 0) return;
 
-
-
     const svg = containerRef.value.querySelector('svg');
-
     if (!svg) return;
 
-
-
     const svgRect = svg.getBoundingClientRect();
-
     const mouseX = event.clientX - svgRect.left;
-
-
 
     const clampedMouseX = Math.max(0, Math.min(mouseX, viewBoxWidth.value));
 
-
-
     const hoveredDistance = (clampedMouseX / viewBoxWidth.value) * totalDistance.value;
 
-
-
     const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
-
     const index = Math.round(hoveredDistance / segmentLength);
 
-
-
     if (index >= 0 && index < dataPointsForTooltip.value.length) {
-
         const point = dataPointsForTooltip.value[index];
-
         tooltipData.value = {
-
             distance: point.distance,
-
             altitude: point.altitude,
-
             slope: point.slope,
-
         };
-
         tooltipVisible.value = true;
-
-                hoverLineX.value = clampedMouseX;
-
+        hoverLineX.value = clampedMouseX;
         
+        // --- Tooltip positioning logic ---
+        // Vertical position: Stick to the bottom edge if cursor is too low
+        const tooltipHeight = 80; // Estimated tooltip height in pixels
+        const bottomMargin = 5;
+        const maxTop = svgHeight.value - tooltipHeight - bottomMargin;
+        const desiredY = event.offsetY;
+        const finalY = Math.min(desiredY, maxTop);
 
-                // --- Tooltip positioning logic ---
+        // Horizontal position: Stick to the right edge if cursor is too close
+        const tooltipWidth = 80; // from CSS
+        const rightMargin = 20; // Total threshold of 100px (80px width + 20px margin)
+        const scrollLeft = containerRef.value.scrollLeft;
+        const containerVisibleWidth = containerRef.value.clientWidth;
+        const maxLeft = scrollLeft + containerVisibleWidth - tooltipWidth - rightMargin;
+        const desiredX = event.offsetX;
+        const finalX = Math.min(desiredX, maxLeft);
 
-        
-
-                                // Vertical position: Stick to the bottom edge if cursor is too low
-
-        
-
-                                const tooltipHeight = 80; // Estimated tooltip height in pixels
-
-        
-
-                                const bottomMargin = 5;
-
-        
-
-                                const maxTop = svgHeight.value - tooltipHeight - bottomMargin;
-
-        
-
-                                const desiredY = event.offsetY;
-
-        
-
-                                const finalY = Math.min(desiredY, maxTop);
-
-        
-
-                        
-
-        
-
-                                // Horizontal position: Stick to the right edge if cursor is too close
-
-        
-
-                                const tooltipWidth = 80; // from CSS
-
-        
-
-                                const rightMargin = 20; // Total threshold of 100px (80px width + 20px margin)
-
-        
-
-                                const scrollLeft = containerRef.value.scrollLeft;
-
-        
-
-                                const containerVisibleWidth = containerRef.value.clientWidth;
-
-        
-
-                                const maxLeft = scrollLeft + containerVisibleWidth - tooltipWidth - rightMargin;
-
-        
-
-                                const desiredX = event.offsetX;
-
-        
-
-                                const finalX = Math.min(desiredX, maxLeft);
-
-        
-
-                        
-
-        
-
-                                tooltipPosition.value = {
-
-        
-
-                                  x: finalX,
-
-        
-
-                                  y: finalY
-
-        
-
-                                };
-
+        tooltipPosition.value = {
+          x: finalX,
+          y: finalY
+        };
     } else {
-
         tooltipVisible.value = false;
-
     }
-
 }
-
-
 
 function handleMouseLeave() {
-
     tooltipVisible.value = false;
-
 }
 
-
-
 watch(() => props.currentDistance, (newDistance) => {
-
     if (Math.abs(newDistance - lastUpdatedDistance) < 100) return;
-
     lastUpdatedDistance = newDistance;
-
-
 
     if (!containerRef.value || totalDistance.value === 0) return;
 
-
-
     progressX.value = (newDistance / totalDistance.value) * viewBoxWidth.value;
 
-
-
     const containerWidth = containerRef.value.clientWidth;
-
     const zoomWindowKm = getSettingValue('Altitude/Visualisation/FenetreZoomKm') || 50;
-
     const stuckPositionKm = getSettingValue('Altitude/Visualisation/CurseurPositionKm') || 10;
 
-
-
     const zoomWindowMeters = zoomWindowKm * 1000;
-
     const stuckPositionMeters = stuckPositionKm * 1000;
 
-
-
     const zoomWindowPx = (zoomWindowMeters / totalDistance.value) * viewBoxWidth.value;
-
     const stuckPositionPx = (stuckPositionMeters / totalDistance.value) * viewBoxWidth.value;
 
-
-
     let scrollLeft = 0;
-
     const transitionPoint = viewBoxWidth.value - zoomWindowPx + stuckPositionPx;
 
-
-
     if (progressX.value < stuckPositionPx) {
-
         scrollLeft = 0;
-
     }
-
     else if (progressX.value >= transitionPoint) {
-
         scrollLeft = viewBoxWidth.value - containerWidth;
-
     }
-
     else {
-
         scrollLeft = progressX.value - stuckPositionPx;
-
     }
-
-
 
     containerRef.value.scrollLeft = scrollLeft;
-
 });
-
 </script>
 
 <style scoped>
