@@ -1,56 +1,66 @@
 <template>
-  <div class="svg-container" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
-    <div
-      v-if="tooltipVisible"
-      class="tooltip"
-      :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
-    >
-      <div>{{ Math.round(tooltipData.distance / 100) / 10 }} km</div>
-      <div>{{ Math.round(tooltipData.altitude) }} m</div>
-      <div>{{ tooltipData.slope.toFixed(1) }} %</div>
-    </div>
+  <div class="altitude-graph-wrapper">
+    <!-- Y-Axis Labels (Fixed) -->
     <div class="y-axis-labels-container" :style="{ height: svgHeight + 'px', width: props.padding.left + 'px' }">
       <div v-for="tick in yTicks" :key="tick.label" class="y-axis-label" :style="{ top: tick.y + 'px' }">
         {{ tick.label }}
       </div>
     </div>
-    <svg :viewBox="`0 0 ${viewBoxWidth} ${svgHeight}`" :height="svgHeight" :width="viewBoxWidth" preserveAspectRatio="xMinYMin meet">
-      <g>
 
-        <!-- Axe X (Grid lines and Labels) -->
+    <!-- Scrolling SVG Container -->
+    <div class="svg-container" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+      <div
+        v-if="tooltipVisible"
+        class="tooltip"
 
-        <!-- Axe X (Grid lines and Labels) -->
-        <g class="axis x-axis">
-          <g v-for="tick in xTicks" :key="tick.value">
-            <line :x1="tick.position" :y1="props.padding.top" :x2="tick.position" :y2="innerHeight + props.padding.top"></line>
-            <text :x="tick.position" :y="svgHeight - 15">{{ tick.label }}</text>
+        :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
+      >
+        <div>{{ Math.round(tooltipData.distance / 100) / 10 }} km</div>
+        <div>{{ Math.round(tooltipData.altitude) }} m</div>
+        <div>{{ tooltipData.slope.toFixed(1) }} %</div>
+      </div>
+      <svg :viewBox="`0 0 ${viewBoxWidth} ${svgHeight}`" :height="svgHeight" :width="viewBoxWidth" preserveAspectRatio="xMinYMin meet">
+        <g>
+          <!-- Y-Axis Grid Lines -->
+          <g class="y-axis-grid">
+            <g v-for="tick in yTicks" :key="tick.label">
+              <line :x1="0" :y1="tick.y" :x2="viewBoxWidth" :y2="tick.y"></line>
+            </g>
           </g>
+
+          <!-- Axe X (Grid lines and Labels) -->
+          <g class="axis x-axis">
+            <g v-for="tick in xTicks" :key="tick.value">
+              <line :x1="tick.position" :y1="props.padding.top" :x2="tick.position" :y2="innerHeight + props.padding.top"></line>
+              <text :x="tick.position" :y="svgHeight - 15">{{ tick.label }}</text>
+            </g>
+          </g>
+
+          <!-- Area Segments -->
+          <g class="areas">
+            <path v-for="(segment, index) in pathSegments" :key="`area-${index}`" :d="segment.path" :fill="segment.color" fill-opacity="0.6"></path>
+          </g>
+
+          <!-- Line Segments -->
+          <g class="lines">
+              <path v-for="(segment, index) in pathSegments" :key="`line-${index}`" :d="segment.linePath" :stroke="segment.color" stroke-width="2" fill="none"></path>
+          </g>
+
+          <!-- Progress Bar -->
+          <line class="progress-bar" :x1="progressX" y1="0" :x2="progressX" :y2="svgHeight - 20"></line>
+
+          <!-- Hover Line -->
+          <line
+              v-if="tooltipVisible"
+              class="hover-line"
+              :x1="hoverLineX"
+              y1="0"
+              :x2="hoverLineX"
+              :y2="svgHeight - 20"
+          ></line>
         </g>
-
-        <!-- Area Segments -->
-        <g class="areas">
-          <path v-for="(segment, index) in pathSegments" :key="`area-${index}`" :d="segment.path" :fill="segment.color" fill-opacity="0.6"></path>
-        </g>
-
-        <!-- Line Segments -->
-        <g class="lines">
-            <path v-for="(segment, index) in pathSegments" :key="`line-${index}`" :d="segment.linePath" :stroke="segment.color" stroke-width="2" fill="none"></path>
-        </g>
-
-        <!-- Progress Bar -->
-        <line class="progress-bar" :x1="progressX" y1="0" :x2="progressX" :y2="svgHeight - 20"></line>
-
-        <!-- Hover Line -->
-        <line
-            v-if="tooltipVisible"
-            class="hover-line"
-            :x1="hoverLineX"
-            y1="0"
-            :x2="hoverLineX"
-            :y2="svgHeight - 20"
-        ></line>
-      </g>
-    </svg>
+      </svg>
+    </div>
   </div>
 </template>
 
@@ -76,7 +86,7 @@ const props = defineProps({
 
         type: Object,
 
-        default: () => ({ top: 10, right: 10, bottom: 30, left: 100 })
+        default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
 
     }
 
@@ -129,6 +139,8 @@ const tooltipPosition = ref({ x: 0, y: 0 });
 const hoverLineX = ref(0);
 
 const dataPointsForTooltip = ref([]);
+
+
 
 
 
@@ -414,11 +426,91 @@ function handleMouseMove(event) {
 
         tooltipVisible.value = true;
 
-        hoverLineX.value = clampedMouseX;
+                hoverLineX.value = clampedMouseX;
 
+        
 
+                // --- Tooltip positioning logic ---
 
-        tooltipPosition.value = { x: event.offsetX, y: event.offsetY };
+        
+
+                                // Vertical position: Stick to the bottom edge if cursor is too low
+
+        
+
+                                const tooltipHeight = 80; // Estimated tooltip height in pixels
+
+        
+
+                                const bottomMargin = 5;
+
+        
+
+                                const maxTop = svgHeight.value - tooltipHeight - bottomMargin;
+
+        
+
+                                const desiredY = event.offsetY;
+
+        
+
+                                const finalY = Math.min(desiredY, maxTop);
+
+        
+
+                        
+
+        
+
+                                // Horizontal position: Stick to the right edge if cursor is too close
+
+        
+
+                                const tooltipWidth = 80; // from CSS
+
+        
+
+                                const rightMargin = 20; // Total threshold of 100px (80px width + 20px margin)
+
+        
+
+                                const scrollLeft = containerRef.value.scrollLeft;
+
+        
+
+                                const containerVisibleWidth = containerRef.value.clientWidth;
+
+        
+
+                                const maxLeft = scrollLeft + containerVisibleWidth - tooltipWidth - rightMargin;
+
+        
+
+                                const desiredX = event.offsetX;
+
+        
+
+                                const finalX = Math.min(desiredX, maxLeft);
+
+        
+
+                        
+
+        
+
+                                tooltipPosition.value = {
+
+        
+
+                                  x: finalX,
+
+        
+
+                                  y: finalY
+
+        
+
+                                };
 
     } else {
 
@@ -507,17 +599,21 @@ watch(() => props.currentDistance, (newDistance) => {
 </script>
 
 <style scoped>
+.altitude-graph-wrapper {
+  display: flex;
+  width: 100%;
+  background-color: rgba(0,0,0,0.3);
+}
+
 .svg-container {
     position: relative; /* Needed for absolute positioning of children */
-    width: 100%;
     overflow-x: auto; /* Use native browser scrolling */
-    background-color: rgba(0,0,0,0.3);
+    flex-grow: 1;
 }
 
 .y-axis-labels-container {
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: relative; /* For child label positioning */
+    flex-shrink: 0;
     pointer-events: none; /* Allow interaction with elements behind */
     z-index: 1; /* Ensure it's above the SVG */
     text-align: right;
@@ -530,14 +626,19 @@ watch(() => props.currentDistance, (newDistance) => {
     color: #888;
     font-size: 10px;
     white-space: nowrap;
+    right: 5px; /* Align text to the right */
 }
 
 svg {
     display: block;
 }
-.axis line {
+.axis line, .y-axis-grid line {
     stroke: #444;
     stroke-width: 1;
+}
+
+.y-axis-grid line {
+    stroke-dasharray: 2 4;
 }
 .axis text {
     font-family: sans-serif;
@@ -556,7 +657,9 @@ svg {
 }
 .tooltip {
     position: absolute; /* Position is relative to the .svg-container */
-    transform: translate(15px, 15px); /* Offset from cursor */
+    --translateX: 15px;
+    --translateY: 15px;
+    transform: translate(var(--translateX), var(--translateY));
     background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 8px 12px;
@@ -565,5 +668,9 @@ svg {
     pointer-events: none;
     z-index: 9999; /* Keep high z-index just in case */
     white-space: nowrap;
+    transition: transform 0.1s ease-out; /* Smooth transition */
+    width: 80px; /* Fixed width */
+    text-align: center; /* Center content */
 }
+
 </style>
