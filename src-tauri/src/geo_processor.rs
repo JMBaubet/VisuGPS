@@ -1,6 +1,6 @@
-use geo::prelude::{HaversineDistance, ClosestPoint, EuclideanDistance, HaversineLength};
-use geo::{Closest, Point, LineString, Coord};
-use geojson::{GeoJson, Geometry, Value as GeoJsonValue};
+use geo::prelude::{HaversineDistance, EuclideanDistance};
+use geo::{Point, LineString};
+use geojson::{GeoJson};
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -93,7 +93,7 @@ pub fn distance_along_line_to_point(line: &LineString<f64>, point: &Point<f64>) 
 
 #[tauri::command]
 pub fn process_tracking_data(
-    line_string_geojson: GeoJson, // This is kept for compatibility but not used
+    _line_string_geojson: GeoJson, // This is kept for compatibility but not used
     tracking_points_js: Vec<TrackingPointJs>,
 ) -> Result<ProcessedTrackingDataResult, String> {
     let mut processed_points = Vec::new();
