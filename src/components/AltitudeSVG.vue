@@ -188,161 +188,395 @@ async function processData() {
 
         
 
-        minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
+                minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
 
-        maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
+        
 
+                maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
 
+        
 
-        const effectiveMinAltitude = minAltitude.value > 0 ? 0 : minAltitude.value;
+        
 
-        const effectiveAltitudeSpan = maxAltitude.value - effectiveMinAltitude === 0 ? 1 : maxAltitude.value - effectiveMinAltitude;
+        
 
+                const altitudeTickInterval = getSettingValue('Altitude/Visualisation/RepereAltitude') || 200;
 
+        
 
-        const pixelsFor10Meters = getSettingValue('Altitude/Visualisation/Ordonnee') || 10; // Default to 10 pixels for 10 meters
+                const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
 
-        const pixelsPerMeter = pixelsFor10Meters / 10;
+        
 
-        const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
+                const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
 
-        svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
+        
 
+        
 
+        
 
-        const dataPoints = filteredTrackingData.map((point, index) => {
+                const effectiveMinAltitude = graphMinY;
 
-            let slope = 0;
+        
 
-            if (index > 0) {
+                const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
 
-                const prevPoint = filteredTrackingData[index - 1]; // Use filtered data for prevPoint
+        
 
-                const altitudeChange = point.altitude - prevPoint.altitude;
+        
 
-                slope = (altitudeChange / segmentLength) * 100;
+        
 
-            }
+                const pixelsFor10Meters = getSettingValue('Altitude/Visualisation/Ordonnee') || 10; // Default to 10 pixels for 10 meters
 
-            const distance = index * segmentLength;
+        
 
-            return { distance, altitude: point.altitude, slope };
+                const pixelsPerMeter = pixelsFor10Meters / 10;
 
-        });
+        
 
+                const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
 
+        
 
-        totalDistance.value = dataPoints[dataPoints.length - 1].distance;
+                svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
 
-        dataPointsForTooltip.value = dataPoints;
+        
 
-        const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
+        
 
-        viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
+        
 
+                const dataPoints = filteredTrackingData.map((point, index) => {
 
+        
 
-        console.log("AltitudeSVG Debug:", {
+                    let slope = 0;
 
-            minAltitude: minAltitude.value,
+        
 
-            maxAltitude: maxAltitude.value,
+                    if (index > 0) {
 
-            effectiveMinAltitude: effectiveMinAltitude,
+        
 
-            effectiveAltitudeSpan: effectiveAltitudeSpan,
+                        const prevPoint = filteredTrackingData[index - 1]; // Use filtered data for prevPoint
 
-            innerHeight: innerHeight.value,
+        
 
-            propsPaddingTop: props.padding.top
+                        const altitudeChange = point.altitude - prevPoint.altitude;
 
-        });
+        
 
+                        slope = (altitudeChange / segmentLength) * 100;
 
+        
 
-        const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
+                    }
 
+        
 
+                    const distance = index * segmentLength;
 
-        zeroAltitudeY.value = yScale(0);
+        
 
+                    return { distance, altitude: point.altitude, slope };
 
+        
 
-        const negativeSlopeFactor = getSettingValue('Altitude/Couleurs/NegativeSlopeFactor');
+                });
 
-        const tranche1ColorName = getSettingValue('Altitude/Couleurs/Tranche1');
+        
 
-        const negativeSlopeColorName = `${tranche1ColorName}-${negativeSlopeFactor}`;
+        
 
-        const getSlopeColor = (slope) => {
+        
 
-            if (slope <= 0) return toHex(negativeSlopeColorName);
+                totalDistance.value = dataPoints[dataPoints.length - 1].distance;
 
-            if (slope <= 2) return toHex(getSettingValue('Altitude/Couleurs/Tranche2'));
+        
 
-            if (slope <= 4) return toHex(getSettingValue('Altitude/Couleurs/Tranche3'));
+                dataPointsForTooltip.value = dataPoints;
 
-            if (slope <= 7) return toHex(getSettingValue('Altitude/Couleurs/Tranche4'));
+        
 
-            if (slope <= 10) return toHex(getSettingValue('Altitude/Couleurs/Tranche5'));
+                const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
 
-            if (slope <= 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche6'));
+        
 
-            if (slope <= 15) return toHex(getSettingValue('Altitude/Couleurs/Tranche7'));
+                viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
 
-            return toHex(getSettingValue('Altitude/Couleurs/Tranche8'));
+        
 
-        };
+        
 
+        
 
+                console.log("AltitudeSVG Debug:", {
 
-        const segments = [];
+        
 
-        for (let i = 1; i < dataPoints.length; i++) {
+                    minAltitude: minAltitude.value,
 
-            const p1 = dataPoints[i - 1];
+        
 
-            const p2 = dataPoints[i];
+                    maxAltitude: maxAltitude.value,
 
-            const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
+        
 
-            const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
+                    effectiveMinAltitude: effectiveMinAltitude,
 
-            const y1 = yScale(p1.altitude);
+        
 
-            const y2 = yScale(p2.altitude);
+                    effectiveAltitudeSpan: effectiveAltitudeSpan,
 
+        
 
+                    innerHeight: innerHeight.value,
 
-            segments.push({
+        
 
-                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${zeroAltitudeY.value} L ${x1},${zeroAltitudeY.value} Z`,
+                    propsPaddingTop: props.padding.top
 
-                linePath: `M ${x1},${y1} L ${x2},${y2}`,
+        
 
-                color: getSlopeColor(p2.slope)
+                });
 
-            });
+        
 
-        }
+        
 
-        pathSegments.value = segments;
+        
 
+                const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
 
+        
 
-        const ticks = [];
+        
 
-        const altitudeTickInterval = getSettingValue('Altitude/Visualisation/RepereAltitude') || 200; // Default to 200m
+        
 
-        for (let alt = Math.floor(effectiveMinAltitude / altitudeTickInterval) * altitudeTickInterval; alt <= maxAltitude.value; alt += altitudeTickInterval) {
+                zeroAltitudeY.value = yScale(0);
 
-            if (alt < effectiveMinAltitude) continue; // Ensure ticks are not below effectiveMinAltitude
+        
 
-            const y = yScale(alt);
+        
 
-            yTicks.value.push({ y, label: `${alt}m` });
+        
 
-        }
+                        const getSlopeColor = (slope) => {
+
+        
+
+        
+
+        
+
+                            if (slope <= 0) return toHex(getSettingValue('Altitude/Couleurs/TrancheNegative') || 'light-blue');
+
+        
+
+        
+
+        
+
+                            if (slope < 3) return toHex(getSettingValue('Altitude/Couleurs/Tranche1') || 'green');
+
+        
+
+        
+
+        
+
+                            if (slope < 6) return toHex(getSettingValue('Altitude/Couleurs/Tranche2') || 'yellow');
+
+        
+
+        
+
+        
+
+                            if (slope < 9) return toHex(getSettingValue('Altitude/Couleurs/Tranche3') || 'orange');
+
+        
+
+        
+
+        
+
+                            if (slope < 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche4') || 'red');
+
+        
+
+        
+
+        
+
+                            return toHex(getSettingValue('Altitude/Couleurs/Tranche5') || 'purple');
+
+        
+
+        
+
+        
+
+                        };
+
+        
+
+        
+
+        
+
+                        const segments = [];
+
+        
+
+        
+
+        
+
+                        const graphBottomY = svgHeight.value - props.padding.bottom;
+
+        
+
+        
+
+        
+
+                        for (let i = 1; i < dataPoints.length; i++) {
+
+        
+
+        
+
+        
+
+                            const p1 = dataPoints[i - 1];
+
+        
+
+        
+
+        
+
+                            const p2 = dataPoints[i];
+
+        
+
+        
+
+        
+
+                            const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
+
+        
+
+        
+
+        
+
+                            const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
+
+        
+
+        
+
+        
+
+                            const y1 = yScale(p1.altitude);
+
+        
+
+        
+
+        
+
+                            const y2 = yScale(p2.altitude);
+
+        
+
+        
+
+        
+
+                
+
+        
+
+        
+
+        
+
+                            segments.push({
+
+        
+
+        
+
+        
+
+                                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
+
+        
+
+        
+
+        
+
+                                linePath: `M ${x1},${y1} L ${x2},${y2}`,
+
+        
+
+        
+
+        
+
+                                color: getSlopeColor(p2.slope)
+
+        
+
+        
+
+        
+
+                            });
+
+        
+
+        
+
+        
+
+                        }
+
+        
+
+                pathSegments.value = segments;
+
+        
+
+        
+
+        
+
+                yTicks.value = []; // Clear previous ticks
+
+        
+
+                for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
+
+        
+
+                    const y = yScale(alt);
+
+        
+
+                    yTicks.value.push({ y, label: `${alt}m` });
+
+        
+
+                }
 
 
 
@@ -651,7 +885,7 @@ svg {
     stroke-width: 1.5;
 }
 .hover-line {
-    stroke: rgba(255, 255, 0, 0.7); /* Yellow, semi-transparent */
+    stroke: rgba(255, 255, 255, 0.7);
     stroke-width: 1;
     stroke-dasharray: 4 2;
 }
@@ -660,11 +894,13 @@ svg {
     --translateX: 15px;
     --translateY: 15px;
     transform: translate(var(--translateX), var(--translateY));
-    background-color: rgba(0, 0, 0, 0.8);
-    color: white;
+    background-color: rgba(255, 255, 255, 0.75); /* Light background */
+    color: #212121; /* Dark text */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* Subtle shadow */
     padding: 8px 12px;
     border-radius: 5px;
     font-size: 12px;
+    font-weight: bold;
     pointer-events: none;
     z-index: 9999; /* Keep high z-index just in case */
     white-space: nowrap;
