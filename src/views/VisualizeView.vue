@@ -392,6 +392,8 @@ const traceColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/c
 const traceWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurTrace'));
 const traceOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteTrace'));
 const cometColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurComete'));
+const cometWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurComete'));
+const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
 const isAltitudeVisible = ref(false);
@@ -563,7 +565,7 @@ const initializeMap = async () => {
       });
 
       map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
-      map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': traceWidth.value, 'line-color': cometColor.value, 'line-opacity': traceOpacity.value } });
+      map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
 
       animationFrameId = requestAnimationFrame(animate);
     });
