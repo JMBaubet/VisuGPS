@@ -285,29 +285,32 @@ watch(() => props.currentDistance, (newDistance) => {
     progressX.value = (newDistance / totalDistance.value) * viewBoxWidth.value;
 
     const containerWidth = containerRef.value.clientWidth;
-    const zoomWindowKm = getSettingValue('Altitude/Visualisation/FenetreZoomKm') || 50;
     const stuckPositionKm = getSettingValue('Altitude/Visualisation/CurseurPositionKm') || 10;
-
-    const zoomWindowMeters = zoomWindowKm * 1000;
     const stuckPositionMeters = stuckPositionKm * 1000;
-
-    const zoomWindowPx = (zoomWindowMeters / totalDistance.value) * viewBoxWidth.value;
     const stuckPositionPx = (stuckPositionMeters / totalDistance.value) * viewBoxWidth.value;
 
     let scrollLeft = 0;
-    const transitionPoint = viewBoxWidth.value - zoomWindowPx + stuckPositionPx;
+    // Le point de transition est le moment où le curseur, s'il continuait, 
+    // ferait défiler le scroll au-delà de sa position maximale.
+    const transitionPoint = viewBoxWidth.value - containerWidth + stuckPositionPx;
 
     if (progressX.value < stuckPositionPx) {
+        // Phase 1: Le curseur se déplace au début, le graphe est fixe.
         scrollLeft = 0;
     }
     else if (progressX.value >= transitionPoint) {
+        // Phase 3: Le graphe est calé à la fin, le curseur termine sa course.
         scrollLeft = viewBoxWidth.value - containerWidth;
     }
     else {
+        // Phase 2: Le curseur est fixe sur l'écran, le graphe défile.
         scrollLeft = progressX.value - stuckPositionPx;
     }
 
-    containerRef.value.scrollLeft = scrollLeft;
+    // Applique le défilement calculé au conteneur.
+    if (containerRef.value.scrollLeft !== scrollLeft) {
+        containerRef.value.scrollLeft = scrollLeft;
+    }
 });
 </script>
 
