@@ -775,7 +775,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     if !settings_path.exists() {
         // Parse the default settings
         let mut settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
-            .map_err(|e| format!("Failed to parse default settings: {}", e))?;
+            .map_err(|e| format!("Le fichier de configuration par défaut 'settingsDefault.json' est corrompu ou mal formaté. L'application ne peut pas démarrer. Erreur de parsing : {}", e))?;
 
         // Modify the settings
         if let Some(reference) = settings.get_mut("référence") {
@@ -901,28 +901,49 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
-                app.handle().plugin(
+                if let Err(e) = app.handle().plugin(
                     tauri_plugin_log::Builder::default()
                         .level(log::LevelFilter::Info)
                         .build(),
-                )?;
+                ) {
+                    eprintln!("Failed to initialize logger: {}", e);
+                }
             }
-            // Removed unused plugins
-            // tauri::plugin::dialog::init();
-            // tauri::plugin::process::init();
 
-            let state = setup_environment(app)?;
-            app.manage(Mutex::new(state.clone()));
+            match setup_environment(app) {
+                Ok(state) => {
+                    app.manage(Mutex::new(state.clone()));
 
-            // Check if a commune update was running
-            let circuits_file = read_circuits_file(&state.app_env_path);
-            if let Ok(file) = circuits_file {
-                if file.maj_communes && !file.circuit_id.is_empty() {
-                    let app_handle = app.handle().clone();
-                    let circuit_id = file.circuit_id.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let _ = communes_updater::start_communes_update(app_handle, circuit_id).await;
-                    });
+                    // Check if a commune update was running
+                    let circuits_file = read_circuits_file(&state.app_env_path);
+                    if let Ok(file) = circuits_file {
+                        if file.maj_communes && !file.circuit_id.is_empty() {
+                            let app_handle = app.handle().clone();
+                            let circuit_id = file.circuit_id.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let _ = communes_updater::start_communes_update(app_handle, circuit_id).await;
+                            });
+                        }
+                    }
+                },
+                Err(e) => {
+                    if cfg!(debug_assertions) {
+                        // Formatted message for the dev console with ANSI colors
+                        let red = "\x1b[31m";
+                        let reset = "\x1b[0m";
+                        eprintln!(
+                            "\n{red}Erreur à l'initialisation :{reset}\n{}\n",
+                            e
+                        );
+                    } else {
+                        // Log the error in production mode
+                        let error_message = format!(
+                            "Erreur critique au démarrage : {}. L'application va se fermer.",
+                            e
+                        );
+                        log::error!("{}", error_message);
+                    }
+                    app.handle().exit(1);
                 }
             }
 
