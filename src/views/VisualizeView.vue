@@ -48,6 +48,7 @@ import { useTheme } from 'vuetify';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import AltitudeSVG from '@/components/AltitudeSVG.vue';
 
 const props = defineProps({
@@ -62,6 +63,7 @@ const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
 const { current: theme } = useTheme();
+const { toHex } = useVuetifyColors();
 
 const mapContainer = ref(null);
 let map = null;
@@ -391,6 +393,8 @@ const terrainExaggeration = computed(() => getSettingValue('Edition/Mapbox/Relie
 const traceColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurTrace'));
 const traceWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurTrace'));
 const traceOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteTrace'));
+const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Mapbox/Traces/colorerSelonPente'));
+const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment'));
 const cometColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurComete'));
 const cometWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurComete'));
 const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteComete'));
@@ -512,7 +516,7 @@ const initializeMap = async () => {
     }
 
     lineStringRef.value = fetchedLineString;
-    trackingDataRef.value = fetchedTrackingData; // Garder pour l'initialisation de Mapbox center
+    trackingDataRef.value = fetchedTrackingData;
 
     const processedData = await invoke('process_tracking_data', {
         lineStringGeojson: fetchedLineString,
@@ -528,10 +532,38 @@ const initializeMap = async () => {
         return acc;
     }, []);
 
-    // Vérifier les données initiales pour Mapbox
     if (!trackingDataRef.value[0]) {
         console.error("Initial tracking data point is undefined.");
         return;
+    }
+
+    // --- Trace Color Logic ---
+    let finalTraceColor = toHex(traceColor.value);
+    if (colorTraceBySlope.value) {
+        try {
+            const slopeColors = {
+                TrancheNegative: toHex(getSettingValue('Altitude/Couleurs/TrancheNegative')),
+                Tranche1: toHex(getSettingValue('Altitude/Couleurs/Tranche1')),
+                Tranche2: toHex(getSettingValue('Altitude/Couleurs/Tranche2')),
+                Tranche3: toHex(getSettingValue('Altitude/Couleurs/Tranche3')),
+                Tranche4: toHex(getSettingValue('Altitude/Couleurs/Tranche4')),
+                Tranche5: toHex(getSettingValue('Altitude/Couleurs/Tranche5')),
+            };
+
+            const colorExpression = await invoke('get_slope_color_expression', {
+                circuitId: props.circuitId,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength.value,
+            });
+            
+            if (colorExpression && Array.isArray(colorExpression)) {
+                finalTraceColor = colorExpression;
+            } else {
+                console.warn("Failed to generate slope color expression, falling back to single color.");
+            }
+        } catch (e) {
+            console.error("Error getting slope color expression:", e);
+        }
     }
 
     map = new mapboxgl.Map({
@@ -556,12 +588,24 @@ const initializeMap = async () => {
     });
 
     map.on('load', () => {
-      map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
+      map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
+
+      const paintProps = {
+        'line-width': traceWidth.value,
+        'line-opacity': traceOpacity.value
+      };
+
+      if (colorTraceBySlope.value && Array.isArray(finalTraceColor)) {
+        paintProps['line-gradient'] = finalTraceColor;
+      } else {
+        paintProps['line-color'] = finalTraceColor;
+      }
+
       map.addLayer({
         id: 'trace-background-layer',
         type: 'line',
         source: 'trace',
-        paint: { 'line-width': traceWidth.value, 'line-color': traceColor.value, 'line-opacity': traceOpacity.value }
+        paint: paintProps
       });
 
       map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });

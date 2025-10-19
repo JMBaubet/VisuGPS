@@ -796,17 +796,24 @@
             ],
             "groupes": [
               {
-                "libelle": "Traces",
-                "parametres": [
-                  {
-                    "defaut": "orange",
-                    "description": "Couleur de la trace GPX sur la carte.",
-                    "identifiant": "couleurTrace",
-                    "libelle": "Couleur de la trace",
-                    "type": "couleur",
-                    "materialDesign": true
-                  },
-                  {
+                                  "libelle": "Traces",
+                                  "parametres": [
+                                    {
+                                      "identifiant": "colorerSelonPente",
+                                      "libelle": "Colorer la trace selon la pente",
+                                      "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
+                                      "type": "booleen",
+                                      "defaut": false,
+                                      "surcharge": null
+                                    },
+                                    {
+                                      "defaut": "orange",
+                                      "description": "Couleur de la trace GPX sur la carte (utilisée si la coloration par pente est désactivée).",
+                                      "identifiant": "couleurTrace",
+                                      "libelle": "Couleur de la trace",
+                                      "type": "couleur",
+                                      "materialDesign": true
+                                    },                  {
                     "defaut": 8,
                     "description": "Epaisseur de la trace GPX sur la carte.",
                     "identifiant": "epaisseurTrace",

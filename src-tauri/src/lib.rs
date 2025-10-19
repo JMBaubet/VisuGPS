@@ -15,9 +15,9 @@ pub mod tracking_processor;
 pub mod communes_updater;
 pub mod geo_processor;
 pub mod event;
+pub mod trace_style;
 
-use chrono::prelude::*;
-use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
+use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
 use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
 
@@ -938,6 +938,7 @@ pub fn run() {
         event::add_message_event,
         event::delete_message_event,
         event::get_known_message_texts,
+        trace_style::get_slope_color_expression,
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
