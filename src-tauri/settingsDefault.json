@@ -883,6 +883,16 @@
                 "type": "entier",
                 "min": 100,
                 "max": 60000
+              },
+              {
+                "defaut": 1000,
+                "description": "Durée en millisecondes du 'flyTo' pour revenir à la position de la caméra après une pause.",
+                "identifiant": "timerReprisePause",
+                "libelle": "Durée de la reprise après pause (ms)",
+                "type": "entier",
+                "min": 0,
+                "max": 5000,
+                "unite": "ms"
               }
             ]
           }

@@ -144,6 +144,12 @@ async function executeFlytoSequence(flytoData) {
 }
 
 const animate = (timestamp) => {
+  if (isResuming.value) {
+      if (map) map.triggerRepaint();
+      animationFrameId = requestAnimationFrame(animate);
+      return;
+  }
+
   if (isFlytoActive.value) {
     if (map) map.triggerRepaint();
     lastTimestamp = timestamp; 
@@ -400,6 +406,7 @@ const cometWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/e
 const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
+const timerReprisePause = computed(() => getSettingValue('Visualisation/Animation/timerReprisePause'));
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
@@ -410,6 +417,80 @@ const showAltitudeProfileSetting = computed(() => {
 watch(showAltitudeProfileSetting, (newValue) => {
     isAltitudeVisible.value = newValue;
 }, { immediate: true });
+
+// --- Pause/Resume Logic ---
+const pausedCameraOptions = ref(null);
+const cameraMovedDuringPause = ref(false);
+const isResuming = ref(false); // Flag to block animation during flyTo
+
+const onMapInteraction = () => {
+    if (isPaused.value) {
+        cameraMovedDuringPause.value = true;
+        // Une fois détecté, on peut supprimer les écouteurs pour optimiser
+        if (map) {
+            map.off('move', onMapInteraction);
+            map.off('zoom', onMapInteraction);
+            map.off('pitch', onMapInteraction);
+            map.off('rotate', onMapInteraction);
+        }
+    }
+};
+
+watch(isPaused, (paused) => {
+    if (!map) return;
+
+    if (paused) {
+        // --- PAUSING ---
+        isResuming.value = false; // Ensure resuming flag is off
+        pausedCameraOptions.value = {
+            center: map.getCenter(),
+            zoom: map.getZoom(),
+            pitch: map.getPitch(),
+            bearing: map.getBearing(),
+        };
+        cameraMovedDuringPause.value = false;
+
+        // Enable interactions
+        map.interactive = true;
+        map.dragRotate.enable();
+        map.dragPan.enable();
+        map.scrollZoom.enable();
+
+        // Listen for any interaction
+        map.on('move', onMapInteraction);
+        map.on('zoom', onMapInteraction);
+        map.on('pitch', onMapInteraction);
+        map.on('rotate', onMapInteraction);
+
+    } else {
+        // --- RESUMING ---
+        // Disable interactions first
+        map.interactive = false;
+        map.dragRotate.disable();
+        map.dragPan.disable();
+        map.scrollZoom.disable();
+        map.off('move', onMapInteraction);
+        map.off('zoom', onMapInteraction);
+        map.off('pitch', onMapInteraction);
+        map.off('rotate', onMapInteraction);
+
+        if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
+            isResuming.value = true; // Block animation
+            showSnackbar('Reprise de la position initiale...', 'info');
+            map.flyTo({
+                ...pausedCameraOptions.value,
+                duration: timerReprisePause.value,
+                easing: (t) => t, // linear easing
+            });
+            map.once('moveend', () => {
+                isResuming.value = false; // Unblock animation
+                lastTimestamp = 0; // Reset timestamp to resume animation smoothly
+            });
+        } else {
+             lastTimestamp = 0; // Reset timestamp for smooth resume even without flyTo
+        }
+    }
+});
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -573,7 +654,7 @@ const initializeMap = async () => {
       zoom: trackingDataRef.value[0].zoom,
       pitch: trackingDataRef.value[0].pitch,
       bearing: trackingDataRef.value[0].cap,
-      interactive: false,
+      interactive: true, // Allow interaction from the start (since it begins paused)
     });
 
     map.on('style.load', () => {
@@ -610,6 +691,19 @@ const initializeMap = async () => {
 
       map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
       map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
+
+      // Store the initial camera state for the very first resume
+      pausedCameraOptions.value = {
+          center: map.getCenter(),
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+      };
+      // Start listening for interactions right away
+      map.on('move', onMapInteraction);
+      map.on('zoom', onMapInteraction);
+      map.on('pitch', onMapInteraction);
+      map.on('rotate', onMapInteraction);
 
       animationFrameId = requestAnimationFrame(animate);
     });
