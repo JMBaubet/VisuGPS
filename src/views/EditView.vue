@@ -471,6 +471,17 @@ const applyZoomDepart = async () => {
   zoomDepartIsActive.value = true;
   updateInterpolation();
 
+  // Après l'interpolation générale, forcer la rampe de zoom linéaire pour la zone de départ.
+  // Cela garantit que le zoom est correct même s'il y a des points de contrôle intermédiaires.
+  const endIndexForRamp = zoomDepartDistance.value;
+  const startZoom = zoomDepartValeur.value;
+  const endZoom = pointEnd.zoom; // La rampe se termine sur le zoom original du point final.
+  const zoomStep = (endZoom - startZoom) / endIndexForRamp;
+
+  for (let i = 0; i <= endIndexForRamp; i++) {
+    trackingPoints.value[i].editedZoom = parseFloat((startZoom + i * zoomStep).toFixed(1));
+  }
+
   try {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
@@ -489,6 +500,13 @@ const removeZoomDepart = async () => {
   const endIndex = zoomDepartDistance.value;
   if (endIndex >= trackingPoints.value.length) {
     return; // Nothing to do
+  }
+
+  // Explicitly reset the editedZoom values in the affected range to their original zoom value
+  for (let i = 0; i <= endIndex; i++) {
+    if (trackingPoints.value[i]) {
+      trackingPoints.value[i].editedZoom = trackingPoints.value[i].zoom;
+    }
   }
 
   const point0 = trackingPoints.value[0];
