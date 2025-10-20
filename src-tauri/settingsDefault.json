@@ -336,6 +336,31 @@
                 "max": 22.0,
                 "type": "reel",
                 "decimales": 2
+              },
+              {
+                "identifiant": "zoomDepart",
+                "libelle": "Activer le zoom au départ",
+                "description": "Active un dézoom automatique au début du parcours.",
+                "type": "booleen",
+                "defaut": true
+              },
+              {
+                "identifiant": "zoomDepartValeur",
+                "libelle": "Valeur du zoom au départ",
+                "description": "Niveau de zoom appliqué au point de départ (km 0).",
+                "type": "entier",
+                "defaut": 18,
+                "min": 10,
+                "max": 22
+              },
+              {
+                "identifiant": "zoomDepartDistance",
+                "libelle": "Distance du zoom au départ (x100m)",
+                "description": "Distance sur laquelle le dézoom s'applique, en segments de 100m.",
+                "type": "entier",
+                "defaut": 20,
+                "min": 1,
+                "max": 100
               }
             ]
           },

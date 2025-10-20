@@ -117,6 +117,18 @@
           </v-slider>
           <v-divider class="my-2"></v-divider>
 
+          <!-- ZOOM DEPART SWITCH -->
+          <div class="d-flex align-center justify-center">
+             <v-switch
+                v-model="zoomDepartModel"
+                label="Activer le zoom au départ"
+                color="primary"
+                hide-details
+              ></v-switch>
+          </div>
+
+          <v-divider class="my-2"></v-divider>
+
           <!-- Conditional Buttons -->
           <!-- Case 1: A Pause event exists -->
           <div v-if="isPauseEvent" class="d-flex align-center mt-2">
@@ -321,6 +333,8 @@ const props = defineProps({
     // Toolbar props
     isCurrentPointControlPoint: Boolean,
     cameraSyncMode: String,
+    // Zoom Depart props
+    zoomDepart: Boolean,
   });
   
   // --- Emits ---
@@ -354,6 +368,8 @@ const props = defineProps({
     // Mode emits
     'update:marker-visible',
     'tab-changed',
+    // Zoom Depart emits
+    'update:zoomDepart',
   ]);
   
   watch(mainTab, (newTab) => {
@@ -374,6 +390,7 @@ const props = defineProps({
   const showEditeePitchModel = createModel('showEditeePitch');
   
   const cameraSyncModeModel = createModel('cameraSyncMode');
+  const zoomDepartModel = createModel('zoomDepart');
   
   // --- Message Event Logic ---
   const messageText = ref('');

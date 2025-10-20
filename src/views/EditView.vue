@@ -82,6 +82,9 @@
         v-model:message-pre-affichage-setting="messagePreAffichageSetting"
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
         v-model:message-border-radius-setting="messageBorderRadiusSetting"
+        v-model:zoom-depart="zoomDepart"
+        :zoom-depart-is-active="zoomDepartIsActive"
+        :zoom-depart-distance="zoomDepartDistance"
         @add-pause="handleAddPauseEvent"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
@@ -132,6 +135,22 @@ const { getSettingValue } = useSettings();
 const showConfirmationDialog = ref(false);
 const confirmationProps = ref({});
 const resolveConfirmation = ref(null);
+const dataLoaded = ref(false);
+
+// Zoom Depart Refs
+const zoomDepart = ref(true);
+const zoomDepartValeur = ref(18);
+const zoomDepartDistance = ref(20);
+const zoomDepartIsActive = ref(false);
+
+watch(zoomDepart, (newValue) => {
+  if (!dataLoaded.value) return;
+  if (newValue) {
+    applyZoomDepart();
+  } else {
+    removeZoomDepart();
+  }
+});
 
 const updateCameraInfo = () => {
   if (!map) return;
@@ -428,6 +447,71 @@ const isCurrentPointControlPoint = computed(() => {
   return trackingPoints.value[currentPointIndex.value].pointDeControl;
 });
 
+const applyZoomDepart = async () => {
+  if (!trackingPoints.value || trackingPoints.value.length === 0) return;
+
+  const endIndex = zoomDepartDistance.value;
+  if (endIndex >= trackingPoints.value.length) {
+    showSnackbar("La distance du zoom de départ est plus grande que la trace.", "error");
+    return;
+  }
+
+  const point0 = trackingPoints.value[0];
+  const pointEnd = trackingPoints.value[endIndex];
+
+  point0.pointDeControl = true;
+  point0.editedZoom = zoomDepartValeur.value;
+  point0.editedPitch = point0.pitch;
+  point0.editedCap = point0.cap;
+
+  pointEnd.pointDeControl = true;
+  pointEnd.editedZoom = pointEnd.zoom;
+  // Ne pas modifier editedPitch et editedCap pour conserver les modifications utilisateur existantes
+
+  zoomDepartIsActive.value = true;
+  updateInterpolation();
+
+  try {
+    await invoke('save_tracking_file', {
+      circuitId: circuitId,
+      trackingData: trackingPoints.value,
+    });
+    showSnackbar('Zoom de départ appliqué.', 'success');
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde du zoom de départ:', error);
+    showSnackbar(`Erreur: ${error.message || error}`, 'error');
+  }
+};
+
+const removeZoomDepart = async () => {
+  if (!trackingPoints.value || trackingPoints.value.length === 0) return;
+
+  const endIndex = zoomDepartDistance.value;
+  if (endIndex >= trackingPoints.value.length) {
+    return; // Nothing to do
+  }
+
+  const point0 = trackingPoints.value[0];
+  const pointEnd = trackingPoints.value[endIndex];
+
+  point0.pointDeControl = false;
+  pointEnd.pointDeControl = false;
+
+  zoomDepartIsActive.value = false;
+  updateInterpolation();
+
+  try {
+    await invoke('save_tracking_file', {
+      circuitId: circuitId,
+      trackingData: trackingPoints.value,
+    });
+    showSnackbar('Zoom de départ supprimé.', 'info');
+  } catch (error) {
+    console.error('Erreur lors de la suppression du zoom de départ:', error);
+    showSnackbar(`Erreur: ${error.message || error}`, 'error');
+  }
+};
+
 const goBack = () => {
   router.push({ name: 'Main' });
 };
@@ -467,7 +551,7 @@ const updateInterpolation = () => {
 
         for (let j = 1; j < numSegments; j++) {
           const currentIndex = startIndex + j;
-          points[currentIndex].editedZoom = Math.round(startCp.editedZoom + j * zoomStep);
+          points[currentIndex].editedZoom = parseFloat((startCp.editedZoom + j * zoomStep).toFixed(1));
           points[currentIndex].editedPitch = Math.round(startCp.editedPitch + j * pitchStep);
           let newBearing = startCp.editedCap + j * bearingStep;
           points[currentIndex].editedCap = Math.round((newBearing + 360) % 360);
@@ -502,7 +586,18 @@ const saveControlPoint = async () => {
   }
 
   point.pointDeControl = true;
-  point.editedZoom = Math.round(currentZoom.value);
+
+  if (zoomDepartIsActive.value && currentPointIndex.value <= zoomDepartDistance.value) {
+    // In the departure zone, lock the zoom to the linear ramp
+    const endIndex = zoomDepartDistance.value;
+    const startZoom = zoomDepartValeur.value;
+    const endZoom = trackingPoints.value[endIndex].zoom; // Use the original zoom of the end point
+    const zoomStep = (endZoom - startZoom) / endIndex;
+    point.editedZoom = parseFloat((startZoom + currentPointIndex.value * zoomStep).toFixed(1));
+  } else {
+    point.editedZoom = parseFloat(currentZoom.value.toFixed(1));
+  }
+
   point.editedPitch = Math.round(currentPitch.value);
   point.editedCap = Math.round(currentBearing.value);
 
@@ -551,6 +646,17 @@ const saveControlPoint = async () => {
 const deleteControlPoint = async () => {
   const point = trackingPoints.value[currentPointIndex.value];
   if (!point || !point.pointDeControl) return;
+
+  if (zoomDepartIsActive.value && (currentPointIndex.value === 0 || currentPointIndex.value === zoomDepartDistance.value)) {
+    const confirmed = await askForConfirmation(
+      'Suppression du point de contrôle',
+      'Ce point fait partie du zoom de départ. Le supprimer désactivera le zoom de départ. Continuer ?'
+    );
+    if (confirmed) {
+      zoomDepart.value = false; // This will trigger the watcher to call removeZoomDepart
+    }
+    return; 
+  }
 
   const confirmed = await askForConfirmation(
     'Confirmer la suppression',
@@ -889,10 +995,25 @@ onMounted(async () => {
     messagePostAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
     messageBorderRadiusSetting.value = await getSettingValue('Edition/Evenements/Message/rayonBordure');
 
+    // Load Zoom Depart settings
+    zoomDepart.value = await getSettingValue('Edition/Caméra/zoomDepart');
+    zoomDepartValeur.value = await getSettingValue('Edition/Caméra/zoomDepartValeur');
+    zoomDepartDistance.value = await getSettingValue('Edition/Caméra/zoomDepartDistance');
+
     // Initial interpolation
     updateInterpolation();
 
     currentPointIndex.value = 0;
+
+    // Set data loaded flag to true
+    dataLoaded.value = true;
+
+    // Apply initial zoom depart state
+    if (zoomDepart.value) {
+      await applyZoomDepart();
+    } else {
+      zoomDepartIsActive.value = false;
+    }
 
     const firstPoint = trackingPoints.value[currentPointIndex.value];
     const initialCenter = firstPoint.coordonnee;
