@@ -90,11 +90,22 @@ pub struct CircuitAffichage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct CircuitEvt {
-    compteurs: CircuitCompteurs,
-    affichage: CircuitAffichage,
+pub struct CircuitZoomParam {
+    pub enabled: bool,
+    pub valeur: i32,
+    pub distance: i32,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CircuitZoom {
+    pub depart: CircuitZoomParam,
+    pub arrivee: CircuitZoomParam,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CircuitEvt {
+    pub compteurs: CircuitCompteurs,
+    pub affichage: CircuitAffichage,
+}
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Circuit {
     #[serde(rename = "circuitId")]
@@ -122,6 +133,7 @@ pub struct Circuit {
     #[serde(rename = "avancementCommunes")]
     pub avancement_communes: i32,
     pub evt: CircuitEvt,
+    pub zoom: CircuitZoom,
 }
 
 struct GpxMetadata {
@@ -236,6 +248,30 @@ pub fn commit_new_circuit(
     let ville_id = resolve_ville_id(&mut circuits_file, &draft.ville_nom)?;
 
     let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let zoom_depart_enabled = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepart")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let zoom_depart_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartValeur")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(18) as i32;
+    let zoom_depart_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartDistance")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(20) as i32;
+
+    let zoom_arrivee_enabled = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomArrivee")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let zoom_arrivee_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomArriveeValeur")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(18) as i32;
+    let zoom_arrivee_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.distanceZoomArrivee")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(20) as i32;
+
     let new_circuit = Circuit {
         circuit_id: new_circuit_id.clone(),
         nom: draft.nom,
@@ -254,6 +290,18 @@ pub fn commit_new_circuit(
         evt: CircuitEvt {
             compteurs: CircuitCompteurs { zoom: 0, pause: 0, info: 0 },
             affichage: CircuitAffichage { depart: true, arrivee: true, marqueurs_10km: true },
+        },
+        zoom: CircuitZoom {
+            depart: CircuitZoomParam {
+                enabled: zoom_depart_enabled,
+                valeur: zoom_depart_valeur,
+                distance: zoom_depart_distance,
+            },
+            arrivee: CircuitZoomParam {
+                enabled: zoom_arrivee_enabled,
+                valeur: zoom_arrivee_valeur,
+                distance: zoom_arrivee_distance,
+            },
         },
     };
 
@@ -298,7 +346,6 @@ pub fn commit_new_circuit(
 
     Ok(new_circuit_id)
 }
-
 
 fn resolve_editor_id(circuits_file: &mut CircuitsFile, editor_name: &str) -> Result<String, String> {
     if let Some(editor) = circuits_file.editeurs.iter().find(|e| e.nom.eq_ignore_ascii_case(editor_name)) {

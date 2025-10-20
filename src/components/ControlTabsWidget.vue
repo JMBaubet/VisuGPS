@@ -2,7 +2,7 @@
   <v-sheet rounded="lg" class="control-tabs-widget">
     <v-tabs v-model="mainTab" bg-color="surface" density="compact" color="orange-darken-1">
       <v-tab value="camera">Caméra</v-tab>
-      <v-tab value="stop">Pause / Survol</v-tab>
+      <v-tab value="stop">Pause/Zooms</v-tab>
       <v-tab value="message">Message</v-tab>
     </v-tabs>
 

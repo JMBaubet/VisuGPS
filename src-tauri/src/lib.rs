@@ -493,7 +493,6 @@ pub fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String
         .map_err(|e| format!("Failed to parse circuits.json: {}", e))
 }
 
-// Fonction pour écrire le fichier circuits.json
 pub fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile) -> Result<(), String> {
     let circuits_path = app_env_path.join("circuits.json");
     let new_content = serde_json::to_string_pretty(circuits_data)
@@ -502,7 +501,31 @@ pub fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile)
         .map_err(|e| format!("Failed to write circuits.json: {}", e))
 }
 
+#[tauri::command]
+fn get_circuit_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<gpx_processor::Circuit, String> {
+    let state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+    circuits_file.circuits.into_iter().find(|c| c.circuit_id == circuit_id)
+        .ok_or_else(|| format!("Circuit with ID {} not found.", circuit_id))
+}
 
+#[tauri::command]
+fn update_circuit_zoom_settings(state: State<Mutex<AppState>>, circuit_id: String, zoom_settings: gpx_processor::CircuitZoom) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.zoom = zoom_settings;
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    Ok(())
+}
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -960,6 +983,8 @@ pub fn run() {
         event::delete_message_event,
         event::get_known_message_texts,
         trace_style::get_slope_color_expression,
+        get_circuit_data,
+        update_circuit_zoom_settings,
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -150,13 +150,14 @@ const zoomArriveeValeur = ref(18);
 const distanceZoomArrivee = ref(20);
 const zoomArriveeIsActive = ref(false);
 
-watch(zoomDepart, (newValue) => {
+watch(zoomDepart, async (newValue) => {
   if (!dataLoaded.value) return;
   if (newValue) {
-    applyZoomDepart();
+    await applyZoomDepart();
   } else {
-    removeZoomDepart();
+    await removeZoomDepart();
   }
+  await updateCircuitZoomSettings();
 });
 
 const updateCameraInfo = () => {
@@ -614,14 +615,37 @@ const removeZoomArrivee = async () => {
   }
 };
 
-watch(zoomArrivee, (newValue) => {
+watch(zoomArrivee, async (newValue) => {
   if (!dataLoaded.value) return;
   if (newValue) {
-    applyZoomArrivee();
+    await applyZoomArrivee();
   } else {
-    removeZoomArrivee();
+    await removeZoomArrivee();
   }
+  await updateCircuitZoomSettings();
 });
+
+async function updateCircuitZoomSettings() {
+  try {
+    const zoomSettings = {
+      depart: {
+        enabled: zoomDepart.value,
+        valeur: zoomDepartValeur.value,
+        distance: zoomDepartDistance.value,
+      },
+      arrivee: {
+        enabled: zoomArrivee.value,
+        valeur: zoomArriveeValeur.value,
+        distance: distanceZoomArrivee.value,
+      },
+    };
+    await invoke('update_circuit_zoom_settings', { circuitId: circuitId, zoomSettings: zoomSettings });
+    showSnackbar('Paramètres de zoom mis à jour dans circuits.json.', 'success');
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des paramètres de zoom dans circuits.json:', error);
+    showSnackbar(`Erreur: ${error.message || error}`, 'error');
+  }
+}
 
 const goBack = () => {
   router.push({ name: 'Main' });
@@ -1129,14 +1153,15 @@ onMounted(async () => {
     messageBorderRadiusSetting.value = await getSettingValue('Edition/Evenements/Message/rayonBordure');
 
     // Load Zoom Depart settings
-    zoomDepart.value = await getSettingValue('Edition/Caméra/zoomDepart');
-    zoomDepartValeur.value = await getSettingValue('Edition/Caméra/zoomDepartValeur');
-    zoomDepartDistance.value = await getSettingValue('Edition/Caméra/zoomDepartDistance');
+    const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
+    zoomDepart.value = circuitData.zoom.depart.enabled;
+    zoomDepartValeur.value = circuitData.zoom.depart.valeur;
+    zoomDepartDistance.value = circuitData.zoom.depart.distance;
 
     // Load Zoom Arrivee settings
-    zoomArrivee.value = await getSettingValue('Edition/Caméra/zoomArrivee');
-    zoomArriveeValeur.value = await getSettingValue('Edition/Caméra/zoomArriveeValeur');
-    distanceZoomArrivee.value = await getSettingValue('Edition/Caméra/distanceZoomArrivee');
+    zoomArrivee.value = circuitData.zoom.arrivee.enabled;
+    zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
+    distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
 
     // Initial interpolation
     updateInterpolation();
