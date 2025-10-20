@@ -83,9 +83,12 @@
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
         v-model:message-border-radius-setting="messageBorderRadiusSetting"
         v-model:zoom-depart="zoomDepart"
+        v-model:zoom-depart-valeur="zoomDepartValeur"
+        v-model:zoom-depart-distance="zoomDepartDistance"
         v-model:zoom-arrivee="zoomArrivee"
+        v-model:zoom-arrivee-valeur="zoomArriveeValeur"
+        v-model:distance-zoom-arrivee="distanceZoomArrivee"
         :zoom-depart-is-active="zoomDepartIsActive"
-        :zoom-depart-distance="zoomDepartDistance"
         @add-pause="handleAddPauseEvent"
         @delete-pause="handleDeletePauseEvent"
         @add-flyto="handleAddFlytoEvent"
@@ -624,6 +627,17 @@ watch(zoomArrivee, async (newValue) => {
   }
   await updateCircuitZoomSettings();
 });
+
+    // Load Zoom Depart settings
+    const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
+    zoomDepart.value = circuitData.zoom.depart.enabled;
+    zoomDepartValeur.value = circuitData.zoom.depart.valeur;
+    zoomDepartDistance.value = circuitData.zoom.depart.distance;
+
+    // Load Zoom Arrivee settings
+    zoomArrivee.value = circuitData.zoom.arrivee.enabled;
+    zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
+    distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
 
 async function updateCircuitZoomSettings() {
   try {

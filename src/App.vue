@@ -1,7 +1,9 @@
 <template>
   <v-app>
     <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
-      <router-view />
+      <Suspense>
+        <router-view />
+      </Suspense>
     </v-container>
     <SnackbarContainer /> <!-- Added SnackbarContainer -->
   </v-app>

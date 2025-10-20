@@ -92,7 +92,7 @@ pub struct CircuitAffichage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CircuitZoomParam {
     pub enabled: bool,
-    pub valeur: i32,
+    pub valeur: f64,
     pub distance: i32,
 }
 
@@ -256,8 +256,8 @@ pub fn commit_new_circuit(
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
     let zoom_depart_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartValeur")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(18) as i32;
+        .and_then(|v| v.as_f64())
+        .unwrap_or(18.0);
     let zoom_depart_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartDistance")
         .and_then(|v| v.as_i64())
         .unwrap_or(20) as i32;
@@ -266,8 +266,8 @@ pub fn commit_new_circuit(
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
     let zoom_arrivee_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomArriveeValeur")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(18) as i32;
+        .and_then(|v| v.as_f64())
+        .unwrap_or(18.0);
     let zoom_arrivee_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.distanceZoomArrivee")
         .and_then(|v| v.as_i64())
         .unwrap_or(20) as i32;

@@ -115,23 +115,7 @@
             class="align-center"
           >
           </v-slider>
-          <v-divider class="my-2"></v-divider>
 
-          <!-- ZOOM DEPART SWITCH -->
-          <div class="d-flex align-center justify-center">
-             <v-switch
-                v-model="zoomDepartModel"
-                label="Activer le zoom au départ"
-                color="primary"
-                hide-details
-              ></v-switch>
-             <v-switch
-                v-model="zoomArriveeModel"
-                label="Activer le zoom à l'arrivée"
-                color="primary"
-                hide-details
-              ></v-switch>
-          </div>
 
           <v-divider class="my-2"></v-divider>
 
@@ -163,6 +147,107 @@
               <v-icon icon="mdi-plus"></v-icon>
             </v-btn>
           </div>
+
+          <v-divider class="my-2"></v-divider>
+
+          <v-tabs v-model="zoomTab" bg-color="surface" density="compact" color="primary" class="mb-2">
+            <v-tab value="depart">Zoom Départ</v-tab>
+            <v-tab value="arrivee">Zoom Arrivée</v-tab>
+          </v-tabs>
+
+          <v-window v-model="zoomTab">
+            <v-window-item value="depart">
+              <div class="d-flex flex-column pa-0">
+                <v-row dense no-gutters class="align-center">
+                  <v-col cols="2">
+                    <v-checkbox
+                      v-model="zoomDepartModel"
+                      color="primary"
+                      density="compact"
+                      hide-details
+                      class="flex-grow-0 mt-0 pt-0"
+                    ></v-checkbox>
+                  </v-col>
+                  <v-col cols="10">
+                    <v-slider
+                      v-model="zoomDepartValeurModel"
+                      :disabled="!zoomDepartModel"
+                      :label="`Zoom : ${zoomDepartValeurModel.toFixed(1)}`"
+                      :min="16.5"
+                      :max="20"
+                      :step="0.1"
+                      hide-details
+                      density="compact"
+                      class="mt-2"
+                    >
+                    </v-slider>
+                  </v-col>
+                </v-row>
+                <v-row dense no-gutters>
+                  <v-col cols="12">
+                    <v-slider
+                      v-model="zoomDepartDistanceModel"
+                      :disabled="!zoomDepartModel"
+                      :label="`Distance : ${zoomDepartDistanceModel * 100}m`"
+                      :min="5"
+                      :max="50"
+                      :step="1"
+                      hide-details
+                      density="compact"
+                      class="mt-2"
+                    >
+                    </v-slider>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-window-item>
+
+            <v-window-item value="arrivee">
+              <div class="d-flex flex-column pa-0">
+                <v-row dense no-gutters class="align-center">
+                  <v-col cols="2">
+                    <v-checkbox
+                      v-model="zoomArriveeModel"
+                      color="primary"
+                      density="compact"
+                      hide-details
+                      class="flex-grow-0 mt-0 pt-0"
+                    ></v-checkbox>
+                  </v-col>
+                  <v-col cols="10">
+                    <v-slider
+                      v-model="zoomArriveeValeurModel"
+                      :disabled="!zoomArriveeModel"
+                      :label="`Zoom : ${zoomArriveeValeurModel.toFixed(1)}`"
+                      :min="16.5"
+                      :max="20"
+                      :step="0.1"
+                      hide-details
+                      density="compact"
+                      class="mt-2"
+                    >
+                    </v-slider>
+                  </v-col>
+                </v-row>
+                <v-row dense no-gutters>
+                  <v-col cols="12">
+                    <v-slider
+                      v-model="zoomArriveeDistanceModel"
+                      :disabled="!zoomArriveeModel"
+                      :label="`Distance : ${zoomArriveeDistanceModel * 100}m`"
+                      :min="5"
+                      :max="50"
+                      :step="1"
+                      hide-details
+                      density="compact"
+                      class="mt-2"
+                    >
+                    </v-slider>
+                  </v-col>
+                </v-row>
+              </div>
+            </v-window-item>
+          </v-window>
         </div>
       </v-window-item>
 
@@ -297,6 +382,7 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
 
 const mainTab = ref('camera');
+const zoomTab = ref('depart');
 
 const { toHex, toName, baseSwatches } = useVuetifyColors();
 
@@ -341,7 +427,11 @@ const props = defineProps({
     cameraSyncMode: String,
     // Zoom Depart props
     zoomDepart: Boolean,
+    zoomDepartValeur: Number,
+    zoomDepartDistance: Number,
     zoomArrivee: Boolean,
+    zoomArriveeValeur: Number,
+    distanceZoomArrivee: Number,
   });
   
   // --- Emits ---
@@ -377,7 +467,11 @@ const props = defineProps({
     'tab-changed',
     // Zoom Depart emits
     'update:zoomDepart',
+    'update:zoomDepartValeur',
+    'update:zoomDepartDistance',
     'update:zoomArrivee',
+    'update:zoomArriveeValeur',
+    'update:distanceZoomArrivee',
   ]);
   
   watch(mainTab, (newTab) => {
@@ -399,7 +493,11 @@ const props = defineProps({
   
   const cameraSyncModeModel = createModel('cameraSyncMode');
   const zoomDepartModel = createModel('zoomDepart');
+  const zoomDepartValeurModel = createModel('zoomDepartValeur');
+  const zoomDepartDistanceModel = createModel('zoomDepartDistance');
   const zoomArriveeModel = createModel('zoomArrivee');
+  const zoomArriveeValeurModel = createModel('zoomArriveeValeur');
+  const zoomArriveeDistanceModel = createModel('distanceZoomArrivee');
   
   // --- Message Event Logic ---
   const messageText = ref('');
