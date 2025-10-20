@@ -509,10 +509,8 @@ const removeZoomDepart = async () => {
     }
   }
 
-  const point0 = trackingPoints.value[0];
   const pointEnd = trackingPoints.value[endIndex];
 
-  point0.pointDeControl = false;
   pointEnd.pointDeControl = false;
 
   zoomDepartIsActive.value = false;
