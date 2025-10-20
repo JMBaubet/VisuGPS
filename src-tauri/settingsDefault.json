@@ -945,6 +945,57 @@
                 "unite": "ms"
               }
             ]
+          },
+          {
+            "libelle": "Initialisation",
+            "parametres": [
+              {
+                "defaut": [2.3522, 48.8566],
+                "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
+                "identifiant": "centerEurope",
+                "libelle": "Centre de l'Europe",
+                "type": "coord"
+              },
+              {
+                "defaut": 5,
+                "description": "Niveau de zoom initial pour la vue de l'Europe.",
+                "identifiant": "zoomEurope",
+                "libelle": "Zoom Europe",
+                "type": "entier",
+                "min": 0,
+                "max": 22
+              },
+              {
+                "defaut": 5000,
+                "description": "Durée en millisecondes de l'animation 'flyTo' de l'Europe vers la vue globale de la trace.",
+                "identifiant": "durationEuropeToTrace",
+                "libelle": "Durée Europe vers Trace (ms)",
+                "type": "entier",
+                "min": 1000,
+                "max": 10000,
+                "unite": "ms"
+              },
+              {
+                "defaut": 1000,
+                "description": "Durée en millisecondes de la pause entre la vue globale de la trace et le début de l'animation.",
+                "identifiant": "pauseBeforeStart",
+                "libelle": "Pause avant début (ms)",
+                "type": "entier",
+                "min": 500,
+                "max": 5000,
+                "unite": "ms"
+              },
+              {
+                "defaut": 2000,
+                "description": "Durée en millisecondes de l'animation 'flyTo' de la vue globale de la trace vers le point de départ (km 0).",
+                "identifiant": "durationTraceToStart",
+                "libelle": "Durée Trace vers Départ (ms)",
+                "type": "entier",
+                "min": 1000,
+                "max": 5000,
+                "unite": "ms"
+              }
+            ]
           }
         ]
       },

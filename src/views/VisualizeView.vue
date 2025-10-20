@@ -1,20 +1,20 @@
 <template>
   <div id="map-container" ref="mapContainer"></div>
 
-  <v-btn icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
+  <v-btn v-if="!isInitializing" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
 
   <transition name="fade">
-    <div v-if="shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
+    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
       <span class="font-weight-bold">{{ currentCommuneName }}</span>
     </div>
   </transition>
 
-              <v-card variant="elevated" class="distance-display">
+              <v-card v-if="!isInitializing" variant="elevated" class="distance-display">
                       <div class="d-flex align-center justify-center fill-height px-4">
                         <span class="font-weight-bold">Distance :&nbsp;</span>
                         <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span>
                       </div>  
-              </v-card>  <div class="bottom-controls">
+              </v-card>  <div v-if="!isInitializing" class="bottom-controls">
     <v-card variant="elevated" class="controls-card">
         <div class="d-flex align-center pa-1">
             <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
@@ -30,7 +30,7 @@
   </div>
 
   <transition name="fade">
-    <div v-if="isAltitudeVisible" class="altitude-svg-container">
+    <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container">
         <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
     </div>
   </transition>
@@ -84,6 +84,7 @@ const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
+const isInitializing = ref(true);
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -91,6 +92,20 @@ const currentCommuneName = ref('');
 const isCommuneWidgetVisible = ref(true);
 const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
 const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
+
+const centerEurope = computed(() => getSettingValue('Visualisation/Initialisation/centerEurope'));
+const zoomEurope = computed(() => getSettingValue('Visualisation/Initialisation/zoomEurope'));
+const durationEuropeToTrace = computed(() => getSettingValue('Visualisation/Initialisation/durationEuropeToTrace'));
+const pauseBeforeStart = computed(() => getSettingValue('Visualisation/Initialisation/pauseBeforeStart'));
+const durationTraceToStart = computed(() => getSettingValue('Visualisation/Initialisation/durationTraceToStart'));
+
+// Helper function to promisify map.flyTo
+function flyToPromise(mapInstance, options) {
+    return new Promise(resolve => {
+        mapInstance.flyTo(options);
+        mapInstance.once('moveend', () => resolve());
+    });
+}
 
 const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
@@ -530,6 +545,8 @@ const increaseSpeed = () => {
 };
 
 const handleKeyDown = (e) => {
+    if (isInitializing.value) return; // Ignorer l'entrée clavier pendant l'initialisation
+
     if (e.key === 'p' || e.key === 'P') {
         isPaused.value = !isPaused.value;
     } else if (e.key === 'ArrowLeft') {
@@ -546,6 +563,8 @@ const handleKeyDown = (e) => {
 };
 
 const handleKeyUp = (e) => {
+    if (isInitializing.value) return; // Ignorer l'entrée clavier pendant l'initialisation
+
     if (e.key === 'ArrowLeft') {
         isRewinding.value = false;
     }
@@ -650,11 +669,11 @@ const initializeMap = async () => {
     map = new mapboxgl.Map({
       container: mapContainer.value,
       style: mapStyle.value,
-      center: trackingDataRef.value[0].coordonnee,
-      zoom: trackingDataRef.value[0].zoom,
-      pitch: trackingDataRef.value[0].pitch,
-      bearing: trackingDataRef.value[0].cap,
-      interactive: true, // Allow interaction from the start (since it begins paused)
+      center: centerEurope.value,
+      zoom: zoomEurope.value,
+      pitch: 0,
+      bearing: 0,
+      interactive: false, // Désactiver l'interaction au démarrage
     });
 
     map.on('style.load', () => {
@@ -668,7 +687,7 @@ const initializeMap = async () => {
       map.setFog({});
     });
 
-    map.on('load', () => {
+    map.on('load', async () => { // Changed to async
       map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
 
       const paintProps = {
@@ -692,14 +711,63 @@ const initializeMap = async () => {
       map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
       map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
 
-      // Store the initial camera state for the very first resume
+      // --- Séquence d'animation d'initialisation ---
+      isInitializing.value = true;
+      map.interactive = false; // Désactiver l'interaction pendant l'animation
+
+      const traceBbox = turf.bbox(lineStringRef.value);
+      const startCameraOptions = {
+          center: trackingPointsWithDistanceRef.value[0].coordonnee,
+          zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
+          pitch: trackingPointsWithDistanceRef.value[0].editedPitch ?? trackingPointsWithDistanceRef.value[0].pitch,
+          bearing: trackingPointsWithDistanceRef.value[0].editedCap ?? trackingPointsWithDistanceRef.value[0].cap,
+      };
+
+      // Définir la vue initiale de l'Europe (sans animation)
+      map.setCenter(centerEurope.value);
+      map.setZoom(zoomEurope.value);
+      map.setPitch(0);
+      map.setBearing(0);
+
+      // Court délai pour s'assurer que la carte rend l'état initial
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Séquence 1: Vol vers l'aperçu de la trace
+      await flyToPromise(map, {
+          pitch: 0,
+          bearing: 0,
+          duration: durationEuropeToTrace.value,
+          ...map.cameraForBounds(traceBbox, { padding: 40 }) // Utiliser cameraForBounds pour obtenir le centre/zoom
+      });
+
+      // Séquence 2: Pause
+      await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
+
+      // Séquence 2: Vol vers le début de la trace (km 0)
+      await flyToPromise(map, {
+          ...startCameraOptions,
+          duration: durationTraceToStart.value,
+      });
+
+      // Séquence 3: Afficher l'interface utilisateur et mettre en pause l'animation principale
+      isInitializing.value = false;
+      isPaused.value = true; // S'assurer que l'animation principale est en pause
+      map.interactive = true; // Réactiver l'interaction
+      distanceDisplay.value = '0.00 km';
+
+      // Mettre à jour l'affichage de la commune pour le km0
+      if (shouldShowCommuneWidget.value && trackingPointsWithDistanceRef.value[0]?.commune) {
+          currentCommuneName.value = trackingPointsWithDistanceRef.value[0].commune;
+      }
+
+      // Stocker l'état initial de la caméra pour la toute première reprise
       pausedCameraOptions.value = {
           center: map.getCenter(),
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
       };
-      // Start listening for interactions right away
+      // Commencer à écouter les interactions immédiatement
       map.on('move', onMapInteraction);
       map.on('zoom', onMapInteraction);
       map.on('pitch', onMapInteraction);
