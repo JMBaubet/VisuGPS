@@ -125,6 +125,12 @@
                 color="primary"
                 hide-details
               ></v-switch>
+             <v-switch
+                v-model="zoomArriveeModel"
+                label="Activer le zoom à l'arrivée"
+                color="primary"
+                hide-details
+              ></v-switch>
           </div>
 
           <v-divider class="my-2"></v-divider>
@@ -335,6 +341,7 @@ const props = defineProps({
     cameraSyncMode: String,
     // Zoom Depart props
     zoomDepart: Boolean,
+    zoomArrivee: Boolean,
   });
   
   // --- Emits ---
@@ -370,6 +377,7 @@ const props = defineProps({
     'tab-changed',
     // Zoom Depart emits
     'update:zoomDepart',
+    'update:zoomArrivee',
   ]);
   
   watch(mainTab, (newTab) => {
@@ -391,6 +399,7 @@ const props = defineProps({
   
   const cameraSyncModeModel = createModel('cameraSyncMode');
   const zoomDepartModel = createModel('zoomDepart');
+  const zoomArriveeModel = createModel('zoomArrivee');
   
   // --- Message Event Logic ---
   const messageText = ref('');
