@@ -64,10 +64,19 @@ export function useSettings() {
       console.warn(`[useSettings] Paramètre non trouvé pour le chemin: ${path}`);
       return undefined;
     }
+    let value = null;
     if (paramNode.surcharge != null && paramNode.surcharge !== '') {
-      return paramNode.surcharge;
+      value = paramNode.surcharge;
+    } else {
+      value = paramNode.defaut;
     }
-    return paramNode.defaut;
+
+    // Pour les coordonnées, s'assurer que la valeur est une chaîne JSON
+    if (paramNode.type === 'coord' && Array.isArray(value)) {
+      return JSON.stringify(value);
+    }
+
+    return value;
   };
 
   const updateSetting = async (groupPath, paramId, newValue) => {

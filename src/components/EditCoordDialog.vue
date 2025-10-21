@@ -74,14 +74,22 @@ import 'mapbox-gl/dist/mapbox-gl.css';
  * @param {string} str The coordinate string.
  * @returns {{lon: number, lat: number} | null}
  */
-function parseCoordString(str) {
-  try {
-    const arr = JSON.parse(str);
-    if (Array.isArray(arr) && arr.length === 2 && typeof arr[0] === 'number' && typeof arr[1] === 'number') {
-      return { lon: arr[0], lat: arr[1] };
+function parseCoordString(value) {
+  // Si la valeur est déjà un tableau, l'utiliser directement
+  if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number' && typeof value[1] === 'number') {
+    return { lon: value[0], lat: value[1] };
+  }
+
+  // Si la valeur est une chaîne, tenter de la parser en JSON
+  if (typeof value === 'string') {
+    try {
+      const arr = JSON.parse(value);
+      if (Array.isArray(arr) && arr.length === 2 && typeof arr[0] === 'number' && typeof arr[1] === 'number') {
+        return { lon: arr[0], lat: arr[1] };
+      }
+    } catch (e) {
+      console.error("Error parsing coordinate string:", value, e);
     }
-  } catch (e) {
-    console.error("Error parsing coordinate string:", str, e);
   }
   return null;
 }
