@@ -158,15 +158,6 @@ async function processData() {
         const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
         viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
         
-        console.log("AltitudeSVG Debug:", {
-            minAltitude: minAltitude.value,
-            maxAltitude: maxAltitude.value,
-            effectiveMinAltitude: effectiveMinAltitude,
-            effectiveAltitudeSpan: effectiveAltitudeSpan,
-            innerHeight: innerHeight.value,
-            propsPaddingTop: props.padding.top
-        });
-        
         const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
         
         zeroAltitudeY.value = yScale(0);

@@ -425,7 +425,6 @@ const timerReprisePause = computed(() => getSettingValue('Visualisation/Animatio
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
-    console.log('showAltitudeProfileSetting computed value:', value);
     return value;
 });
 
