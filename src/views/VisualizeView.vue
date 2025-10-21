@@ -411,6 +411,10 @@ const animate = (timestamp) => {
           duration: flyToGlobalDuration.value,
           ...map.cameraForBounds(traceBbox, { padding: 40 })
       });
+
+      if (repriseAutomatique.value) {
+        resetAnimation();
+      }
     }, delayAfterAnimationEnd.value);
   }
 };
@@ -456,6 +460,7 @@ const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Fin
 const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
+const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');

@@ -1043,6 +1043,15 @@
                 "min": 200,
                 "max": 3000,
                 "critique": false
+              },
+              {
+                "identifiant": "repriseAutomatique",
+                "libelle": "Reprise automatique de l'animation",
+                "description": "Si activé, l'animation redémarre automatiquement après la séquence de finalisation (vue globale).",
+                "type": "booleen",
+                "defaut": false,
+                "surcharge": null,
+                "critique": false
               }
             ]
           }
