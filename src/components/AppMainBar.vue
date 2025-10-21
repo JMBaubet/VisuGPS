@@ -117,7 +117,6 @@ watch(networkPollingInterval, (newInterval) => {
 
 // Perform an initial check on mount, and set up initial polling
 onMounted(() => {
-  console.log('AppMainBar mounted, performing initial service check and setting up polling.');
   checkAllServices();
   setupPolling(networkPollingInterval.value);
 });

@@ -172,16 +172,9 @@ const traceurNames = computed(() => {
 });
 
 const getCommuneNom = () => {
-  console.log('props.circuit.villeDepartId:', props.circuit.villeDepartId);
-  console.log('props.allCommunes:', props.allCommunes);
   const commune = props.allCommunes.find(c => c.id === props.circuit.villeDepartId);
-  console.log('Found commune:', commune);
   communeNom.value = commune ? commune.nom : 'Inconnu';
 };
-
-console.log('InformationCircuit - props.circuit:', props.circuit);
-console.log('InformationCircuit - denivelePositif:', props.circuit.denivelePositif);
-console.log('InformationCircuit - sommet:', props.circuit.sommet);
 
 const getQrCodePath = async () => {
   if (props.circuit.circuitId) {

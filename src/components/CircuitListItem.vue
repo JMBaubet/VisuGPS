@@ -46,7 +46,44 @@
         
         <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
 
-        <v-btn icon="mdi-information" variant="text" @click.stop="showInfoDialog = true"></v-btn>
+        <v-menu open-on-hover location="start">
+          <template v-slot:activator="{ props: menuProps }">
+            <v-btn
+              icon="mdi-information"
+              variant="text"
+              v-bind="menuProps"
+              @click.stop="showInfoDialog = true"
+            ></v-btn>
+          </template>
+          <v-card>
+            <template v-if="vignetteUrl">
+              <v-img
+                :src="vignetteUrl"
+                :key="vignetteUrl"
+                width="400"
+                aspect-ratio="16/9"
+                cover
+              >
+                <template v-slot:placeholder>
+                  <div class="d-flex align-center justify-center fill-height">
+                    <v-progress-circular
+                      color="grey-lighten-4"
+                      indeterminate
+                    ></v-progress-circular>
+                  </div>
+                </template>
+              </v-img>
+            </template>
+            <template v-else>
+              <div class="d-flex align-center justify-center fill-height" style="width: 400px; height: 225px; background-color: #f0f0f0;">
+                <v-progress-circular
+                  color="grey-lighten-4"
+                  indeterminate
+                ></v-progress-circular>
+              </div>
+            </template>
+          </v-card>
+        </v-menu>
 
         <v-dialog v-model="showInfoDialog" max-width="800">
           <InformationCircuit
@@ -77,9 +114,10 @@
 </template>
 
 <script setup>
-import { ref, computed, defineEmits } from 'vue';
+import { ref, computed, onMounted, watch, defineEmits } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
+import { join } from '@tauri-apps/api/path';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
@@ -114,6 +152,18 @@ const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } 
 
 const showConfirmDialog = ref(false);
 const showInfoDialog = ref(false);
+const vignetteUrl = ref('');
+
+const getVignetteUrl = async () => {
+  if (props.circuit.circuitId) {
+    try {
+      vignetteUrl.value = await invoke('get_thumbnail_as_base64', { circuitId: props.circuit.circuitId });
+    } catch (error) {
+      console.error('Failed to load thumbnail:', error);
+      vignetteUrl.value = ''; // Clear on error
+    }
+  }
+};
 
 const communeProgress = computed(() => {
   return circuitsProgress.value[props.circuit.circuitId] !== undefined
@@ -192,6 +242,14 @@ const proceedDeletion = async () => {
 const handleCircuitUpdate = (updatedCircuit) => {
   emit('circuit-updated', updatedCircuit);
 };
+
+onMounted(() => {
+  getVignetteUrl();
+});
+
+watch(appEnvPath, () => {
+  getVignetteUrl();
+});
 </script>
 
 <style scoped>

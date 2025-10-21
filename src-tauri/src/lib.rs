@@ -918,7 +918,6 @@ pub struct FilterData {
 fn get_filter_data(state: State<Mutex<AppState>>) -> Result<FilterData, String> {
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
-    println!("Backend - circuits_file.villes: {:?}", circuits_file.villes);
 
     let mut min_distance = f64::MAX;
     let mut max_distance = f64::MIN;

@@ -367,7 +367,7 @@
                 "libelle": "Activer le zoom à l'arrivée",
                 "description": "Active un zoom automatique à l'approche de l'arrivée.",
                 "type": "booleen",
-                "defaut": true
+                "defaut": false
               },
               {
                 "identifiant": "zoomArriveeValeur",
@@ -853,7 +853,7 @@
                                       "libelle": "Colorer la trace selon la pente",
                                       "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
                                       "type": "booleen",
-                                      "defaut": false,
+                                      "defaut": true,
                                       "surcharge": null
                                     },
                                     {
@@ -883,7 +883,7 @@
                     "decimales": 2
                   },
                   {
-                    "defaut": "yellow",
+                    "defaut": "white",
                     "description": "Couleur de la comète qui suit l'avancement.",
                     "identifiant": "couleurComete",
                     "libelle": "Couleur de la comète",
@@ -910,12 +910,12 @@
                     "decimales": 2
                   },
                   {
-                    "defaut": 1000,
+                    "defaut": 50,
                     "description": "Longueur de la comète en mètres.",
                     "identifiant": "longueurComete",
                     "libelle": "Longueur de la comète (m)",
                     "type": "entier",
-                    "min": 100,
+                    "min": 10,
                     "max": 5000
                   }
                 ]
