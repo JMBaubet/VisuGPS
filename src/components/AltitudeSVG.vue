@@ -310,6 +310,7 @@ watch(() => props.currentDistance, (newDistance) => {
   display: flex;
   max-width: 90vw; /* Max width is 80% of the viewport width */
   background-color: rgba(0,0,0,0.3);
+  transform: translateZ(0);
 }
 
 .svg-container {
