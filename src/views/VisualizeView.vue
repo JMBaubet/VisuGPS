@@ -393,6 +393,26 @@ const animate = (timestamp) => {
     isPaused.value = true;
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
+    // New logic: show back button if animation finished
+    isBackButtonVisible.value = true;
+
+
+
+    // Start finalization sequence
+    setTimeout(async () => {
+      if (!map) return;
+
+      // Hide the comet
+      map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+
+      const traceBbox = turf.bbox(lineStringRef.value);
+      await flyToPromise(map, {
+          pitch: 0,
+          bearing: 0,
+          duration: flyToGlobalDuration.value,
+          ...map.cameraForBounds(traceBbox, { padding: 40 })
+      });
+    }, delayAfterAnimationEnd.value);
   }
 };
 
@@ -433,6 +453,9 @@ const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
 const timerReprisePause = computed(() => getSettingValue('Visualisation/Animation/timerReprisePause'));
+const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd') * 1000); // Convert to ms
+const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
+const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
@@ -521,7 +544,7 @@ const goBack = () => {
   router.push({ name: 'Main' });
 };
 
-const resetAnimation = () => {
+const resetAnimation = async () => {
     accumulatedTime = 0;
     isPaused.value = true;
     isAnimationFinished.value = false;
@@ -533,6 +556,20 @@ const resetAnimation = () => {
 
     activePopups.forEach(popup => popup.remove());
     activePopups.clear();
+
+    // Fly to Km 0
+    if (map && trackingPointsWithDistanceRef.value && trackingPointsWithDistanceRef.value.length > 0) {
+        const startCameraOptions = {
+            center: trackingPointsWithDistanceRef.value[0].coordonnee,
+            zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
+            pitch: trackingPointsWithDistanceRef.value[0].editedPitch ?? trackingPointsWithDistanceRef.value[0].pitch,
+            bearing: trackingPointsWithDistanceRef.value[0].editedCap ?? trackingPointsWithDistanceRef.value[0].cap,
+        };
+        await flyToPromise(map, {
+            ...startCameraOptions,
+            duration: flyToKm0Duration.value,
+        });
+    }
 
     // Reset comet to start
     map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });

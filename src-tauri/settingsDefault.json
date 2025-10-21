@@ -996,6 +996,41 @@
                 "unite": "ms"
               }
             ]
+          },
+          {
+            "libelle": "Finalisation",
+            "parametres": [
+              {
+                "identifiant": "delayAfterAnimationEnd",
+                "nom": "Délai après fin d'animation (s)",
+                "description": "Délai en secondes avant de lancer la séquence de finalisation après la fin de l'animation.",
+                "type": "entier",
+                "defaut": 3,
+                "min": 0,
+                "max": 10,
+                "critique": false
+              },
+              {
+                "identifiant": "flyToGlobalDuration",
+                "nom": "Durée du survol global (ms)",
+                "description": "Durée en millisecondes de l'animation de survol vers la vue globale de la trace.",
+                "type": "entier",
+                "defaut": 2000,
+                "min": 500,
+                "max": 5000,
+                "critique": false
+              },
+              {
+                "identifiant": "flyToKm0Duration",
+                "nom": "Durée du survol vers Km 0 (ms)",
+                "description": "Durée en millisecondes de l'animation de survol vers le point de départ (Km 0).",
+                "type": "entier",
+                "defaut": 1000,
+                "min": 200,
+                "max": 3000,
+                "critique": false
+              }
+            ]
           }
         ]
       },
