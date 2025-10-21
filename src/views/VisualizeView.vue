@@ -455,6 +455,7 @@ const timerReprisePause = computed(() => getSettingValue('Visualisation/Animatio
 const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd') * 1000); // Convert to ms
 const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
+const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
@@ -588,6 +589,16 @@ const resetAnimation = async () => {
     // Restart animation loop if it was stopped
     if (!animationFrameId) {
         animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // Démarrage automatique après la pause définie
+    const pauseMs = pauseAuKm0.value * 1000;
+    if (pauseMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, pauseMs));
+    }
+    // On vérifie que l'état est toujours celui d'une réinitialisation avant de lancer
+    if (!isAnimationFinished.value) {
+        isPaused.value = false;
     }
 };
 
@@ -829,10 +840,10 @@ const initializeMap = async () => {
           duration: durationTraceToStart.value,
       });
 
-      // Séquence 3: Afficher l'interface utilisateur et mettre en pause l'animation principale
+      // Séquence 3: Afficher l'interface utilisateur et démarrer l'animation après une pause
       isInitializing.value = false;
-      isPaused.value = true; // S'assurer que l'animation principale est en pause
-      map.interactive = true; // Réactiver l'interaction
+      isPaused.value = true; // On reste en pause le temps du timer
+      map.interactive = true;
       distanceDisplay.value = '0.00';
 
       // Mettre à jour l'affichage de la commune pour le km0
@@ -840,20 +851,27 @@ const initializeMap = async () => {
           currentCommuneName.value = trackingPointsWithDistanceRef.value[0].commune;
       }
 
-      // Stocker l'état initial de la caméra pour la toute première reprise
+      // Stocker l'état initial de la caméra pour la reprise
       pausedCameraOptions.value = {
           center: map.getCenter(),
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
       };
-      // Commencer à écouter les interactions immédiatement
+      // Commencer à écouter les interactions
       map.on('move', onMapInteraction);
       map.on('zoom', onMapInteraction);
       map.on('pitch', onMapInteraction);
       map.on('rotate', onMapInteraction);
 
       animationFrameId = requestAnimationFrame(animate);
+
+      // Démarrage automatique après la pause définie
+      const pauseMs = pauseAuKm0.value * 1000;
+      if (pauseMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, pauseMs));
+      }
+      isPaused.value = false; // Démarrage de l'animation
     });
 
   } catch (error) {

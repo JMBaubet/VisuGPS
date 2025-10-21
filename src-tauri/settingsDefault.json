@@ -994,6 +994,20 @@
                 "min": 1000,
                 "max": 5000,
                 "unite": "ms"
+              },
+              {
+                "identifiant": "pauseAuKm0",
+                "libelle": "Pause au Km 0 (sec)",
+                "description": "Durée de la pause au point de départ (Km 0) avant le démarrage automatique de l'animation. S'applique à l'initialisation et à la réinitialisation.",
+                "type": "reel",
+                "defaut": 0.5,
+                "surcharge": null,
+                "min": 0,
+                "max": 60,
+                "step": 0.5,
+                "critique": false,
+                "doc": null,
+                "unite": "sec"
               }
             ]
           },
