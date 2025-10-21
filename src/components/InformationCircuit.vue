@@ -8,16 +8,9 @@
     </v-card-title>
     <v-card-text>
       <v-row>
-        <v-col cols="12" md="6">
+        <v-col cols="12">
           <v-list density="compact">
             <v-row no-gutters>
-              <v-col cols="6">
-                <v-list-item>
-                  <v-list-item-title>
-                    <strong>Commune de départ :</strong> {{ communeNom }}
-                  </v-list-item-title>
-                </v-list-item>
-              </v-col>
               <v-col cols="6">
                 <v-list-item>
                   <v-list-item-title>
@@ -25,48 +18,92 @@
                   </v-list-item-title>
                 </v-list-item>
               </v-col>
+              <v-col cols="6">
+                <v-list-item>
+                  <v-list-item-title>
+                    <strong>Ville de départ :</strong> {{ communeNom }}
+                  </v-list-item-title>
+                </v-list-item>
+              </v-col>
             </v-row>
-            <v-list-item>
-              <v-list-item-title>
-                <strong>Dénivelé positif :</strong> {{ circuit.deniveleM }} m
-              </v-list-item-title>
-            </v-list-item>
-            <v-list-item>
-              <v-list-item-title>
-                <strong>Point le plus haut :</strong> {{ circuit.sommet.altitudeM }} m (à {{ circuit.sommet.km.toFixed(2) }} km)
-              </v-list-item-title>
-            </v-list-item>
-            <v-list-item>
-              <v-list-item-title>
-                <strong>Avancement édition trace :</strong> {{ trackingProgress.toFixed(2) }} % ({{ circuit.trackingKm.toFixed(2) }} km)
-              </v-list-item-title>
-            </v-list-item>
-            <v-list-item>
-              <v-list-item-title>
-                <strong>Avancement communes :</strong> {{ communeProgress.toFixed(2) }} %
-              </v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-col>
-        <v-col cols="12" md="6" class="d-flex flex-column align-center justify-center">
-          <div class="d-flex flex-row align-start mt-4" style="width: 100%; max-width: 500px;">
-            <span class="text-subtitle-1 mr-2 align-self-center" style="white-space: nowrap;">Traceur&nbsp;:&nbsp;</span>
-            <v-combobox
-              v-model="editedTraceur"
-              :items="traceurNames"
-              variant="outlined"
-              density="compact"
-              class="w-100 mr-2"
-            ></v-combobox>
-            <div class="d-flex align-center">
-              <v-btn
-                color="primary"
-                :disabled="editedTraceur === props.circuit.traceur"
-                @click="saveTraceur"
-                style="margin-top: 2px;"
-              >Sauvegarder</v-btn>
+            <v-row no-gutters>
+              <v-col cols="6">
+                <v-list-item>
+                  <v-list-item-title>
+                    <strong>Dénivelé positif :</strong> {{ circuit.deniveleM }} m
+                  </v-list-item-title>
+                </v-list-item>
+              </v-col>
+              <v-col cols="6">
+                <v-list-item>
+                  <v-list-item-title>
+                    <strong>Point le plus haut :</strong> {{ circuit.sommet.altitudeM }} m (à {{ circuit.sommet.km.toFixed(2) }} km)
+                  </v-list-item-title>
+                </v-list-item>
+              </v-col>
+            </v-row>
+            <v-row no-gutters>
+              <v-col cols="6">
+                <v-list-item>
+                  <v-list-item-title>
+                    <strong>Édition caméra :</strong> <span :style="{ color: trackingProgressColor }">{{ trackingProgress.toFixed(2) }} % ({{ circuit.trackingKm.toFixed(2) }} km)</span>
+                  </v-list-item-title>
+                </v-list-item>
+              </v-col>
+              <v-col cols="6">
+                <v-list-item>
+                  <v-list-item-title>
+                    <strong>Recherche Communes :</strong> <span :style="{ color: communeProgressColor }">{{ communeProgress.toFixed(2) }} %</span>
+                  </v-list-item-title>
+                </v-list-item>
+              </v-col>
+            </v-row>
+            </v-list>
+            <div class="d-flex flex-row align-start " style="width: 100%; max-width: 500px;">
+              <span class="text-subtitle-1 mr-2 align-self-center" style="white-space: nowrap; margin-bottom: 20px; padding-left: 16px;">Traceur : </span>
+              <v-combobox
+                v-model="editedTraceur"
+                :items="traceurNames"
+                variant="outlined"
+                density="compact"
+                class="w-100 mr-2"
+              ></v-combobox>
+              <div class="d-flex align-center">
+                <v-btn
+                  color="primary"
+                  :disabled="editedTraceur === props.circuit.traceur"
+                  @click="saveTraceur"
+                  style="margin-top: 2px;"
+                >Sauvegarder</v-btn>
+              </div>
             </div>
-          </div>
+            <v-row class="mt-4">
+              <v-col cols="12" md="6" class="d-flex justify-center">
+                <v-img
+                  v-if="qrCodePath"
+                  :src="`data:image/png;base64,${qrCodePath}`"
+                  alt="QR Code du circuit"
+                  contain
+                  max-height="200px"
+                  max-width="200px"
+                ></v-img>
+                <span v-else>QR Code non disponible</span>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-list density="compact">
+                  <v-list-item>
+                    <v-list-item-title>
+                      <strong>Éditeur :</strong> {{ circuit.editeur }}
+                    </v-list-item-title>
+                  </v-list-item>
+                  <v-list-item v-if="circuit.url">
+                    <v-list-item-title>
+                      <strong>URL :</strong> <a :href="circuit.url" target="_blank">{{ circuit.url }}</a>
+                    </v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-col>
+            </v-row>
         </v-col>
       </v-row>
     </v-card-text>
@@ -108,8 +145,26 @@ const trackingProgress = computed(() => {
   return (props.circuit.trackingKm / props.circuit.distanceKm) * 100;
 });
 
+const trackingProgressColor = computed(() => {
+  const progress = trackingProgress.value;
+  if (progress === 0) return 'red';
+  if (progress === 100) return 'green';
+  return 'orange';
+});
+
 const communeProgress = computed(() => {
   return props.circuit.avancementCommunes;
+});
+
+const communeProgressColor = computed(() => {
+  const progress = communeProgress.value;
+  if (progress === 0) return 'purple';
+  if (progress < 7) return 'red';
+  if (progress < 13) return 'orange';
+  if (progress < 25) return 'yellow';
+  if (progress < 50) return 'blue';
+  if (progress < 100) return 'teal';
+  return 'green';
 });
 
 const traceurNames = computed(() => {
