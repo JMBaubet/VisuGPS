@@ -1,7 +1,7 @@
 <template>
   <div id="map-container" ref="mapContainer"></div>
 
-  <v-btn v-if="!isInitializing" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil"></v-btn>
+  <v-btn v-if="!isInitializing && isBackButtonVisible" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
 
   <transition name="fade">
     <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
@@ -9,12 +9,12 @@
     </div>
   </transition>
 
-              <v-card v-if="!isInitializing" variant="elevated" class="distance-display">
+              <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display">
                       <div class="d-flex align-center justify-center fill-height px-4">
                         <span class="font-weight-bold">Distance :&nbsp;</span>
                         <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span>
                       </div>  
-              </v-card>  <div v-if="!isInitializing" class="bottom-controls">
+              </v-card>  <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
     <v-card variant="elevated" class="controls-card">
         <div class="d-flex align-center pa-1">
             <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
@@ -85,6 +85,11 @@ const flytoEvents = ref({});
 const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
 const isInitializing = ref(true);
+
+const isDistanceDisplayVisible = ref(true);
+const isBackButtonVisible = ref(true);
+const isControlsCardVisible = ref(true);
+
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -558,6 +563,19 @@ const handleKeyDown = (e) => {
         isAltitudeVisible.value = !isAltitudeVisible.value;
     } else if (e.key === 'c' || e.key === 'C') {
         isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
+    } else if (e.key === 'd' || e.key === 'D') {
+        isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+    } else if (e.key === 'h' || e.key === 'H') {
+        isBackButtonVisible.value = !isBackButtonVisible.value;
+    } else if (e.code === 'Space') {
+        e.preventDefault();
+        isControlsCardVisible.value = !isControlsCardVisible.value;
+    } else if (e.key === 'Delete') {
+        isBackButtonVisible.value = false;
+        isDistanceDisplayVisible.value = false;
+        isControlsCardVisible.value = false;
+        isCommuneWidgetVisible.value = false;
+        isAltitudeVisible.value = false;
     }
 };
 
