@@ -413,6 +413,10 @@ const animate = (timestamp) => {
       });
 
       if (repriseAutomatique.value) {
+        const pauseMs = pauseAvantReprise.value * 1000;
+        if (pauseMs > 0) {
+            await new Promise(resolve => setTimeout(resolve, pauseMs));
+        }
         resetAnimation();
       }
     }, delayAfterAnimationEnd.value);
@@ -461,6 +465,7 @@ const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finali
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
+const pauseAvantReprise = computed(() => getSettingValue('Visualisation/Finalisation/pauseAvantReprise'));
 const isAltitudeVisible = ref(false);
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');

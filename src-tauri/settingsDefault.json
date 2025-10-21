@@ -1052,6 +1052,19 @@
                 "defaut": false,
                 "surcharge": null,
                 "critique": false
+              },
+              {
+                "identifiant": "pauseAvantReprise",
+                "libelle": "Pause avant reprise auto. (sec)",
+                "description": "En mode de reprise automatique, durée de la pause sur la vue globale avant de relancer l'animation.",
+                "type": "reel",
+                "defaut": 1.0,
+                "surcharge": null,
+                "min": 0.5,
+                "max": 10.0,
+                "step": 0.5,
+                "critique": false,
+                "unite": "sec"
               }
             ]
           }
