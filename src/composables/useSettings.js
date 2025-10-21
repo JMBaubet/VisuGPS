@@ -71,11 +71,6 @@ export function useSettings() {
       value = paramNode.defaut;
     }
 
-    // Pour les coordonnées, s'assurer que la valeur est une chaîne JSON
-    if (paramNode.type === 'coord' && Array.isArray(value)) {
-      return JSON.stringify(value);
-    }
-
     return value;
   };
 

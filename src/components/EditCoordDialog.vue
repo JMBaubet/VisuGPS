@@ -94,19 +94,6 @@ function parseCoordString(value) {
   return null;
 }
 
-/**
- * Formats a coordinate object into a string with a fixed number of decimals.
- * @param {{lon: number, lat: number}} coord The coordinate object.
- * @param {number} decimals The number of decimal places.
- * @returns {string}
- */
-function formatCoordString(coord, decimals) {
-  const lon = coord.lon.toFixed(decimals);
-  const lat = coord.lat.toFixed(decimals);
-  return `[${lon},${lat}]`;
-}
-
-
 const props = defineProps({
   show: Boolean,
   parameter: Object,
@@ -249,7 +236,9 @@ const save = async () => {
     await updateSetting(props.groupPath, props.parameter.identifiant, null);
   } else {
     const decimals = props.parameter.decimales ?? 6; // 6 décimales par défaut
-    const valueToSave = formatCoordString(editableCoord.value, decimals);
+    const lon = parseFloat(editableCoord.value.lon.toFixed(decimals));
+    const lat = parseFloat(editableCoord.value.lat.toFixed(decimals));
+    const valueToSave = [lon, lat];
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
   }
   
