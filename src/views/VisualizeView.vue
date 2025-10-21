@@ -22,15 +22,14 @@
     <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
       <v-card variant="elevated" class="controls-card">
           <div class="d-flex align-center pa-1">
-              <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
-                     @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
-                     @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-              <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused"></v-btn>
-              <v-divider vertical class="mx-2"></v-divider>
-              <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small"></v-btn>
-              <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
-              <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small"></v-btn>
-          </div>
+                          <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
+                                 @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
+                                 @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
+                          <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
+                          <v-divider vertical class="mx-2"></v-divider>
+                          <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>
+                          <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
+                          <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>          </div>
       </v-card>
     </div>
   </transition>
@@ -592,7 +591,7 @@ const increaseSpeed = () => {
 };
 
 const handleKeyDown = (e) => {
-    if (isInitializing.value) return; // Ignorer l'entrée clavier pendant l'initialisation
+    if (isInitializing.value || isAnimationFinished.value) return; // Ignorer l'entrée clavier pendant l'initialisation ou si l'animation est terminée
 
     if (e.key === 'p' || e.key === 'P') {
         isPaused.value = !isPaused.value;
