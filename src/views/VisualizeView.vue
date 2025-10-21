@@ -394,8 +394,6 @@ const animate = (timestamp) => {
     isPaused.value = true;
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
-    // New logic: show back button if animation finished
-    isBackButtonVisible.value = true;
 
 
 
