@@ -1,7 +1,9 @@
 <template>
   <div id="map-container" ref="mapContainer"></div>
 
-  <v-btn v-if="!isInitializing && isBackButtonVisible" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
+  <transition name="fade">
+    <v-btn v-if="!isInitializing && isBackButtonVisible" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
+  </transition>
 
   <transition name="fade">
     <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
@@ -9,25 +11,29 @@
     </div>
   </transition>
 
-              <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display">
+              <transition name="fade">
+                <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display">
                       <div class="d-flex align-center justify-center fill-height px-4">
                         <span class="font-weight-bold">Distance :&nbsp;</span>
-                        <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span>
+                        <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
                       </div>  
-              </v-card>  <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
-    <v-card variant="elevated" class="controls-card">
-        <div class="d-flex align-center pa-1">
-            <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
-                   @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
-                   @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-            <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused"></v-btn>
-            <v-divider vertical class="mx-2"></v-divider>
-            <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small"></v-btn>
-            <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
-            <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small"></v-btn>
-        </div>
-    </v-card>
-  </div>
+                </v-card>
+              </transition>  <transition name="fade">
+    <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
+      <v-card variant="elevated" class="controls-card">
+          <div class="d-flex align-center pa-1">
+              <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
+                     @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
+                     @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
+              <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused"></v-btn>
+              <v-divider vertical class="mx-2"></v-divider>
+              <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small"></v-btn>
+              <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
+              <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small"></v-btn>
+          </div>
+      </v-card>
+    </div>
+  </transition>
 
   <transition name="fade">
     <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container">
@@ -202,7 +208,7 @@ const animate = (timestamp) => {
 
   const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
   const distanceTraveled = totalDistanceRef.value * phase;
-  distanceDisplay.value = `${distanceTraveled.toFixed(2)} km`;
+  distanceDisplay.value = distanceTraveled.toFixed(2);
   currentDistanceInMeters.value = distanceTraveled * 1000;
 
   const cometLengthKm = cometLength.value / 1000;
@@ -770,7 +776,7 @@ const initializeMap = async () => {
       isInitializing.value = false;
       isPaused.value = true; // S'assurer que l'animation principale est en pause
       map.interactive = true; // Réactiver l'interaction
-      distanceDisplay.value = '0.00 km';
+      distanceDisplay.value = '0.00';
 
       // Mettre à jour l'affichage de la commune pour le km0
       if (shouldShowCommuneWidget.value && trackingPointsWithDistanceRef.value[0]?.commune) {
@@ -831,7 +837,7 @@ onUnmounted(() => {
 }
 
 .back-button {
-  position: absolute;
+  position: absolute !important;
   top: 20px;
   left: 20px;
   z-index: 1;
@@ -839,8 +845,8 @@ onUnmounted(() => {
 }
 
 .distance-display {
-  position: absolute;
-  top: -20px; /* User preference */
+  position: fixed; /* Changed from absolute to fixed */
+  top: 20px; /* Fixed position from top */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
