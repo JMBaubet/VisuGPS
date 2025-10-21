@@ -1003,6 +1003,7 @@ onUnmounted(() => {
     pointer-events: auto;
     background-color: rgba(0, 0, 0, 0.7);
     border-radius: 5px;
+    max-height: 500px;
 }
 
 .altitude-profile-container {
@@ -1066,11 +1067,12 @@ onUnmounted(() => {
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.5s ease;
+  transition: opacity 0.75s ease, max-height 0.75s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+  max-height: 0 !important;
 }
 </style>
