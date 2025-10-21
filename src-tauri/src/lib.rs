@@ -441,6 +441,7 @@ pub struct CircuitForDisplay {
     sommet: Option<CircuitSommet>,
     traceur: String,
     traceur_id: String,
+    editeur: String,
     tracking_km: f64,
     iso_date_time: DateTime<Utc>,
     avancement_communes: i32,
@@ -462,6 +463,11 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             .find(|t| t.id == circuit.traceur_id)
             .map_or("Inconnu".to_string(), |t| t.nom.clone());
 
+        let editeur = circuits_file.editeurs
+            .iter()
+            .find(|e| e.id == circuit.editeur_id)
+            .map_or("Inconnu".to_string(), |e| e.nom.clone());
+
         CircuitForDisplay {
             circuit_id: circuit.circuit_id.clone(),
             nom: circuit.nom.clone(),
@@ -472,6 +478,7 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             sommet: Some(circuit.sommet.clone()),
             traceur,
             traceur_id: circuit.traceur_id.clone(),
+            editeur,
             tracking_km: circuit.tracking_km,
             iso_date_time: circuit.iso_date_time,
             avancement_communes: circuit.avancement_communes,

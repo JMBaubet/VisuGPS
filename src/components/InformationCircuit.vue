@@ -81,7 +81,7 @@
               <v-col cols="12" md="6" class="d-flex justify-center">
                 <v-img
                   v-if="qrCodePath"
-                  :src="`data:image/png;base64,${qrCodePath}`"
+                  :src="qrCodePath"
                   alt="QR Code du circuit"
                   contain
                   max-height="200px"
