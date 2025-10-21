@@ -16,7 +16,10 @@
         v-for="circuit in paginatedCircuits"
         :key="circuit.circuitId"
         :circuit="circuit"
+        :all-communes="allCommunes"
+        :all-traceurs="allTraceurs"
         @circuit-deleted="handleCircuitDeleted"
+        @circuit-updated="handleCircuitUpdated"
       />
     </v-list>
 
@@ -43,6 +46,8 @@ import { useSettings } from '@/composables/useSettings';
 
 const gpxImportDialog = ref(false);
 const allCircuits = ref([]);
+const allCommunes = ref([]);
+const allTraceurs = ref([]);
 const filterData = ref(null);
 
 const { getSettingValue } = useSettings();
@@ -135,6 +140,8 @@ async function loadFilterData() {
   try {
     const data = await invoke('get_filter_data');
     filterData.value = data;
+    allCommunes.value = data.villes;
+    allTraceurs.value = data.traceurs;
     // Initialize filters with default values
     activeFilters.value = {
       nom: '',
@@ -156,6 +163,14 @@ function handleGpxImported() {
 function handleCircuitDeleted() {
   refreshCircuits();
   loadFilterData();
+}
+
+function handleCircuitUpdated(updatedCircuit) {
+  const index = allCircuits.value.findIndex(c => c.circuitId === updatedCircuit.circuitId);
+  if (index !== -1) {
+    allCircuits.value[index] = updatedCircuit;
+  }
+  loadFilterData(); // Refresh filter data as traceurs might have changed
 }
 
 onMounted(async () => {

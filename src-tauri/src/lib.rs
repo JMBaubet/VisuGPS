@@ -527,6 +527,39 @@ fn update_circuit_zoom_settings(state: State<Mutex<AppState>>, circuit_id: Strin
     Ok(())
 }
 
+#[tauri::command]
+fn update_circuit_traceur(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    new_traceur: String,
+    new_traceur_id: String,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    // Update circuit's traceur
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.traceur_id = new_traceur_id.clone();
+        circuit.traceur_id = new_traceur_id.clone();
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+
+    // Add new traceur to the list if it doesn't exist
+    if !circuits_file.traceurs.iter().any(|t| t.id == new_traceur_id) {
+        circuits_file.traceurs.push(Traceur {
+            id: new_traceur_id.clone(),
+            nom: new_traceur.clone(),
+        });
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    Ok(())
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CircuitsJson {
@@ -737,6 +770,23 @@ fn get_thumbnail_as_base64(state: State<Mutex<AppState>>, circuit_id: String) ->
 }
 
 #[tauri::command]
+fn get_qrcode_as_base64(state: State<Mutex<AppState>>, circuit_id: String) -> Result<String, String> {
+    let state = state.lock().unwrap();
+    let qrcode_path = state.app_env_path.join("data").join(circuit_id).join("urlQrcode.png");
+
+    if !qrcode_path.exists() {
+        return Err("QR Code not found.".to_string());
+    }
+
+    let image_bytes = fs::read(&qrcode_path)
+        .map_err(|e| format!("Failed to read QR Code file: {}", e))?;
+
+    let base64_str = general_purpose::STANDARD.encode(&image_bytes);
+
+    Ok(format!("data:image/png;base64,{}", base64_str))
+}
+
+#[tauri::command]
 fn save_tracking_file(state: State<Mutex<AppState>>, circuit_id: String, tracking_data: Value) -> Result<(), String> {
     let state = state.lock().unwrap();
     let tracking_path = state.app_env_path.join("data").join(circuit_id).join("tracking.json");
@@ -861,6 +911,7 @@ pub struct FilterData {
 fn get_filter_data(state: State<Mutex<AppState>>) -> Result<FilterData, String> {
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
+    println!("Backend - circuits_file.villes: {:?}", circuits_file.villes);
 
     let mut min_distance = f64::MAX;
     let mut max_distance = f64::MIN;
@@ -972,7 +1023,9 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api,             communes_updater::toggle_mapbox_api, 
+        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit,         get_thumbnail_as_base64,
+        get_qrcode_as_base64,
+        read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api,             communes_updater::toggle_mapbox_api, 
             communes_updater::get_ign_status, communes_updater::get_mapbox_status, communes_updater::get_commune_update_progress,
         event::get_events,
         event::add_pause_event,
@@ -985,6 +1038,7 @@ pub fn run() {
         trace_style::get_slope_color_expression,
         get_circuit_data,
         update_circuit_zoom_settings,
+        update_circuit_traceur,
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

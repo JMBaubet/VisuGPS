@@ -46,25 +46,17 @@
         
         <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
 
-        <v-menu open-on-hover location="top" :offset="[0, -48]" @update:modelValue="loadThumbnailOnOpen">
-          <template v-slot:activator="{ props: activatorProps }">
-            <v-btn
-              v-bind="activatorProps"
-              icon="mdi-information"
-              variant="text"
-            ></v-btn>
-          </template>
+        <v-btn icon="mdi-information" variant="text" @click.stop="showInfoDialog = true"></v-btn>
 
-          <v-card class="pa-0" :width="thumbnailWidth">
-            <v-img :src="thumbnailDataUrl" contain>
-              <template v-slot:placeholder>
-                <div class="d-flex align-center justify-center fill-height" style="height: 200px;">
-                  <v-progress-circular indeterminate></v-progress-circular>
-                </div>
-              </template>
-            </v-img>
-          </v-card>
-        </v-menu>
+        <v-dialog v-model="showInfoDialog" max-width="800">
+          <InformationCircuit
+            :circuit="circuit"
+            :all-communes="allCommunes"
+            :all-traceurs="allTraceurs"
+            @close="showInfoDialog = false"
+            @update-circuit="handleCircuitUpdate"
+          />
+        </v-dialog>
 
         <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
         <v-btn :color="view3DButtonColor" icon="mdi-eye" variant="text" @click.stop="view3D"></v-btn>
@@ -94,15 +86,24 @@ import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import InformationCircuit from '@/components/InformationCircuit.vue';
 
 const props = defineProps({
   circuit: {
     type: Object,
     required: true,
   },
+  allCommunes: {
+    type: Array,
+    default: () => [],
+  },
+  allTraceurs: {
+    type: Array,
+    default: () => [],
+  },
 });
 
-const emit = defineEmits(['circuit-deleted']);
+const emit = defineEmits(['circuit-deleted', 'circuit-updated']);
 
 const isDev = ref(import.meta.env.DEV);
 const router = useRouter();
@@ -111,16 +112,8 @@ const { appEnvPath } = useEnvironment();
 const { getSettingValue } = useSettings();
 const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } = useCommunesUpdate();
 
-const thumbnailWidth = computed(() => {
-  return getSettingValue('Accueil/TailleVignette') || 512;
-});
-
 const showConfirmDialog = ref(false);
-
-
-
-const thumbnailDataUrl = ref('');
-const isLoadingThumbnail = ref(false);
+const showInfoDialog = ref(false);
 
 const communeProgress = computed(() => {
   return circuitsProgress.value[props.circuit.circuitId] !== undefined
@@ -137,20 +130,6 @@ const showTrackingProgress = computed(() => {
   // Show only if progress is > 0 and < 100
   return props.circuit.trackingKm > 0 && props.circuit.trackingKm < props.circuit.distanceKm;
 });
-
-const loadThumbnailOnOpen = async (isDialogActive) => {
-  if (isDialogActive && !thumbnailDataUrl.value && !isLoadingThumbnail.value) {
-    isLoadingThumbnail.value = true;
-    try {
-      const dataUrl = await invoke('get_thumbnail_as_base64', { circuitId: props.circuit.circuitId });
-      thumbnailDataUrl.value = dataUrl;
-    } catch (error) {
-      console.error('Failed to load thumbnail:', error);
-    } finally {
-      isLoadingThumbnail.value = false;
-    }
-  }
-};
 
 const trackingProgress = computed(() => {
   if (!props.circuit.distanceKm || props.circuit.distanceKm === 0) {
@@ -208,6 +187,10 @@ const proceedDeletion = async () => {
     showSnackbar(`Erreur lors de la suppression du circuit : ${error}`, 'error');
     console.error('Error deleting circuit:', error);
   }
+};
+
+const handleCircuitUpdate = (updatedCircuit) => {
+  emit('circuit-updated', updatedCircuit);
 };
 </script>
 
