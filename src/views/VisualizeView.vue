@@ -604,7 +604,15 @@ const increaseSpeed = () => {
 };
 
 const handleKeyDown = (e) => {
-    if (isInitializing.value || isAnimationFinished.value) return; // Ignorer l'entrée clavier pendant l'initialisation ou si l'animation est terminée
+    // Handle 'r' for reload specifically when animation is finished
+    if (isAnimationFinished.value) {
+        if (e.key === 'r' || e.key === 'R') {
+            resetAnimation();
+        }
+        return; // Ignore all other keys when finished
+    }
+
+    if (isInitializing.value) return; // Ignore all keys during initialization
 
     if (e.key === 'p' || e.key === 'P') {
         isPaused.value = !isPaused.value;
