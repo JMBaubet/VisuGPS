@@ -570,6 +570,19 @@ const resetAnimation = async () => {
         });
     }
 
+    // After flying to start, update the paused state to reflect the new camera position
+    // and reset the interaction flag. This prevents the "resume" logic from flying back
+    // to the pre-reset position.
+    if (map) {
+        pausedCameraOptions.value = {
+            center: map.getCenter(),
+            zoom: map.getZoom(),
+            pitch: map.getPitch(),
+            bearing: map.getBearing(),
+        };
+        cameraMovedDuringPause.value = false;
+    }
+
     // Reset comet to start
     map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
     // Restart animation loop if it was stopped
