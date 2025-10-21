@@ -18,27 +18,28 @@
                         <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
                       </div>  
                 </v-card>
-              </transition>  <transition name="fade">
-    <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
-      <v-card variant="elevated" class="controls-card">
-          <div class="d-flex align-center pa-1">
-                          <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
-                                 @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
-                                 @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-                          <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
-                          <v-divider vertical class="mx-2"></v-divider>
-                          <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>
-                          <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
-                          <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>          </div>
-      </v-card>
-    </div>
-  </transition>
-
-  <transition name="fade">
-    <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container">
-        <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
-    </div>
-  </transition>
+              </transition>  <div class="bottom-center-container">
+    <transition name="fade">
+      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container">
+          <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
+      </div>
+    </transition>
+    <transition name="fade">
+      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
+        <v-card variant="elevated" class="controls-card">
+            <div class="d-flex align-center pa-1">
+                            <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
+                                   @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
+                                   @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
+                            <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
+                            <v-divider vertical class="mx-2"></v-divider>
+                            <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>
+                            <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
+                            <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>          </div>
+        </v-card>
+      </div>
+    </transition>
+  </div>
 
 
 </template>
@@ -980,22 +981,25 @@ onUnmounted(() => {
   height: 48px; /* Force height to match button */
 }
 
-.bottom-controls {
+.bottom-center-container {
   position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.bottom-controls {
   pointer-events: auto;
 }
 
 .altitude-svg-container {
-    position: absolute;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
     justify-content: center; /* Center the child if it's smaller */
-    z-index: 1;
     pointer-events: auto;
     background-color: rgba(0, 0, 0, 0.7);
     border-radius: 5px;
