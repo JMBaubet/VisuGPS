@@ -417,9 +417,9 @@ const traceColor = ref('#FFA726');
 const mapboxAvancementColorHex = ref('');
 
 // New granular visibility toggles
-const showCalculeeBearingDelta = ref(true);
-const showEditeeBearingDelta = ref(true);
-const showCalculeeBearingTotalDelta = ref(true);
+const showCalculeeBearingDelta = ref(false);
+const showEditeeBearingDelta = ref(false);
+const showCalculeeBearingTotalDelta = ref(false);
 const showEditeeBearingTotalDelta = ref(true);
 const showEditeeZoom = ref(true);
 const showEditeePitch = ref(true);
