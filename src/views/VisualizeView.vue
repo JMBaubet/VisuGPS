@@ -1,5 +1,5 @@
 <template>
-  <div id="map-container" ref="mapContainer"></div>
+  <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
 
   <transition name="fade">
     <v-btn v-if="!isInitializing && isBackButtonVisible" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import mapboxgl from 'mapbox-gl';
@@ -73,6 +73,7 @@ const { toHex } = useVuetifyColors();
 const mapContainer = ref(null);
 let map = null;
 let animationFrameId = null;
+let cursorTimer = null;
 let isMapInitialized = false;
 let warningShown = false;
 let accumulatedTime = 0;
@@ -94,6 +95,7 @@ const isInitializing = ref(true);
 const isDistanceDisplayVisible = ref(true);
 const isBackButtonVisible = ref(true);
 const isControlsCardVisible = ref(true);
+const isCursorHidden = ref(false);
 
 
 // --- Commune Widget State ---
@@ -460,6 +462,7 @@ const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces
 const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
 const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
 const timerReprisePause = computed(() => getSettingValue('Visualisation/Animation/timerReprisePause'));
+const masquerCurseurDelai = computed(() => getSettingValue('Visualisation/Animation/masquerCurseurDelai'));
 const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd') * 1000); // Convert to ms
 const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
@@ -889,14 +892,45 @@ const initializeMap = async () => {
   }
 };
 
+const handleMouseMove = () => {
+    if (isCursorHidden.value) {
+        isCursorHidden.value = false;
+    }
+    clearTimeout(cursorTimer);
+    if (masquerCurseurDelai.value) {
+        cursorTimer = setTimeout(() => {
+            isCursorHidden.value = true;
+        }, masquerCurseurDelai.value);
+    }
+};
+
 onMounted(() => {
   interruptUpdate(); // Interrupt commune update task
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
-  watch(settings, (newSettings) => {
-    if (newSettings && mapContainer.value && !isMapInitialized) {
-      isMapInitialized = true;
-      initializeMap();
+
+  const unwatchSettings = watch(settings, (newSettings) => {
+    if (newSettings) {
+      // --- Cursor hide logic ---
+      if (masquerCurseurDelai.value != null) {
+        if (mapContainer.value) {
+          mapContainer.value.addEventListener('mousemove', handleMouseMove);
+          handleMouseMove(); // Initial call
+        }
+      }
+
+      // --- Map init logic ---
+      if (mapContainer.value && !isMapInitialized) {
+        isMapInitialized = true;
+        initializeMap();
+      }
+
+      // We've done all initial setup based on settings, so we can stop watching.
+      nextTick(() => {
+        if (unwatchSettings) {
+            unwatchSettings();
+        }
+      });
     }
   }, { immediate: true });
 });
@@ -904,6 +938,10 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
+  if (mapContainer.value) {
+      mapContainer.value.removeEventListener('mousemove', handleMouseMove);
+  }
+  clearTimeout(cursorTimer);
   if (animationFrameId) cancelAnimationFrame(animationFrameId);
   activePopups.forEach(popup => popup.remove());
   activePopups.clear();
@@ -919,6 +957,10 @@ onUnmounted(() => {
   top: 0;
   bottom: 0;
   width: 100%;
+}
+
+.hide-cursor {
+  cursor: none;
 }
 
 .back-button {

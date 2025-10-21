@@ -943,6 +943,17 @@
                 "min": 0,
                 "max": 5000,
                 "unite": "ms"
+              },
+              {
+                "identifiant": "masquerCurseurDelai",
+                "libelle": "Délai avant de masquer le curseur (ms)",
+                "description": "Délai d'inactivité en millisecondes avant de masquer le curseur de la souris.",
+                "type": "entier",
+                "defaut": 1000,
+                "min": 500,
+                "max": 10000,
+                "step": 500,
+                "unite": "ms"
               }
             ]
           },
