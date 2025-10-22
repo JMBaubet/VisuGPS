@@ -709,6 +709,34 @@
                 "min": 1,
                 "max": 20,
                 "unite": "°"
+              },
+              {
+                "defaut": "ArrowRight",
+                "description": "Touche pour avancer (flèche droite).",
+                "identifiant": "toucheAvancementAvant",
+                "libelle": "Touche Avancement Avant",
+                "type": "string"
+              },
+              {
+                "defaut": "ArrowLeft",
+                "description": "Touche pour reculer (flèche gauche).",
+                "identifiant": "toucheAvancementArriere",
+                "libelle": "Touche Avancement Arrière",
+                "type": "string"
+              },
+              {
+                "defaut": "ArrowUp",
+                "description": "Touche pour augmenter le pitch (flèche haut).",
+                "identifiant": "touchePitchHaut",
+                "libelle": "Touche Pitch Haut",
+                "type": "string"
+              },
+              {
+                "defaut": "ArrowDown",
+                "description": "Touche pour diminuer le pitch (flèche bas).",
+                "identifiant": "touchePitchBas",
+                "libelle": "Touche Pitch Bas",
+                "type": "string"
               }
             ]
           },

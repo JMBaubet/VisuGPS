@@ -159,6 +159,12 @@ const incrementAvancementShift = ref(10);
 const incrementPitch = ref(1);
 const incrementPitchShift = ref(5);
 
+// Touches configurables
+const toucheAvancementAvant = ref('ArrowRight');
+const toucheAvancementArriere = ref('ArrowLeft');
+const touchePitchHaut = ref('ArrowUp');
+const touchePitchBas = ref('ArrowDown');
+
 // Commandes Souris
 const incrementZoom = ref(0.1);
 const incrementZoomShift = ref(1.0);
@@ -1046,6 +1052,10 @@ const handleKeydown = (event) => {
     return;
   }
 
+
+
+  const pressedKey = event.key.toLowerCase();
+
   let stepAvancement = incrementAvancement.value;
   if (event.shiftKey) {
     stepAvancement = incrementAvancementShift.value;
@@ -1059,23 +1069,23 @@ const handleKeydown = (event) => {
   let newIndex = currentPointIndex.value;
   let handled = false;
 
-  switch (event.key) {
-    case 'ArrowRight':
+  switch (pressedKey) {
+    case toucheAvancementAvant.value.toLowerCase():
       newIndex = Math.min(currentPointIndex.value + stepAvancement, trackingPoints.value.length - 1);
       handled = true;
       break;
-    case 'ArrowLeft':
+    case toucheAvancementArriere.value.toLowerCase():
       newIndex = Math.max(currentPointIndex.value - stepAvancement, 0);
       handled = true;
       break;
-    case 'ArrowUp': {
+    case touchePitchHaut.value.toLowerCase(): {
       if (!map) return;
       const newPitch = Math.min(map.getPitch() + stepPitch, 85);
       map.easeTo({ pitch: newPitch, duration: 50 });
       handled = true;
       break;
     }
-    case 'ArrowDown': {
+    case touchePitchBas.value.toLowerCase(): {
       if (!map) return;
       const newPitch = Math.max(map.getPitch() - stepPitch, 0);
       map.easeTo({ pitch: newPitch, duration: 50 });
@@ -1225,6 +1235,12 @@ onMounted(async () => {
     incrementPitch.value = await getSettingValue('Edition/Commandes clavier/incrementPitch');
     incrementPitchShift.value = await getSettingValue('Edition/Commandes clavier/incrementPitchShift');
 
+    // Load Touches configurables
+    toucheAvancementAvant.value = await getSettingValue('Edition/Commandes clavier/toucheAvancementAvant');
+    toucheAvancementArriere.value = await getSettingValue('Edition/Commandes clavier/toucheAvancementArriere');
+    touchePitchHaut.value = await getSettingValue('Edition/Commandes clavier/touchePitchHaut');
+    touchePitchBas.value = await getSettingValue('Edition/Commandes clavier/touchePitchBas');
+
     // Load Commandes Souris settings
     incrementZoom.value = await getSettingValue('Edition/Commandes souris/incrementZoom');
     incrementZoomShift.value = await getSettingValue('Edition/Commandes souris/incrementZoomShift');
@@ -1275,6 +1291,7 @@ onMounted(async () => {
       dragRotate: true, // Enable default drag rotate
       dragPan: true, // Enable default drag pan
       pitchWithRotate: false,
+      keyboard: false, // Disable default keyboard navigation
     });
 
     // Add custom event listeners for mouse interactions
