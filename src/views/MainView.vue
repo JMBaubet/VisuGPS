@@ -59,8 +59,7 @@ const currentPage = ref(1);
 const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);
 
 const showFilters = computed(() => {
-  if (!itemsPerPage.value) return false;
-  return allCircuits.value.length > itemsPerPage.value;
+  return true;
 });
 
 const filteredAndSortedCircuits = computed(() => {
