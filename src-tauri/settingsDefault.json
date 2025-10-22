@@ -395,7 +395,54 @@
             "libelle": "Graphe",
             "groupes": [
               {
-                "libelle": "CouleurCourbes",
+                "libelle": "Affichage courbes",
+                "parametres": [
+                  {
+                    "identifiant": "afficherBearingDeltaCalcule",
+                    "libelle": "Afficher Delta Bearing (Calculé)",
+                    "description": "Affiche la courbe du delta de cap calculé (valeurs originales).",
+                    "type": "booleen",
+                    "defaut": false
+                  },
+                  {
+                    "identifiant": "afficherBearingDeltaEdite",
+                    "libelle": "Afficher Delta Bearing (Édité)",
+                    "description": "Affiche la courbe du delta de cap édité.",
+                    "type": "booleen",
+                    "defaut": false
+                  },
+                  {
+                    "identifiant": "afficherBearingTotalDeltaCalcule",
+                    "libelle": "Afficher Somme Delta Bearing (Calculé)",
+                    "description": "Affiche la courbe de la somme des deltas de cap calculés.",
+                    "type": "booleen",
+                    "defaut": false
+                  },
+                  {
+                    "identifiant": "afficherBearingTotalDeltaEdite",
+                    "libelle": "Afficher Somme Delta Bearing (Édité)",
+                    "description": "Affiche la courbe de la somme des deltas de cap édités.",
+                    "type": "booleen",
+                    "defaut": true
+                  },
+                  {
+                    "identifiant": "afficherZoomEdite",
+                    "libelle": "Afficher Zoom (Édité)",
+                    "description": "Affiche la courbe du zoom édité.",
+                    "type": "booleen",
+                    "defaut": true
+                  },
+                  {
+                    "identifiant": "afficherPitchEdite",
+                    "libelle": "Afficher Pitch (Édité)",
+                    "description": "Affiche la courbe du pitch édité.",
+                    "type": "booleen",
+                    "defaut": true
+                  }
+                ]
+              },
+              {
+                "libelle": "Couleur courbes",
                 "parametres": [
                   {
                     "identifiant": "couleurZoom",

@@ -219,7 +219,7 @@ const handleAddPauseEvent = async (override = false) => {
                 showSnackbar('Ajout de la Pause annulé.', 'info');
             }
         } else {
-            showSnackbar(`Erreur lors de l'ajout de la la pause: ${error}`, 'error');
+            showSnackbar(`Erreur lors de l\'ajout de la la pause: ${error}`, 'error');
         }
     }
 };
@@ -276,7 +276,7 @@ const handleAddFlytoEvent = async (duration, override = false) => {
             showSnackbar('Ajout du Survol annulé.', 'info');
         }
     } else {
-        showSnackbar(`Erreur lors de l'ajout de l'événement Survol: ${error}`, 'error');
+        showSnackbar(`Erreur lors de l\'ajout de l\'événement Survol: ${error}`, 'error');
     }
   }
 };
@@ -291,7 +291,7 @@ const handleDeleteFlytoEvent = async () => {
     showSnackbar('Événement Survol supprimé avec succès', 'success');
   } catch (error) {
     console.error("Failed to delete flyto event:", error);
-    showSnackbar(`Erreur lors de la suppression de l'événement Survol: ${error}`, 'error');
+    showSnackbar(`Erreur lors de la suppression de l\'événement Survol: ${error}`, 'error');
   }
 };
 
@@ -380,7 +380,7 @@ const handleAddMessageEvent = async (messageData) => {
     showSnackbar('Message ajouté avec succès', 'success');
   } catch (error) {
     console.error("Failed to add message event:", error);
-    showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
+    showSnackbar(`Erreur lors de l\'ajout du message: ${error}`, 'error');
   }
 };
 
@@ -434,9 +434,9 @@ const mapboxAvancementColorHex = ref('');
 const showCalculeeBearingDelta = ref(false);
 const showEditeeBearingDelta = ref(false);
 const showCalculeeBearingTotalDelta = ref(false);
-const showEditeeBearingTotalDelta = ref(true);
-const showEditeeZoom = ref(true);
-const showEditeePitch = ref(true);
+const showEditeeBearingTotalDelta = ref(false);
+const showEditeeZoom = ref(false);
+const showEditeePitch = ref(false);
 
 // Graph curve colors
 const graphZoomColor = ref('green');
@@ -1141,40 +1141,41 @@ onMounted(async () => {
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
     // Load graph curve colors
-    const rawGraphZoomColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom');
+    const rawGraphZoomColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom');
+    const rawGraphPitchColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurPitch');
+    const rawGraphBearingDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingDelta');
+    const rawGraphBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingTotalDelta');
+    const rawGraphEditedZoomColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedZoom');
+    const rawGraphEditedPitchColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedPitch');
+    const rawGraphEditedBearingDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingDelta');
+    const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingTotalDelta');
+
     graphZoomColor.value = toHex(rawGraphZoomColor);
-
-    const rawGraphPitchColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch');
     graphPitchColor.value = toHex(rawGraphPitchColor);
-
-    const rawGraphBearingDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta');
     graphBearingDeltaColor.value = toHex(rawGraphBearingDeltaColor);
-
-    const rawGraphBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta');
     graphBearingTotalDeltaColor.value = toHex(rawGraphBearingTotalDeltaColor);
-
-    // Load edited graph curve colors
-    const rawGraphEditedZoomColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom');
     graphEditedZoomColor.value = toHex(rawGraphEditedZoomColor);
-
-    const rawGraphEditedPitchColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch');
     graphEditedPitchColor.value = toHex(rawGraphEditedPitchColor);
-
-    const rawGraphEditedBearingDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta');
     graphEditedBearingDeltaColor.value = toHex(rawGraphEditedBearingDeltaColor);
+    graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
 
-    const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta');
-    graphEditedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
+    // Load graph visibility settings
+    showCalculeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaCalcule');
+    showEditeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaEdite');
+    showCalculeeBearingTotalDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingTotalDeltaCalcule');
+    showEditeeBearingTotalDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingTotalDeltaEdite');
+    showEditeeZoom.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherZoomEdite');
+    showEditeePitch.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherPitchEdite');
 
     // Load colors for checkboxes
-    colorOrigineBearingDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta'));
-    colorEditedBearingDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta'));
-    colorOrigineBearingTotalDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta'));
-    colorEditedBearingTotalDelta.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
-    colorOrigineZoom.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom'));
-    colorEditedZoom.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
-    colorOriginePitch.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch'));
-    colorEditedPitch.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
+    colorOrigineBearingDelta.value = toHex(rawGraphBearingDeltaColor);
+    colorEditedBearingDelta.value = toHex(rawGraphEditedBearingDeltaColor);
+    colorOrigineBearingTotalDelta.value = toHex(rawGraphBearingTotalDeltaColor);
+    colorEditedBearingTotalDelta.value = toHex(rawGraphEditedBearingTotalDeltaColor);
+    colorOrigineZoom.value = toHex(rawGraphZoomColor);
+    colorEditedZoom.value = toHex(rawGraphEditedZoomColor);
+    colorOriginePitch.value = toHex(rawGraphPitchColor);
+    colorEditedPitch.value = toHex(rawGraphEditedPitchColor);
 
 
 

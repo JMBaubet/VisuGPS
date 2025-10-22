@@ -150,10 +150,10 @@ const editedBearingDeltaColor = ref('');
 const editedBearingTotalDeltaColor = ref('');
 
 onMounted(async () => {
-  zoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurZoom'));
-  pitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurPitch'));
-  bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingDelta'));
-  bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta'));
+  zoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom'));
+  pitchColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurPitch'));
+  bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingDelta'));
+  bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingTotalDelta'));
   progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
   progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
   controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
@@ -166,10 +166,10 @@ onMounted(async () => {
   flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Flyto/couleur'));
   flytoLength.value = await getSettingValue('Edition/Evenements/Flyto/longueur');
 
-  editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedZoom'));
-  editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedPitch'));
-  editedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta'));
-  editedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta'));
+  editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedZoom'));
+  editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedPitch'));
+  editedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingDelta'));
+  editedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingTotalDelta'));
 });
 
 const props = defineProps({
