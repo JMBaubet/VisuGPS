@@ -156,15 +156,12 @@ const zoomArriveeIsActive = ref(false);
 // Commandes Clavier
 const incrementAvancement = ref(1);
 const incrementAvancementShift = ref(10);
-const incrementAvancementCtrl = ref(100);
 const incrementPitch = ref(1);
 const incrementPitchShift = ref(5);
 
 // Commandes Souris
 const incrementZoom = ref(0.1);
 const incrementZoomShift = ref(1.0);
-const incrementBearing = ref(1);
-const incrementBearingShift = ref(5);
 
 watch(zoomDepart, async (newValue) => {
   if (!dataLoaded.value) return;
@@ -1050,9 +1047,7 @@ const handleKeydown = (event) => {
   }
 
   let stepAvancement = incrementAvancement.value;
-  if (event.ctrlKey) {
-    stepAvancement = incrementAvancementCtrl.value;
-  } else if (event.shiftKey) {
+  if (event.shiftKey) {
     stepAvancement = incrementAvancementShift.value;
   }
 
@@ -1225,17 +1220,14 @@ onMounted(async () => {
     distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
 
     // Load Commandes Clavier settings
-    incrementAvancement.value = await getSettingValue('Edition/CommandesClavier/incrementAvancement');
-    incrementAvancementShift.value = await getSettingValue('Edition/CommandesClavier/incrementAvancementShift');
-    incrementAvancementCtrl.value = await getSettingValue('Edition/CommandesClavier/incrementAvancementCtrl');
-    incrementPitch.value = await getSettingValue('Edition/CommandesClavier/incrementPitch');
-    incrementPitchShift.value = await getSettingValue('Edition/CommandesClavier/incrementPitchShift');
+    incrementAvancement.value = await getSettingValue('Edition/Commandes clavier/incrementAvancement');
+    incrementAvancementShift.value = await getSettingValue('Edition/Commandes clavier/incrementAvancementShift');
+    incrementPitch.value = await getSettingValue('Edition/Commandes clavier/incrementPitch');
+    incrementPitchShift.value = await getSettingValue('Edition/Commandes clavier/incrementPitchShift');
 
     // Load Commandes Souris settings
-    incrementZoom.value = await getSettingValue('Edition/CommandesSouris/incrementZoom');
-    incrementZoomShift.value = await getSettingValue('Edition/CommandesSouris/incrementZoomShift');
-    incrementBearing.value = await getSettingValue('Edition/CommandesSouris/incrementBearing');
-    incrementBearingShift.value = await getSettingValue('Edition/CommandesSouris/incrementBearingShift');
+    incrementZoom.value = await getSettingValue('Edition/Commandes souris/incrementZoom');
+    incrementZoomShift.value = await getSettingValue('Edition/Commandes souris/incrementZoomShift');
 
     // Initial interpolation
     updateInterpolation();
