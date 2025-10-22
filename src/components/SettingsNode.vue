@@ -9,6 +9,14 @@
         </v-list-item>
       </template>
 
+      <!-- Appel récursif pour les sous-groupes -->
+      <SettingsNode
+        v-for="childGroup in node.groupes"
+        :key="childGroup.identifiant"
+        :node="childGroup"
+        :currentPath="fullPath"
+      />
+
       <!-- Affichage des paramètres -->
       <v-list-item
         v-for="param in node.parametres"
@@ -27,14 +35,6 @@
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
       </v-list-item>
-
-      <!-- Appel récursif pour les sous-groupes -->
-      <SettingsNode
-        v-for="childGroup in node.groupes"
-        :key="childGroup.identifiant"
-        :node="childGroup"
-        :currentPath="fullPath"
-      />
 
     </v-list-group>
 
