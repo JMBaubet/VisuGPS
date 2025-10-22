@@ -83,8 +83,8 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     let settings_path = app_env_path_clone.join("settings.json");
     let settings_content = std::fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
-    let ign_actif = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.ignActif").and_then(|v| v.as_bool()).unwrap_or(true);
-    let mapbox_actif = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.APIs.parametres.mapboxActif").and_then(|v| v.as_bool()).unwrap_or(true);
+    let ign_actif = get_setting_value(&settings, "data.groupes.Accueil.groupes.MajCommunes.groupes.APIs.parametres.ignActif").and_then(|v| v.as_bool()).unwrap_or(true);
+    let mapbox_actif = get_setting_value(&settings, "data.groupes.Accueil.groupes.MajCommunes.groupes.APIs.parametres.mapboxActif").and_then(|v| v.as_bool()).unwrap_or(true);
     IGN_ENABLED.store(ign_actif, Ordering::SeqCst);
     MAPBOX_ENABLED.store(mapbox_actif, Ordering::SeqCst);
 
@@ -98,9 +98,9 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     });
 
     // Read settings to get timers for the spawned task
-    let timer_ign = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerIGN").and_then(|v| v.as_u64()).unwrap_or(200);
-    let timer_mapbox = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerMapbox").and_then(|v| v.as_u64()).unwrap_or(200);
-    let timer_osm = get_setting_value(&settings, "data.groupes.MajCommunes.groupes.Timers.parametres.timerOSM").and_then(|v| v.as_u64()).unwrap_or(1000);
+    let timer_ign = get_setting_value(&settings, "data.groupes.Accueil.groupes.MajCommunes.groupes.Timers.parametres.timerIGN").and_then(|v| v.as_u64()).unwrap_or(200);
+    let timer_mapbox = get_setting_value(&settings, "data.groupes.Accueil.groupes.MajCommunes.groupes.Timers.parametres.timerMapbox").and_then(|v| v.as_u64()).unwrap_or(200);
+    let timer_osm = get_setting_value(&settings, "data.groupes.Accueil.groupes.MajCommunes.groupes.Timers.parametres.timerOSM").and_then(|v| v.as_u64()).unwrap_or(1000);
 
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
