@@ -153,6 +153,19 @@ const zoomArriveeValeur = ref(18);
 const distanceZoomArrivee = ref(20);
 const zoomArriveeIsActive = ref(false);
 
+// Commandes Clavier
+const incrementAvancement = ref(1);
+const incrementAvancementShift = ref(10);
+const incrementAvancementCtrl = ref(100);
+const incrementPitch = ref(1);
+const incrementPitchShift = ref(5);
+
+// Commandes Souris
+const incrementZoom = ref(0.1);
+const incrementZoomShift = ref(1.0);
+const incrementBearing = ref(1);
+const incrementBearingShift = ref(5);
+
 watch(zoomDepart, async (newValue) => {
   if (!dataLoaded.value) return;
   if (newValue) {
@@ -169,8 +182,6 @@ const updateCameraInfo = () => {
   currentPitch.value = Math.round(map.getPitch());
   currentBearing.value = Math.round(map.getBearing());
 };
-
-
 
 const handleTabChange = (newTab) => {
   if (!map) return;
@@ -996,9 +1007,40 @@ const destroyMap = () => {
   }
 };
 
+const handleWheel = (event) => {
+  if (!map) return;
+  event.preventDefault();
+
+  let zoomStep = incrementZoom.value;
+  if (event.shiftKey) {
+    zoomStep = incrementZoomShift.value;
+  }
+
+  const currentZoom = map.getZoom();
+  let newZoom;
+
+  if (event.deltaY < 0) {
+    // Zoom in
+    newZoom = currentZoom + zoomStep;
+  } else {
+    // Zoom out
+    newZoom = currentZoom - zoomStep;
+  }
+
+  map.setZoom(newZoom);
+};
+
+const handleContextMenu = (event) => {
+  event.preventDefault(); // Prevent default context menu on right-click
+};
+
 onUnmounted(() => {
   destroyMap();
   window.removeEventListener('keydown', handleKeydown);
+  if (mapContainer.value) {
+    mapContainer.value.removeEventListener('wheel', handleWheel);
+    mapContainer.value.removeEventListener('contextmenu', handleContextMenu);
+  }
 });
 
 const handleKeydown = (event) => {
@@ -1007,11 +1049,16 @@ const handleKeydown = (event) => {
     return;
   }
 
-  let step = 1;
+  let stepAvancement = incrementAvancement.value;
   if (event.ctrlKey) {
-    step = 100;
+    stepAvancement = incrementAvancementCtrl.value;
   } else if (event.shiftKey) {
-    step = 10;
+    stepAvancement = incrementAvancementShift.value;
+  }
+
+  let stepPitch = incrementPitch.value;
+  if (event.shiftKey) {
+    stepPitch = incrementPitchShift.value;
   }
 
   let newIndex = currentPointIndex.value;
@@ -1019,23 +1066,23 @@ const handleKeydown = (event) => {
 
   switch (event.key) {
     case 'ArrowRight':
-      newIndex = Math.min(currentPointIndex.value + step, trackingPoints.value.length - 1);
+      newIndex = Math.min(currentPointIndex.value + stepAvancement, trackingPoints.value.length - 1);
       handled = true;
       break;
     case 'ArrowLeft':
-      newIndex = Math.max(currentPointIndex.value - step, 0);
+      newIndex = Math.max(currentPointIndex.value - stepAvancement, 0);
       handled = true;
       break;
     case 'ArrowUp': {
       if (!map) return;
-      const newPitch = Math.min(map.getPitch() + 1, 85);
+      const newPitch = Math.min(map.getPitch() + stepPitch, 85);
       map.easeTo({ pitch: newPitch, duration: 50 });
       handled = true;
       break;
     }
     case 'ArrowDown': {
       if (!map) return;
-      const newPitch = Math.max(map.getPitch() - 1, 0);
+      const newPitch = Math.max(map.getPitch() - stepPitch, 0);
       map.easeTo({ pitch: newPitch, duration: 50 });
       handled = true;
       break;
@@ -1177,6 +1224,19 @@ onMounted(async () => {
     zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
     distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
 
+    // Load Commandes Clavier settings
+    incrementAvancement.value = await getSettingValue('Edition/CommandesClavier/incrementAvancement');
+    incrementAvancementShift.value = await getSettingValue('Edition/CommandesClavier/incrementAvancementShift');
+    incrementAvancementCtrl.value = await getSettingValue('Edition/CommandesClavier/incrementAvancementCtrl');
+    incrementPitch.value = await getSettingValue('Edition/CommandesClavier/incrementPitch');
+    incrementPitchShift.value = await getSettingValue('Edition/CommandesClavier/incrementPitchShift');
+
+    // Load Commandes Souris settings
+    incrementZoom.value = await getSettingValue('Edition/CommandesSouris/incrementZoom');
+    incrementZoomShift.value = await getSettingValue('Edition/CommandesSouris/incrementZoomShift');
+    incrementBearing.value = await getSettingValue('Edition/CommandesSouris/incrementBearing');
+    incrementBearingShift.value = await getSettingValue('Edition/CommandesSouris/incrementBearingShift');
+
     // Initial interpolation
     updateInterpolation();
 
@@ -1219,12 +1279,22 @@ onMounted(async () => {
       pitch: initialPitch,
       bearing: initialBearing,
       antialias: true,
-      scrollZoom: { around: 'center' },
+      scrollZoom: false, // Disable default scroll zoom
+      dragRotate: true, // Enable default drag rotate
+      dragPan: true, // Enable default drag pan
       pitchWithRotate: false,
     });
 
+    // Add custom event listeners for mouse interactions
+    mapContainer.value.addEventListener('wheel', handleWheel, { passive: false });
+    // mapContainer.value.addEventListener('mousedown', handleMouseDown); // Let Mapbox handle dragPan
+    // mapContainer.value.addEventListener('mousemove', handleMouseMove);
+    // mapContainer.value.addEventListener('mouseup', handleMouseUp);
+    mapContainer.value.addEventListener('contextmenu', handleContextMenu);
+
     map.on('load', () => {
-      map.dragPan.disable(); // Disable pan by default as the initial tab is 'camera'
+      // Initial state for dragPan based on default tab (camera)
+      map.dragPan.disable();
 
       // Listen for map movements to update the info widget
       map.on('zoom', updateCameraInfo);

@@ -670,6 +670,103 @@
             ]
           },
           {
+            "libelle": "CommandesClavier",
+            "parametres": [
+              {
+                "defaut": 1,
+                "description": "Incrément de déplacement pour les flèches gauche/droite (points de tracking).",
+                "identifiant": "incrementAvancement",
+                "libelle": "Incrément Avancement",
+                "type": "entier",
+                "min": 1,
+                "max": 10
+              },
+              {
+                "defaut": 10,
+                "description": "Incrément de déplacement avec la touche Shift pour les flèches gauche/droite (points de tracking).",
+                "identifiant": "incrementAvancementShift",
+                "libelle": "Incrément Avancement (Shift)",
+                "type": "entier",
+                "min": 1,
+                "max": 50
+              },
+              {
+                "defaut": 100,
+                "description": "Incrément de déplacement avec la touche Ctrl pour les flèches gauche/droite (points de tracking).",
+                "identifiant": "incrementAvancementCtrl",
+                "libelle": "Incrément Avancement (Ctrl)",
+                "type": "entier",
+                "min": 1,
+                "max": 500
+              },
+              {
+                "defaut": 1,
+                "description": "Incrément pour l'angle de la caméra (pitch) avec les flèches haut/bas.",
+                "identifiant": "incrementPitch",
+                "libelle": "Incrément Pitch",
+                "type": "entier",
+                "min": 1,
+                "max": 10,
+                "unite": "°"
+              },
+              {
+                "defaut": 5,
+                "description": "Incrément pour l'angle de la caméra (pitch) avec les flèches haut/bas et la touche Shift.",
+                "identifiant": "incrementPitchShift",
+                "libelle": "Incrément Pitch (Shift)",
+                "type": "entier",
+                "min": 1,
+                "max": 20,
+                "unite": "°"
+              }
+            ]
+          },
+          {
+            "libelle": "CommandesSouris",
+            "parametres": [
+              {
+                "defaut": 0.1,
+                "description": "Incrément de zoom de la caméra avec la molette de la souris.",
+                "identifiant": "incrementZoom",
+                "libelle": "Incrément Zoom",
+                "type": "reel",
+                "min": 0.01,
+                "max": 1.0,
+                "decimales": 2
+              },
+              {
+                "defaut": 1.0,
+                "description": "Incrément de zoom de la caméra avec la molette de la souris et la touche Shift.",
+                "identifiant": "incrementZoomShift",
+                "libelle": "Incrément Zoom (Shift)",
+                "type": "reel",
+                "min": 0.1,
+                "max": 5.0,
+                "decimales": 2
+              },
+              {
+                "defaut": 1,
+                "description": "Incrément de rotation (bearing) de la caméra avec la souris.",
+                "identifiant": "incrementBearing",
+                "libelle": "Incrément Bearing",
+                "type": "entier",
+                "min": 1,
+                "max": 10,
+                "unite": "°"
+              },
+              {
+                "defaut": 5,
+                "description": "Incrément de rotation (bearing) de la caméra avec la souris et la touche Shift.",
+                "identifiant": "incrementBearingShift",
+                "libelle": "Incrément Bearing (Shift)",
+                "type": "entier",
+                "min": 1,
+                "max": 20,
+                "unite": "°"
+              }
+            ]
+          },
+          {
             "libelle": "Mapbox",
             "parametres": [
               {
@@ -734,97 +831,6 @@
                     "min": 0.0,
                     "max": 2.0,
                     "decimales": 2
-                  }
-                ]
-              },
-              {
-                "identifiant": "CommandesCamera",
-                "libelle": "Commandes Caméra",
-                "description": "Paramètres des commandes clavier pour la caméra.",
-                "parametres": [
-                  {
-                    "identifiant": "ZoomInKey",
-                    "libelle": "Touche Zoom Avant",
-                    "description": "Touche clavier pour zoomer avant.",
-                    "type": "string",
-                    "defaut": "a"
-                  },
-                  {
-                    "identifiant": "ZoomOutKey",
-                    "libelle": "Touche Zoom Arrière",
-                    "description": "Touche clavier pour dézoomer arrière.",
-                    "type": "string",
-                    "defaut": "z"
-                  },
-                  {
-                    "identifiant": "PitchUpKey",
-                    "libelle": "Touche Inclinaison Haut",
-                    "description": "Touche clavier pour incliner la caméra vers le haut.",
-                    "type": "string",
-                    "defaut": "ArrowUp"
-                  },
-                  {
-                    "identifiant": "PitchDownKey",
-                    "libelle": "Touche Inclinaison Bas",
-                    "description": "Touche clavier pour incliner la caméra vers le bas.",
-                    "type": "string",
-                    "defaut": "ArrowDown"
-                  },
-                  {
-                    "identifiant": "BearingLeftKey",
-                    "libelle": "Touche Rotation Gauche",
-                    "description": "Touche clavier pour faire pivoter la caméra vers la gauche.",
-                    "type": "string",
-                    "defaut": "ArrowLeft"
-                  },
-                  {
-                    "identifiant": "BearingRightKey",
-                    "libelle": "Touche Rotation Droite",
-                    "description": "Touche clavier pour faire pivoter la caméra vers la droite.",
-                    "type": "string",
-                    "defaut": "ArrowRight"
-                  },
-                  {
-                    "identifiant": "ZoomIncrement",
-                    "libelle": "Incrément Zoom",
-                    "description": "Valeur d'incrément par défaut pour le zoom.",
-                    "type": "reel",
-                    "defaut": 0.1
-                  },
-                  {
-                    "identifiant": "PitchIncrement",
-                    "libelle": "Incrément Inclinaison",
-                    "description": "Valeur d'incrément par défaut pour l'inclinaison.",
-                    "type": "reel",
-                    "defaut": 1.0
-                  },
-                  {
-                    "identifiant": "BearingIncrement",
-                    "libelle": "Incrément Rotation",
-                    "description": "Valeur d'incrément par défaut pour la rotation.",
-                    "type": "reel",
-                    "defaut": 1.0
-                  },
-                  {
-                    "identifiant": "ShiftZoomIncrement",
-                    "libelle": "Incrément Zoom (Shift)",
-                    "description": "Valeur d'incrément pour le zoom avec la touche Shift.",
-                    "type": "reel",
-                    "defaut": 1.0
-                  },
-                  {
-                    "identifiant": "ShiftPitchIncrement",
-                    "libelle": "Incrément Inclinaison (Shift)",
-                    "description": "Valeur d'incrément pour l'inclinaison avec la touche Shift.",
-                    "type": "reel",
-                    "defaut": 5.0
-                  },
-                  {
-                    "identifiant": "ShiftBearingIncrement",
-                    "libelle": "Incrément Rotation (Shift)",
-                    "description": "Valeur d'incrément pour la rotation avec la touche Shift.",
-                    "type": "reel",
-                    "defaut": 5.0
                   }
                 ]
               }
