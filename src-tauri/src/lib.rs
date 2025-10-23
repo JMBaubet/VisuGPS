@@ -1,4 +1,4 @@
-use tauri::{App, Manager, State, AppHandle};
+use tauri::{App, Manager, State, AppHandle, Emitter};
 
 use std::fs;
 use std::path::PathBuf;

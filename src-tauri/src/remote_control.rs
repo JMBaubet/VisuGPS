@@ -34,7 +34,9 @@ lazy_static! {
 
 // Structs for client-server communication
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PairingRequest {
+    pub r#type: String,
     pub client_id: String,
     pub pairing_code: String,
 }

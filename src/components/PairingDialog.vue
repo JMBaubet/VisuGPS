@@ -30,8 +30,8 @@
   onMounted(() => {
     listen('ask_pairing_approval', (event) => {
       console.log("ask_pairing_approval event received:", event.payload);
-      clientId.value = event.payload.client_id;
-      pairingCode.value = event.payload.pairing_code;
+      clientId.value = event.payload.clientId;
+      pairingCode.value = event.payload.pairingCode;
       dialog.value = true;
     });
   });

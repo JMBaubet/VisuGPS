@@ -8,6 +8,23 @@
   "permissions": [
     "core:default",
     "dialog:allow-confirm",
-    "process:allow-restart"
-  ]
+    "process:allow-restart",
+    {
+      "identifier": "core:event:allow-listen",
+      "scope": {
+        "event": ["ask_pairing_approval"]
+      }
+    },
+    {
+      "identifier": "core:event:allow-emit",
+      "scope": {
+        "event": ["ask_pairing_approval"]
+      }
+    }
+  ],
+  "ipc": {
+    "allow": [
+      "reply_to_pairing_request"
+    ]
+  }
 }
