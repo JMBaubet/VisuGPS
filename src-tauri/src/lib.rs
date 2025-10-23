@@ -1,4 +1,4 @@
-use tauri::{App, Manager, State, AppHandle, Emitter};
+use tauri::{App, Manager, State, AppHandle};
 
 use std::fs;
 use std::path::PathBuf;
@@ -18,8 +18,9 @@ pub mod event;
 pub mod trace_style;
 pub mod remote_control;
 pub mod remote_clients;
+pub mod remote_setup;
 
-use remote_control::start_remote_server;
+
 use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
 use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
@@ -894,17 +895,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         .map(|s| s.to_string())
         .unwrap_or_else(|| "".to_string());
 
-    // Read remote control port from settings
-    let remote_port = get_setting_value(&settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
-        .and_then(|v| v.as_i64())
-        .map(|p| p as u16)
-        .unwrap_or(9001); // Default to 9001 if not found or invalid
-
-    // Spawn the WebSocket server in a separate async task
-    let app_handle_clone = app.handle().clone();
-    tauri::async_runtime::spawn(async move {
-        start_remote_server(app_handle_clone, remote_port).await;
-    });
+    // Initialize remote control server
+    remote_setup::init_remote_control(app, &app_env_path, &settings)?;
 
 
     Ok(AppState {
@@ -999,23 +991,9 @@ fn update_current_view(state: State<Mutex<AppState>>, new_view: String) -> Resul
     Ok(())
 }
 
-use crate::remote_control::PENDING_PAIRING_REQUESTS;
 
-#[tauri::command]
-fn reply_to_pairing_request(
-    _state: State<Mutex<AppState>>, // _state is unused here, but needed for AppState context
-    client_id: String,
-    accepted: bool,
-    _client_name: Option<String>, // _client_name is unused for now
-) -> Result<(), String> {
-    let mut pending_requests = PENDING_PAIRING_REQUESTS.lock().unwrap();
-    if let Some((_pairing_code, tx)) = pending_requests.remove(&client_id) {
-        tx.send(accepted).map_err(|_| "Failed to send pairing decision".to_string())?;
-    } else {
-        return Err(format!("Pairing request for client {} not found.", client_id));
-    }
-    Ok(())
-}
+
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -1088,7 +1066,7 @@ pub fn run() {
         update_circuit_zoom_settings,
         update_circuit_traceur,
         update_current_view,
-        reply_to_pairing_request
+        remote_setup::reply_to_pairing_request
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
