@@ -12,13 +12,13 @@
     {
       "identifier": "core:event:allow-listen",
       "scope": {
-        "event": ["ask_pairing_approval"]
+        "event": ["ask_pairing_approval", "remote_command::toggle_home", "test-event"]
       }
     },
     {
       "identifier": "core:event:allow-emit",
       "scope": {
-        "event": ["ask_pairing_approval"]
+        "event": ["ask_pairing_approval", "remote_command::toggle_home", "test-event"]
       }
     }
   ],

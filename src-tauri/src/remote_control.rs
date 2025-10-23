@@ -50,7 +50,9 @@ pub struct PairingResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoteCommand {
+    pub r#type: String,
     pub client_id: String,
     pub command: String,
     pub payload: Option<serde_json::Value>,
@@ -235,10 +237,17 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                     continue;
                                                 }
         
-                                                info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
-                                                app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
-                                                    .expect("Failed to emit remote command event");
-        
+                                                                                    info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
+                                                
+                                                                                    // --- DIAGNOSTIC HACK ---
+                                                                                    println!("[HACK] Emitting test-event from remote_control.rs");
+                                                                                    if let Err(e) = app_handle_clone.emit("test-event", "Hello from remote_control!") {
+                                                                                        eprintln!("Hack emit failed: {}", e);
+                                                                                    }
+                                                                                    // --- END HACK ---
+                                                
+                                                                                    app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
+                                                                                        .expect("Failed to emit remote command event");        
                                                 let response = RemoteCommandResponse {
                                                     r#type: "command_response".to_string(),
                                                     status: "success".to_string(),
@@ -251,7 +260,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                     }
                                                 }
                                             } else {
-                                                debug!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
+                                                info!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
                                             }
                                         } else if msg.is_binary() {
                                             debug!("Reçu des données binaires du client {}", peer_addr);

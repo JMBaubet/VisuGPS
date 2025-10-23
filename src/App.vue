@@ -13,15 +13,18 @@
 <script setup>
 import { onMounted, computed } from 'vue';
 import { useTheme } from 'vuetify';
+import { listen } from '@tauri-apps/api/event';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import { useSharedUiState } from '@/composables/useSharedUiState';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
-import PairingDialog from '@/components/PairingDialog.vue'; // Added PairingDialog import
+import PairingDialog from '@/components/PairingDialog.vue';
 
 const { executionMode } = useEnvironment();
 const { initSettings } = useSettings();
 const theme = useTheme();
+const { toggleBackButtonVisibility } = useSharedUiState();
 useCommunesUpdate(); // Initialize the composable
 
 const showFrame = computed(() => {
@@ -46,8 +49,19 @@ onMounted(async () => {
   if (savedTheme) {
     theme.change(savedTheme);
   }
-});
 
+  // Listen for remote commands
+  listen('remote_command::toggle_home', () => {
+    console.log('Remote command received: toggle_home');
+    toggleBackButtonVisibility();
+  });
+
+  // --- DIAGNOSTIC TEST RE-ADD ---
+  listen('test-event', (event) => {
+    console.log('[DIAGNOSTIC] Received test-event from backend:', event.payload);
+  });
+  // --- END DIAGNOSTIC ---
+});
 </script>
 
 <style>

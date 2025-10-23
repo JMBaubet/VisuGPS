@@ -141,7 +141,7 @@ window.onload = () => {
     });
     document.getElementById('go-home').addEventListener('click', () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "go_home" }));
+            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_home" }));
         }
     });
 };

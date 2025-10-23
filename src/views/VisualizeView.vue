@@ -55,6 +55,7 @@ import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { useSharedUiState } from '@/composables/useSharedUiState';
 import AltitudeSVG from '@/components/AltitudeSVG.vue';
 
 const props = defineProps({
@@ -70,6 +71,7 @@ const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
 const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
+const { isBackButtonVisible } = useSharedUiState();
 
 const mapContainer = ref(null);
 let map = null;
@@ -94,7 +96,6 @@ const currentDistanceInMeters = ref(0);
 const isInitializing = ref(true);
 
 const isDistanceDisplayVisible = ref(true);
-const isBackButtonVisible = ref(true);
 const isControlsCardVisible = ref(true);
 const isCursorHidden = ref(false);
 

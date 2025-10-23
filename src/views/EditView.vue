@@ -4,7 +4,7 @@
 
     <!-- Top UI Container -->
     <div style="position: absolute; top: 10px; left: 10px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 16px;">
-      <v-btn icon="mdi-arrow-left" @click="goBack"></v-btn>
+      <v-btn v-if="isBackButtonVisible" icon="mdi-arrow-left" @click="goBack"></v-btn>
       <TrackProgressWidget 
         v-model="trackProgress" 
         :max="trackingPoints.length - 1" 
@@ -130,10 +130,13 @@ import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
+import { useSharedUiState } from '@/composables/useSharedUiState';
+
 const route = useRoute();
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { getSettingValue } = useSettings();
+const { isBackButtonVisible } = useSharedUiState();
 
 // Confirmation Dialog
 const showConfirmationDialog = ref(false);
