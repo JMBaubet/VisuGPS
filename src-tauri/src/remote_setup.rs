@@ -1,11 +1,11 @@
-use tauri::{App, Manager, State};
+use tauri::{App, State};
 use std::sync::Mutex;
 use crate::{AppState, get_setting_value};
 use crate::remote_control::{start_remote_server, PENDING_PAIRING_REQUESTS};
 use serde_json::Value;
 
 use std::path::PathBuf;
-pub fn init_remote_control(app: &mut App, app_env_path: &PathBuf, settings: &Value) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_remote_control(app: &mut App, _app_env_path: &PathBuf, settings: &Value) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle_clone = app.handle().clone();
 
     let remote_port = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
