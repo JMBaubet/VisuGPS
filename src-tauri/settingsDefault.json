@@ -1015,6 +1015,7 @@
             "libelle": "Initialisation",
             "parametres": [
               {
+                "doc": "docs/visualisation.md",
                 "defaut": [2.3522, 48.8566],
                 "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
                 "identifiant": "centerEurope",
@@ -1323,6 +1324,20 @@
                 "min": 85,
                 "surcharge": "",
                 "type": "string"
+              }
+            ]
+          },
+          {
+            "libelle": "Télécommande",
+            "parametres": [
+              {
+                "identifiant": "Port",
+                "libelle": "Port du serveur de télécommande",
+                "description": "Port utilisé par le serveur WebSocket pour la télécommande.",
+                "type": "entier",
+                "defaut": 9001,
+                "min": 1024,
+                "max": 65535
               }
             ]
           }

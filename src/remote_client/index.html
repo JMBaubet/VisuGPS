@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisuGPS Télécommande</title>
+    <link rel="stylesheet" href="/remote/style.css">
+</head>
+<body>
+    <h1>VisuGPS Télécommande</h1>
+    <div id="status">Connexion en attente...</div>
+    <div id="pairing-code"></div>
+    <div id="controls" style="display:none;">
+        <!-- Les contrôles seront ajoutés ici dynamiquement par JavaScript -->
+        <button id="play-pause">Play/Pause</button>
+        <button id="toggle-commands">Commandes</button>
+        <button id="toggle-profile">Profil Altitude</button>
+        <button id="toggle-communes">Communes</button>
+        <button id="toggle-distance">Distance</button>
+        <button id="go-home">Accueil</button>
+    </div>
+
+    <script src="/remote/main.js"></script>
+</body>
+</html>

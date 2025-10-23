@@ -5,7 +5,8 @@
         <router-view />
       </Suspense>
     </v-container>
-    <SnackbarContainer /> <!-- Added SnackbarContainer -->
+    <SnackbarContainer />
+    <PairingDialog /> <!-- Added PairingDialog -->
   </v-app>
 </template>
 
@@ -14,8 +15,9 @@ import { onMounted, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
-import { useCommunesUpdate } from '@/composables/useCommunesUpdate'; // Import the composable
+import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
+import PairingDialog from '@/components/PairingDialog.vue'; // Added PairingDialog import
 
 const { executionMode } = useEnvironment();
 const { initSettings } = useSettings();

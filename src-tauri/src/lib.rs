@@ -16,7 +16,10 @@ pub mod communes_updater;
 pub mod geo_processor;
 pub mod event;
 pub mod trace_style;
+pub mod remote_control;
+pub mod remote_clients;
 
+use remote_control::start_remote_server;
 use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
 use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
@@ -299,6 +302,7 @@ pub struct AppState {
     mapbox_token: String, // Added mapbox_token
     updating_circuit_id: Option<String>,
     pub updating_circuit_name: Option<String>,
+    pub current_view: String, // Nouvelle propriété pour la vue actuelle
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -890,6 +894,18 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         .map(|s| s.to_string())
         .unwrap_or_else(|| "".to_string());
 
+    // Read remote control port from settings
+    let remote_port = get_setting_value(&settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
+        .and_then(|v| v.as_i64())
+        .map(|p| p as u16)
+        .unwrap_or(9001); // Default to 9001 if not found or invalid
+
+    // Spawn the WebSocket server in a separate async task
+    let app_handle_clone = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        start_remote_server(app_handle_clone, remote_port).await;
+    });
+
 
     Ok(AppState {
         app_env,
@@ -898,6 +914,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         mapbox_token,
         updating_circuit_id: None, // Initialize to None
         updating_circuit_name: None,
+        current_view: "MainView".to_string(), // Initialize current_view
     })
 }
 
@@ -975,6 +992,31 @@ fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, trackin
 }
 
 
+#[tauri::command]
+fn update_current_view(state: State<Mutex<AppState>>, new_view: String) -> Result<(), String> {
+    let mut app_state = state.lock().unwrap();
+    app_state.current_view = new_view;
+    Ok(())
+}
+
+use crate::remote_control::PENDING_PAIRING_REQUESTS;
+
+#[tauri::command]
+fn reply_to_pairing_request(
+    _state: State<Mutex<AppState>>, // _state is unused here, but needed for AppState context
+    client_id: String,
+    accepted: bool,
+    _client_name: Option<String>, // _client_name is unused for now
+) -> Result<(), String> {
+    let mut pending_requests = PENDING_PAIRING_REQUESTS.lock().unwrap();
+    if let Some((_pairing_code, tx)) = pending_requests.remove(&client_id) {
+        tx.send(accepted).map_err(|_| "Failed to send pairing decision".to_string())?;
+    } else {
+        return Err(format!("Pairing request for client {} not found.", client_id));
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1045,6 +1087,8 @@ pub fn run() {
         get_circuit_data,
         update_circuit_zoom_settings,
         update_circuit_traceur,
+        update_current_view,
+        reply_to_pairing_request
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

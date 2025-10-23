@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { invoke } from '@tauri-apps/api/core'
 import MainView from '../views/MainView.vue'
 import EditView from '../views/EditView.vue'
 import VisualizeView from '../views/VisualizeView.vue'
@@ -37,5 +38,13 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+router.afterEach(async (to) => {
+  try {
+    await invoke('update_current_view', { newView: to.name });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la vue courante dans le backend:", error);
+  }
+});
 
 export default router
