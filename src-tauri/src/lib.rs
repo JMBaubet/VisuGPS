@@ -1078,7 +1078,9 @@ pub fn run() {
         update_circuit_traceur,
         update_current_view,
         get_current_app_state,
-        remote_setup::reply_to_pairing_request
+        remote_setup::reply_to_pairing_request,
+        gpx_processor::generate_qrcode_base64,
+        gpx_processor::get_remote_control_url
     ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

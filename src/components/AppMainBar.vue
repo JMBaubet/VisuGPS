@@ -6,7 +6,7 @@
         <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
         <!-- Remote Control Status Icon -->
-        <v-icon :color="remoteStatusColor" class="pl-2" size="36">{{ remoteStatusIcon }}</v-icon>
+        <v-icon :color="remoteStatusColor" class="pl-2" size="36" @click="handleRemoteIconClick">{{ remoteStatusIcon }}</v-icon>
 
         <!-- Commune Update Status Component -->
         <MajCommunesInfo class="ml-4" />
@@ -43,6 +43,7 @@
       </v-col>
     </v-row>
   </v-toolbar>
+  <RemoteControlDialog v-model="showRemoteDialog" />
 </template>
 
 <script setup>
@@ -52,6 +53,7 @@ import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
 import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import MajCommunesInfo from './MajCommunesInfo.vue';
+import RemoteControlDialog from './RemoteControlDialog.vue';
 
 const emit = defineEmits(['open-gpx-import-dialog']);
 
@@ -66,7 +68,15 @@ const { appEnv, executionMode } = useEnvironment();
 const { serviceStatus, checkAllServices } = useServiceStatus();
 
 // Remote control status composable
-const { remoteStatusIcon, remoteStatusColor } = useRemoteControlStatus();
+const { isRemoteConnected, remoteStatusIcon, remoteStatusColor } = useRemoteControlStatus();
+
+const showRemoteDialog = ref(false);
+
+function handleRemoteIconClick() {
+  if (!isRemoteConnected.value) {
+    showRemoteDialog.value = true;
+  }
+}
 
 // Settings composable to get the polling interval
 const { getSettingValue } = useSettings();

@@ -10,9 +10,51 @@ use geo::{LineString as GeoLineString, Point, prelude::*};
 use uuid::Uuid;
 use std::sync::Mutex;
 use qrcode::QrCode;
+use image::ImageFormat;
+use std::io::Cursor;
+use base64::{Engine as _, engine::general_purpose};
+use local_ip_address::local_ip;
 
 use crate::tracking_processor;
-use super::{AppState, CircuitsFile, Editor, Ville};
+use super::{AppState, CircuitsFile, Editor, Ville, get_setting_value};
+
+#[tauri::command]
+pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
+    let code = QrCode::new(url.as_bytes()).map_err(|e| format!("Erreur lors de la création du QR code: {}", e))?;
+    let image = code.render::<image::Luma<u8>>().build();
+
+    let mut buf = Cursor::new(Vec::new());
+    image.write_to(&mut buf, ImageFormat::Png).map_err(|e| format!("Erreur lors de l'écriture du PNG: {}", e))?;
+    let png_data = buf.into_inner();
+
+    let base64_string = general_purpose::STANDARD.encode(&png_data);
+    Ok(format!("data:image/png;base64,{}", base64_string))
+}
+
+#[tauri::command]
+pub fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
+    let my_local_ip = match local_ip() {
+        Ok(ip) => ip.to_string(),
+        Err(e) => return Err(format!("Impossible d'obtenir l'adresse IP locale: {}", e)),
+    };
+
+    let app_env_path = {
+        let app_state = app_handle.state::<Mutex<AppState>>();
+        let app_state_lock = app_state.lock().unwrap();
+        app_state_lock.app_env_path.clone()
+    };
+
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let remote_port = get_setting_value(&settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
+        .and_then(|v| v.as_i64())
+        .map(|p| p as u16)
+        .unwrap_or(9001);
+
+    Ok(format!("http://{}:{}/remote", my_local_ip, remote_port))
+}
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
