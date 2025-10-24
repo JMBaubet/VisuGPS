@@ -288,7 +288,6 @@ function connectWebSocket() {
         } else if (message.type === "app_state_update") {
             // Security check: ensure the message is for this client
             if (message.clientId && message.clientId !== clientId) {
-                console.warn("Message for another client received. Closing this connection.");
                 handleHijackedConnection();
                 return;
             }
@@ -311,9 +310,7 @@ function connectWebSocket() {
     };
 
     ws.onclose = (event) => {
-        console.log(`onclose triggered. manualDisconnect is: ${manualDisconnect}`); // DEBUG
         if (manualDisconnect) {
-            console.log("Déconnexion manuelle traitée, pas de tentative de reconnexion.");
             return; // Important pour ne pas déclencher la logique de reconnexion auto
         }
         isRetrying = false;

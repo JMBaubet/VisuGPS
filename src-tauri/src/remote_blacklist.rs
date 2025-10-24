@@ -51,7 +51,6 @@ fn write_blacklist_file(app_env_path: &PathBuf, data: &BlacklistFile) -> Result<
 pub fn add_to_blacklist(app_env_path: &PathBuf, client_id: String, reason: String) -> Result<(), String> {
     let mut blacklist = read_blacklist_file(app_env_path)?;
     if !blacklist.blacklisted_clients.iter().any(|c| c.client_id == client_id) {
-        info!("Ajout du client {} à la blacklist.", client_id);
         let new_entry = BlacklistedClient {
             client_id,
             reason,

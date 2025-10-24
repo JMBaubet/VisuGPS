@@ -24,7 +24,6 @@ use lazy_static::lazy_static;
 
 // Fonction pour générer le JavaScript avec l'IP dynamique
 fn generate_main_js_with_ip(server_ip: &str, server_port: u16) -> String {
-    info!("Génération du JavaScript avec IP: {} et port: {}", server_ip, server_port);
     REMOTE_CLIENT_MAIN_JS_TEMPLATE
         .replace("const WS_SERVER_IP = \"192.168.1.65\";", &format!("const WS_SERVER_IP = \"{}\";", server_ip))
         .replace("const WS_SERVER_PORT = 9001;", &format!("const WS_SERVER_PORT = {};", server_port))
@@ -89,7 +88,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
     };
 
     let addr = format!("0.0.0.0:{}", port);
-    info!("Serveur de télécommande WebSocket et HTTP en écoute sur ws://{}:{}/ et http://{}:{}/remote", my_local_ip, port, my_local_ip, port);
+
 
     let listener = match TcpListener::bind(&addr).await {
         Ok(l) => l,
@@ -131,8 +130,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
 
             if header.contains("Upgrade: websocket") {
                 // Handle WebSocket connection
-                info!("Tentative de connexion WebSocket de: {}", peer_addr);
-                let ws_stream = match accept_async(stream).await {
+                                let ws_stream = match accept_async(stream).await {
                     Ok(s) => s,
                     Err(e) => {
                         error!("Erreur lors de l'établissement de la connexion WebSocket avec {}: {}", peer_addr, e);
@@ -166,8 +164,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                 if msg.is_text() {
                                     let msg_text = msg.to_text().unwrap_or("");
                                     if msg_text.is_empty() { continue; }
-                                    info!("Reçu du client {}: {}", peer_addr, msg_text);
-
+                                    
                                     let (app_env_path, current_app_view) = {
                                         let app_state_mutex = app_handle_clone.state::<Mutex<AppState>>();
                                         let app_state = app_state_mutex.lock().unwrap();
@@ -214,7 +211,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
 
                                                                                         if let Ok(is_authorized) = remote_clients::is_client_authorized(&app_env_path, &pairing_req.client_id) {
                                                                                     if is_authorized {
-                                                                                        info!("Client autorisé {} se reconnecte.", pairing_req.client_id);
+                                    
                                                                                         {
                                                                                             let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
                                                                                             *active_client_id = Some(pairing_req.client_id.clone());
@@ -235,10 +232,10 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                             }
                                                                                         }
                                                                                     } else {
-                                                                                        info!("Client {} non autorisé, demande de couplage.", pairing_req.client_id);
+                                    
                                                                                         
                                                                                         if current_app_view != "Main" && current_app_view != "Settings" {
-                                                                                            info!("Couplage refusé pour {}: l'application n'est pas sur une vue autorisée.", pairing_req.client_id);
+                                
                                                                                             let response = PairingResponse {
                                                                                                 r#type: "pairing_response".to_string(),
                                                                                                 status: "refused".to_string(),
@@ -260,7 +257,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                         
                                                                                         match rx_decision.await {
                                                                                             Ok(true) => {
-                                                                                                info!("Couplage accepté par le frontend pour {}", pairing_req.client_id);
+                                        
                                                                                                 {
                                                                                                     let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
                                                                                                     *active_client_id = Some(pairing_req.client_id.clone());
@@ -284,7 +281,6 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                                 }
                                                                                             },
                                                                                                                                                 Ok(false) => {
-                                                                                                                                                    info!("Couplage refusé par le frontend pour {}", pairing_req.client_id);
                                                                                                                                                     let reason = "Refusé par l'utilisateur.".to_string();
                                                                                                                                                     if let Err(e) = remote_blacklist::add_to_blacklist(&app_env_path, pairing_req.client_id.clone(), reason.clone()) {
                                                                                                                                                         log::error!("Impossible d'ajouter le client à la blacklist : {}", e);
@@ -350,7 +346,6 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                         } else if msg.is_ping() {
                                                                             debug!("Reçu un ping du client {}", peer_addr);
                                                                         } else if msg.is_close() {
-                                                                            info!("Client {} a envoyé une trame de fermeture.", peer_addr);
                                                                             break;
                                                                         }
                                                                     },
@@ -366,7 +361,6 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                 let mut active_client = ACTIVE_CLIENT_ID.lock().unwrap();
                                                                 if active_client.as_ref() == Some(id) {
                                                                     *active_client = None;
-                                                                    info!("Client actif {} déconnecté. Statut mis à jour.", id);
                                                                     app_handle_clone.emit("remote_control_status_changed", "disconnected").unwrap();
                                                                 }
                                                                 CLIENT_ID_TO_ADDR.lock().unwrap().remove(id);
@@ -378,7 +372,6 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                 info!("Client {} déconnecté.", peer_addr);
             } else if header.starts_with("GET /remote") {
                 // Handle HTTP GET request for static files
-                info!("Requête HTTP GET pour le client distant de: {}", peer_addr);
                 let path = header.split_whitespace().nth(1).unwrap_or("/");
                 debug!("Chemin de la requête HTTP: {}", path);
 

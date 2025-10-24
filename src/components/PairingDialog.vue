@@ -29,7 +29,6 @@
 
   onMounted(() => {
     listen('ask_pairing_approval', (event) => {
-      console.log("ask_pairing_approval event received:", event.payload);
       clientId.value = event.payload.clientId;
       pairingCode.value = event.payload.pairingCode;
       dialog.value = true;
@@ -44,7 +43,6 @@
         accepted: accepted,
         clientName: `Client ${clientId.value.substring(0, 8)}` // Placeholder name
       });
-      console.log(`Réponse de couplage envoyée : ${accepted ? 'Accepté' : 'Refusé'}`);
     } catch (error) {
       console.error("Erreur lors de l'envoi de la réponse de couplage:", error);
     }

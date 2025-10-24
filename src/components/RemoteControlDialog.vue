@@ -48,7 +48,6 @@ watch(() => props.modelValue, async (newValue) => {
       url.value = remoteUrl;
       
       const base64Data = await invoke('generate_qrcode_base64', { url: remoteUrl });
-      console.log("QR Code Base64 data received:", base64Data); // DEBUG
       qrCodeBase64.value = base64Data;
     } catch (err) {
       console.error("Failed to generate QR Code:", err);
