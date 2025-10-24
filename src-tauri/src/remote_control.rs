@@ -13,12 +13,20 @@ use serde::{Serialize, Deserialize};
 // Embed the client files
 const REMOTE_CLIENT_INDEX_HTML: &str = include_str!("../../src/remote_client/index.html");
 const REMOTE_CLIENT_STYLE_CSS: &str = include_str!("../../src/remote_client/style.css");
-const REMOTE_CLIENT_MAIN_JS: &str = include_str!("../../src/remote_client/main.js");
+const REMOTE_CLIENT_MAIN_JS_TEMPLATE: &str = include_str!("../../src/remote_client/main.js");
 
 use crate::remote_clients;
 use crate::AppState;
 
 use lazy_static::lazy_static;
+
+// Fonction pour générer le JavaScript avec l'IP dynamique
+fn generate_main_js_with_ip(server_ip: &str, server_port: u16) -> String {
+    info!("Génération du JavaScript avec IP: {} et port: {}", server_ip, server_port);
+    REMOTE_CLIENT_MAIN_JS_TEMPLATE
+        .replace("const WS_SERVER_IP = \"192.168.1.65\";", &format!("const WS_SERVER_IP = \"{}\";", server_ip))
+        .replace("const WS_SERVER_PORT = 9001;", &format!("const WS_SERVER_PORT = {};", server_port))
+}
 
 // Shared state for active WebSocket connections (senders)
 pub type ClientSender = tokio_tungstenite::tungstenite::protocol::WebSocket<tokio::net::TcpStream>;
@@ -102,6 +110,8 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
         // Use the global static variables
         // let client_senders_clone = CLIENT_SENDERS.clone(); // Removed
         let pending_pairing_requests_clone = PENDING_PAIRING_REQUESTS.clone(); // Re-added
+        let my_local_ip_clone = my_local_ip.clone();
+        let port_clone = port;
 
                 tokio::spawn(async move {
                     let mut buffer = [0; 1024];
@@ -292,25 +302,44 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                         let path = header.split_whitespace().nth(1).unwrap_or("/");
                         debug!("Chemin de la requête HTTP: {}", path);
         
-                        let (content, content_type) = match path {
-                            "/remote" | "/remote/" | "/remote/index.html" => (REMOTE_CLIENT_INDEX_HTML, "text/html"),
-                            "/remote/style.css" => (REMOTE_CLIENT_STYLE_CSS, "text/css"),
-                            "/remote/main.js" => (REMOTE_CLIENT_MAIN_JS, "text/javascript"),
+                        match path {
+                            "/remote" | "/remote/" | "/remote/index.html" => {
+                                let response = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
+                                    REMOTE_CLIENT_INDEX_HTML.len(),
+                                    REMOTE_CLIENT_INDEX_HTML
+                                );
+                                if let Err(e) = stream.write_all(response.as_bytes()).await {
+                                    error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                                }
+                            },
+                            "/remote/style.css" => {
+                                let response = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {}\r\n\r\n{}",
+                                    REMOTE_CLIENT_STYLE_CSS.len(),
+                                    REMOTE_CLIENT_STYLE_CSS
+                                );
+                                if let Err(e) = stream.write_all(response.as_bytes()).await {
+                                    error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                                }
+                            },
+                            "/remote/main.js" => {
+                                let dynamic_js = generate_main_js_with_ip(&my_local_ip_clone, port_clone);
+                                let response = format!(
+                                    "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                                    dynamic_js.len(),
+                                    dynamic_js
+                                );
+                                if let Err(e) = stream.write_all(response.as_bytes()).await {
+                                    error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                                }
+                            },
                             _ => {
                                 let _ = stream.write_all(b"HTTP/1.1 404 NOT FOUND\r\n\r\n").await;
                                 return;
                             }
-                        };
-        
-                        let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: {0}\r\nContent-Length: {1}\r\n\r\n{2}",
-                            content_type,
-                            content.len(),
-                            content
-                        );
-                        if let Err(e) = stream.write_all(response.as_bytes()).await {
-                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
                         }
+                        
                         if let Err(e) = stream.flush().await {
                             error!("Erreur lors du flush du stream HTTP à {}: {}", peer_addr, e);
                         }
