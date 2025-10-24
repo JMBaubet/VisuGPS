@@ -103,6 +103,10 @@ Ces messages sont envoyés par le serveur WebSocket de l'application desktop ver
     }
     ```
 *   **Diagramme de Séquence**:
+* **Blacklist des clients refusés** : lorsqu'une demande de couplage est refusée, l'identifiant du client est ajouté à un fichier `remote_blacklist.json`. Toute tentative de connexion ultérieure depuis cet appareil est bloquée et le serveur renvoie une réponse de couplage avec le statut `refused` et un message explicatif ("Cet appareil a été bloqué.").  
+* **Révocation manuelle de l'autorisation** : lorsque l'utilisateur déconnecte manuellement une télécommande, son autorisation est supprimée du fichier `remote.json` et le serveur envoie au client un message `server_shutdown` indiquant que l'autorisation a été révoquée. Pour se reconnecter, l'appareil doit repasser par le processus de couplage (QR code).  
+* **Connexion unique et restrictions de couplage** : un seul client peut être connecté à la fois. Si un autre appareil tente de se connecter alors qu'une télécommande est déjà active, le serveur répond à la `pairing_request` avec le statut `refused` et la raison "Une autre télécommande est déjà connectée.". De plus, le couplage n'est autorisé que lorsque l'application desktop est sur la page d'accueil ou les paramètres ; sinon, la réponse indique également un statut `refused`.  
+* **Indicateur de statut et QR code** : l'interface desktop affiche maintenant une icône de télécommande avec un indicateur de statut : bleu lorsqu'aucun appareil n'est connecté, vert lorsqu'une télécommande est active. Un clic sur l'icône lorsqu'aucun appareil n'est connecté affiche un QR code généré dynamiquement contenant l'URL de connexion WebSocket pour simplifier le couplage. 
     ```mermaid
     sequenceDiagram
         participant Server as Serveur WebSocket
