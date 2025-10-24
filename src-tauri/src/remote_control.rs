@@ -42,11 +42,12 @@ pub struct PairingRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(non_snake_case)]
 pub struct PairingResponse {
     pub r#type: String,
     pub status: String,
     pub reason: Option<String>,
-    pub app_state: Option<String>, // Current app view (MainView, VisualizeView, etc.)
+    pub appState: Option<String>, // Current app view (MainView, VisualizeView, etc.)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -166,7 +167,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                             r#type: "pairing_response".to_string(),
                                                             status: "accepted".to_string(),
                                                             reason: None,
-                                                            app_state: Some(current_app_view.clone()),
+                                                            appState: Some(current_app_view.clone()),
                                                         };
                                                         if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                             if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -189,7 +190,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                     r#type: "pairing_response".to_string(),
                                                                     status: "accepted".to_string(),
                                                                     reason: None,
-                                                                    app_state: Some(current_app_view.clone()),
+                                                                    appState: Some(current_app_view.clone()),
                                                                 };
                                                                 if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                     if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -203,7 +204,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                     r#type: "pairing_response".to_string(),
                                                                     status: "refused".to_string(),
                                                                     reason: Some("Refusé par l'utilisateur.".to_string()),
-                                                                    app_state: Some(current_app_view.clone()),
+                                                                    appState: Some(current_app_view.clone()),
                                                                 };
                                                                 if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                     if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {

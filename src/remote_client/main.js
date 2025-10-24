@@ -6,6 +6,12 @@ let ws = null;
 let clientId = localStorage.getItem('visugps_remote_client_id');
 let pairingCode = generateRandomCode(8);
 
+// Variables pour la gestion des tentatives de reconnexion
+let retryCount = 0;
+const MAX_RETRY_ATTEMPTS = 3;
+let isRetrying = false;
+let retryTimeout = null;
+
 const statusDiv = document.getElementById('status');
 const pairingCodeDiv = document.getElementById('pairing-code');
 const controlsDiv = document.getElementById('controls');
@@ -36,6 +42,44 @@ function generateRandomCode(length) {
 function updateStatus(message, isError = false) {
     statusDiv.textContent = `Statut: ${message}`;
     statusDiv.style.color = isError ? 'red' : 'green';
+}
+
+function resetRetryCount() {
+    retryCount = 0;
+    isRetrying = false;
+    if (retryTimeout) {
+        clearTimeout(retryTimeout);
+        retryTimeout = null;
+    }
+}
+
+function showRetryButton() {
+    // Créer un bouton de reconnexion manuelle si il n'existe pas
+    let retryButton = document.getElementById('retry-button');
+    if (!retryButton) {
+        retryButton = document.createElement('button');
+        retryButton.id = 'retry-button';
+        retryButton.textContent = '🔄 Réessayer la connexion';
+        retryButton.style.cssText = `
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s;
+        `;
+        retryButton.addEventListener('click', () => {
+            retryButton.remove();
+            resetRetryCount();
+            connectWebSocket();
+        });
+        statusDiv.parentNode.insertBefore(retryButton, statusDiv.nextSibling);
+    }
 }
 
 function updateRemoteInterface(appState) {
@@ -155,11 +199,20 @@ function sendCommand(command) {
 }
 
 function connectWebSocket() {
-    updateStatus("Tentative de connexion...");
+    if (isRetrying) {
+        console.log("Tentative de reconnexion déjà en cours, ignorée.");
+        return;
+    }
+    
+    isRetrying = true;
+    updateStatus(`Tentative de connexion... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
     ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
+        // Connexion réussie, réinitialiser le compteur
+        resetRetryCount();
         updateStatus("Connecté au serveur WebSocket.");
+        
         if (!clientId) {
             clientId = generateUUID();
             localStorage.setItem('visugps_remote_client_id', clientId);
@@ -185,10 +238,13 @@ function connectWebSocket() {
             if (message.status === "accepted") {
                 updateStatus("Couplage accepté !", false);
                 pairingCodeDiv.style.display = 'none';
-                // Afficher la page appropriée selon l'état de l'application
+                // Afficher la page appropriée selon l'état de l'application reçu du serveur
+                console.log("Message de couplage reçu:", message);
                 if (message.appState) {
+                    console.log("✅ État de l'application reçu lors du couplage:", message.appState);
                     updateRemoteInterface(message.appState);
                 } else {
+                    console.log("⚠️ Aucun état d'application reçu, utilisation de la page par défaut");
                     // Par défaut, afficher la page de visualisation
                     updateRemoteInterface('Visualize');
                 }
@@ -201,10 +257,12 @@ function connectWebSocket() {
             } else if (message.status === "already_paired") {
                 updateStatus("Déjà couplé.", false);
                 pairingCodeDiv.style.display = 'none';
-                // Afficher la page appropriée selon l'état de l'application
+                // Afficher la page appropriée selon l'état de l'application reçu du serveur
                 if (message.appState) {
+                    console.log("État de l'application reçu lors du couplage (déjà couplé):", message.appState);
                     updateRemoteInterface(message.appState);
                 } else {
+                    console.log("Aucun état d'application reçu (déjà couplé), utilisation de la page par défaut");
                     // Par défaut, afficher la page de visualisation
                     updateRemoteInterface('Visualize');
                 }
@@ -217,15 +275,27 @@ function connectWebSocket() {
     };
 
     ws.onclose = (event) => {
+        isRetrying = false;
         updateStatus(`Déconnecté du serveur. Code: ${event.code}, Raison: ${event.reason}`, true);
         // Masquer toutes les pages
         const pages = document.querySelectorAll('.page');
         pages.forEach(page => page.style.display = 'none');
-        // Tenter de se reconnecter après un délai
-        setTimeout(connectWebSocket, 3000);
+        
+        // Vérifier si on peut encore essayer de se reconnecter
+        if (retryCount < MAX_RETRY_ATTEMPTS) {
+            retryCount++;
+            updateStatus(`Tentative de reconnexion dans 3 secondes... (${retryCount}/${MAX_RETRY_ATTEMPTS})`, true);
+            retryTimeout = setTimeout(() => {
+                connectWebSocket();
+            }, 3000);
+        } else {
+            updateStatus(`Connexion échouée après ${MAX_RETRY_ATTEMPTS} tentatives.`, true);
+            showRetryButton();
+        }
     };
 
     ws.onerror = (error) => {
+        isRetrying = false;
         updateStatus("Erreur de connexion WebSocket.", true);
         console.error("Erreur WebSocket :", error);
         ws.close();

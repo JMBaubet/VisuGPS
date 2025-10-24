@@ -996,6 +996,12 @@ fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new
     Ok(())
 }
 
+#[tauri::command]
+fn get_current_app_state(state: State<Mutex<AppState>>) -> Result<String, String> {
+    let app_state = state.lock().unwrap();
+    Ok(app_state.current_view.clone())
+}
+
 
 
 
@@ -1071,6 +1077,7 @@ pub fn run() {
         update_circuit_zoom_settings,
         update_circuit_traceur,
         update_current_view,
+        get_current_app_state,
         remote_setup::reply_to_pairing_request
     ])
         .run(tauri::generate_context!())
