@@ -52,6 +52,7 @@ import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
 import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
+import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 import MajCommunesInfo from './MajCommunesInfo.vue';
 import RemoteControlDialog from './RemoteControlDialog.vue';
 import { invoke } from '@tauri-apps/api/core';
@@ -71,8 +72,6 @@ const { serviceStatus, checkAllServices } = useServiceStatus();
 
 // Remote control status composable
 const { isRemoteConnected, remoteStatusIcon, remoteStatusColor } = useRemoteControlStatus();
-
-const showRemoteDialog = ref(false);
 
 async function handleRemoteIconClick() {
   if (isRemoteConnected.value) {

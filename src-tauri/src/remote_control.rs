@@ -18,6 +18,8 @@ const REMOTE_CLIENT_MAIN_JS_TEMPLATE: &str = include_str!("../../src/remote_clie
 use crate::remote_clients;
 use crate::AppState;
 
+use crate::remote_blacklist;
+
 use lazy_static::lazy_static;
 
 // Fonction pour générer le JavaScript avec l'IP dynamique
@@ -173,6 +175,22 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                     };
 
                                     if let Ok(pairing_req) = serde_json::from_str::<PairingRequest>(msg_text) {
+                                        if remote_blacklist::is_client_blacklisted(&app_env_path, &pairing_req.client_id).unwrap_or(false) {
+                                            log::warn!("Requête de couplage refusée pour le client blacklisté : {}", pairing_req.client_id);
+                                            let response = PairingResponse {
+                                                r#type: "pairing_response".to_string(),
+                                                status: "refused".to_string(),
+                                                reason: Some("Cet appareil a été bloqué.".to_string()),
+                                                appState: Some(current_app_view.clone()),
+                                            };
+                                            if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                    log::error!("Erreur lors de l'envoi de la réponse de blacklist au client {}: {}", peer_addr, e);
+                                                }
+                                            }
+                                            continue; // Continuer d'ignorer la logique de couplage après avoir répondu
+                                        }
+
                                         let is_other_client_active = {
                                             let active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
                                             active_client_id.is_some() && active_client_id.as_deref() != Some(&pairing_req.client_id)
@@ -265,15 +283,19 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                                     }
                                                                                                 }
                                                                                             },
-                                                                                            Ok(false) => {
-                                                                                                info!("Couplage refusé par le frontend pour {}", pairing_req.client_id);
-                                                                                                let response = PairingResponse {
-                                                                                                    r#type: "pairing_response".to_string(),
-                                                                                                    status: "refused".to_string(),
-                                                                                                    reason: Some("Refusé par l'utilisateur.".to_string()),
-                                                                                                    appState: Some(current_app_view.clone()),
-                                                                                                };
-                                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                                                                Ok(false) => {
+                                                                                                                                                    info!("Couplage refusé par le frontend pour {}", pairing_req.client_id);
+                                                                                                                                                    let reason = "Refusé par l'utilisateur.".to_string();
+                                                                                                                                                    if let Err(e) = remote_blacklist::add_to_blacklist(&app_env_path, pairing_req.client_id.clone(), reason.clone()) {
+                                                                                                                                                        log::error!("Impossible d'ajouter le client à la blacklist : {}", e);
+                                                                                                                                                    }
+                                                                                            
+                                                                                                                                                    let response = PairingResponse {
+                                                                                                                                                        r#type: "pairing_response".to_string(),
+                                                                                                                                                        status: "refused".to_string(),
+                                                                                                                                                        reason: Some(reason),
+                                                                                                                                                        appState: Some(current_app_view.clone()),
+                                                                                                                                                    };                                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                                                     if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
                                                                                                         error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
                                                                                                     }

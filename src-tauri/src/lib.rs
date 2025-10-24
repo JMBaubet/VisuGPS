@@ -19,6 +19,7 @@ pub mod trace_style;
 pub mod remote_control;
 pub mod remote_clients;
 pub mod remote_setup;
+pub mod remote_blacklist;
 
 
 use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};

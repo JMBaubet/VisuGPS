@@ -38,11 +38,13 @@
 <script setup>
 import { ref, onMounted, computed, reactive } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import AppMainBar from '../components/AppMainBar.vue';
 import GpxImportDialog from '../components/GpxImportDialog.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
 import CircuitFilter from '@/components/CircuitFilter.vue';
 import { useSettings } from '@/composables/useSettings';
+import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 
 const gpxImportDialog = ref(false);
 const allCircuits = ref([]);
@@ -176,6 +178,13 @@ onMounted(async () => {
   await useSettings().initSettings(); // Ensure settings are loaded
   await refreshCircuits();
   await loadFilterData();
+
+  listen('ask_pairing_approval', () => {
+    if (showRemoteDialog.value) {
+      console.log("Pairing request received, closing QR code dialog.");
+      showRemoteDialog.value = false;
+    }
+  });
 });
 </script>
 
