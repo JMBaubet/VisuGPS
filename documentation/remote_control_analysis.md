@@ -200,7 +200,12 @@ Le flux est maintenant plus direct :
     *   La télécommande se connecte au WebSocket et envoie `pairing_request`.
     *   Le serveur vérifie `remote.json`. Si le client est inconnu, il demande validation à l'utilisateur desktop. Si connu, il accepte directement.
     *   Le serveur répond `pairing_response` avec l'état de l'application.
-    *   La télécommande affiche l'interface correspondant à l'état.
+    *   La télécommande affiche l'interface corresp
+* **Blacklist des clients refusés** : Lorsqu'une demande de couplage est refusée par l'utilisateur, l'identifiant du client est ajouté à un fichier `remote_blacklist.json`. Toute tentative future de connexion en provenance de cet appareil est immédiatement rejetée avec un message explicite ("Cet appareil a été bloqué.").  
+* **Révocation manuelle de l'autorisation** : La déconnexion volontaire d'une télécommande depuis l'application principale révoque désormais son autorisation. Le client est supprimé du fichier `remote.json` et devra se coupler de nouveau via le QR code pour se reconnecter.  
+* **Connexion unique et restrictions de couplage** : Le serveur n'autorise qu'un seul client connecté à la fois. Les tentatives de connexion d'un deuxième appareil sont refusées. De plus, le couplage d'une nouvelle télécommande n'est possible que lorsque l'application desktop se trouve sur la page d'accueil ou dans les paramètres.  
+* **Indicateur de statut** : Une icône dans la barre d'outils principale indique l'état de la télécommande : verte (mdi-remote) lorsqu'une télécommande est connectée et active, bleue (mdi-remote-off) sinon.  
+* **Affichage du QR code de connexion** : Lorsqu'aucune télécommande n'est connectée, un clic sur l'icône de télécommande ouvre une fenêtre modale affichant l'URL de connexion dynamique et un QR code généré à la volée par le backend. Cela facilite le processus de couplage pour les nouveaux appareils.ondant à l'état.
 3.  **Envoi de Commande**:
     *   L'utilisateur clique sur un bouton de la télécommande.
     *   La télécommande envoie `command` au serveur.
