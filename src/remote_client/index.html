@@ -10,14 +10,46 @@
     <h1>VisuGPS Télécommande</h1>
     <div id="status">Connexion en attente...</div>
     <div id="pairing-code"></div>
-    <div id="controls" style="display:none;">
-        <!-- Les contrôles seront ajoutés ici dynamiquement par JavaScript -->
-        <button id="play-pause">Play/Pause</button>
-        <button id="toggle-commands">Commandes</button>
-        <button id="toggle-profile">Profil Altitude</button>
-        <button id="toggle-communes">Communes</button>
-        <button id="toggle-distance">Distance</button>
-        <button id="go-home">Accueil</button>
+    
+    <!-- Page VisualizeView - Contrôles complets -->
+    <div id="page-visualize" class="page" style="display:none;">
+        <h2>Mode Visualisation</h2>
+        <div class="controls">
+            <button id="play-pause">▶️ Play/Pause</button>
+            <button id="toggle-commands">📋 Commandes</button>
+            <button id="toggle-profile">📊 Profil Altitude</button>
+            <button id="toggle-communes">🏘️ Communes</button>
+            <button id="toggle-distance">📏 Distance</button>
+            <button id="go-home">🏠 Accueil</button>
+        </div>
+    </div>
+    
+    <!-- Page EditView - Contrôles d'édition -->
+    <div id="page-edit" class="page" style="display:none;">
+        <h2>Mode Édition</h2>
+        <div class="controls">
+            <button id="go-home">🏠 Accueil</button>
+            <button id="save-circuit">💾 Sauvegarder</button>
+            <button id="preview-circuit">👁️ Aperçu</button>
+        </div>
+    </div>
+    
+    <!-- Page MainView - Vue principale -->
+    <div id="page-main" class="page" style="display:none;">
+        <h2>Vue Principale</h2>
+        <p>Vous êtes sur la page d'accueil de l'application.</p>
+    </div>
+    
+    <!-- Page SettingsView - Paramètres -->
+    <div id="page-settings" class="page" style="display:none;">
+        <h2>Paramètres</h2>
+        <p>Vous êtes dans les paramètres de l'application.</p>
+    </div>
+    
+    <!-- Page par défaut - Vue non reconnue -->
+    <div id="page-default" class="page" style="display:none;">
+        <h2 id="default-view-title">Vue Inconnue</h2>
+        <p>Vue non reconnue par la télécommande.</p>
     </div>
 
     <script src="/remote/main.js"></script>

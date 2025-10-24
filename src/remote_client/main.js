@@ -1,4 +1,4 @@
-const WS_SERVER_IP = "192.168.1.52"; // À remplacer par l'IP de votre machine desktop
+const WS_SERVER_IP = "192.168.1.65"; // À remplacer par l'IP de votre machine desktop
 const WS_SERVER_PORT = 9001;
 const WS_URL = `ws://${WS_SERVER_IP}:${WS_SERVER_PORT}`;
 
@@ -38,6 +38,122 @@ function updateStatus(message, isError = false) {
     statusDiv.style.color = isError ? 'red' : 'green';
 }
 
+function updateRemoteInterface(appState) {
+    // Masquer toutes les pages
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => page.style.display = 'none');
+    
+    // Adapter l'interface de la télécommande selon l'état de l'application
+    const statusText = document.getElementById('status');
+    
+    switch(appState) {
+        case 'Visualize':
+        case 'Visualisation':
+            document.getElementById('page-visualize').style.display = 'block';
+            statusText.textContent = `Statut: Connecté - Mode Visualisation`;
+            statusText.style.color = 'green';
+            break;
+        case 'Edit':
+        case 'EditView':
+            document.getElementById('page-edit').style.display = 'block';
+            statusText.textContent = `Statut: Connecté - Mode Édition`;
+            statusText.style.color = 'blue';
+            break;
+        case 'Main':
+        case 'MainView':
+            document.getElementById('page-main').style.display = 'block';
+            statusText.textContent = `Statut: Connecté - Vue Principale`;
+            statusText.style.color = 'orange';
+            break;
+        case 'Settings':
+        case 'SettingsView':
+            document.getElementById('page-settings').style.display = 'block';
+            statusText.textContent = `Statut: Connecté - Paramètres`;
+            statusText.style.color = 'purple';
+            break;
+        default:
+            // Page par défaut pour les vues non reconnues
+            document.getElementById('page-default').style.display = 'block';
+            document.getElementById('default-view-title').textContent = appState || 'Vue Inconnue';
+            statusText.textContent = `Statut: Connecté - ${appState}`;
+            statusText.style.color = 'green';
+    }
+}
+
+function setupButtonListeners() {
+    // Boutons de la page VisualizeView
+    const playPauseBtn = document.getElementById('play-pause');
+    if (playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+            sendCommand('toggle_play');
+        });
+    }
+    
+    const toggleCommandsBtn = document.getElementById('toggle-commands');
+    if (toggleCommandsBtn) {
+        toggleCommandsBtn.addEventListener('click', () => {
+            sendCommand('toggle_commands_widget');
+        });
+    }
+    
+    const toggleProfileBtn = document.getElementById('toggle-profile');
+    if (toggleProfileBtn) {
+        toggleProfileBtn.addEventListener('click', () => {
+            sendCommand('toggle_altitude_profile');
+        });
+    }
+    
+    const toggleCommunesBtn = document.getElementById('toggle-communes');
+    if (toggleCommunesBtn) {
+        toggleCommunesBtn.addEventListener('click', () => {
+            sendCommand('toggle_communes_display');
+        });
+    }
+    
+    const toggleDistanceBtn = document.getElementById('toggle-distance');
+    if (toggleDistanceBtn) {
+        toggleDistanceBtn.addEventListener('click', () => {
+            sendCommand('toggle_distance_display');
+        });
+    }
+    
+    // Bouton Accueil (présent sur plusieurs pages)
+    const goHomeBtn = document.getElementById('go-home');
+    if (goHomeBtn) {
+        goHomeBtn.addEventListener('click', () => {
+            sendCommand('toggle_home');
+        });
+    }
+    
+    // Boutons de la page EditView
+    const saveCircuitBtn = document.getElementById('save-circuit');
+    if (saveCircuitBtn) {
+        saveCircuitBtn.addEventListener('click', () => {
+            sendCommand('save_circuit');
+        });
+    }
+    
+    const previewCircuitBtn = document.getElementById('preview-circuit');
+    if (previewCircuitBtn) {
+        previewCircuitBtn.addEventListener('click', () => {
+            sendCommand('preview_circuit');
+        });
+    }
+}
+
+function sendCommand(command) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ 
+            type: "command", 
+            clientId: clientId, 
+            command: command 
+        }));
+        console.log(`Commande envoyée: ${command}`);
+    } else {
+        console.error('WebSocket non connecté');
+    }
+}
+
 function connectWebSocket() {
     updateStatus("Tentative de connexion...");
     ws = new WebSocket(WS_URL);
@@ -69,32 +185,42 @@ function connectWebSocket() {
             if (message.status === "accepted") {
                 updateStatus("Couplage accepté !", false);
                 pairingCodeDiv.style.display = 'none';
-                controlsDiv.style.display = 'block'; // Afficher les contrôles
-                // Ici, on pourrait aussi mettre à jour l'interface en fonction de message.appState
+                // Afficher la page appropriée selon l'état de l'application
+                if (message.appState) {
+                    updateRemoteInterface(message.appState);
+                } else {
+                    // Par défaut, afficher la page de visualisation
+                    updateRemoteInterface('Visualize');
+                }
             } else if (message.status === "refused") {
                 updateStatus(`Couplage refusé : ${message.reason || "Raison inconnue"}`, true);
                 pairingCodeDiv.style.display = 'block'; // Garder le code visible en cas de refus
-                controlsDiv.style.display = 'none';
+                // Masquer toutes les pages
+                const pages = document.querySelectorAll('.page');
+                pages.forEach(page => page.style.display = 'none');
             } else if (message.status === "already_paired") {
                 updateStatus("Déjà couplé.", false);
                 pairingCodeDiv.style.display = 'none';
-                controlsDiv.style.display = 'block';
+                // Afficher la page appropriée selon l'état de l'application
+                if (message.appState) {
+                    updateRemoteInterface(message.appState);
+                } else {
+                    // Par défaut, afficher la page de visualisation
+                    updateRemoteInterface('Visualize');
+                }
             }
         } else if (message.type === "app_state_update") {
             // Gérer les mises à jour de l'état de l'application
             console.log("État de l'application :", message.appState);
-            // Ici, la logique pour afficher/masquer les boutons en fonction de message.appState
-            if (message.appState === "Visualisation") {
-                controlsDiv.style.display = 'block';
-            } else {
-                controlsDiv.style.display = 'none';
-            }
+            updateRemoteInterface(message.appState);
         }
     };
 
     ws.onclose = (event) => {
         updateStatus(`Déconnecté du serveur. Code: ${event.code}, Raison: ${event.reason}`, true);
-        controlsDiv.style.display = 'none';
+        // Masquer toutes les pages
+        const pages = document.querySelectorAll('.page');
+        pages.forEach(page => page.style.display = 'none');
         // Tenter de se reconnecter après un délai
         setTimeout(connectWebSocket, 3000);
     };
@@ -113,35 +239,6 @@ window.onload = () => {
     }
     connectWebSocket();
 
-    // Ajout des écouteurs d'événements pour les boutons (pour l'étape 4)
-    document.getElementById('play-pause').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_play" }));
-        }
-    });
-    document.getElementById('toggle-commands').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_commands_widget" }));
-        }
-    });
-    document.getElementById('toggle-profile').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_altitude_profile" }));
-        }
-    });
-    document.getElementById('toggle-communes').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_communes_display" }));
-        }
-    });
-    document.getElementById('toggle-distance').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_distance_display" }));
-        }
-    });
-    document.getElementById('go-home').addEventListener('click', () => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "command", clientId: clientId, command: "toggle_home" }));
-        }
-    });
+    // Ajout des écouteurs d'événements pour les boutons
+    setupButtonListeners();
 };

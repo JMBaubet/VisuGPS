@@ -985,9 +985,14 @@ fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, trackin
 
 
 #[tauri::command]
-fn update_current_view(state: State<Mutex<AppState>>, new_view: String) -> Result<(), String> {
+fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new_view: String) -> Result<(), String> {
     let mut app_state = state.lock().unwrap();
-    app_state.current_view = new_view;
+    app_state.current_view = new_view.clone();
+    
+    // Notifier toutes les télécommandes connectées du changement de vue
+    use crate::remote_control::send_app_state_update;
+    send_app_state_update(&app_handle, &new_view);
+    
     Ok(())
 }
 

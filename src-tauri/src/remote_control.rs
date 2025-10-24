@@ -322,3 +322,23 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                     
                 });    }
 }
+
+// Fonction pour notifier toutes les télécommandes connectées d'un changement d'état
+pub fn send_app_state_update(_app_handle: &AppHandle, new_state: &str) {
+    let mut client_senders = CLIENT_SENDERS.lock().unwrap();
+    let message = serde_json::json!({
+        "type": "app_state_update",
+        "appState": new_state
+    });
+    
+    let message_text = serde_json::to_string(&message).unwrap();
+    let message_ws = Message::Text(message_text);
+    
+    info!("Envoi de la mise à jour d'état '{}' à {} télécommandes connectées", new_state, client_senders.len());
+    
+    for (client_addr, sender) in client_senders.iter_mut() {
+        if let Err(e) = sender.try_send(message_ws.clone()) {
+            error!("Erreur lors de l'envoi de la mise à jour d'état au client {}: {}", client_addr, e);
+        }
+    }
+}
