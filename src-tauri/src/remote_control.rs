@@ -412,20 +412,22 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
 
 // Fonction pour notifier toutes les télécommandes connectées d'un changement d'état
 pub fn send_app_state_update(_app_handle: &AppHandle, new_state: &str) {
-    let mut client_senders = CLIENT_SENDERS.lock().unwrap();
-    let message = serde_json::json!({
-        "type": "app_state_update",
-        "appState": new_state
-    });
-    
-    let message_text = serde_json::to_string(&message).unwrap();
-    let message_ws = Message::Text(message_text);
-    
-    info!("Envoi de la mise à jour d'état '{}' à {} télécommandes connectées", new_state, client_senders.len());
-    
-    for (client_addr, sender) in client_senders.iter_mut() {
-        if let Err(e) = sender.try_send(message_ws.clone()) {
-            error!("Erreur lors de l'envoi de la mise à jour d'état au client {}: {}", client_addr, e);
+    let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
+    if let Some(active_id) = active_client_id_lock.as_ref() {
+        let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
+        if let Some(addr) = client_id_to_addr_lock.get(active_id) {
+            let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
+            if let Some(sender) = senders_lock.get_mut(addr) {
+                let message = serde_json::json!({
+                    "type": "app_state_update",
+                    "appState": new_state,
+                    "clientId": active_id
+                });
+                let message_text = serde_json::to_string(&message).unwrap();
+                if let Err(e) = sender.try_send(Message::Text(message_text)) {
+                    log::error!("Erreur lors de l'envoi de la mise à jour d'état au client {}: {}", addr, e);
+                }
+            }
         }
     }
 }

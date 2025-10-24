@@ -125,6 +125,22 @@ function updateRemoteInterface(appState) {
     }
 }
 
+function handleHijackedConnection() {
+    manualDisconnect = true; // Prevent any further reconnection attempts
+    updateStatus("Connexion privée. Cet appareil n'est plus autorisé.", true);
+    
+    const pages = document.querySelectorAll('.page');
+    pages.forEach(page => page.style.display = 'none');
+
+    // Ensure the retry button is removed
+    const retryButton = document.getElementById('retry-button');
+    if (retryButton) {
+        retryButton.remove();
+    }
+
+    ws.close();
+}
+
 function setupButtonListeners() {
     // Boutons de la page VisualizeView
     const playPauseBtn = document.getElementById('play-pause');
@@ -270,6 +286,12 @@ function connectWebSocket() {
                 }
             }
         } else if (message.type === "app_state_update") {
+            // Security check: ensure the message is for this client
+            if (message.clientId && message.clientId !== clientId) {
+                console.warn("Message for another client received. Closing this connection.");
+                handleHijackedConnection();
+                return;
+            }
             // Gérer les mises à jour de l'état de l'application
             console.log("État de l'application :", message.appState);
             updateRemoteInterface(message.appState);
