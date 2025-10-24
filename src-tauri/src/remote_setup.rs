@@ -1,10 +1,20 @@
 use tauri::{App, State};
 use std::sync::Mutex;
 use crate::{AppState, get_setting_value};
-use crate::remote_control::{start_remote_server, PENDING_PAIRING_REQUESTS};
+use crate::remote_control::{start_remote_server, PENDING_PAIRING_REQUESTS, ACTIVE_CLIENT_ID};
 use serde_json::Value;
 
 use std::path::PathBuf;
+
+#[tauri::command]
+pub fn get_remote_control_status() -> String {
+    if ACTIVE_CLIENT_ID.lock().unwrap().is_some() {
+        "connected".to_string()
+    } else {
+        "disconnected".to_string()
+    }
+}
+
 pub fn init_remote_control(app: &mut App, _app_env_path: &PathBuf, settings: &Value) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle_clone = app.handle().clone();
 

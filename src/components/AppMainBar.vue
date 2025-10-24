@@ -5,6 +5,9 @@
         <!-- Service Status Icon -->
         <v-icon :color="serviceStatusColor" class="pl-4" size="36">{{ serviceStatusIcon }}</v-icon>
 
+        <!-- Remote Control Status Icon -->
+        <v-icon :color="remoteStatusColor" class="pl-2" size="36">{{ remoteStatusIcon }}</v-icon>
+
         <!-- Commune Update Status Component -->
         <MajCommunesInfo class="ml-4" />
 
@@ -47,6 +50,7 @@ import { computed, onMounted, onUnmounted, watch, ref } from 'vue';
 import { useEnvironment } from '../composables/useEnvironment';
 import { useServiceStatus } from '../composables/useServiceStatus';
 import { useSettings } from '../composables/useSettings';
+import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import MajCommunesInfo from './MajCommunesInfo.vue';
 
 const emit = defineEmits(['open-gpx-import-dialog']);
@@ -60,6 +64,9 @@ const { appEnv, executionMode } = useEnvironment();
 
 // Service status composable handles all checking logic
 const { serviceStatus, checkAllServices } = useServiceStatus();
+
+// Remote control status composable
+const { remoteStatusIcon, remoteStatusColor } = useRemoteControlStatus();
 
 // Settings composable to get the polling interval
 const { getSettingValue } = useSettings();
