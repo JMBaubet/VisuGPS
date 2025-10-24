@@ -431,25 +431,31 @@ pub fn send_app_state_update(_app_handle: &AppHandle, new_state: &str) {
 }
 
 #[tauri::command]
-pub fn disconnect_active_remote_client() -> Result<(), String> {
+pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), String> {
     let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
     if let Some(client_id) = active_client_id_lock.as_ref() {
+        
+        // Remove client from the authorized list
+        let app_env_path = {
+            let state = app_handle.state::<Mutex<AppState>>();
+            let state_lock = state.lock().unwrap();
+            state_lock.app_env_path.clone()
+        };
+        remote_clients::remove_authorized_client(&app_env_path, client_id)?;
+
+        // Send shutdown message to the client
         let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
         if let Some(addr) = client_id_to_addr_lock.get(client_id) {
             let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
             if let Some(sender) = senders_lock.get_mut(addr) {
                 let shutdown_msg = serde_json::json!({
                     "type": "server_shutdown",
-                    "reason": "Connexion fermée par l'hôte."
+                    "reason": "Autorisation révoquée par l'hôte."
                 });
                 if sender.try_send(Message::Text(shutdown_msg.to_string())).is_err() {
-                    return Err("Impossible d'envoyer le message de déconnexion au client.".to_string());
+                    log::warn!("Impossible d'envoyer le message de déconnexion au client, mais son autorisation a bien été révoquée.");
                 }
-            } else {
-                return Err("Sender non trouvé pour l'adresse du client.".to_string());
             }
-        } else {
-            return Err("Adresse non trouvée pour le client actif.".to_string());
         }
     } else {
         return Err("Aucun client actif à déconnecter.".to_string());

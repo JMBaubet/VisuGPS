@@ -81,3 +81,16 @@ pub fn update_client_last_seen(app_env_path: &PathBuf, client_id: &str) -> Resul
     }
     Ok(())
 }
+
+pub fn remove_authorized_client(app_env_path: &PathBuf, client_id_to_remove: &str) -> Result<(), String> {
+    let mut clients_file = read_remote_clients(app_env_path)?;
+    
+    let initial_len = clients_file.clients.len();
+    clients_file.clients.retain(|c| c.client_id != client_id_to_remove);
+
+    if clients_file.clients.len() < initial_len {
+        write_remote_clients(app_env_path, &clients_file)?;
+    }
+    
+    Ok(())
+}
