@@ -64,7 +64,8 @@ Ces messages sont envoyés par l'application web de télécommande vers le serve
     {
         "type": "command",
         "clientId": "string_uuid_unique_du_client",
-        "command": "string_nom_de_la_commande"
+        "command": "string_nom_de_la_commande",
+        "payload": "any" // Optionnel, données supplémentaires pour la commande
     }
     ```
 *   **Commandes Actuellement Définies**:
@@ -74,12 +75,14 @@ Ces messages sont envoyés par l'application web de télécommande vers le serve
     *   `"toggle_communes_display"`: Affiche/masque l'affichage des communes.
     *   `"toggle_distance_display"`: Affiche/masque l'affichage de la distance.
     *   `"toggle_home"`: Retourne à la vue principale de l'application desktop.
+    *   `"save_circuit"`: Déclenche la sauvegarde du circuit en cours d'édition.
+    *   `"preview_circuit"`: Déclenche la prévisualisation du circuit.
 *   **Diagramme de Séquence**:
     ```mermaid
     sequenceDiagram
         participant Client as Télécommande
         participant Server as Serveur WebSocket
-        Client->>Server: { "type": "command", "clientId": "...", "command": "toggle_play" }
+        Client->>Server: { "type": "command", "clientId": "...", "command": "toggle_play", "payload": null }
     ```
 
 ## 4. Messages Émis par le Serveur WebSocket
@@ -89,13 +92,14 @@ Ces messages sont envoyés par le serveur WebSocket de l'application desktop ver
 ### 4.1. `pairing_response`
 
 *   **Description**: Réponse du serveur à une `pairing_request`, indiquant le résultat du processus de couplage.
-*   **But**: Informer le client de télécommande si son couplage a été accepté, refusé ou s'il est déjà couplé.
+*   **But**: Informer le client de télécommande si son couplage a été accepté, refusé ou s'il est déjà couplé, et lui fournir l'état actuel de l'application.
 *   **Structure JSON**:
     ```json
     {
         "type": "pairing_response",
         "status": "accepted" | "refused" | "already_paired",
-        "reason": "string_message_explicatif_si_refusé_ou_erreur" // Optionnel
+        "reason": "string_message_explicatif_si_refusé_ou_erreur", // Optionnel
+        "appState": "string_état_actuel_de_l_application" // Ex: "MainView", "Visualize"
     }
     ```
 *   **Diagramme de Séquence**:
@@ -103,18 +107,39 @@ Ces messages sont envoyés par le serveur WebSocket de l'application desktop ver
     sequenceDiagram
         participant Server as Serveur WebSocket
         participant Client as Télécommande
-        Server->>Client: { "type": "pairing_response", "status": "accepted" }
+        Server->>Client: { "type": "pairing_response", "status": "accepted", "appState": "Visualize" }
     ```
 
-### 4.2. `app_state_update`
+### 4.2. `command_response`
 
-*   **Description**: Message envoyé par le serveur pour informer le client de télécommande d'un changement d'état significatif de l'application desktop.
-*   **But**: Permettre à la télécommande d'adapter son interface utilisateur en fonction du contexte de l'application desktop (par exemple, n'afficher les contrôles que si l'application est dans une vue spécifique).
+*   **Description**: Accusé de réception d'une commande, confirmant qu'elle a été reçue et traitée (ou non) par le serveur.
+*   **But**: Fournir un retour au client sur l'état de la commande envoyée.
+*   **Structure JSON**:
+    ```json
+    {
+        "type": "command_response",
+        "status": "success" | "unauthorized" | "error",
+        "message": "string_message_descriptif",
+        "app_state": "string_état_actuel_de_l_application"
+    }
+    ```
+*   **Diagramme de Séquence**:
+    ```mermaid
+    sequenceDiagram
+        participant Server as Serveur WebSocket
+        participant Client as Télécommande
+        Server->>Client: { "type": "command_response", "status": "success", "message": "...", "app_state": "..." }
+    ```
+
+### 4.3. `app_state_update`
+
+*   **Description**: Message envoyé par le serveur pour informer le client de télécommande d'un changement d'état (vue) de l'application desktop.
+*   **But**: Permettre à la télécommande d'adapter son interface utilisateur en fonction du contexte de l'application desktop.
 *   **Structure JSON**:
     ```json
     {
         "type": "app_state_update",
-        "appState": "string_état_actuel_de_l_application" // Ex: "MainView", "EditView", "VisualizeView"
+        "appState": "string_état_actuel_de_l_application" // "Main", "Edit", "Visualize", "Settings"
     }
     ```
 *   **Diagramme de Séquence**:
@@ -122,7 +147,7 @@ Ces messages sont envoyés par le serveur WebSocket de l'application desktop ver
     sequenceDiagram
         participant Server as Serveur WebSocket
         participant Client as Télécommande
-        Server->>Client: { "type": "app_state_update", "appState": "VisualizeView" }
+        Server->>Client: { "type": "app_state_update", "appState": "Visualize" }
     ```
 
 ## 5. Diagrammes de Séquence Complets
@@ -140,11 +165,17 @@ sequenceDiagram
     Client->>Server: Connexion WebSocket
     activate Server
     Client->>Server: { "type": "pairing_request", "clientId": "...", "pairingCode": "XYZ123" }
-    Server->>DesktopUI: Afficher demande de couplage avec code "XYZ123"
-    DesktopUI->>Server: Utilisateur accepte le couplage
-    Server->>Client: { "type": "pairing_response", "status": "accepted" }
+    
+    alt Client déjà autorisé dans remote.json
+        Server->>Client: { "type": "pairing_response", "status": "accepted", "appState": "..." }
+    else Client non autorisé
+        Server->>DesktopUI: Événement "ask_pairing_approval" avec code "XYZ123"
+        DesktopUI->>Server: Commande "reply_to_pairing_request" (acceptée)
+        Server->>Client: { "type": "pairing_response", "status": "accepted", "appState": "..." }
+    end
+
     deactivate Server
-    Client->>Client: Afficher les contrôles
+    Client->>Client: Adapte l'UI à appState
 ```
 
 ### 5.2. Envoi d'une Commande
@@ -156,10 +187,11 @@ sequenceDiagram
     participant DesktopUI as Application Desktop (UI)
 
     Client->>Client: Utilisateur clique sur "Play/Pause"
-    Client->>Server: { "type": "command", "clientId": "...", "command": "toggle_play" }
+    Client->>Server: { "type": "command", "clientId": "...", "command": "toggle_play", "payload": null }
     activate Server
-    Server->>DesktopUI: Émettre événement Tauri "remote_command", payload: "toggle_play"
-    DesktopUI->>DesktopUI: Exécuter l'action "toggle_play" (ex: démarrer/arrêter l'animation)
+    Server->>DesktopUI: Événement Tauri "remote_command::toggle_play", payload: null
+    Server-->>Client: { "type": "command_response", "status": "success", "message": "...", "app_state": "..." }
+    DesktopUI->>DesktopUI: Exécute l'action "toggle_play"
     deactivate Server
 ```
 
@@ -172,15 +204,13 @@ sequenceDiagram
     participant Client as Télécommande
 
     DesktopUI->>DesktopUI: Utilisateur navigue vers "VisualizeView"
-    DesktopUI->>Server: Appeler commande Tauri "update_app_state", arg: "VisualizeView"
-    activate Server
-    Server->>Client: { "type": "app_state_update", "appState": "VisualizeView" }
-    deactivate Server
-    Client->>Client: Adapter l'UI (ex: afficher les contrôles de visualisation)
+    Note over DesktopUI, Server: Le changement de route met à jour AppState
+    Server->>Client: { "type": "app_state_update", "appState": "Visualize" }
+    Client->>Client: Adapter l'UI (afficher les contrôles de visualisation)
 ```
 
 ## 6. Considérations
 
-*   **Gestion des Erreurs**: Le serveur doit gérer les erreurs de parsing JSON, les `clientId` inconnus ou non couplés, et les commandes invalides, en renvoyant des messages d'erreur appropriés au client si nécessaire (bien que non spécifié dans les messages actuels).
-*   **Sécurité**: Le couplage actuel est basé sur un code simple. Pour des environnements plus sensibles, des mécanismes d'authentification plus robustes pourraient être nécessaires.
-*   **Persistance**: Le serveur devrait persister les informations sur les clients couplés pour éviter de devoir les recoupler à chaque redémarrage de l'application desktop.
+*   **Gestion des Erreurs**: Le serveur gère les erreurs de parsing JSON, les `clientId` inconnus ou non couplés, et les commandes invalides, en renvoyant des messages `command_response` avec un statut `unauthorized` ou `error`.
+*   **Sécurité**: Le couplage est basé sur un code à usage unique et la validation de l'utilisateur. Les clients autorisés sont ensuite stockés pour les connexions futures.
+*   **Persistance**: Le serveur persiste les informations sur les clients couplés dans le fichier `remote.json` au sein du répertoire de l'environnement d'exécution, ce qui évite de devoir les recoupler à chaque redémarrage.
