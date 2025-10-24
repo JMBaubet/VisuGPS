@@ -54,6 +54,8 @@ import { useSettings } from '../composables/useSettings';
 import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import MajCommunesInfo from './MajCommunesInfo.vue';
 import RemoteControlDialog from './RemoteControlDialog.vue';
+import { invoke } from '@tauri-apps/api/core';
+import { confirm } from '@tauri-apps/plugin-dialog';
 
 const emit = defineEmits(['open-gpx-import-dialog']);
 
@@ -72,8 +74,19 @@ const { isRemoteConnected, remoteStatusIcon, remoteStatusColor } = useRemoteCont
 
 const showRemoteDialog = ref(false);
 
-function handleRemoteIconClick() {
-  if (!isRemoteConnected.value) {
+async function handleRemoteIconClick() {
+  if (isRemoteConnected.value) {
+    const confirmed = await confirm("Voulez-vous vraiment déconnecter la télécommande ?", {
+      title: 'Confirmation de déconnexion',
+      okLabel: 'Déconnecter',
+      cancelLabel: 'Annuler'
+    });
+    if (confirmed) {
+      invoke('disconnect_active_remote_client').catch(err => {
+        console.error("Erreur lors de la déconnexion de la télécommande:", err);
+      });
+    }
+  } else {
     showRemoteDialog.value = true;
   }
 }

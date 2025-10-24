@@ -39,6 +39,7 @@ lazy_static! {
     pub static ref CLIENT_SENDERS: ClientSenders = Arc::new(Mutex::new(HashMap::new()));
     pub static ref PENDING_PAIRING_REQUESTS: PendingPairingRequests = Arc::new(Mutex::new(HashMap::new()));
     pub static ref ACTIVE_CLIENT_ID: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    pub static ref CLIENT_ID_TO_ADDR: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(HashMap::new()));
 }
 
 // Structs for client-server communication
@@ -193,160 +194,162 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                             continue;
                                         }
 
-                                        if let Ok(is_authorized) = remote_clients::is_client_authorized(&app_env_path, &pairing_req.client_id) {
-                                            if is_authorized {
-                                                info!("Client autorisé {} se reconnecte.", pairing_req.client_id);
-                                                {
-                                                    let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
-                                                    *active_client_id = Some(pairing_req.client_id.clone());
-                                                }
-                                                client_id_for_this_connection = Some(pairing_req.client_id.clone());
-                                                app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
-
-                                                let response = PairingResponse {
-                                                    r#type: "pairing_response".to_string(),
-                                                    status: "accepted".to_string(),
-                                                    reason: None,
-                                                    appState: Some(current_app_view.clone()),
-                                                };
-                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                    if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                        error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
-                                                    }
-                                                }
-                                            } else {
-                                                info!("Client {} non autorisé, demande de couplage.", pairing_req.client_id);
-                                                
-                                                if current_app_view != "Main" && current_app_view != "Settings" {
-                                                    info!("Couplage refusé pour {}: l'application n'est pas sur une vue autorisée.", pairing_req.client_id);
-                                                    let response = PairingResponse {
-                                                        r#type: "pairing_response".to_string(),
-                                                        status: "refused".to_string(),
-                                                        reason: Some("Le couplage est uniquement autorisé depuis l'accueil ou les paramètres.".to_string()),
-                                                        appState: Some(current_app_view.clone()),
-                                                    };
-                                                    if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                        if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                            error!("Erreur lors de l'envoi de la réponse de refus (vue) au client {}: {}", peer_addr, e);
-                                                        }
-                                                    }
-                                                    continue;
-                                                }
-
-                                                let (tx_decision, rx_decision) = oneshot::channel::<bool>();
-                                                pending_pairing_requests_clone.lock().unwrap().insert(pairing_req.client_id.clone(), (pairing_req.pairing_code.clone(), tx_decision));
-
-                                                app_handle_clone.emit("ask_pairing_approval", &pairing_req).expect("Failed to emit pairing approval event");
-
-                                                match rx_decision.await {
-                                                    Ok(true) => {
-                                                        info!("Couplage accepté par le frontend pour {}", pairing_req.client_id);
-                                                        {
-                                                            let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
-                                                            *active_client_id = Some(pairing_req.client_id.clone());
-                                                        }
-                                                        client_id_for_this_connection = Some(pairing_req.client_id.clone());
-                                                        app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
-
-                                                        remote_clients::add_authorized_client(&app_env_path, pairing_req.client_id.clone(), format!("Mobile Client ({})", pairing_req.pairing_code))
-                                                            .expect("Failed to add authorized client");
-                                                        let response = PairingResponse {
-                                                            r#type: "pairing_response".to_string(),
-                                                            status: "accepted".to_string(),
-                                                            reason: None,
-                                                            appState: Some(current_app_view.clone()),
-                                                        };
-                                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                            if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                                error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
-                                                            }
-                                                        }
-                                                    },
-                                                    Ok(false) => {
-                                                        info!("Couplage refusé par le frontend pour {}", pairing_req.client_id);
-                                                        let response = PairingResponse {
-                                                            r#type: "pairing_response".to_string(),
-                                                            status: "refused".to_string(),
-                                                            reason: Some("Refusé par l'utilisateur.".to_string()),
-                                                            appState: Some(current_app_view.clone()),
-                                                        };
-                                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                            if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                                error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
-                                                            }
-                                                        }
-                                                    },
-                                                    Err(e) => {
-                                                        error!("Erreur lors de l'attente de la décision du frontend pour {}: {}", pairing_req.client_id, e);
-                                                    }
-                                                }
-                                                pending_pairing_requests_clone.lock().unwrap().remove(&pairing_req.client_id);
-                                            }
-                                        } else {
-                                            error!("Erreur lors de la vérification de l'autorisation du client {}", pairing_req.client_id);
-                                        }
-                                    } else if let Ok(remote_command) = serde_json::from_str::<RemoteCommand>(msg_text) {
-                                        let is_authorized = remote_clients::is_client_authorized(&app_env_path, &remote_command.client_id).unwrap_or(false);
-                                        if !is_authorized {
-                                            let response = RemoteCommandResponse {
-                                                r#type: "command_response".to_string(),
-                                                status: "unauthorized".to_string(),
-                                                message: "Client non autorisé.".to_string(),
-                                                app_state: Some(current_app_view.clone()),
-                                            };
-                                            if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                    error!("Erreur lors de l'envoi de la réponse de commande au client {}: {}", peer_addr, e);
-                                                }
-                                            }
-                                            continue;
-                                        }
-
-                                        info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
+                                                                                        if let Ok(is_authorized) = remote_clients::is_client_authorized(&app_env_path, &pairing_req.client_id) {
+                                                                                    if is_authorized {
+                                                                                        info!("Client autorisé {} se reconnecte.", pairing_req.client_id);
+                                                                                        {
+                                                                                            let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
+                                                                                            *active_client_id = Some(pairing_req.client_id.clone());
+                                                                                            CLIENT_ID_TO_ADDR.lock().unwrap().insert(pairing_req.client_id.clone(), peer_addr.to_string());
+                                                                                        }
+                                                                                        client_id_for_this_connection = Some(pairing_req.client_id.clone());
+                                                                                        app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
                                         
-                                        app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
-                                            .expect("Failed to emit remote command event");
-                                        let response = RemoteCommandResponse {
-                                            r#type: "command_response".to_string(),
-                                            status: "success".to_string(),
-                                            message: format!("Commande {} reçue.", remote_command.command),
-                                            app_state: Some(current_app_view.clone()),
-                                        };
-                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                            if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                error!("Erreur lors de l'envoi de la réponse de commande au client {}: {}", peer_addr, e);
-                                            }
-                                        }
-                                    } else {
-                                        info!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
-                                    }
-                                } else if msg.is_binary() {
-                                    debug!("Reçu des données binaires du client {}", peer_addr);
-                                } else if msg.is_ping() {
-                                    debug!("Reçu un ping du client {}", peer_addr);
-                                } else if msg.is_close() {
-                                    info!("Client {} a envoyé une trame de fermeture.", peer_addr);
-                                    break;
-                                }
-                            },
-                            Err(e) => {
-                                error!("Erreur de lecture du message du client {}: {}", peer_addr, e);
-                                break;
-                            }
-                        }
-                    }
-
-                    // Cleanup on disconnect
-                    if let Some(id) = &client_id_for_this_connection {
-                        let mut active_client = ACTIVE_CLIENT_ID.lock().unwrap();
-                        if active_client.as_ref() == Some(id) {
-                            *active_client = None;
-                            info!("Client actif {} déconnecté. Statut mis à jour.", id);
-                            app_handle_clone.emit("remote_control_status_changed", "disconnected").unwrap();
-                        }
-                    }
-                });
-
+                                                                                        let response = PairingResponse {
+                                                                                            r#type: "pairing_response".to_string(),
+                                                                                            status: "accepted".to_string(),
+                                                                                            reason: None,
+                                                                                            appState: Some(current_app_view.clone()),
+                                                                                        };
+                                                                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                            if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                                error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
+                                                                                            }
+                                                                                        }
+                                                                                    } else {
+                                                                                        info!("Client {} non autorisé, demande de couplage.", pairing_req.client_id);
+                                                                                        
+                                                                                        if current_app_view != "Main" && current_app_view != "Settings" {
+                                                                                            info!("Couplage refusé pour {}: l'application n'est pas sur une vue autorisée.", pairing_req.client_id);
+                                                                                            let response = PairingResponse {
+                                                                                                r#type: "pairing_response".to_string(),
+                                                                                                status: "refused".to_string(),
+                                                                                                reason: Some("Le couplage est uniquement autorisé depuis l'accueil ou les paramètres.".to_string()),
+                                                                                                appState: Some(current_app_view.clone()),
+                                                                                            };
+                                                                                            if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                                    error!("Erreur lors de l'envoi de la réponse de refus (vue) au client {}: {}", peer_addr, e);
+                                                                                                }
+                                                                                            }
+                                                                                            continue;
+                                                                                        }
+                                        
+                                                                                        let (tx_decision, rx_decision) = oneshot::channel::<bool>();
+                                                                                        pending_pairing_requests_clone.lock().unwrap().insert(pairing_req.client_id.clone(), (pairing_req.pairing_code.clone(), tx_decision));
+                                        
+                                                                                        app_handle_clone.emit("ask_pairing_approval", &pairing_req).expect("Failed to emit pairing approval event");
+                                        
+                                                                                        match rx_decision.await {
+                                                                                            Ok(true) => {
+                                                                                                info!("Couplage accepté par le frontend pour {}", pairing_req.client_id);
+                                                                                                {
+                                                                                                    let mut active_client_id = ACTIVE_CLIENT_ID.lock().unwrap();
+                                                                                                    *active_client_id = Some(pairing_req.client_id.clone());
+                                                                                                    CLIENT_ID_TO_ADDR.lock().unwrap().insert(pairing_req.client_id.clone(), peer_addr.to_string());
+                                                                                                }
+                                                                                                client_id_for_this_connection = Some(pairing_req.client_id.clone());
+                                                                                                app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
+                                        
+                                                                                                remote_clients::add_authorized_client(&app_env_path, pairing_req.client_id.clone(), format!("Mobile Client ({})", pairing_req.pairing_code))
+                                                                                                    .expect("Failed to add authorized client");
+                                                                                                let response = PairingResponse {
+                                                                                                    r#type: "pairing_response".to_string(),
+                                                                                                    status: "accepted".to_string(),
+                                                                                                    reason: None,
+                                                                                                    appState: Some(current_app_view.clone()),
+                                                                                                };
+                                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                    if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                                        error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            Ok(false) => {
+                                                                                                info!("Couplage refusé par le frontend pour {}", pairing_req.client_id);
+                                                                                                let response = PairingResponse {
+                                                                                                    r#type: "pairing_response".to_string(),
+                                                                                                    status: "refused".to_string(),
+                                                                                                    reason: Some("Refusé par l'utilisateur.".to_string()),
+                                                                                                    appState: Some(current_app_view.clone()),
+                                                                                                };
+                                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                    if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                                        error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            Err(e) => {
+                                                                                                error!("Erreur lors de l'attente de la décision du frontend pour {}: {}", pairing_req.client_id, e);
+                                                                                            }
+                                                                                        }
+                                                                                        pending_pairing_requests_clone.lock().unwrap().remove(&pairing_req.client_id);
+                                                                                    }
+                                                                                } else {
+                                                                                    error!("Erreur lors de la vérification de l'autorisation du client {}", pairing_req.client_id);
+                                                                                }
+                                                                            } else if let Ok(remote_command) = serde_json::from_str::<RemoteCommand>(msg_text) {
+                                                                                let is_authorized = remote_clients::is_client_authorized(&app_env_path, &remote_command.client_id).unwrap_or(false);
+                                                                                if !is_authorized {
+                                                                                    let response = RemoteCommandResponse {
+                                                                                        r#type: "command_response".to_string(),
+                                                                                        status: "unauthorized".to_string(),
+                                                                                        message: "Client non autorisé.".to_string(),
+                                                                                        app_state: Some(current_app_view.clone()),
+                                                                                    };
+                                                                                    if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                        if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                            error!("Erreur lors de l'envoi de la réponse de commande au client {}: {}", peer_addr, e);
+                                                                                        }
+                                                                                    }
+                                                                                    continue;
+                                                                                }
+                                        
+                                                                                info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
+                                                                                
+                                                                                app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
+                                                                                    .expect("Failed to emit remote command event");
+                                                                                let response = RemoteCommandResponse {
+                                                                                    r#type: "command_response".to_string(),
+                                                                                    status: "success".to_string(),
+                                                                                    message: format!("Commande {} reçue.", remote_command.command),
+                                                                                    app_state: Some(current_app_view.clone()),
+                                                                                };
+                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                    if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                        error!("Erreur lors de l'envoi de la réponse de commande au client {}: {}", peer_addr, e);
+                                                                                    }
+                                                                                }
+                                                                            } else {
+                                                                                info!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
+                                                                            }
+                                                                        } else if msg.is_binary() {
+                                                                            debug!("Reçu des données binaires du client {}", peer_addr);
+                                                                        } else if msg.is_ping() {
+                                                                            debug!("Reçu un ping du client {}", peer_addr);
+                                                                        } else if msg.is_close() {
+                                                                            info!("Client {} a envoyé une trame de fermeture.", peer_addr);
+                                                                            break;
+                                                                        }
+                                                                    },
+                                                                    Err(e) => {
+                                                                        error!("Erreur de lecture du message du client {}: {}", peer_addr, e);
+                                                                        break;
+                                                                    }
+                                                                }
+                                                            }
+                                        
+                                                            // Cleanup on disconnect
+                                                            if let Some(id) = &client_id_for_this_connection {
+                                                                let mut active_client = ACTIVE_CLIENT_ID.lock().unwrap();
+                                                                if active_client.as_ref() == Some(id) {
+                                                                    *active_client = None;
+                                                                    info!("Client actif {} déconnecté. Statut mis à jour.", id);
+                                                                    app_handle_clone.emit("remote_control_status_changed", "disconnected").unwrap();
+                                                                }
+                                                                CLIENT_ID_TO_ADDR.lock().unwrap().remove(id);
+                                                            }
+                                                        });
                 let _ = tokio::join!(write_task, read_task);
 
                 CLIENT_SENDERS.lock().unwrap().remove(&peer_addr.to_string());
@@ -425,4 +428,31 @@ pub fn send_app_state_update(_app_handle: &AppHandle, new_state: &str) {
             error!("Erreur lors de l'envoi de la mise à jour d'état au client {}: {}", client_addr, e);
         }
     }
+}
+
+#[tauri::command]
+pub fn disconnect_active_remote_client() -> Result<(), String> {
+    let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
+    if let Some(client_id) = active_client_id_lock.as_ref() {
+        let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
+        if let Some(addr) = client_id_to_addr_lock.get(client_id) {
+            let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
+            if let Some(sender) = senders_lock.get_mut(addr) {
+                let shutdown_msg = serde_json::json!({
+                    "type": "server_shutdown",
+                    "reason": "Connexion fermée par l'hôte."
+                });
+                if sender.try_send(Message::Text(shutdown_msg.to_string())).is_err() {
+                    return Err("Impossible d'envoyer le message de déconnexion au client.".to_string());
+                }
+            } else {
+                return Err("Sender non trouvé pour l'adresse du client.".to_string());
+            }
+        } else {
+            return Err("Adresse non trouvée pour le client actif.".to_string());
+        }
+    } else {
+        return Err("Aucun client actif à déconnecter.".to_string());
+    }
+    Ok(())
 }

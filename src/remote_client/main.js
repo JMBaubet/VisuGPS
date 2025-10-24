@@ -5,6 +5,7 @@ const WS_URL = `ws://${WS_SERVER_IP}:${WS_SERVER_PORT}`;
 let ws = null;
 let clientId = localStorage.getItem('visugps_remote_client_id');
 let pairingCode = generateRandomCode(8);
+let manualDisconnect = false; // Flag to prevent reconnect on server-side disconnect
 
 // Variables pour la gestion des tentatives de reconnexion
 let retryCount = 0;
@@ -199,6 +200,7 @@ function sendCommand(command) {
 }
 
 function connectWebSocket() {
+    manualDisconnect = false; // Reset the flag on new connection attempt
     if (isRetrying) {
         console.log("Tentative de reconnexion déjà en cours, ignorée.");
         return;
@@ -271,10 +273,27 @@ function connectWebSocket() {
             // Gérer les mises à jour de l'état de l'application
             console.log("État de l'application :", message.appState);
             updateRemoteInterface(message.appState);
+        } else if (message.type === "server_shutdown") {
+            manualDisconnect = true;
+            updateStatus(message.reason || "Déconnexion demandée par le serveur", true);
+
+            // Masquer les pages immédiatement pour une UI réactive
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.style.display = 'none');
+
+            // Afficher le bouton de reconnexion immédiatement
+            showRetryButton();
+
+            ws.close();
         }
     };
 
     ws.onclose = (event) => {
+        console.log(`onclose triggered. manualDisconnect is: ${manualDisconnect}`); // DEBUG
+        if (manualDisconnect) {
+            console.log("Déconnexion manuelle traitée, pas de tentative de reconnexion.");
+            return; // Important pour ne pas déclencher la logique de reconnexion auto
+        }
         isRetrying = false;
         updateStatus(`Déconnecté du serveur. Code: ${event.code}, Raison: ${event.reason}`, true);
         // Masquer toutes les pages

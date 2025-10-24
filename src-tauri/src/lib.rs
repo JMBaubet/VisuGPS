@@ -1010,6 +1010,7 @@ fn get_current_app_state(state: State<Mutex<AppState>>) -> Result<String, String
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 if let Err(e) = app.handle().plugin(
@@ -1079,6 +1080,8 @@ pub fn run() {
         update_current_view,
         get_current_app_state,
         remote_setup::reply_to_pairing_request,
+        remote_setup::get_remote_control_status,
+        remote_control::disconnect_active_remote_client,
         gpx_processor::generate_qrcode_base64,
         gpx_processor::get_remote_control_url
     ])
