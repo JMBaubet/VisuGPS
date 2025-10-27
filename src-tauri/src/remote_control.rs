@@ -71,6 +71,16 @@ pub struct RemoteCommand {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VisualizeViewState {
+    pub is_back_button_visible: bool,
+    pub is_controls_card_visible: bool,
+    pub is_altitude_visible: bool,
+    pub is_commune_widget_visible: bool,
+    pub is_distance_display_visible: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RemoteCommandResponse {
     pub r#type: String,
     pub status: String,
@@ -441,6 +451,26 @@ pub fn send_app_state_update(_app_handle: &AppHandle, new_state: &str) {
                 let message_text = serde_json::to_string(&message).unwrap();
                 if let Err(e) = sender.try_send(Message::Text(message_text)) {
                     log::error!("Erreur lors de l'envoi de la mise à jour d'état au client {}: {}", addr, e);
+                }
+            }
+        }
+    }
+}
+
+pub fn send_visualize_view_state_update(_app_handle: &AppHandle, state: VisualizeViewState) {
+    let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
+    if let Some(active_id) = active_client_id_lock.as_ref() {
+        let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
+        if let Some(addr) = client_id_to_addr_lock.get(active_id) {
+            let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
+            if let Some(sender) = senders_lock.get_mut(addr) {
+                let message = serde_json::json!({
+                    "type": "visualize_view_state_update",
+                    "state": state
+                });
+                let message_text = serde_json::to_string(&message).unwrap();
+                if let Err(e) = sender.try_send(Message::Text(message_text)) {
+                    log::error!("Error sending visualize view state update to client {}: {}", addr, e);
                 }
             }
         }

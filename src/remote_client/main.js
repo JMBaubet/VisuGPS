@@ -289,7 +289,16 @@ function connectWebSocket() {
             // Afficher le bouton de reconnexion immédiatement
             showRetryButton();
 
-            ws.close();
+        } else if (message.type === "visualize_view_state_update") {
+            console.log("Visualize View State Update received:", message.state);
+            if (message.state) {
+                // Update switches based on received state
+                document.getElementById('go-home').checked = message.state.isBackButtonVisible;
+                document.getElementById('toggle-commands').checked = message.state.isControlsCardVisible;
+                document.getElementById('toggle-profile').checked = message.state.isAltitudeVisible;
+                document.getElementById('toggle-communes').checked = message.state.isCommuneWidgetVisible;
+                document.getElementById('toggle-distance').checked = message.state.isDistanceDisplayVisible;
+            }
         }
     };
 

@@ -22,6 +22,8 @@ pub mod remote_setup;
 pub mod remote_blacklist;
 
 
+use crate::remote_control::VisualizeViewState;
+
 use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
 use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
@@ -997,10 +999,11 @@ fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new
     Ok(())
 }
 
+
+
 #[tauri::command]
-fn get_current_app_state(state: State<Mutex<AppState>>) -> Result<String, String> {
-    let app_state = state.lock().unwrap();
-    Ok(app_state.current_view.clone())
+fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
+    remote_control::send_visualize_view_state_update(&app_handle, state);
 }
 
 
@@ -1079,13 +1082,14 @@ pub fn run() {
         update_circuit_zoom_settings,
         update_circuit_traceur,
         update_current_view,
-        get_current_app_state,
+
+
         remote_setup::reply_to_pairing_request,
         remote_setup::get_remote_control_status,
         remote_control::disconnect_active_remote_client,
         gpx_processor::generate_qrcode_base64,
-        gpx_processor::get_remote_control_url
-    ])
+                        gpx_processor::get_remote_control_url,
+                        update_visualize_view_state            ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

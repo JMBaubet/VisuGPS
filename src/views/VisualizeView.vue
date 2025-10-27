@@ -45,7 +45,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -74,6 +74,27 @@ const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
 
+const isInitializing = ref(true);
+const isDistanceDisplayVisible = ref(true);
+const isControlsCardVisible = ref(true);
+const isCommuneWidgetVisible = ref(true);
+const isAltitudeVisible = ref(false);
+const isCursorHidden = ref(false);
+
+// --- Commune Widget State ---
+const avancementCommunes = ref(0);
+const currentCommuneName = ref('');
+const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
+const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
+
+const visualizeViewState = reactive({
+    isBackButtonVisible: isBackButtonVisible,
+    isControlsCardVisible: isControlsCardVisible,
+    isAltitudeVisible: isAltitudeVisible,
+    isCommuneWidgetVisible: isCommuneWidgetVisible,
+    isDistanceDisplayVisible: isDistanceDisplayVisible,
+});
+
 const unlistenFunctions = [];
 
 const mapContainer = ref(null);
@@ -96,19 +117,36 @@ const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
-const isInitializing = ref(true);
-
-const isDistanceDisplayVisible = ref(true);
-const isControlsCardVisible = ref(true);
-const isCursorHidden = ref(false);
 
 
-// --- Commune Widget State ---
-const avancementCommunes = ref(0);
-const currentCommuneName = ref('');
-const isCommuneWidgetVisible = ref(true);
-const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
-const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
+
+
+// Function to send the current state to the backend
+const sendVisualizeViewStateUpdate = () => {
+    invoke('update_visualize_view_state', { state: visualizeViewState });
+};
+
+// Watch for changes in individual refs and update the reactive state
+watch(isBackButtonVisible, (newValue) => {
+    visualizeViewState.isBackButtonVisible = newValue;
+});
+watch(isControlsCardVisible, (newValue) => {
+    visualizeViewState.isControlsCardVisible = newValue;
+});
+watch(isAltitudeVisible, (newValue) => {
+    visualizeViewState.isAltitudeVisible = newValue;
+});
+watch(isCommuneWidgetVisible, (newValue) => {
+    visualizeViewState.isCommuneWidgetVisible = newValue;
+});
+watch(isDistanceDisplayVisible, (newValue) => {
+    visualizeViewState.isDistanceDisplayVisible = newValue;
+});
+
+// Watch the reactive state and send updates to the backend
+watch(visualizeViewState, () => {
+    sendVisualizeViewStateUpdate();
+}, { deep: true });
 
 const centerEurope = computed(() => getSettingValue('Visualisation/Initialisation/centerEurope'));
 const zoomEurope = computed(() => getSettingValue('Visualisation/Initialisation/zoomEurope'));
@@ -471,8 +509,7 @@ const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finali
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
-const pauseAvantReprise = computed(() => getSettingValue('Visualisation/Finalisation/pauseAvantReprise'));
-const isAltitudeVisible = ref(false);
+
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
     return value;
@@ -940,6 +977,9 @@ onMounted(() => {
   };
 
   setupRemoteListeners();
+
+  // Send initial state to the backend
+  sendVisualizeViewStateUpdate();
 
   const unwatchSettings = watch(settings, (newSettings) => {
     if (newSettings) {
