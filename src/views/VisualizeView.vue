@@ -538,6 +538,9 @@ const onMapInteraction = () => {
 };
 
 watch(isPaused, (paused) => {
+    // Notify the backend about the pause state change
+    invoke('notify_pause_state_changed', { paused });
+
     if (!map) return;
 
     if (paused) {

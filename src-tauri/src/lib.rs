@@ -1089,7 +1089,8 @@ pub fn run() {
         remote_control::disconnect_active_remote_client,
         gpx_processor::generate_qrcode_base64,
                         gpx_processor::get_remote_control_url,
-                        update_visualize_view_state            ])
+                        update_visualize_view_state,
+                    remote_control::notify_pause_state_changed            ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

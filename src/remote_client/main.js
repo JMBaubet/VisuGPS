@@ -299,6 +299,8 @@ function connectWebSocket() {
                 document.getElementById('toggle-communes').checked = message.state.isCommuneWidgetVisible;
                 document.getElementById('toggle-distance').checked = message.state.isDistanceDisplayVisible;
             }
+        } else if (message.type === "pause_state_update") {
+            console.log("Pause state updated:", message.payload);
         }
     };
 
