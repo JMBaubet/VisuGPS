@@ -48,6 +48,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import mapboxgl from 'mapbox-gl';
 import * as turf from '@turf/turf';
 import { useTheme } from 'vuetify';
@@ -71,7 +72,9 @@ const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
 const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
-const { isBackButtonVisible } = useSharedUiState();
+const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
+
+const unlistenFunctions = [];
 
 const mapContainer = ref(null);
 let map = null;
@@ -909,6 +912,35 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('keyup', handleKeyUp);
 
+  const setupRemoteListeners = async () => {
+    unlistenFunctions.push(await listen('remote_command::toggle_play', () => {
+        if (isInitializing.value || isAnimationFinished.value) return;
+        isPaused.value = !isPaused.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_commands_widget', () => {
+        if (isInitializing.value) return;
+        isControlsCardVisible.value = !isControlsCardVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_altitude_profile', () => {
+        if (isInitializing.value) return;
+        isAltitudeVisible.value = !isAltitudeVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_communes_display', () => {
+        if (isInitializing.value) return;
+        isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_distance_display', () => {
+        if (isInitializing.value) return;
+        isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_home', () => {
+        if (isInitializing.value) return;
+        toggleBackButtonVisibility();
+    }));
+  };
+
+  setupRemoteListeners();
+
   const unwatchSettings = watch(settings, (newSettings) => {
     if (newSettings) {
       // --- Cursor hide logic ---
@@ -936,6 +968,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  unlistenFunctions.forEach(unlisten => unlisten());
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
   if (mapContainer.value) {

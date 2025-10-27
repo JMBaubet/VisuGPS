@@ -50,11 +50,7 @@ onMounted(async () => {
     theme.change(savedTheme);
   }
 
-  // Listen for remote commands
-  listen('remote_command::toggle_home', () => {
-    console.log('Remote command received: toggle_home');
-    toggleBackButtonVisibility();
-  });
+
 
   // --- DIAGNOSTIC TEST RE-ADD ---
   listen('test-event', (event) => {

@@ -142,3 +142,23 @@ h2 {
         font-size: 1.6em;
     }
 }
+
+/* Custom styles for Bootstrap switches */
+.form-check.form-switch {
+    font-size: 1.5rem;
+    padding-left: 4.5rem; /* Increased padding for larger switch */
+    display: flex;
+    align-items: center;
+    height: 50px;
+}
+
+.form-check-input {
+    width: 3.5rem;
+    height: 1.75rem;
+    margin-left: -4.5rem; /* Adjust margin for larger switch */
+    cursor: pointer;
+}
+
+.form-check-label {
+    cursor: pointer;
+}

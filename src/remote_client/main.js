@@ -142,63 +142,47 @@ function handleHijackedConnection() {
 }
 
 function setupButtonListeners() {
-    // Boutons de la page VisualizeView
+    // --- Page VisualizeView ---
     const playPauseBtn = document.getElementById('play-pause');
     if (playPauseBtn) {
-        playPauseBtn.addEventListener('click', () => {
-            sendCommand('toggle_play');
-        });
+        playPauseBtn.addEventListener('click', () => sendCommand('toggle_play'));
     }
-    
-    const toggleCommandsBtn = document.getElementById('toggle-commands');
-    if (toggleCommandsBtn) {
-        toggleCommandsBtn.addEventListener('click', () => {
-            sendCommand('toggle_commands_widget');
-        });
+
+    // Switches
+    const toggleCommandsSwitch = document.getElementById('toggle-commands');
+    if (toggleCommandsSwitch) {
+        toggleCommandsSwitch.addEventListener('change', () => sendCommand('toggle_commands_widget'));
     }
-    
-    const toggleProfileBtn = document.getElementById('toggle-profile');
-    if (toggleProfileBtn) {
-        toggleProfileBtn.addEventListener('click', () => {
-            sendCommand('toggle_altitude_profile');
-        });
+
+    const toggleProfileSwitch = document.getElementById('toggle-profile');
+    if (toggleProfileSwitch) {
+        toggleProfileSwitch.addEventListener('change', () => sendCommand('toggle_altitude_profile'));
     }
-    
-    const toggleCommunesBtn = document.getElementById('toggle-communes');
-    if (toggleCommunesBtn) {
-        toggleCommunesBtn.addEventListener('click', () => {
-            sendCommand('toggle_communes_display');
-        });
+
+    const toggleCommunesSwitch = document.getElementById('toggle-communes');
+    if (toggleCommunesSwitch) {
+        toggleCommunesSwitch.addEventListener('change', () => sendCommand('toggle_communes_display'));
     }
-    
-    const toggleDistanceBtn = document.getElementById('toggle-distance');
-    if (toggleDistanceBtn) {
-        toggleDistanceBtn.addEventListener('click', () => {
-            sendCommand('toggle_distance_display');
-        });
+
+    const toggleDistanceSwitch = document.getElementById('toggle-distance');
+    if (toggleDistanceSwitch) {
+        toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
     }
-    
-    // Bouton Accueil (présent sur plusieurs pages)
-    const goHomeBtn = document.getElementById('go-home');
-    if (goHomeBtn) {
-        goHomeBtn.addEventListener('click', () => {
-            sendCommand('toggle_home');
-        });
+
+    const goHomeSwitch = document.getElementById('go-home');
+    if (goHomeSwitch) {
+        goHomeSwitch.addEventListener('change', () => sendCommand('toggle_home'));
     }
-    
-    // Boutons de la page EditView
+
+    // --- Page EditView ---
     const saveCircuitBtn = document.getElementById('save-circuit');
     if (saveCircuitBtn) {
-        saveCircuitBtn.addEventListener('click', () => {
-            sendCommand('save_circuit');
-        });
+        saveCircuitBtn.addEventListener('click', () => sendCommand('save_circuit'));
     }
-    
+
     const previewCircuitBtn = document.getElementById('preview-circuit');
     if (previewCircuitBtn) {
-        previewCircuitBtn.addEventListener('click', () => {
-            sendCommand('preview_circuit');
-        });
+        previewCircuitBtn.addEventListener('click', () => sendCommand('preview_circuit'));
     }
 }
 
