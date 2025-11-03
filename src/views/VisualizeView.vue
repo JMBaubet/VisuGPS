@@ -66,6 +66,12 @@ const props = defineProps({
   },
 });
 
+const animationState = ref('Initialisation');
+
+watch(animationState, (newState) => {
+  invoke('update_animation_state', { newState });
+});
+
 const router = useRouter();
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
@@ -168,6 +174,7 @@ const isFlytoActive = ref(false);
 const preFlytoCameraOptions = ref(null);
 
 async function executeFlytoSequence(flytoData) {
+    animationState.value = 'Survol_Evenementiel';
     isFlytoActive.value = true;
     isPaused.value = true;
 
@@ -210,6 +217,7 @@ async function executeFlytoSequence(flytoData) {
         });
     });
 
+    animationState.value = 'En_Pause';
     isFlytoActive.value = false;
 }
 
@@ -444,6 +452,8 @@ const animate = (timestamp) => {
     setTimeout(async () => {
       if (!map) return;
 
+      animationState.value = 'Vol_Final';
+
       // Hide the comet
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
 
@@ -454,6 +464,8 @@ const animate = (timestamp) => {
           duration: flyToGlobalDuration.value,
           ...map.cameraForBounds(traceBbox, { padding: 40 })
       });
+
+      animationState.value = 'Termine';
 
       if (repriseAutomatique.value) {
         const pauseMs = pauseAvantReprise.value * 1000;
@@ -541,6 +553,12 @@ watch(isPaused, (paused) => {
     // Notify the backend about the pause state change
     invoke('notify_pause_state_changed', { paused });
 
+    if (paused) {
+        animationState.value = 'En_Pause';
+    } else {
+        animationState.value = 'En_Animation';
+    }
+
     if (!map) return;
 
     if (paused) {
@@ -626,6 +644,8 @@ const resetAnimation = async () => {
             duration: flyToKm0Duration.value,
         });
     }
+
+    animationState.value = 'En_Pause_au_Depart';
 
     // After flying to start, update the paused state to reflect the new camera position
     // and reset the interaction flag. This prevents the "resume" logic from flying back
@@ -880,6 +900,7 @@ const initializeMap = async () => {
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // Séquence 1: Vol vers l'aperçu de la trace
+      animationState.value = 'Vol_Vers_Vue_Globale';
       await flyToPromise(map, {
           pitch: 0,
           bearing: 0,
@@ -888,15 +909,18 @@ const initializeMap = async () => {
       });
 
       // Séquence 2: Pause
+      animationState.value = 'Pause_Observation';
       await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
 
       // Séquence 2: Vol vers le début de la trace (km 0)
+      animationState.value = 'Vol_Vers_Depart';
       await flyToPromise(map, {
           ...startCameraOptions,
           duration: durationTraceToStart.value,
       });
 
       // Séquence 3: Afficher l'interface utilisateur et démarrer l'animation après une pause
+      animationState.value = 'En_Pause_au_Depart';
       isInitializing.value = false;
       isPaused.value = true; // On reste en pause le temps du timer
       map.interactive = true;

@@ -477,6 +477,27 @@ pub fn send_visualize_view_state_update(_app_handle: &AppHandle, state: Visualiz
     }
 }
 
+// Send animation state updates to the remote control
+pub fn send_animation_state_update(_app_handle: &AppHandle, new_state: &str) {
+    let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
+    if let Some(active_id) = active_client_id_lock.as_ref() {
+        let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
+        if let Some(addr) = client_id_to_addr_lock.get(active_id) {
+            let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
+            if let Some(sender) = senders_lock.get_mut(addr) {
+                let message = serde_json::json!({
+                    "type": "animation_state_update",
+                    "animationState": new_state
+                });
+                let message_text = serde_json::to_string(&message).unwrap();
+                if let Err(e) = sender.try_send(Message::Text(message_text)) {
+                    log::error!("Erreur lors de l'envoi de la mise à jour de l'état d'animation au client {}: {}", addr, e);
+                }
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub fn notify_pause_state_changed(paused: bool) {
     let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();

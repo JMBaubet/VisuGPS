@@ -298,7 +298,7 @@ fn get_execution_mode(app_env: &str) -> String {
     }
 }
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize)]
 pub struct AppState {
     app_env: String,
     execution_mode: String,
@@ -307,6 +307,22 @@ pub struct AppState {
     updating_circuit_id: Option<String>,
     pub updating_circuit_name: Option<String>,
     pub current_view: String, // Nouvelle propriété pour la vue actuelle
+    pub animation_state: Mutex<String>,
+}
+
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        Self {
+            app_env: self.app_env.clone(),
+            execution_mode: self.execution_mode.clone(),
+            app_env_path: self.app_env_path.clone(),
+            mapbox_token: self.mapbox_token.clone(),
+            updating_circuit_id: self.updating_circuit_id.clone(),
+            updating_circuit_name: self.updating_circuit_name.clone(),
+            current_view: self.current_view.clone(),
+            animation_state: Mutex::new(self.animation_state.lock().unwrap().clone()),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -910,6 +926,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         updating_circuit_id: None, // Initialize to None
         updating_circuit_name: None,
         current_view: "MainView".to_string(), // Initialize current_view
+        animation_state: Mutex::new("".to_string()),
     })
 }
 
@@ -1001,9 +1018,20 @@ fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new
 
 
 
-#[tauri::command]
-fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
+pub fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
     remote_control::send_visualize_view_state_update(&app_handle, state);
+}
+
+
+#[tauri::command]
+fn update_animation_state(app_handle: AppHandle, state: State<Mutex<AppState>>, new_state: String) -> Result<(), String> {
+    let app_state = state.lock().unwrap();
+    *app_state.animation_state.lock().unwrap() = new_state.clone();
+    
+    // Notifier la télécommande
+    remote_control::send_animation_state_update(&app_handle, &new_state);
+    
+    Ok(())
 }
 
 
@@ -1089,8 +1117,7 @@ pub fn run() {
         remote_control::disconnect_active_remote_client,
         gpx_processor::generate_qrcode_base64,
                         gpx_processor::get_remote_control_url,
-                        update_visualize_view_state,
-                    remote_control::notify_pause_state_changed            ])
+                        update_animation_state            ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

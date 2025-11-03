@@ -301,6 +301,11 @@ function connectWebSocket() {
             }
         } else if (message.type === "pause_state_update") {
             console.log("Pause state updated:", message.payload);
+        } else if (message.type === "animation_state_update") {
+            const titleElement = document.getElementById('visualize-view-title');
+            if (titleElement) {
+                titleElement.textContent = message.animationState;
+            }
         }
     };
 
