@@ -174,51 +174,55 @@ const isFlytoActive = ref(false);
 const preFlytoCameraOptions = ref(null);
 
 async function executeFlytoSequence(flytoData) {
-    animationState.value = 'Survol_Evenementiel';
     isFlytoActive.value = true;
-    isPaused.value = true;
+    isPaused.value = true; // On s'assure que la boucle d'animation principale est en pause.
 
+    // --- Phase 1: Vol vers la cible ---
+    animationState.value = 'Survol_Evenementiel';
     preFlytoCameraOptions.value = {
         center: map.getCenter(),
         zoom: map.getZoom(),
         pitch: map.getPitch(),
         bearing: map.getBearing(),
     };
-
     showSnackbar('Début du survol programmé...', 'info');
-    
-    await new Promise(resolve => {
-        map.once('moveend', resolve);
-        map.flyTo({
-            center: flytoData.coord,
-            zoom: flytoData.zoom,
-            pitch: flytoData.pitch,
-            bearing: flytoData.cap,
-            duration: flytoData.duree,
-        });
+    await flyToPromise(map, {
+        center: flytoData.coord,
+        zoom: flytoData.zoom,
+        pitch: flytoData.pitch,
+        bearing: flytoData.cap,
+        duration: flytoData.duree,
     });
 
+    // --- Phase 2: En pause sur la cible ---
+    animationState.value = 'En_Pause';
+    showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
+
+    // Attendre que l'utilisateur appuie sur "Play". On utilise un watcher temporaire.
     await new Promise(resolve => {
-        const unwatch = watch(() => isPaused.value, (newVal) => {
-            if (newVal === false) {
-                unwatch();
+        const unwatch = watch(() => isPaused.value, (newVal, oldVal) => {
+            // On ne réagit qu'à la transition de pause à lecture
+            if (oldVal === true && newVal === false) {
+                unwatch(); // On supprime le watcher temporaire
                 resolve();
             }
         });
     });
+    // À ce stade, l'utilisateur a appuyé sur Play, isPaused est `false`.
+    // On doit immédiatement remettre en pause la boucle principale pour éviter qu'elle ne reprenne le contrôle.
+    isPaused.value = true;
 
+    // --- Phase 3: Vol de retour vers la trace ---
+    animationState.value = 'Survol_Evenementiel';
     showSnackbar('Retour à la trace...', 'info');
-    
-    await new Promise(resolve => {
-        map.once('moveend', resolve);
-        map.flyTo({
-            ...preFlytoCameraOptions.value,
-            duration: flytoData.duree,
-        });
+    await flyToPromise(map, {
+        ...preFlytoCameraOptions.value,
+        duration: flytoData.duree,
     });
 
-    animationState.value = 'En_Pause';
-    isFlytoActive.value = false;
+    // --- Phase 4: Reprise automatique de l'animation ---
+    isFlytoActive.value = false; // Le survol est officiellement terminé.
+    isPaused.value = false;      // On relance la boucle d'animation principale pour de bon.
 }
 
 const animate = (timestamp) => {
@@ -554,9 +558,15 @@ watch(isPaused, (paused) => {
     invoke('notify_pause_state_changed', { paused });
 
     if (paused) {
-        animationState.value = 'En_Pause';
+        // On ne met à jour l'état que si un survol n'est pas déjà en train de gérer la pause.
+        if (!isFlytoActive.value) {
+            animationState.value = 'En_Pause';
+        }
     } else {
-        animationState.value = 'En_Animation';
+        // On ne passe en animation que si la reprise n'est pas déclenchée par la fin d'un survol.
+        if (!isFlytoActive.value) {
+            animationState.value = 'En_Animation';
+        }
     }
 
     if (!map) return;
