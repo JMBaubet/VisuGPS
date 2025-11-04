@@ -143,10 +143,7 @@ function handleHijackedConnection() {
 
 function setupButtonListeners() {
     // --- Page VisualizeView ---
-    const playPauseBtn = document.getElementById('play-pause');
-    if (playPauseBtn) {
-        playPauseBtn.addEventListener('click', () => sendCommand('toggle_play'));
-    }
+    // Le bouton play-pause est maintenant géré dynamiquement
 
     // Switches
     const toggleCommandsSwitch = document.getElementById('toggle-commands');
@@ -183,6 +180,52 @@ function setupButtonListeners() {
     const previewCircuitBtn = document.getElementById('preview-circuit');
     if (previewCircuitBtn) {
         previewCircuitBtn.addEventListener('click', () => sendCommand('preview_circuit'));
+    }
+}
+
+function updatePlayPauseButton(state) {
+    const button = document.getElementById('play-pause');
+    if (!button) return;
+
+    // Comportement par défaut : commande pour Play/Pause
+    button.onclick = () => sendCommand('toggle_play');
+
+    switch (state) {
+        case 'Vol_Vers_Vue_Globale':
+        case 'Pause_Observation':
+        case 'Vol_Vers_Depart':
+        case 'Survol_Evenementiel':
+            button.innerHTML = '▶️ Play';
+            button.disabled = true;
+            break;
+
+        case 'En_Pause_au_Depart':
+        case 'En_Pause':
+            button.innerHTML = '▶️ Play';
+            button.disabled = false;
+            break;
+
+        case 'En_Animation':
+            button.innerHTML = '⏸️ Pause';
+            button.disabled = false;
+            break;
+
+        case 'Vol_Final':
+            button.innerHTML = '🔄 Redémarrer';
+            button.disabled = true;
+            button.onclick = () => sendCommand('restart_animation');
+            break;
+
+        case 'Termine':
+            button.innerHTML = '🔄 Redémarrer';
+            button.disabled = false;
+            button.onclick = () => sendCommand('restart_animation');
+            break;
+
+        default:
+            button.innerHTML = '--';
+            button.disabled = true;
+            break;
     }
 }
 
@@ -306,6 +349,7 @@ function connectWebSocket() {
             if (titleElement) {
                 titleElement.textContent = message.animationState;
             }
+            updatePlayPauseButton(message.animationState);
         }
     };
 

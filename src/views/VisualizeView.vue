@@ -174,8 +174,9 @@ const isFlytoActive = ref(false);
 const preFlytoCameraOptions = ref(null);
 
 async function executeFlytoSequence(flytoData) {
+    isWatcherActive = false; // Désactivation du watcher principal
     isFlytoActive.value = true;
-    isPaused.value = true; // On s'assure que la boucle d'animation principale est en pause.
+    isPaused.value = true; // Pause de la boucle d'animation principale
 
     // --- Phase 1: Vol vers la cible ---
     animationState.value = 'Survol_Evenementiel';
@@ -198,19 +199,15 @@ async function executeFlytoSequence(flytoData) {
     animationState.value = 'En_Pause';
     showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
 
-    // Attendre que l'utilisateur appuie sur "Play". On utilise un watcher temporaire.
+    // Attendre que l'utilisateur appuie sur "Play"
     await new Promise(resolve => {
         const unwatch = watch(() => isPaused.value, (newVal, oldVal) => {
-            // On ne réagit qu'à la transition de pause à lecture
             if (oldVal === true && newVal === false) {
-                unwatch(); // On supprime le watcher temporaire
+                unwatch();
                 resolve();
             }
         });
     });
-    // À ce stade, l'utilisateur a appuyé sur Play, isPaused est `false`.
-    // On doit immédiatement remettre en pause la boucle principale pour éviter qu'elle ne reprenne le contrôle.
-    isPaused.value = true;
 
     // --- Phase 3: Vol de retour vers la trace ---
     animationState.value = 'Survol_Evenementiel';
@@ -220,9 +217,12 @@ async function executeFlytoSequence(flytoData) {
         duration: flytoData.duree,
     });
 
-    // --- Phase 4: Reprise automatique de l'animation ---
-    isFlytoActive.value = false; // Le survol est officiellement terminé.
-    isPaused.value = false;      // On relance la boucle d'animation principale pour de bon.
+    // --- Phase 4: Reprise de l'animation ---
+    isFlytoActive.value = false;
+    isPaused.value = false; // On relance l'animation
+    animationState.value = 'En_Animation'; // On définit l'état final explicitement
+    lastTimestamp = 0; // On réinitialise le timer pour une reprise propre
+    isWatcherActive = true; // Réactivation du watcher principal
 }
 
 const animate = (timestamp) => {
@@ -539,6 +539,7 @@ watch(showAltitudeProfileSetting, (newValue) => {
 const pausedCameraOptions = ref(null);
 const cameraMovedDuringPause = ref(false);
 const isResuming = ref(false); // Flag to block animation during flyTo
+let isWatcherActive = true;
 
 const onMapInteraction = () => {
     if (isPaused.value) {
@@ -554,6 +555,8 @@ const onMapInteraction = () => {
 };
 
 watch(isPaused, (paused) => {
+    if (!isWatcherActive) return; // Ne rien faire si le watcher est désactivé
+
     // Notify the backend about the pause state change
     invoke('notify_pause_state_changed', { paused });
 
@@ -606,20 +609,23 @@ watch(isPaused, (paused) => {
         map.off('pitch', onMapInteraction);
         map.off('rotate', onMapInteraction);
 
-        if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
-            isResuming.value = true; // Block animation
-            showSnackbar('Reprise de la position initiale...', 'info');
-            map.flyTo({
-                ...pausedCameraOptions.value,
-                duration: timerReprisePause.value,
-                easing: (t) => t, // linear easing
-            });
-            map.once('moveend', () => {
-                isResuming.value = false; // Unblock animation
-                lastTimestamp = 0; // Reset timestamp to resume animation smoothly
-            });
-        } else {
-             lastTimestamp = 0; // Reset timestamp for smooth resume even without flyTo
+        // On n'exécute la logique de reprise que si un survol n'est pas en cours.
+        if (!isFlytoActive.value) {
+            if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
+                isResuming.value = true; // Block animation
+                showSnackbar('Reprise de la position initiale...', 'info');
+                map.flyTo({
+                    ...pausedCameraOptions.value,
+                    duration: timerReprisePause.value,
+                    easing: (t) => t, // linear easing
+                });
+                map.once('moveend', () => {
+                    isResuming.value = false; // Unblock animation
+                    lastTimestamp = 0; // Reset timestamp to resume animation smoothly
+                });
+            } else {
+                 lastTimestamp = 0; // Reset timestamp for smooth resume even without flyTo
+            }
         }
     }
 });
@@ -1010,6 +1016,11 @@ onMounted(() => {
     unlistenFunctions.push(await listen('remote_command::toggle_home', () => {
         if (isInitializing.value) return;
         toggleBackButtonVisibility();
+    }));
+    unlistenFunctions.push(await listen('remote_command::restart_animation', () => {
+        if (isAnimationFinished.value) {
+            resetAnimation();
+        }
     }));
   };
 
