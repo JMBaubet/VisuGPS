@@ -14,6 +14,9 @@ use serde::{Serialize, Deserialize};
 const REMOTE_CLIENT_INDEX_HTML: &str = include_str!("../../src/remote_client/index.html");
 const REMOTE_CLIENT_STYLE_CSS: &str = include_str!("../../src/remote_client/style.css");
 const REMOTE_CLIENT_MAIN_JS_TEMPLATE: &str = include_str!("../../src/remote_client/main.js");
+const REMOTE_CLIENT_UTILS_JS: &str = include_str!("../../src/remote_client/remote-utils.js");
+const REMOTE_CLIENT_UI_JS: &str = include_str!("../../src/remote_client/remote-ui.js");
+const REMOTE_CLIENT_WEBSOCKET_JS: &str = include_str!("../../src/remote_client/remote-websocket.js");
 
 use crate::remote_clients;
 use crate::AppState;
@@ -401,6 +404,36 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                             "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_STYLE_CSS.len(),
                             REMOTE_CLIENT_STYLE_CSS
+                        );
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
+                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                        }
+                    },
+                    "/remote/remote-utils.js" => {
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            REMOTE_CLIENT_UTILS_JS.len(),
+                            REMOTE_CLIENT_UTILS_JS
+                        );
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
+                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                        }
+                    },
+                    "/remote/remote-ui.js" => {
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            REMOTE_CLIENT_UI_JS.len(),
+                            REMOTE_CLIENT_UI_JS
+                        );
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
+                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                        }
+                    },
+                    "/remote/remote-websocket.js" => {
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            REMOTE_CLIENT_WEBSOCKET_JS.len(),
+                            REMOTE_CLIENT_WEBSOCKET_JS
                         );
                         if let Err(e) = stream.write_all(response.as_bytes()).await {
                             error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
