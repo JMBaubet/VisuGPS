@@ -980,78 +980,82 @@
             "libelle": "Animation",
             "groupes": [
               {
-                "libelle": "Zooms",
-                "description": "Coefficients de zoom en fonction de la vitesse.",
+                "libelle": "Vitesse",
+                "description": "Paramètres de contrôle de la vitesse de l'animation.",
                 "parametres": [
                   {
-                    "identifiant": "zoom_0_5x",
-                    "libelle": "Vitesse 0.5x",
-                    "description": "Coefficient de zoom pour la vitesse 0.5x.",
+                    "identifiant": "min_value",
+                    "libelle": "Vitesse minimale (x)",
+                    "description": "Multiplicateur de vitesse minimal pour l'animation.",
                     "type": "reel",
-                    "defaut": 1.05,
-                    "min": 1,
-                    "max": 1.1,
-                    "decimales": 3
+                    "defaut": 0.1,
+                    "min": 0.01,
+                    "max": 1.0,
+                    "decimales": 2
                   },
                   {
-                    "identifiant": "zoom_1x",
-                    "libelle": "Vitesse 1x",
-                    "description": "Coefficient de zoom pour la vitesse 1x (ne doit pas être modifié).",
+                    "identifiant": "max_value",
+                    "libelle": "Vitesse maximale (x)",
+                    "description": "Multiplicateur de vitesse maximal pour l'animation.",
+                    "type": "reel",
+                    "defaut": 20.0,
+                    "min": 1.0,
+                    "max": 100.0,
+                    "decimales": 2
+                  },
+                  {
+                    "identifiant": "default_value",
+                    "libelle": "Vitesse par défaut (x)",
+                    "description": "Multiplicateur de vitesse par défaut au démarrage et à la réinitialisation.",
                     "type": "reel",
                     "defaut": 1.0,
-                    "min": 1.0,
+                    "min": 0.1,
+                    "max": 20.0,
+                    "decimales": 2
+                  },
+                  {
+                    "identifiant": "slider_step",
+                    "libelle": "Pas du slider (x)",
+                    "description": "Incrément/décrément du slider de vitesse.",
+                    "type": "reel",
+                    "defaut": 0.05,
+                    "min": 0.01,
                     "max": 1.0,
-                    "decimales": 3
+                    "decimales": 2
+                  }
+                ]
+              },
+              {
+                "libelle": "ZoomDynamique",
+                "description": "Paramètres pour la fonction de calcul dynamique du coefficient de zoom.",
+                "parametres": [
+                  {
+                    "identifiant": "constante_A",
+                    "libelle": "Constante A",
+                    "description": "Première constante pour la fonction de zoom dynamique (ex: A / (vitesse ^ B)).",
+                    "type": "reel",
+                    "defaut": 1.0,
+                    "min": 0.1,
+                    "max": 5.0,
+                    "decimales": 2
                   },
                   {
-                    "identifiant": "zoom_2x",
-                    "libelle": "Vitesse 2x",
-                    "description": "Coefficient de zoom pour la vitesse 2x.",
+                    "identifiant": "constante_B",
+                    "libelle": "Constante B",
+                    "description": "Deuxième constante pour la fonction de zoom dynamique (ex: A / (vitesse ^ B)).",
                     "type": "reel",
-                    "defaut": 0.98,
-                    "min": 0.9,
-                    "max": 1,
-                    "decimales": 3
-                  },
-                  {
-                    "identifiant": "zoom_3x",
-                    "libelle": "Vitesse 3x",
-                    "description": "Coefficient de zoom pour la vitesse 3x.",
-                    "type": "reel",
-                    "defaut": 0.965,
-                    "min": 0.85,
-                    "max": 1,
-                    "decimales": 3
-                  },
-                  {
-                    "identifiant": "zoom_5x",
-                    "libelle": "Vitesse 5x",
-                    "description": "Coefficient de zoom pour la vitesse 5x.",
-                    "type": "reel",
-                    "defaut": 0.95,
-                    "min": 0.7,
+                    "defaut": 0.2,
+                    "min": 0.0,
                     "max": 1.0,
-                    "decimales": 3
+                    "decimales": 2
                   },
                   {
-                    "identifiant": "zoom_7x",
-                    "libelle": "Vitesse 7x",
-                    "description": "Coefficient de zoom pour la vitesse 7x.",
-                    "type": "reel",
-                    "defaut": 0.925,
-                    "min": 0.65,
-                    "max": 1.0,
-                    "decimales": 3
-                  },
-                  {
-                    "identifiant": "zoom_10x",
-                    "libelle": "Vitesse 10x",
-                    "description": "Coefficient de zoom pour la vitesse 10x.",
-                    "type": "reel",
-                    "defaut": 0.91,
-                    "min": 0.6,
-                    "max": 1.0,
-                    "decimales": 3
+                    "identifiant": "function_type",
+                    "libelle": "Type de fonction",
+                    "description": "Type de fonction mathématique utilisée pour le zoom dynamique.",
+                    "type": "string",
+                    "defaut": "power",
+                    "options": ["power", "linear", "log"]
                   }
                 ]
               }

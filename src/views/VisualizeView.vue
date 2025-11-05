@@ -34,7 +34,7 @@
                             <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
                             <v-divider vertical class="mx-2"></v-divider>
                             <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>
-                            <span class="speed-display-text">x{{ speedSteps[speedIndex] }}</span>
+                            <span class="speed-display-text">x{{ currentSpeed.toFixed(2) }}</span>
                             <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>          </div>
         </v-card>
       </div>
@@ -272,9 +272,9 @@ const animate = (timestamp) => {
   lastTimestamp = timestamp;
 
   if (isRewinding.value) {
-      accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * speedMultiplier.value));
+      accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * currentSpeed.value));
   } else {
-      accumulatedTime += deltaTime * speedMultiplier.value;
+      accumulatedTime += deltaTime * currentSpeed.value;
   }
 
   const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
@@ -405,8 +405,7 @@ const animate = (timestamp) => {
     const zoom = lerp(prevZoom, nextZoom, progressInSegment);
     const pitch = lerp(prevPitch, nextPitch, progressInSegment);
     const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
-    
-    map.setZoom(zoom * zoomCoefficient.value);
+    map.setZoom(zoom);
     map.setPitch(pitch);
     map.setBearing(bearing);
     map.setCenter([lookAtPointLng, lookAtPointLat]);
@@ -436,13 +435,13 @@ const animate = (timestamp) => {
             const pitch = lerp(prevPitch, nextPitch, progressInSegment);
             const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
             
-            map.setZoom(zoom * zoomCoefficient.value);
+            map.setZoom(zoom);
             map.setPitch(pitch);
             map.setBearing(bearing);
             map.setCenter([lookAtPointLng, lookAtPointLat]);
         } else {
             // At the very last point, just set the camera to its values
-            const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * zoomCoefficient.value;
+            const zoom = currentPoint.editedZoom ?? currentPoint.zoom;
             const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
             const bearing = currentPoint.editedCap ?? currentPoint.cap;
             const center = currentPoint.coordonnee;
@@ -502,18 +501,19 @@ const isRewinding = ref(false);
 const isAnimationFinished = ref(false);
 const distanceDisplay = ref('0.00 km');
 
-const speedSteps = [0.5, 1, 2, 3, 5, 7, 10];
-const speedIndex = ref(1); // Default to 1x speed (index 1)
-const speedMultiplier = computed(() => speedSteps[speedIndex.value]);
+const currentSpeed = ref(getSettingValue('Visualisation/Animation/Vitesse/default_value'));
 
-const zoomCoefficient = computed(() => {
-    const speed = speedSteps[speedIndex.value];
-    const path = `Visualisation/Animation/Zooms/zoom_${String(speed).replace('.', '_')}x`;
-    return getSettingValue(path) ?? 1.0;
-});
 
-watch(speedIndex, (newIndex) => {
-    invoke('update_animation_speed', { speed: speedSteps[newIndex] });
+
+
+
+const minSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/min_value'));
+const maxSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/max_value'));
+const sliderStep = computed(() => getSettingValue('Visualisation/Animation/Vitesse/slider_step'));
+const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/default_value'));
+
+watch(currentSpeed, (newSpeed) => {
+    invoke('update_animation_speed', { speed: newSpeed });
 });
 
 // --- Helper Functions ---
@@ -527,6 +527,14 @@ const lerpAngle = (start, end, t) => {
     result = result % 360;
     if (result < 0) result += 360;
     return result;
+};
+
+const decreaseSpeed = () => {
+    currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
+};
+
+const increaseSpeed = () => {
+    currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
 };
 
 // --- Computed settings ---
@@ -583,7 +591,7 @@ watch(isPaused, (paused) => {
     if (!isWatcherActive) return; // Ne rien faire si le watcher est désactivé
 
     // Notify the backend about the pause state change
-    invoke('notify_pause_state_changed', { paused });
+    invoke('update_animation_state', { newState: paused ? 'En_Pause' : 'En_Animation' });
 
     if (paused) {
         // On ne met à jour l'état que si un survol n'est pas déjà en train de gérer la pause.
@@ -668,6 +676,7 @@ const resetAnimation = async () => {
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
     preFlytoCameraOptions.value = null;
+    currentSpeed.value = defaultSpeedValue.value;
 
     activePopups.forEach(popup => popup.remove());
     activePopups.clear();
@@ -719,17 +728,7 @@ const resetAnimation = async () => {
     }
 };
 
-const decreaseSpeed = () => {
-    if (speedIndex.value > 0) {
-        speedIndex.value--;
-    }
-};
 
-const increaseSpeed = () => {
-    if (speedIndex.value < speedSteps.length - 1) {
-        speedIndex.value++;
-    }
-};
 
 const handleKeyDown = (e) => {
     // Handle 'r' for reload specifically when animation is finished
