@@ -81,99 +81,74 @@ Ce document décrit les différentes phases d'implémentation et les tests assoc
 
 ---
 
-### Phase 3 : Intégration du Contrôle Gyroscopique sur la Télécommande
+### Phase 3 : Implémentation du Slider de Vitesse sur la Télécommande
 
-**Objectif :** Permettre au smartphone d'envoyer des commandes de `delta_speed_rate` à l'application desktop via WebSocket, activées par un bouton.
+**Objectif :** Permettre à la télécommande d'envoyer des commandes de vitesse à l'application desktop via WebSocket, en utilisant un slider.
 
 #### 3.1 Modifications Côté Smartphone (`src/remote_client/`)
 
 *   **Interface Utilisateur :**
-    *   Ajouter un nouveau bouton "Ajuster Vitesse" (ou similaire) dans le template de la télécommande.
-    *   Afficher la vitesse actuelle reçue du desktop.
+    *   Ajouter un `input type="range"` (slider) pour ajuster la vitesse dans le template de la télécommande.
+    *   Afficher la vitesse actuelle reçue du desktop à côté du slider.
 *   **Script (JavaScript) :**
-    *   **Événements Capteur :** Écouter les événements `DeviceOrientationEvent` ou `DeviceMotionEvent` (par exemple, via `window.addEventListener('deviceorientation', ...)`) lorsque le bouton est pressé.
+    *   **Événements Slider :** Écouter les événements de changement de valeur du slider.
     *   **Logique de Contrôle :**
-        *   Lorsqu'un utilisateur appuie sur le bouton :
-            *   Commence à lire l'angle de pitch du smartphone.
-            *   Calcule la `delta_speed_rate` basée sur l'inclinaison (avec zone morte et lissage).
-            *   Envoie la `delta_speed_rate` à l'application desktop via la connexion WebSocket existante.
-        *   Lorsque l'utilisateur relâche le bouton :
-            *   Arrête l'envoi des `delta_speed_rate` (ou envoie 0).
+        *   Lorsqu'un utilisateur déplace le slider, la nouvelle valeur de vitesse est envoyée à l'application desktop via la connexion WebSocket existante.
+        *   Assurer un dédoublonnage ou un délai pour éviter d'envoyer trop de messages si le slider est déplacé rapidement.
 
 #### 3.2 Modifications Côté Desktop (`src-tauri/src/lib.rs` et `src/views/VisualizeView.vue`)
 
 *   **Backend Rust :**
-    *   Créer un nouvel événement Tauri (ou une commande) pour recevoir la `delta_speed_rate` du client distant. Ce pourrait être un événement "raw" WebSocket si votre système le permet, ou une commande Tauri `update_speed_rate_from_remote`.
+    *   Créer un nouvel événement Tauri (ou une commande) pour recevoir la valeur de vitesse du client distant. Ce pourrait être un événement "raw" WebSocket si votre système le permet, ou une commande Tauri `update_speed_from_remote`.
 *   **Frontend Vue.js (`VisualizeView.vue`) :**
-    *   Écouter le nouvel événement (par exemple, via `listen('remote_command::update_speed_rate', (event) => { /* ... */ })`).
-    *   Stocker la `delta_speed_rate` reçue dans une `ref` (par exemple, `remoteDeltaSpeedRate`).
+    *   Écouter le nouvel événement (par exemple, via `listen('remote_command::update_speed', (event) => { /* ... */ })`).
+    *   Mettre à jour `currentSpeed.value` avec la valeur reçue, en s'assurant qu'elle reste dans les bornes `min_value` et `max_value` définies dans `settings.json`.
 
 #### Tests (Phase 3) :
 
 *   **Connexion :** S'assurer que la télécommande se connecte correctement.
-*   **Envoi `delta_speed_rate` :** Utiliser les outils de débogage du navigateur sur le smartphone pour vérifier que la `delta_speed_rate` est correctement calculée et envoyée via WebSocket lorsque le bouton est pressé/incliné.
-*   **Réception `delta_speed_rate` :** Dans l'application desktop, logger la valeur de `remoteDeltaSpeedRate` pour s'assurer qu'elle est bien reçue et mise à jour.
+*   **Envoi de la vitesse :** Utiliser les outils de débogage du navigateur sur le smartphone pour vérifier que la valeur de vitesse est correctement envoyée via WebSocket lorsque le slider est déplacé.
+*   **Réception de la vitesse :** Dans l'application desktop, logger la valeur de `currentSpeed` pour s'assurer qu'elle est bien reçue et mise à jour.
+*   **Synchronisation :** Vérifier que le slider desktop et le slider de la télécommande se synchronisent correctement.
 
 ---
 
-### Phase 4 : Application de la `delta_speed_rate` à la `currentSpeed`
+### Phase 4 : Retour à 1x via Double-Clic sur le Slider (Télécommande)
 
-**Objectif :** Utiliser la `delta_speed_rate` reçue pour ajuster la `currentSpeed` de l'animation dans la boucle principale.
+**Objectif :** Permettre un retour rapide à la vitesse par défaut (1x) sur la télécommande via un double-clic sur le slider.
 
-#### 4.1 Modifications dans `src/views/VisualizeView.vue`
+#### 4.1 Modifications Côté Smartphone (`src/remote_client/`)
 
-*   **Variable d'État :** Introduire une `ref` `currentRemoteDeltaSpeedRate` initialisée à 0, qui sera mise à jour par l'événement de la phase 3.
-*   **Boucle `animate` :**
-    *   Dans la fonction `animate`, *avant* de calculer `accumulatedTime`, ajuster `currentSpeed.value` :
-        `currentSpeed.value = Math.max(min_speed_value, Math.min(max_speed_value, currentSpeed.value + currentRemoteDeltaSpeedRate.value * deltaTime));`
-    *   S'assurer que la `currentSpeed` reste dans les bornes `min_value` et `max_value` définies dans `settings.json`.
+*   **Script (JavaScript) :**
+    *   **Événement Double-Clic :** Écouter l'événement de double-clic sur le slider de vitesse.
+    *   **Logique de Contrôle :**
+        *   Lors d'un double-clic sur le slider, envoyer une commande (`set_speed_to_1x`) à l'application de bureau.
+
+#### 4.2 Modifications Côté Desktop (`src-tauri/src/lib.rs` et `src/views/VisualizeView.vue`)
+
+*   **Backend Rust :**
+    *   Ajouter un nouvel événement/commande Tauri pour `set_speed_to_1x`.
+*   **Frontend Vue.js (`VisualizeView.vue`) :**
+    *   Écouter cet événement et l'utiliser pour directement modifier `currentSpeed.value` à la valeur par défaut (1.0), en respectant les bornes min/max.
 
 #### Tests (Phase 4) :
 
-*   **Vitesse par gyroscopie :**
-    *   Appuyer sur le bouton Gyro sur le smartphone et incliner le téléphone : la vitesse de l'animation doit progressivement augmenter ou diminuer en fonction de l'inclinaison.
-    *   Relâcher le bouton : la vitesse doit se stabiliser.
-    *   Faire des tests aux limites (inclinaison maximale) pour vérifier que la vitesse atteint bien les bornes min/max.
-*   **Absence d'interférence :** Vérifier que le slider desktop fonctionne toujours correctement et qu'il n'y a pas de conflits inattendus.
+*   **Double-Clic Télécommande :** Vérifier qu'un double-clic sur le slider de la télécommande réinitialise la vitesse à 1x.
+*   **Intégration Globale :** S'assurer que tous les contrôles (desktop slider, télécommande slider) fonctionnent de concert sans conflit.
 
 ---
 
-### Phase 5 : Re-implémentation du Retour à 1x et des Boutons +/- (Télécommande)
-
-**Objectif :** Fournir des méthodes robustes pour ajuster la vitesse via la télécommande, incluant un retour rapide à la vitesse par défaut.
-
-#### 5.1 Modifications Côté Smartphone (`src/remote_client/`)
-
-*   **Nouveaux Boutons :**
-    *   Ajouter un bouton "1x" : Envoie une commande (`set_speed_to_1x`) à l'application de bureau.
-    *   Ajouter des boutons pour ajuster la vitesse par "petits pas" (`+` et `-`) : Envoient des commandes (`increase_speed_step`, `decrease_speed_step`) à l'application de bureau. L'incrément/décrément serait une valeur fixe paramétrée.
-
-#### 5.2 Modifications Côté Desktop (`src-tauri/src/lib.rs` et `src/views/VisualizeView.vue`)
-
-*   **Backend Rust :**
-    *   Ajouter de nouveaux événements/commandes Tauri pour `set_speed_to_1x`, `increase_speed_step`, `decrease_speed_step`.
-*   **Frontend Vue.js (`VisualizeView.vue`) :**
-    *   Écouter ces nouveaux événements et les utiliser pour directement modifier `currentSpeed.value` (en respectant les bornes min/max).
-
-#### Tests (Phase 5) :
-
-*   **Bouton "1x" Télécommande :** Vérifier que la vitesse revient à 1x.
-*   **Boutons "+/-" Télécommande :** Vérifier que la vitesse augmente/diminue par incréments fixes.
-*   **Intégration Globale :** S'assurer que tous les contrôles (desktop slider, gyroscopie, boutons télécommande) fonctionnent de concert sans conflit.
-
----
-
-### Phase 6 : Fonction Mathématique pour le Zoom Dynamique
+### Phase 5 : Fonction Mathématique pour le Zoom Dynamique
 
 **Objectif :** Remplacer le simple multiplicateur de zoom par une fonction mathématique `f(currentSpeed)` qui définit le coefficient de zoom de manière plus élaborée.
 
-#### 6.1 Modifications dans `src/views/VisualizeView.vue`
+#### 5.1 Modifications dans `src/views/VisualizeView.vue`
 
 *   **Définition de la fonction :** Créer un `computed` `dynamicZoomCoefficient` qui utilise `currentSpeed.value` et les paramètres de `Visualisation/Animation/ZoomDynamique` (`constante_A`, `constante_B`, `function_type`) pour calculer le coefficient de zoom.
     *   Exemple de fonction : `coefficient = constante_A / (currentSpeed.value ** constante_B)`.
 *   **Application :** Remplacer `zoom * zoomCoefficient.value` par `zoom * dynamicZoomCoefficient.value` dans la fonction `animate`.
 
-#### Tests (Phase 6) :
+#### Tests (Phase 5) :
 
 *   **Comportement du zoom :**
     *   Faire varier la vitesse et observer le comportement du zoom. Pour les vitesses > 1x, le zoom devrait être plus faible que le zoom de base, et inversement pour les vitesses < 1x.
@@ -183,8 +158,8 @@ Ce document décrit les différentes phases d'implémentation et les tests assoc
 
 ## ⚠️ Considérations Générales
 
-*   **Feedback UX :** Pendant toute l'implémentation, penser au feedback visuel et haptique. L'utilisateur doit toujours savoir quelle est la vitesse actuelle (affichage numérique), et si le contrôle gyroscopique est actif. Des vibrations peuvent être utilisées pour les limites de vitesse ou le passage à 1x.
-*   **Messages d'Erreur :** Gérer les cas où les capteurs ne sont pas disponibles sur le smartphone ou où la communication est interrompue.
-*   **Paramétrage :** S'assurer que toutes les constantes (zone morte, sensibilité d'inclinaison, pas d'incrémentation, constantes de la fonction de zoom) sont paramétrables via `settings.json` pour faciliter l'ajustement.
+*   **Feedback UX :** Pendant toute l'implémentation, penser au feedback visuel et haptique. L'utilisateur doit toujours savoir quelle est la vitesse actuelle (affichage numérique).
+*   **Messages d'Erreur :** Gérer les cas où la communication est interrompue.
+*   **Paramétrage :** S'assurer que toutes les constantes (pas d'incrémentation, constantes de la fonction de zoom) sont paramétrables via `settings.json` pour faciliter l'ajustement.
 
 En suivant ce plan pas à pas, nous minimiserons les risques et construirons une fonctionnalité robuste et intuitive.
