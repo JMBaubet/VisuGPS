@@ -2,7 +2,7 @@
   <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
 
   <transition name="fade">
-    <v-btn v-if="!isInitializing && isBackButtonVisible" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
+    <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
   </transition>
 
   <transition name="fade">
@@ -70,6 +70,12 @@ const animationState = ref('Initialisation');
 
 watch(animationState, (newState) => {
   invoke('update_animation_state', { newState });
+  // Automatically control isBackButtonVisible based on animationState
+  if (newState === 'En_Pause' || newState === 'Termine' || newState === 'En_Pause_au_Depart') {
+    isBackButtonVisible.value = true;
+  } else {
+    isBackButtonVisible.value = false;
+  }
 });
 
 const router = useRouter();
@@ -79,6 +85,15 @@ const { interruptUpdate } = useCommunesUpdate();
 const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
+
+const shouldShowBackButtonBasedOnAnimationState = computed(() => {
+    const state = animationState.value;
+    return state === 'En_Pause' || state === 'Termine' || state === 'En_Pause_au_Depart';
+});
+
+const isBackButtonVisibleFinal = computed(() => {
+    return isBackButtonVisible.value && shouldShowBackButtonBasedOnAnimationState.value;
+});
 
 const isInitializing = ref(true);
 const isDistanceDisplayVisible = ref(true);
@@ -735,7 +750,7 @@ const handleKeyDown = (e) => {
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
         sendVisualizeViewStateUpdate();
     } else if (e.key === 'h' || e.key === 'H') {
-        isBackButtonVisible.value = !isBackButtonVisible.value;
+        toggleBackButtonVisibility();
     } else if (e.code === 'Space') {
         e.preventDefault();
         isControlsCardVisible.value = !isControlsCardVisible.value;
