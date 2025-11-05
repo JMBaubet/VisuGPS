@@ -406,7 +406,7 @@ const animate = (timestamp) => {
     const pitch = lerp(prevPitch, nextPitch, progressInSegment);
     const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
     
-    map.setZoom(zoom);
+    map.setZoom(zoom * zoomCoefficient.value);
     map.setPitch(pitch);
     map.setBearing(bearing);
     map.setCenter([lookAtPointLng, lookAtPointLat]);
@@ -436,13 +436,13 @@ const animate = (timestamp) => {
             const pitch = lerp(prevPitch, nextPitch, progressInSegment);
             const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
             
-            map.setZoom(zoom);
+            map.setZoom(zoom * zoomCoefficient.value);
             map.setPitch(pitch);
             map.setBearing(bearing);
             map.setCenter([lookAtPointLng, lookAtPointLat]);
         } else {
             // At the very last point, just set the camera to its values
-            const zoom = currentPoint.editedZoom ?? currentPoint.zoom;
+            const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * zoomCoefficient.value;
             const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
             const bearing = currentPoint.editedCap ?? currentPoint.cap;
             const center = currentPoint.coordonnee;
@@ -505,6 +505,12 @@ const distanceDisplay = ref('0.00 km');
 const speedSteps = [0.5, 1, 2, 3, 5, 7, 10];
 const speedIndex = ref(1); // Default to 1x speed (index 1)
 const speedMultiplier = computed(() => speedSteps[speedIndex.value]);
+
+const zoomCoefficient = computed(() => {
+    const speed = speedSteps[speedIndex.value];
+    const path = `Visualisation/Animation/Zooms/zoom_${String(speed).replace('.', '_')}x`;
+    return getSettingValue(path) ?? 1.0;
+});
 
 watch(speedIndex, (newIndex) => {
     invoke('update_animation_speed', { speed: speedSteps[newIndex] });

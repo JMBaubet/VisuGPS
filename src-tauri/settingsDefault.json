@@ -978,6 +978,84 @@
           },
           {
             "libelle": "Animation",
+            "groupes": [
+              {
+                "libelle": "Zooms",
+                "description": "Coefficients de zoom en fonction de la vitesse.",
+                "parametres": [
+                  {
+                    "identifiant": "zoom_0_5x",
+                    "libelle": "Vitesse 0.5x",
+                    "description": "Coefficient de zoom pour la vitesse 0.5x.",
+                    "type": "reel",
+                    "defaut": 1.05,
+                    "min": 1,
+                    "max": 1.1,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_1x",
+                    "libelle": "Vitesse 1x",
+                    "description": "Coefficient de zoom pour la vitesse 1x (ne doit pas être modifié).",
+                    "type": "reel",
+                    "defaut": 1.0,
+                    "min": 1.0,
+                    "max": 1.0,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_2x",
+                    "libelle": "Vitesse 2x",
+                    "description": "Coefficient de zoom pour la vitesse 2x.",
+                    "type": "reel",
+                    "defaut": 0.98,
+                    "min": 0.9,
+                    "max": 1,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_3x",
+                    "libelle": "Vitesse 3x",
+                    "description": "Coefficient de zoom pour la vitesse 3x.",
+                    "type": "reel",
+                    "defaut": 0.965,
+                    "min": 0.85,
+                    "max": 1,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_5x",
+                    "libelle": "Vitesse 5x",
+                    "description": "Coefficient de zoom pour la vitesse 5x.",
+                    "type": "reel",
+                    "defaut": 0.95,
+                    "min": 0.7,
+                    "max": 1.0,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_7x",
+                    "libelle": "Vitesse 7x",
+                    "description": "Coefficient de zoom pour la vitesse 7x.",
+                    "type": "reel",
+                    "defaut": 0.925,
+                    "min": 0.65,
+                    "max": 1.0,
+                    "decimales": 3
+                  },
+                  {
+                    "identifiant": "zoom_10x",
+                    "libelle": "Vitesse 10x",
+                    "description": "Coefficient de zoom pour la vitesse 10x.",
+                    "type": "reel",
+                    "defaut": 0.91,
+                    "min": 0.6,
+                    "max": 1.0,
+                    "decimales": 3
+                  }
+                ]
+              }
+            ],
             "parametres": [
               {
                 "defaut": 3730,
