@@ -22,7 +22,7 @@ pub mod remote_setup;
 pub mod remote_blacklist;
 
 
-use crate::remote_control::VisualizeViewState;
+
 
 use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
 #[allow(unused_imports)]
