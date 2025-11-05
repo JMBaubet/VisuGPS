@@ -33,9 +33,21 @@
                                    @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
                             <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
                             <v-divider vertical class="mx-2"></v-divider>
-                            <v-btn icon="mdi-minus" variant="text" @click="decreaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>
-                            <span class="speed-display-text">x{{ currentSpeed.toFixed(2) }}</span>
-                            <v-btn icon="mdi-plus" variant="text" @click="increaseSpeed" size="x-small" :disabled="isAnimationFinished"></v-btn>          </div>
+                            <v-slider
+                                v-model="currentSpeed"
+                                :min="minSpeedValue"
+                                :max="maxSpeedValue"
+                                :step="sliderStep"
+                                hide-details
+                                class="align-center speed-slider"
+                                :disabled="isAnimationFinished"
+                                @dblclick="currentSpeed = defaultSpeedValue"
+                            >
+                                <template v-slot:append>
+                                    <span class="speed-value-display">{{ currentSpeed.toFixed(2) }}x</span>
+                                    <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
+                                </template>
+                            </v-slider>          </div>
         </v-card>
       </div>
     </transition>
@@ -529,13 +541,7 @@ const lerpAngle = (start, end, t) => {
     return result;
 };
 
-const decreaseSpeed = () => {
-    currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
-};
 
-const increaseSpeed = () => {
-    currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
-};
 
 // --- Computed settings ---
 const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
@@ -746,9 +752,9 @@ const handleKeyDown = (e) => {
     } else if (e.key === 'ArrowLeft') {
         isRewinding.value = true;
     } else if (e.key === 'ArrowDown') {
-        decreaseSpeed();
+        currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
     } else if (e.key === 'ArrowUp') {
-        increaseSpeed();
+        currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
     } else if (e.key === 'a' || e.key === 'A') {
         isAltitudeVisible.value = !isAltitudeVisible.value;
         sendVisualizeViewStateUpdate();
@@ -1053,11 +1059,11 @@ onMounted(() => {
     }));
     unlistenFunctions.push(await listen('remote_command::increase_speed', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
-        increaseSpeed();
+        currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
     }));
     unlistenFunctions.push(await listen('remote_command::decrease_speed', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
-        decreaseSpeed();
+        currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
     }));
   };
 
@@ -1187,6 +1193,10 @@ onUnmounted(() => {
     padding: 0 8px;
     min-width: 45px; /* Ensure space doesn't jump around */
     text-align: center;
+}
+
+.speed-slider {
+    width: 200px; /* Ajustez cette valeur selon vos besoins */
 }
 
 /* Remove the default white box and pointer/tip from our custom popups */
