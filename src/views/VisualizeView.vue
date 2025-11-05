@@ -413,8 +413,7 @@ const animate = (timestamp) => {
     const nextPitch = nextCamKeyframe.editedPitch ?? nextCamKeyframe.pitch;
     const prevCap = prevCamKeyframe.editedCap ?? prevCamKeyframe.cap;
     const nextCap = nextCamKeyframe.editedCap ?? nextCamKeyframe.cap;
-
-    const zoom = lerp(prevZoom, nextZoom, progressInSegment);
+    const zoom = lerp(prevZoom, nextZoom, progressInSegment) * dynamicZoomCoefficient.value;
     const pitch = lerp(prevPitch, nextPitch, progressInSegment);
     const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
     map.setZoom(zoom);
@@ -443,7 +442,7 @@ const animate = (timestamp) => {
             const prevCap = currentPoint.editedCap ?? currentPoint.cap;
             const nextCap = nextPoint.editedCap ?? nextPoint.cap;
 
-            const zoom = lerp(prevZoom, nextZoom, progressInSegment);
+            const zoom = lerp(currentPoint.editedZoom ?? currentPoint.zoom, nextPoint.editedZoom ?? nextPoint.zoom, progressInSegment) * dynamicZoomCoefficient.value;
             const pitch = lerp(prevPitch, nextPitch, progressInSegment);
             const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
             
@@ -453,7 +452,7 @@ const animate = (timestamp) => {
             map.setCenter([lookAtPointLng, lookAtPointLat]);
         } else {
             // At the very last point, just set the camera to its values
-            const zoom = currentPoint.editedZoom ?? currentPoint.zoom;
+            const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * dynamicZoomCoefficient.value;
             const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
             const bearing = currentPoint.editedCap ?? currentPoint.cap;
             const center = currentPoint.coordonnee;
@@ -524,8 +523,31 @@ const maxSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vi
 const sliderStep = computed(() => getSettingValue('Visualisation/Animation/Vitesse/slider_step'));
 const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/default_value'));
 
+const constanteA = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_A'));
+const constanteB = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_B'));
+const functionType = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/function_type'));
+
+const dynamicZoomCoefficient = computed(() => {
+    const speed = currentSpeed.value;
+    const A = constanteA.value;
+    const B = constanteB.value;
+    const type = functionType.value;
+
+    if (speed === null || A === null || B === null || type === null) {
+        return 1.0; // Valeur par défaut si les paramètres ne sont pas chargés
+    }
+
+    // Implémentation de la fonction de zoom dynamique
+    // Pour l'instant, nous utilisons une fonction simple comme demandé dans la doc
+    // coefficient = A / (speed^B)
+    if (speed === 0) return A; // Éviter la division par zéro ou puissance de zéro
+    return A / (speed ** B);
+});
+
 watch(currentSpeed, (newSpeed) => {
-    invoke('update_animation_speed', { speed: newSpeed });
+    if (newSpeed !== null && newSpeed !== undefined) {
+        invoke('update_animation_speed', { speed: newSpeed });
+    }
 });
 
 // --- Helper Functions ---
