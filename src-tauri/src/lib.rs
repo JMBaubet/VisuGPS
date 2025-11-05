@@ -1018,9 +1018,7 @@ fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new
 
 
 
-pub fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
-    remote_control::send_visualize_view_state_update(&app_handle, state);
-}
+
 
 
 #[tauri::command]
@@ -1110,6 +1108,7 @@ pub fn run() {
         update_circuit_zoom_settings,
         update_circuit_traceur,
         update_current_view,
+        remote_control::update_visualize_view_state,
 
 
         remote_setup::reply_to_pairing_request,

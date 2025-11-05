@@ -727,21 +727,26 @@ const handleKeyDown = (e) => {
         increaseSpeed();
     } else if (e.key === 'a' || e.key === 'A') {
         isAltitudeVisible.value = !isAltitudeVisible.value;
+        sendVisualizeViewStateUpdate();
     } else if (e.key === 'c' || e.key === 'C') {
         isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
+        sendVisualizeViewStateUpdate();
     } else if (e.key === 'd' || e.key === 'D') {
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+        sendVisualizeViewStateUpdate();
     } else if (e.key === 'h' || e.key === 'H') {
         isBackButtonVisible.value = !isBackButtonVisible.value;
     } else if (e.code === 'Space') {
         e.preventDefault();
         isControlsCardVisible.value = !isControlsCardVisible.value;
+        sendVisualizeViewStateUpdate();
     } else if (e.key === 'Delete') {
         isBackButtonVisible.value = false;
         isDistanceDisplayVisible.value = false;
         isControlsCardVisible.value = false;
         isCommuneWidgetVisible.value = false;
         isAltitudeVisible.value = false;
+        sendVisualizeViewStateUpdate();
     }
 };
 

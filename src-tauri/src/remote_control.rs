@@ -4,7 +4,12 @@ use futures::{StreamExt, SinkExt};
 use log::{info, error, debug};
 use local_ip_address::local_ip;
 use tokio::io::AsyncWriteExt;
-use tauri::{AppHandle, Manager, Emitter};
+use tauri::{command, AppHandle, Manager, Emitter};
+
+#[command]
+pub fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
+    send_visualize_view_state_update(&app_handle, state);
+}
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use tokio::sync::oneshot;
