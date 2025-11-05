@@ -506,6 +506,10 @@ const speedSteps = [0.5, 1, 2, 3, 5, 7, 10];
 const speedIndex = ref(1); // Default to 1x speed (index 1)
 const speedMultiplier = computed(() => speedSteps[speedIndex.value]);
 
+watch(speedIndex, (newIndex) => {
+    invoke('update_animation_speed', { speed: speedSteps[newIndex] });
+});
+
 // --- Helper Functions ---
 const lerp = (start, end, t) => start * (1 - t) + end * t;
 
@@ -1041,6 +1045,14 @@ onMounted(() => {
         if (isAnimationFinished.value) {
             resetAnimation();
         }
+    }));
+    unlistenFunctions.push(await listen('remote_command::increase_speed', () => {
+        if (isInitializing.value || isAnimationFinished.value) return;
+        increaseSpeed();
+    }));
+    unlistenFunctions.push(await listen('remote_command::decrease_speed', () => {
+        if (isInitializing.value || isAnimationFinished.value) return;
+        decreaseSpeed();
     }));
   };
 

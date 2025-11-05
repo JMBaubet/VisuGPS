@@ -119,6 +119,11 @@ function connectWebSocket() {
             //     titleElement.textContent = message.animationState;
             // } // Supprimé
             updatePlayPauseButton(message.animationState);
+        } else if (message.type === "animation_speed_update") {
+            const speedDisplay = document.getElementById('speed-display');
+            if (speedDisplay) {
+                speedDisplay.textContent = `x${message.speed}`;
+            }
         }
     };
 

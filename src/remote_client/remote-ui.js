@@ -140,6 +140,16 @@ function setupButtonListeners() {
         toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
     }
 
+    const increaseSpeedBtn = document.getElementById('increase-speed');
+    if (increaseSpeedBtn) {
+        increaseSpeedBtn.addEventListener('click', () => sendCommand('increase_speed'));
+    }
+
+    const decreaseSpeedBtn = document.getElementById('decrease-speed');
+    if (decreaseSpeedBtn) {
+        decreaseSpeedBtn.addEventListener('click', () => sendCommand('decrease_speed'));
+    }
+
     // --- Page EditView ---
     const saveCircuitBtn = document.getElementById('save-circuit');
     if (saveCircuitBtn) {

@@ -1109,6 +1109,9 @@ pub fn run() {
         update_circuit_traceur,
         update_current_view,
         remote_control::update_visualize_view_state,
+        remote_control::remote_command_increase_speed,
+        remote_control::remote_command_decrease_speed,
+        remote_control::update_animation_speed,
 
 
         remote_setup::reply_to_pairing_request,

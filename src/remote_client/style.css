@@ -61,13 +61,18 @@ h2 {
     touch-action: manipulation;
 }
 
-.controls button:hover {
-    background-color: #0056b3;
+/* Override active/focus styles for specific buttons */
+.no-active-effect:active,
+.no-active-effect:focus {
+    background-color: #6c757d !important; /* Bootstrap's default .btn-secondary color */
+    border-color: #6c757d !important;
+    color: white !important;
+    box-shadow: none !important;
+    transform: none !important;
 }
 
-.controls button:active {
-    background-color: #004085;
-    transform: scale(0.98);
+.controls button:hover {
+    background-color: #0056b3;
 }
 
 /* Styles spécifiques pour les pages */
