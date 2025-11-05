@@ -568,6 +568,18 @@ pub fn remote_command_decrease_speed(app_handle: AppHandle) {
 }
 
 #[tauri::command]
+pub fn update_speed_from_remote(app_handle: AppHandle, payload: serde_json::Value) {
+    if let Some(speed) = payload["speed"].as_f64() {
+        app_handle.emit("remote_command::update_speed", speed).unwrap();
+    }
+}
+
+#[tauri::command]
+pub fn set_speed_to_1x_from_remote(app_handle: AppHandle) {
+    app_handle.emit("remote_command::set_speed_to_1x", ()).unwrap();
+}
+
+#[tauri::command]
 pub fn update_animation_speed(app_handle: AppHandle, speed: f32) {
     send_animation_speed_update(&app_handle, speed);
 }

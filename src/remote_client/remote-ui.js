@@ -140,14 +140,22 @@ function setupButtonListeners() {
         toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
     }
 
-    const increaseSpeedBtn = document.getElementById('increase-speed');
-    if (increaseSpeedBtn) {
-        increaseSpeedBtn.addEventListener('click', () => sendCommand('increase_speed'));
-    }
+    // Speed Slider
+    const speedSlider = document.getElementById('speed-slider');
+    const speedDisplay = document.getElementById('speed-display');
 
-    const decreaseSpeedBtn = document.getElementById('decrease-speed');
-    if (decreaseSpeedBtn) {
-        decreaseSpeedBtn.addEventListener('click', () => sendCommand('decrease_speed'));
+    if (speedSlider && speedDisplay) {
+        speedSlider.addEventListener('input', () => {
+            const speedValue = parseFloat(speedSlider.value);
+            speedDisplay.textContent = `${speedValue.toFixed(1)}x`;
+            sendCommand('update_speed', { speed: speedValue });
+        });
+
+        speedSlider.addEventListener('dblclick', () => {
+            speedSlider.value = 1.0;
+            speedDisplay.textContent = `1.0x`;
+            sendCommand('set_speed_to_1x');
+        });
     }
 
     // --- Page EditView ---
@@ -206,5 +214,16 @@ function updatePlayPauseButton(state) {
             playPauseButton.innerHTML = '--';
             playPauseButton.disabled = true;
             break;
+    }
+}
+
+function updateSpeedDisplay(speed) {
+    const speedDisplay = document.getElementById('speed-display');
+    const speedSlider = document.getElementById('speed-slider');
+    if (speedDisplay) {
+        speedDisplay.textContent = `${speed.toFixed(1)}x`;
+    }
+    if (speedSlider) {
+        speedSlider.value = speed;
     }
 }

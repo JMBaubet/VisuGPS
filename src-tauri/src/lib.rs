@@ -1112,6 +1112,8 @@ pub fn run() {
         remote_control::remote_command_increase_speed,
         remote_control::remote_command_decrease_speed,
         remote_control::update_animation_speed,
+        remote_control::update_speed_from_remote,
+        remote_control::set_speed_to_1x_from_remote,
 
 
         remote_setup::reply_to_pairing_request,

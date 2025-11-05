@@ -1057,13 +1057,14 @@ onMounted(() => {
             resetAnimation();
         }
     }));
-    unlistenFunctions.push(await listen('remote_command::increase_speed', () => {
+    unlistenFunctions.push(await listen('remote_command::update_speed', (event) => {
+        console.log("Received remote_command::update_speed event:", event);
         if (isInitializing.value || isAnimationFinished.value) return;
-        currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
+        currentSpeed.value = Math.min(maxSpeedValue.value, Math.max(minSpeedValue.value, parseFloat(event.payload.speed)));
     }));
-    unlistenFunctions.push(await listen('remote_command::decrease_speed', () => {
+    unlistenFunctions.push(await listen('remote_command::set_speed_to_1x', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
-        currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
+        currentSpeed.value = defaultSpeedValue.value;
     }));
   };
 

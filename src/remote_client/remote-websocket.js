@@ -1,11 +1,12 @@
-function sendCommand(command) {
+function sendCommand(command, payload = {}) {
     if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ 
-            type: "command", 
-            clientId: clientId, 
-            command: command 
+        ws.send(JSON.stringify({
+            type: "command",
+            clientId: clientId,
+            command: command,
+            payload: payload
         }));
-        console.log(`Commande envoyée: ${command}`);
+        console.log(`Commande envoyée: ${command}`, payload);
     } else {
         console.error('WebSocket non connecté');
     }
@@ -120,10 +121,7 @@ function connectWebSocket() {
             // } // Supprimé
             updatePlayPauseButton(message.animationState);
         } else if (message.type === "animation_speed_update") {
-            const speedDisplay = document.getElementById('speed-display');
-            if (speedDisplay) {
-                speedDisplay.textContent = `x${message.speed}`;
-            }
+            updateSpeedDisplay(message.speed);
         }
     };
 
