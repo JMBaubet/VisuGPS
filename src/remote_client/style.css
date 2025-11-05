@@ -161,4 +161,5 @@ h2 {
 
 .form-check-label {
     cursor: pointer;
+    margin-left: 0.5rem; /* Ajouté pour décaler le texte */
 }

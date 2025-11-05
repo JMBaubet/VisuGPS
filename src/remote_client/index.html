@@ -8,36 +8,31 @@
     <link rel="stylesheet" href="/remote/style.css">
 </head>
 <body>
-    <h1>VisuGPS Télécommande</h1>
-    <div id="status">Connexion en attente...</div>
+    <h1 id="main-title">VisuGPS Télécommande</h1>
+    <div id="status" style="display:none;">Connexion en attente...</div>
     <div id="pairing-code"></div>
     
     <!-- Page VisualizeView - Contrôles complets -->
     <div id="page-visualize" class="page" style="display:none;">
-        <h2 id="visualize-view-title" class="view-title">En attente...</h2>
+        <div id="visualize-view-title" class="view-title" style="display:none;"></div>
         <div class="controls">
             <button id="play-pause" class="btn btn-primary w-100 mb-3 fs-4"></button>
             
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="toggle-commands" checked>
-                <label class="form-check-label" for="toggle-commands">📋 Commandes</label>
+                <label class="form-check-label" for="toggle-commands">Commandes</label>
             </div>
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="toggle-profile" checked>
-                <label class="form-check-label" for="toggle-profile">📊 Profil Altitude</label>
+                <label class="form-check-label" for="toggle-profile">Profil Altitude</label>
             </div>
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="toggle-communes" checked>
-                <label class="form-check-label" for="toggle-communes">🏘️ Communes</label>
+                <label class="form-check-label" for="toggle-communes">Communes</label>
             </div>
             <div class="form-check form-switch mb-2">
                 <input class="form-check-input" type="checkbox" role="switch" id="toggle-distance" checked>
-                <label class="form-check-label" for="toggle-distance">📏 Distance</label>
-            </div>
-
-                        <div class="form-check form-switch mb-2">
-                <input class="form-check-input" type="checkbox" role="switch" id="go-home" checked>
-                <label class="form-check-label" for="go-home">🏠 Accueil</label>
+                <label class="form-check-label" for="toggle-distance">Distance</label>
             </div>
         </div>
     </div>

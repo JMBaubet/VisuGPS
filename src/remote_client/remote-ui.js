@@ -1,6 +1,17 @@
-function updateStatus(message, isError = false) {
+const mainTitle = document.getElementById('main-title');
+
+function updateStatus(message, isError = false, isConnecting = false) {
     statusDiv.textContent = `Statut: ${message}`;
-    statusDiv.style.color = isError ? 'red' : 'green';
+    if (isError) {
+        statusDiv.style.color = 'red';
+        mainTitle.style.color = 'red';
+    } else if (isConnecting) {
+        statusDiv.style.color = 'blue';
+        mainTitle.style.color = 'blue';
+    } else {
+        statusDiv.style.color = 'green';
+        mainTitle.style.color = 'green';
+    }
 }
 
 function resetRetryCount() {
@@ -48,38 +59,43 @@ function updateRemoteInterface(appState) {
     
     // Adapter l'interface de la télécommande selon l'état de l'application
     const statusText = document.getElementById('status');
-    
+    const visualizeViewTitle = document.getElementById('visualize-view-title');
+
+    // Réinitialiser l'affichage du statut et du titre de la vue visualisation
+    statusText.style.display = 'block';
+    visualizeViewTitle.style.display = 'block';
+
     switch(appState) {
         case 'Visualize':
         case 'Visualisation':
             document.getElementById('page-visualize').style.display = 'block';
-            statusText.textContent = `Statut: Connecté - Mode Visualisation`;
-            statusText.style.color = 'green';
+            mainTitle.textContent = 'VisuGPS Visualisation';
+            statusText.style.display = 'none'; // Masquer le statut
+            visualizeViewTitle.style.display = 'none'; // Masquer le titre de la vue visualisation
             break;
         case 'Edit':
         case 'EditView':
             document.getElementById('page-edit').style.display = 'block';
-            statusText.textContent = `Statut: Connecté - Mode Édition`;
-            statusText.style.color = 'blue';
+            mainTitle.textContent = 'VisuGPS Édition';
             break;
         case 'Main':
         case 'MainView':
             document.getElementById('page-main').style.display = 'block';
-            statusText.textContent = `Statut: Connecté - Vue Principale`;
-            statusText.style.color = 'orange';
+            mainTitle.textContent = 'VisuGPS Accueil';
             break;
         case 'Settings':
         case 'SettingsView':
             document.getElementById('page-settings').style.display = 'block';
-            statusText.textContent = `Statut: Connecté - Paramètres`;
-            statusText.style.color = 'purple';
+            mainTitle.textContent = 'VisuGPS Configuration';
+            break;
+        case 'Pairing':
+            mainTitle.textContent = 'VisuGPS Couplage';
             break;
         default:
             // Page par défaut pour les vues non reconnues
             document.getElementById('page-default').style.display = 'block';
             document.getElementById('default-view-title').textContent = appState || 'Vue Inconnue';
-            statusText.textContent = `Statut: Connecté - ${appState}`;
-            statusText.style.color = 'green';
+            mainTitle.textContent = 'VisuGPS ' + (appState || 'Inconnue');
     }
 }
 
@@ -124,11 +140,6 @@ function setupButtonListeners() {
         toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
     }
 
-    const goHomeSwitch = document.getElementById('go-home');
-    if (goHomeSwitch) {
-        goHomeSwitch.addEventListener('change', () => sendCommand('toggle_home'));
-    }
-
     // --- Page EditView ---
     const saveCircuitBtn = document.getElementById('save-circuit');
     if (saveCircuitBtn) {
@@ -142,47 +153,48 @@ function setupButtonListeners() {
 }
 
 function updatePlayPauseButton(state) {
-    const button = document.getElementById('play-pause');
-    if (!button) return;
+    const playPauseButton = document.getElementById('play-pause');
+
+    if (!playPauseButton) return;
 
     // Comportement par défaut : commande pour Play/Pause
-    button.onclick = () => sendCommand('toggle_play');
+    playPauseButton.onclick = () => sendCommand('toggle_play');
 
     switch (state) {
         case 'Vol_Vers_Vue_Globale':
         case 'Pause_Observation':
         case 'Vol_Vers_Depart':
         case 'Survol_Evenementiel':
-            button.innerHTML = '▶️ Play';
-            button.disabled = true;
+            playPauseButton.innerHTML = '▶️ Play';
+            playPauseButton.disabled = true;
             break;
 
         case 'En_Pause_au_Depart':
         case 'En_Pause':
-            button.innerHTML = '▶️ Play';
-            button.disabled = false;
+            playPauseButton.innerHTML = '▶️ Play';
+            playPauseButton.disabled = false;
             break;
 
         case 'En_Animation':
-            button.innerHTML = '⏸️ Pause';
-            button.disabled = false;
+            playPauseButton.innerHTML = '⏸️ Pause';
+            playPauseButton.disabled = false;
             break;
 
         case 'Vol_Final':
-            button.innerHTML = '🔄 Redémarrer';
-            button.disabled = true;
-            button.onclick = () => sendCommand('restart_animation');
+            playPauseButton.innerHTML = '🔄 Redémarrer';
+            playPauseButton.disabled = true;
+            playPauseButton.onclick = () => sendCommand('restart_animation');
             break;
 
         case 'Termine':
-            button.innerHTML = '🔄 Redémarrer';
-            button.disabled = false;
-            button.onclick = () => sendCommand('restart_animation');
+            playPauseButton.innerHTML = '🔄 Redémarrer';
+            playPauseButton.disabled = false;
+            playPauseButton.onclick = () => sendCommand('restart_animation');
             break;
 
         default:
-            button.innerHTML = '--';
-            button.disabled = true;
+            playPauseButton.innerHTML = '--';
+            playPauseButton.disabled = true;
             break;
     }
 }

@@ -19,7 +19,7 @@ function connectWebSocket() {
     }
     
     isRetrying = true;
-    updateStatus(`Tentative de connexion... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
+    updateStatus(`Tentative de connexion... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`, false, true);
     ws = new WebSocket(WS_URL);
 
     ws.onopen = () => {
@@ -105,7 +105,7 @@ function connectWebSocket() {
             console.log("Visualize View State Update received:", message.state);
             if (message.state) {
                 // Update switches based on received state
-                document.getElementById('go-home').checked = message.state.isBackButtonVisible;
+                // document.getElementById('go-home').checked = message.state.isBackButtonVisible; // Supprimé
                 document.getElementById('toggle-commands').checked = message.state.isControlsCardVisible;
                 document.getElementById('toggle-profile').checked = message.state.isAltitudeVisible;
                 document.getElementById('toggle-communes').checked = message.state.isCommuneWidgetVisible;
@@ -114,10 +114,10 @@ function connectWebSocket() {
         } else if (message.type === "pause_state_update") {
             console.log("Pause state updated:", message.payload);
         } else if (message.type === "animation_state_update") {
-            const titleElement = document.getElementById('visualize-view-title');
-            if (titleElement) {
-                titleElement.textContent = message.animationState;
-            }
+            // const titleElement = document.getElementById('visualize-view-title'); // Supprimé
+            // if (titleElement) {
+            //     titleElement.textContent = message.animationState;
+            // } // Supprimé
             updatePlayPauseButton(message.animationState);
         }
     };
