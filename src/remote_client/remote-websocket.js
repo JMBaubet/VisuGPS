@@ -53,6 +53,13 @@ function connectWebSocket() {
             if (message.status === "accepted") {
                 updateStatus("Couplage accepté !", false);
                 pairingCodeDiv.style.display = 'none';
+
+                if (message.settings) {
+                    console.log("Received settings from server:", message.settings);
+                    g_speed_min_value = message.settings.speedMinValue;
+                    g_speed_max_value = message.settings.speedMaxValue;
+                }
+
                 // Afficher la page appropriée selon l'état de l'application reçu du serveur
                 console.log("Message de couplage reçu:", message);
                 if (message.appState) {

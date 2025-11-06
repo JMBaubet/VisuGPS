@@ -17,6 +17,7 @@ pub fn get_remote_control_status() -> String {
 
 pub fn init_remote_control(app: &mut App, _app_env_path: &PathBuf, settings: &Value) -> Result<(), Box<dyn std::error::Error>> {
     let app_handle_clone = app.handle().clone();
+    let settings_clone = settings.clone();
 
     let remote_port = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
         .and_then(|v| v.as_i64())
@@ -25,7 +26,7 @@ pub fn init_remote_control(app: &mut App, _app_env_path: &PathBuf, settings: &Va
 
     // Spawn the WebSocket server in a separate async task
     tauri::async_runtime::spawn(async move {
-        start_remote_server(app_handle_clone, remote_port).await;
+        start_remote_server(app_handle_clone, remote_port, settings_clone).await;
     });
 
     Ok(())

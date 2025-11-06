@@ -34,17 +34,17 @@
                             <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
                             <v-divider vertical class="mx-2"></v-divider>
                             <v-slider
-                                v-model="currentSpeed"
-                                :min="minSpeedValue"
-                                :max="maxSpeedValue"
-                                :step="sliderStep"
+                                v-model="sliderPosition"
+                                :min="0"
+                                :max="100"
+                                :step="1"
                                 hide-details
                                 class="align-center speed-slider"
                                 :disabled="isAnimationFinished"
-                                @dblclick="currentSpeed = defaultSpeedValue"
+                                @dblclick="sliderPosition = 20"
                             >
                                 <template v-slot:append>
-                                    <span class="speed-value-display">{{ currentSpeed.toFixed(2) }}x</span>
+                                    <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
                                     <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
                                 </template>
                             </v-slider>          </div>
@@ -512,16 +512,66 @@ const isRewinding = ref(false);
 const isAnimationFinished = ref(false);
 const distanceDisplay = ref('0.00 km');
 
-const currentSpeed = ref(getSettingValue('Visualisation/Animation/Vitesse/default_value'));
-
-
-
-
-
 const minSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/min_value'));
 const maxSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/max_value'));
-const sliderStep = computed(() => getSettingValue('Visualisation/Animation/Vitesse/slider_step'));
 const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/default_value'));
+const sliderStep = computed(() => getSettingValue('Visualisation/Animation/Vitesse/slider_step'));
+
+function mapSliderToSpeed(sliderValue) {
+    const min = minSpeedValue.value;
+    const max = maxSpeedValue.value;
+    const def = defaultSpeedValue.value;
+    if (![min, max, def].every(v => typeof v === 'number')) return def || 1.0;
+    const halfMax = max / 2;
+
+    if (sliderValue <= 20) {
+        const t = sliderValue / 20;
+        return min + t * (def - min);
+    } else if (sliderValue <= 80) {
+        const t = (sliderValue - 20) / 60;
+        return def + t * (halfMax - def);
+    } else {
+        const t = (sliderValue - 80) / 20;
+        return halfMax + t * (max - halfMax);
+    }
+}
+
+function mapSpeedToSlider(speed) {
+    const min = minSpeedValue.value;
+    const max = maxSpeedValue.value;
+    const def = defaultSpeedValue.value;
+    if (![min, max, def].every(v => typeof v === 'number')) return 20;
+    const halfMax = max / 2;
+
+    if (speed < min) return 0;
+    if (speed > max) return 100;
+
+    if (speed <= def) {
+        const range = def - min;
+        if (range <= 0) return 20;
+        const t = (speed - min) / range;
+        return t * 20;
+    } else if (speed <= halfMax) {
+        const range = halfMax - def;
+        if (range <= 0) return 80;
+        const t = (speed - def) / range;
+        return 20 + t * 60;
+    } else {
+        const range = max - halfMax;
+        if (range <= 0) return 100;
+        const t = (speed - halfMax) / range;
+        return 80 + t * 20;
+    }
+}
+
+const sliderPosition = ref(mapSpeedToSlider(getSettingValue('Visualisation/Animation/Vitesse/default_value')));
+
+const currentSpeed = computed({
+  get: () => mapSliderToSpeed(sliderPosition.value),
+  set: (newSpeed) => {
+    sliderPosition.value = mapSpeedToSlider(newSpeed);
+  }
+});
 
 const constanteA = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_A'));
 const constanteB = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_B'));
@@ -774,9 +824,9 @@ const handleKeyDown = (e) => {
     } else if (e.key === 'ArrowLeft') {
         isRewinding.value = true;
     } else if (e.key === 'ArrowDown') {
-        currentSpeed.value = Math.max(minSpeedValue.value, currentSpeed.value - sliderStep.value);
+        sliderPosition.value = Math.max(0, sliderPosition.value - 1);
     } else if (e.key === 'ArrowUp') {
-        currentSpeed.value = Math.min(maxSpeedValue.value, currentSpeed.value + sliderStep.value);
+        sliderPosition.value = Math.min(100, sliderPosition.value + 1);
     } else if (e.key === 'a' || e.key === 'A') {
         isAltitudeVisible.value = !isAltitudeVisible.value;
         sendVisualizeViewStateUpdate();
@@ -1087,6 +1137,14 @@ onMounted(() => {
     unlistenFunctions.push(await listen('remote_command::set_speed_to_1x', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
         currentSpeed.value = defaultSpeedValue.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::start_rewind', () => {
+        if (isInitializing.value || isAnimationFinished.value) return;
+        isRewinding.value = true;
+    }));
+    unlistenFunctions.push(await listen('remote_command::stop_rewind', () => {
+        if (isInitializing.value || isAnimationFinished.value) return;
+        isRewinding.value = false;
     }));
   };
 

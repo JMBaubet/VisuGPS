@@ -24,7 +24,8 @@ const REMOTE_CLIENT_UI_JS: &str = include_str!("../../src/remote_client/remote-u
 const REMOTE_CLIENT_WEBSOCKET_JS: &str = include_str!("../../src/remote_client/remote-websocket.js");
 
 use crate::remote_clients;
-use crate::AppState;
+use crate::{AppState, get_setting_value};
+
 
 use crate::remote_blacklist;
 
@@ -67,6 +68,14 @@ pub struct PairingResponse {
     pub status: String,
     pub reason: Option<String>,
     pub appState: Option<String>, // Current app view (MainView, VisualizeView, etc.)
+    pub settings: Option<RemoteSettings>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteSettings {
+    pub speed_min_value: f32,
+    pub speed_max_value: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -96,7 +105,9 @@ pub struct RemoteCommandResponse {
     pub app_state: Option<String>,
 }
 
-pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
+use serde_json::Value;
+
+pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Value) {
     let my_local_ip = match local_ip() {
         Ok(ip) => ip.to_string(),
         Err(e) => {
@@ -133,6 +144,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
         let pending_pairing_requests_clone = PENDING_PAIRING_REQUESTS.clone(); // Re-added
         let my_local_ip_clone = my_local_ip.clone();
         let port_clone = port;
+        let settings_clone = settings.clone();
 
         tokio::spawn(async move {
             let mut buffer = [0; 1024];
@@ -197,6 +209,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                 status: "refused".to_string(),
                                                 reason: Some("Cet appareil a été bloqué.".to_string()),
                                                 appState: Some(current_app_view.clone()),
+                                                settings: None,
                                             };
                                             if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                 if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -218,6 +231,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                 status: "refused".to_string(),
                                                 reason: Some("Une autre télécommande est déjà connectée.".to_string()),
                                                 appState: Some(current_app_view.clone()),
+                                                settings: None,
                                             };
                                             if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                 if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -236,15 +250,23 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                             CLIENT_ID_TO_ADDR.lock().unwrap().insert(pairing_req.client_id.clone(), peer_addr.to_string());
                                                                                         }
                                                                                         client_id_for_this_connection = Some(pairing_req.client_id.clone());
-                                                                                        app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
-                                        
-                                                                                        let response = PairingResponse {
-                                                                                            r#type: "pairing_response".to_string(),
-                                                                                            status: "accepted".to_string(),
-                                                                                            reason: None,
-                                                                                            appState: Some(current_app_view.clone()),
-                                                                                        };
-                                                                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                                                                                                app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
+                                                                                        
+                                                                                                                                                                                let speed_min = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value").and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
+                                                                                                                                                                                let speed_max = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value").and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
+                                                                                                                                                                                
+                                                                                                                                                                                let remote_settings = RemoteSettings {
+                                                                                                                                                                                    speed_min_value: speed_min,
+                                                                                                                                                                                    speed_max_value: speed_max,
+                                                                                                                                                                                };
+                                                                                        
+                                                                                                                                                                                let response = PairingResponse {
+                                                                                                                                                                                    r#type: "pairing_response".to_string(),
+                                                                                                                                                                                    status: "accepted".to_string(),
+                                                                                                                                                                                    reason: None,
+                                                                                                                                                                                    appState: Some(current_app_view.clone()),
+                                                                                                                                                                                    settings: Some(remote_settings),
+                                                                                                                                                                                };                                                                                        if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                                             if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
                                                                                                 error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
                                                                                             }
@@ -259,6 +281,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                                 status: "refused".to_string(),
                                                                                                 reason: Some("Le couplage est uniquement autorisé depuis l'accueil ou les paramètres.".to_string()),
                                                                                                 appState: Some(current_app_view.clone()),
+                                                                                                settings: None,
                                                                                             };
                                                                                             if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                                                 if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -286,11 +309,21 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                         
                                                                                                 remote_clients::add_authorized_client(&app_env_path, pairing_req.client_id.clone(), format!("Mobile Client ({})", pairing_req.pairing_code))
                                                                                                     .expect("Failed to add authorized client");
+
+                                                                                                let speed_min = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value").and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
+                                                                                                let speed_max = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value").and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
+                                                                                                
+                                                                                                let remote_settings = RemoteSettings {
+                                                                                                    speed_min_value: speed_min,
+                                                                                                    speed_max_value: speed_max,
+                                                                                                };
+
                                                                                                 let response = PairingResponse {
                                                                                                     r#type: "pairing_response".to_string(),
                                                                                                     status: "accepted".to_string(),
                                                                                                     reason: None,
                                                                                                     appState: Some(current_app_view.clone()),
+                                                                                                    settings: Some(remote_settings),
                                                                                                 };
                                                                                                 if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                                                     if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
@@ -309,6 +342,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16) {
                                                                                                                                                         status: "refused".to_string(),
                                                                                                                                                         reason: Some(reason),
                                                                                                                                                         appState: Some(current_app_view.clone()),
+                                                                                                                                                        settings: None,
                                                                                                                                                     };                                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
                                                                                                     if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
                                                                                                         error!("Erreur lors de l'envoi de la réponse de couplage au client {}: {}", peer_addr, e);
