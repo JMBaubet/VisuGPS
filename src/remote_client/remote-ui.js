@@ -2,6 +2,8 @@ const mainTitle = document.getElementById('main-title');
 
 let g_speed_min_value = 0.1;
 let g_speed_max_value = 20.0;
+let g_sensibility_cap = 1.0;
+let g_sensibility_point_de_vue = 1.0;
 const SLIDER_DEFAULT_SPEED = 1.0;
 
 function mapSliderToSpeed(sliderValue) {
@@ -49,19 +51,7 @@ function mapSpeedToSlider(speed) {
     }
 }
 
-function updateStatus(message, isError = false, isConnecting = false) {
-    statusDiv.textContent = `Statut: ${message}`;
-    if (isError) {
-        statusDiv.style.color = 'red';
-        mainTitle.style.color = 'red';
-    } else if (isConnecting) {
-        statusDiv.style.color = 'blue';
-        mainTitle.style.color = 'blue';
-    } else {
-        statusDiv.style.color = 'green';
-        mainTitle.style.color = 'green';
-    }
-}
+
 
 function resetRetryCount() {
     retryCount = 0;
@@ -213,18 +203,7 @@ function setupButtonListeners() {
         }
     }
 
-    // Rewind Button
-    const rewindBtn = document.getElementById('rewind');
-    if (rewindBtn) {
-        rewindBtn.addEventListener('mousedown', () => sendCommand('start_rewind'));
-        rewindBtn.addEventListener('mouseup', () => sendCommand('stop_rewind'));
-        rewindBtn.addEventListener('mouseleave', () => sendCommand('stop_rewind'));
-        rewindBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            sendCommand('start_rewind');
-        });
-        rewindBtn.addEventListener('touchend', () => sendCommand('stop_rewind'));
-    }
+
 
     // --- Page EditView ---
     const saveCircuitBtn = document.getElementById('save-circuit');
@@ -236,15 +215,103 @@ function setupButtonListeners() {
     if (previewCircuitBtn) {
         previewCircuitBtn.addEventListener('click', () => sendCommand('preview_circuit'));
     }
+
+    setupCameraEditListeners();
+}
+
+function setupCameraEditListeners() {
+    const backBtn = document.getElementById('back-to-visualize-btn');
+    backBtn.addEventListener('click', () => {
+        document.getElementById('page-camera-edit').style.display = 'none';
+        document.getElementById('page-visualize').style.display = 'block';
+    });
+
+    // Sliders
+    const zoomSlider = document.getElementById('zoom-slider');
+    const tiltSlider = document.getElementById('tilt-slider');
+    zoomSlider.addEventListener('input', () => sendCommand('update_camera', { zoom: parseFloat(zoomSlider.value) }));
+    tiltSlider.addEventListener('input', () => sendCommand('update_camera', { pitch: parseFloat(tiltSlider.value) }));
+
+    // Touch Areas
+    const panArea = document.getElementById('pan-area');
+    const bearingArea = document.getElementById('bearing-area');
+
+    const handleDrag = (element, onDrag) => {
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        const start = (x, y) => {
+            isDragging = true;
+            lastX = x;
+            lastY = y;
+            element.style.backgroundColor = '#555';
+        };
+
+        const move = (x, y) => {
+            if (!isDragging) return;
+            const dx = x - lastX;
+            const dy = y - lastY;
+            lastX = x;
+            lastY = y;
+            onDrag(dx, dy);
+        };
+
+        const end = () => {
+            isDragging = false;
+            element.style.backgroundColor = '#444';
+        };
+
+        // Mouse events
+        element.addEventListener('mousedown', (e) => start(e.clientX, e.clientY));
+        document.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+        document.addEventListener('mouseup', end);
+
+        // Touch events
+        element.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            start(touch.clientX, touch.clientY);
+        }, { passive: false });
+        element.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            move(touch.clientX, touch.clientY);
+        });
+        element.addEventListener('touchend', end);
+        element.addEventListener('touchcancel', end);
+    };
+
+    handleDrag(panArea, (dx, dy) => {
+        const panX = dx * g_sensibility_point_de_vue * -1;
+        const panY = dy * g_sensibility_point_de_vue * -1;
+        sendCommand('update_camera', { pan: [panX, panY] });
+    });
+
+    handleDrag(bearingArea, (dx, dy) => {
+        const bearingDelta = dx * g_sensibility_cap * -1;
+        sendCommand('update_camera', { bearing: bearingDelta });
+    });
 }
 
 function updatePlayPauseButton(state) {
     const playPauseButton = document.getElementById('play-pause');
+    const rewindBtn = document.getElementById('rewind');
 
-    if (!playPauseButton) return;
+    if (!playPauseButton || !rewindBtn) return;
 
-    // Comportement par défaut : commande pour Play/Pause
+    // --- Reset all handlers to null first ---
+    playPauseButton.onclick = null;
+    rewindBtn.onclick = null;
+    rewindBtn.onmousedown = null;
+    rewindBtn.onmouseup = null;
+    rewindBtn.onmouseleave = null;
+    rewindBtn.ontouchstart = null;
+    rewindBtn.ontouchend = null;
+    
+    // --- Set default visual state ---
     playPauseButton.onclick = () => sendCommand('toggle_play');
+    rewindBtn.style.display = 'block';
+    rewindBtn.innerHTML = '⏪';
 
     switch (state) {
         case 'Vol_Vers_Vue_Globale':
@@ -253,34 +320,54 @@ function updatePlayPauseButton(state) {
         case 'Survol_Evenementiel':
             playPauseButton.innerHTML = '▶️ Play';
             playPauseButton.disabled = true;
+            rewindBtn.style.display = 'none';
             break;
 
         case 'En_Pause_au_Depart':
         case 'En_Pause':
             playPauseButton.innerHTML = '▶️ Play';
             playPauseButton.disabled = false;
+            
+            // Configure rewindBtn as camera button
+            rewindBtn.innerHTML = '📷';
+            rewindBtn.onclick = () => {
+                document.getElementById('page-visualize').style.display = 'none';
+                document.getElementById('page-camera-edit').style.display = 'block';
+            };
             break;
 
         case 'En_Animation':
             playPauseButton.innerHTML = '⏸️ Pause';
             playPauseButton.disabled = false;
+
+            // Configure rewindBtn for rewinding
+            const startRewind = () => sendCommand('start_rewind');
+            const stopRewind = () => sendCommand('stop_rewind');
+            rewindBtn.onmousedown = startRewind;
+            rewindBtn.onmouseup = stopRewind;
+            rewindBtn.onmouseleave = stopRewind;
+            rewindBtn.ontouchstart = (e) => { e.preventDefault(); startRewind(); };
+            rewindBtn.ontouchend = stopRewind;
             break;
 
         case 'Vol_Final':
             playPauseButton.innerHTML = '🔄 Redémarrer';
             playPauseButton.disabled = true;
             playPauseButton.onclick = () => sendCommand('restart_animation');
+            rewindBtn.style.display = 'none';
             break;
 
         case 'Termine':
             playPauseButton.innerHTML = '🔄 Redémarrer';
             playPauseButton.disabled = false;
             playPauseButton.onclick = () => sendCommand('restart_animation');
+            rewindBtn.style.display = 'none';
             break;
 
         default:
             playPauseButton.innerHTML = '--';
             playPauseButton.disabled = true;
+            rewindBtn.style.display = 'none';
             break;
     }
 }

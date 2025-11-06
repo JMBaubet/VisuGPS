@@ -1138,6 +1138,14 @@ onMounted(() => {
         if (isInitializing.value || isAnimationFinished.value) return;
         currentSpeed.value = defaultSpeedValue.value;
     }));
+    unlistenFunctions.push(await listen('remote_command::update_camera', (event) => {
+        if (!isPaused.value || !map) return;
+        const payload = event.payload;
+        if (payload.zoom) map.setZoom(payload.zoom);
+        if (payload.pitch) map.setPitch(payload.pitch);
+        if (payload.bearing) map.setBearing(map.getBearing() + payload.bearing);
+        if (payload.pan) map.panBy(payload.pan, { duration: 0 });
+    }));
     unlistenFunctions.push(await listen('remote_command::start_rewind', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
         isRewinding.value = true;

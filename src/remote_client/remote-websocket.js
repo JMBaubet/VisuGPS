@@ -1,3 +1,21 @@
+function updateStatus(message, isError = false, isConnecting = false) {
+    const statusDiv = document.getElementById('status');
+    const mainTitle = document.getElementById('main-title');
+    if (!statusDiv || !mainTitle) return;
+
+    statusDiv.textContent = `Statut: ${message}`;
+    if (isError) {
+        statusDiv.style.color = 'red';
+        mainTitle.style.color = 'red';
+    } else if (isConnecting) {
+        statusDiv.style.color = 'blue';
+        mainTitle.style.color = 'blue';
+    } else {
+        statusDiv.style.color = 'green';
+        mainTitle.style.color = 'green';
+    }
+}
+
 function sendCommand(command, payload = {}) {
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -58,6 +76,8 @@ function connectWebSocket() {
                     console.log("Received settings from server:", message.settings);
                     g_speed_min_value = message.settings.speedMinValue;
                     g_speed_max_value = message.settings.speedMaxValue;
+                    g_sensibility_cap = message.settings.sensibilityCap;
+                    g_sensibility_point_de_vue = message.settings.sensibilityPointDeVue;
                 }
 
                 // Afficher la page appropriée selon l'état de l'application reçu du serveur

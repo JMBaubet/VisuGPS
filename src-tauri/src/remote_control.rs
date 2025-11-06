@@ -76,6 +76,8 @@ pub struct PairingResponse {
 pub struct RemoteSettings {
     pub speed_min_value: f32,
     pub speed_max_value: f32,
+    pub sensibility_cap: f32,
+    pub sensibility_point_de_vue: f32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -254,10 +256,14 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                                                                         
                                                                                                                                                                                 let speed_min = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value").and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
                                                                                                                                                                                 let speed_max = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value").and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
-                                                                                                                                                                                
+                                                                                                                                                                                let sensibility_cap = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Pause.parametres.Sensibilité Cap").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+                                                                                                                                                                                let sensibility_point_de_vue = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Pause.parametres.Sensibilité Point de Vue").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+
                                                                                                                                                                                 let remote_settings = RemoteSettings {
                                                                                                                                                                                     speed_min_value: speed_min,
                                                                                                                                                                                     speed_max_value: speed_max,
+                                                                                                                                                                                    sensibility_cap: sensibility_cap,
+                                                                                                                                                                                    sensibility_point_de_vue: sensibility_point_de_vue,
                                                                                                                                                                                 };
                                                                                         
                                                                                                                                                                                 let response = PairingResponse {
@@ -312,10 +318,14 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
 
                                                                                                 let speed_min = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value").and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
                                                                                                 let speed_max = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value").and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
-                                                                                                
+                                                                                                let sensibility_cap = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Pause.parametres.Sensibilité Cap").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+                                                                                                let sensibility_point_de_vue = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Pause.parametres.Sensibilité Point de Vue").and_then(|v| v.as_f64()).unwrap_or(1.0) as f32;
+
                                                                                                 let remote_settings = RemoteSettings {
                                                                                                     speed_min_value: speed_min,
                                                                                                     speed_max_value: speed_max,
+                                                                                                    sensibility_cap: sensibility_cap,
+                                                                                                    sensibility_point_de_vue: sensibility_point_de_vue,
                                                                                                 };
 
                                                                                                 let response = PairingResponse {

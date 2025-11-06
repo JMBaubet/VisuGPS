@@ -74,6 +74,28 @@
         <p>Vue non reconnue par la télécommande.</p>
     </div>
 
+    <!-- Page Camera Edit -->
+    <div id="page-camera-edit" class="page" style="display:none;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="fs-5 mb-0">Contrôle Caméra</h2>
+            <button id="back-to-visualize-btn" class="btn btn-secondary btn-sm">Retour</button>
+        </div>
+        <div class="row g-2">
+            <div id="pan-area" class="col-7 touch-area square"></div>
+            <div class="col-5 d-flex justify-content-around">
+                <div class="slider-container">
+                    <input type="range" id="zoom-slider" class="form-range v-slider" orient="vertical">
+                    <label for="zoom-slider" class="form-label slider-label">Zoom</label>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="tilt-slider" class="form-range v-slider" orient="vertical">
+                    <label for="tilt-slider" class="form-label slider-label">Incl.</label>
+                </div>
+            </div>
+        </div>
+        <div id="bearing-area" class="touch-area mt-2">Cap</div>
+    </div>
+
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="/remote/remote-utils.js"></script>
     <script src="/remote/remote-ui.js"></script>
