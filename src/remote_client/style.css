@@ -131,26 +131,10 @@ h2 {
     height: 60px;
 }
 
-.slider-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    height: 100%;
+.zoom-tilt-area {
+    height: 100px;
 }
 
-.v-slider {
-    writing-mode: bt-lr; /* IE */
-    -webkit-appearance: slider-vertical; /* WebKit */
-    width: 20px;
-    height: 100%;
-    padding: 0;
-}
-
-.slider-label {
-    font-size: 0.8rem;
-    margin-top: 8px;
-}
 
 #retry-button:hover {
     background-color: #218838;

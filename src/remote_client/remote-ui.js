@@ -4,6 +4,8 @@ let g_speed_min_value = 0.1;
 let g_speed_max_value = 20.0;
 let g_sensibility_cap = 1.0;
 let g_sensibility_point_de_vue = 1.0;
+let g_sensibility_zoom = 0.1;
+let g_sensibility_tilt = 0.5;
 const SLIDER_DEFAULT_SPEED = 1.0;
 
 

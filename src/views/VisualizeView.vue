@@ -1141,8 +1141,8 @@ onMounted(() => {
     unlistenFunctions.push(await listen('remote_command::update_camera', (event) => {
         if (!isPaused.value || !map) return;
         const payload = event.payload;
-        if (payload.zoom) map.setZoom(payload.zoom);
-        if (payload.pitch) map.setPitch(payload.pitch);
+        if (payload.zoom) map.setZoom(map.getZoom() + payload.zoom);
+        if (payload.pitch) map.setPitch(map.getPitch() + payload.pitch);
         if (payload.bearing) map.setBearing(map.getBearing() + payload.bearing);
         if (payload.pan) map.panBy(payload.pan, { duration: 0 });
     }));

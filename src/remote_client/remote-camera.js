@@ -5,15 +5,11 @@ function setupCameraEditListeners() {
         document.getElementById('page-visualize').style.display = 'block';
     });
 
-    // Sliders
-    const zoomSlider = document.getElementById('zoom-slider');
-    const tiltSlider = document.getElementById('tilt-slider');
-    zoomSlider.addEventListener('input', () => sendCommand('update_camera', { zoom: parseFloat(zoomSlider.value) }));
-    tiltSlider.addEventListener('input', () => sendCommand('update_camera', { pitch: parseFloat(tiltSlider.value) }));
-
     // Touch Areas
     const panArea = document.getElementById('pan-area');
     const bearingArea = document.getElementById('bearing-area');
+    const zoomArea = document.getElementById('zoom-area');
+    const tiltArea = document.getElementById('tilt-area');
 
     const handleDrag = (element, onDrag) => {
         let isDragging = false;
@@ -69,5 +65,15 @@ function setupCameraEditListeners() {
     handleDrag(bearingArea, (dx, dy) => {
         const bearingDelta = dx * g_sensibility_cap * -1;
         sendCommand('update_camera', { bearing: bearingDelta });
+    });
+
+    handleDrag(zoomArea, (dx, dy) => {
+        const zoomDelta = dy * g_sensibility_zoom * -1;
+        sendCommand('update_camera', { zoom: zoomDelta });
+    });
+
+    handleDrag(tiltArea, (dx, dy) => {
+        const tiltDelta = dy * g_sensibility_tilt * -1;
+        sendCommand('update_camera', { pitch: tiltDelta });
     });
 }
