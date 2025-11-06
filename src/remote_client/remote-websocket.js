@@ -77,7 +77,12 @@ function connectWebSocket() {
                     g_speed_min_value = message.settings.speedMinValue;
                     g_speed_max_value = message.settings.speedMaxValue;
                     g_sensibility_cap = message.settings.sensibilityCap;
-                    g_sensibility_point_de_vue = message.settings.sensibilityPointDeVue;
+                                if (message.settings.sensibilityPointDeVueX !== undefined) {
+                g_sensibility_point_de_vue_x = message.settings.sensibilityPointDeVueX;
+            }
+            if (message.settings.sensibilityPointDeVueY !== undefined) {
+                g_sensibility_point_de_vue_y = message.settings.sensibilityPointDeVueY;
+            }
                 }
 
                 // Afficher la page appropriée selon l'état de l'application reçu du serveur

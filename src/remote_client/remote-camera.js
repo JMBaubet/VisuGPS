@@ -1,8 +1,10 @@
 function setupCameraEditListeners() {
-    const backBtn = document.getElementById('back-to-visualize-btn');
-    backBtn.addEventListener('click', () => {
+    const playAndBackBtn = document.getElementById('play-and-back-btn');
+    playAndBackBtn.addEventListener('click', () => {
+        sendCommand('toggle_play');
         document.getElementById('page-camera-edit').style.display = 'none';
         document.getElementById('page-visualize').style.display = 'block';
+        document.getElementById('main-title').textContent = 'VisuGPS Visualisation';
     });
 
     // Touch Areas
@@ -57,8 +59,8 @@ function setupCameraEditListeners() {
     };
 
     handleDrag(panArea, (dx, dy) => {
-        const panX = dx * g_sensibility_point_de_vue * -1;
-        const panY = dy * g_sensibility_point_de_vue * -1;
+        const panX = dx * g_sensibility_point_de_vue_x * -1;
+        const panY = dy * g_sensibility_point_de_vue_y * -1;
         sendCommand('update_camera', { pan: [panX, panY] });
     });
 

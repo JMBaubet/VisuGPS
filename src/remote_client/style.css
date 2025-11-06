@@ -124,7 +124,7 @@ h2 {
 }
 
 .touch-area.square {
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 5 / 4;
 }
 
 #bearing-area {
@@ -132,7 +132,7 @@ h2 {
 }
 
 .zoom-tilt-area {
-    height: 100px;
+    height: 125px;
 }
 
 

@@ -3,7 +3,8 @@ const mainTitle = document.getElementById('main-title');
 let g_speed_min_value = 0.1;
 let g_speed_max_value = 20.0;
 let g_sensibility_cap = 1.0;
-let g_sensibility_point_de_vue = 1.0;
+let g_sensibility_point_de_vue_x = 1.0;
+let g_sensibility_point_de_vue_y = 1.0;
 let g_sensibility_zoom = 0.1;
 let g_sensibility_tilt = 0.5;
 const SLIDER_DEFAULT_SPEED = 1.0;
@@ -214,18 +215,31 @@ function updatePlayPauseButton(state) {
         case 'En_Pause':
             playPauseButton.innerHTML = '▶️ Play';
             playPauseButton.disabled = false;
+
+            // Automatically switch to camera page on pause
+            document.getElementById('page-visualize').style.display = 'none';
+            document.getElementById('page-camera-edit').style.display = 'block';
+            mainTitle.textContent = 'Contrôle Caméra';
             
             // Configure rewindBtn as camera button
             rewindBtn.innerHTML = '📷';
             rewindBtn.onclick = () => {
                 document.getElementById('page-visualize').style.display = 'none';
                 document.getElementById('page-camera-edit').style.display = 'block';
+                mainTitle.textContent = 'Contrôle Caméra';
             };
             break;
 
         case 'En_Animation':
             playPauseButton.innerHTML = '⏸️ Pause';
             playPauseButton.disabled = false;
+
+            // Si on est sur la page d'édition de la caméra, on retourne à la vue principale
+            if (document.getElementById('page-camera-edit').style.display === 'block') {
+                document.getElementById('page-camera-edit').style.display = 'none';
+                document.getElementById('page-visualize').style.display = 'block';
+                mainTitle.textContent = 'VisuGPS Visualisation';
+            }
 
             // Configure rewindBtn for rewinding
             const startRewind = () => sendCommand('start_rewind');
