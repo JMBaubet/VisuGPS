@@ -127,6 +127,10 @@ h2 {
     aspect-ratio: 1 / 1;
 }
 
+#bearing-area {
+    height: 60px;
+}
+
 .slider-container {
     display: flex;
     flex-direction: column;
@@ -138,9 +142,9 @@ h2 {
 .v-slider {
     writing-mode: bt-lr; /* IE */
     -webkit-appearance: slider-vertical; /* WebKit */
-    width: 8px;
+    width: 20px;
     height: 100%;
-    padding: 0 5px;
+    padding: 0;
 }
 
 .slider-label {

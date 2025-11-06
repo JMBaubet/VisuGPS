@@ -6,50 +6,7 @@ let g_sensibility_cap = 1.0;
 let g_sensibility_point_de_vue = 1.0;
 const SLIDER_DEFAULT_SPEED = 1.0;
 
-function mapSliderToSpeed(sliderValue) {
-    const minSpeed = g_speed_min_value;
-    const maxSpeed = g_speed_max_value;
-    const defaultSpeed = SLIDER_DEFAULT_SPEED;
-    const halfMaxSpeed = maxSpeed / 2;
 
-    if (sliderValue <= 20) {
-        const t = sliderValue / 20;
-        return minSpeed + t * (defaultSpeed - minSpeed);
-    } else if (sliderValue <= 80) {
-        const t = (sliderValue - 20) / 60;
-        return defaultSpeed + t * (halfMaxSpeed - defaultSpeed);
-    } else {
-        const t = (sliderValue - 80) / 20;
-        return halfMaxSpeed + t * (maxSpeed - halfMaxSpeed);
-    }
-}
-
-function mapSpeedToSlider(speed) {
-    const minSpeed = g_speed_min_value;
-    const maxSpeed = g_speed_max_value;
-    const defaultSpeed = SLIDER_DEFAULT_SPEED;
-    const halfMaxSpeed = maxSpeed / 2;
-
-    if (speed < minSpeed) return 0;
-    if (speed > maxSpeed) return 100;
-
-    if (speed <= defaultSpeed) {
-        const range = defaultSpeed - minSpeed;
-        if (range <= 0) return 20;
-        const t = (speed - minSpeed) / range;
-        return t * 20;
-    } else if (speed <= halfMaxSpeed) {
-        const range = halfMaxSpeed - defaultSpeed;
-        if (range <= 0) return 80;
-        const t = (speed - defaultSpeed) / range;
-        return 20 + t * 60;
-    } else {
-        const range = maxSpeed - halfMaxSpeed;
-        if (range <= 0) return 100;
-        const t = (speed - halfMaxSpeed) / range;
-        return 80 + t * 20;
-    }
-}
 
 
 
@@ -219,79 +176,7 @@ function setupButtonListeners() {
     setupCameraEditListeners();
 }
 
-function setupCameraEditListeners() {
-    const backBtn = document.getElementById('back-to-visualize-btn');
-    backBtn.addEventListener('click', () => {
-        document.getElementById('page-camera-edit').style.display = 'none';
-        document.getElementById('page-visualize').style.display = 'block';
-    });
 
-    // Sliders
-    const zoomSlider = document.getElementById('zoom-slider');
-    const tiltSlider = document.getElementById('tilt-slider');
-    zoomSlider.addEventListener('input', () => sendCommand('update_camera', { zoom: parseFloat(zoomSlider.value) }));
-    tiltSlider.addEventListener('input', () => sendCommand('update_camera', { pitch: parseFloat(tiltSlider.value) }));
-
-    // Touch Areas
-    const panArea = document.getElementById('pan-area');
-    const bearingArea = document.getElementById('bearing-area');
-
-    const handleDrag = (element, onDrag) => {
-        let isDragging = false;
-        let lastX = 0;
-        let lastY = 0;
-
-        const start = (x, y) => {
-            isDragging = true;
-            lastX = x;
-            lastY = y;
-            element.style.backgroundColor = '#555';
-        };
-
-        const move = (x, y) => {
-            if (!isDragging) return;
-            const dx = x - lastX;
-            const dy = y - lastY;
-            lastX = x;
-            lastY = y;
-            onDrag(dx, dy);
-        };
-
-        const end = () => {
-            isDragging = false;
-            element.style.backgroundColor = '#444';
-        };
-
-        // Mouse events
-        element.addEventListener('mousedown', (e) => start(e.clientX, e.clientY));
-        document.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
-        document.addEventListener('mouseup', end);
-
-        // Touch events
-        element.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            start(touch.clientX, touch.clientY);
-        }, { passive: false });
-        element.addEventListener('touchmove', (e) => {
-            const touch = e.touches[0];
-            move(touch.clientX, touch.clientY);
-        });
-        element.addEventListener('touchend', end);
-        element.addEventListener('touchcancel', end);
-    };
-
-    handleDrag(panArea, (dx, dy) => {
-        const panX = dx * g_sensibility_point_de_vue * -1;
-        const panY = dy * g_sensibility_point_de_vue * -1;
-        sendCommand('update_camera', { pan: [panX, panY] });
-    });
-
-    handleDrag(bearingArea, (dx, dy) => {
-        const bearingDelta = dx * g_sensibility_cap * -1;
-        sendCommand('update_camera', { bearing: bearingDelta });
-    });
-}
 
 function updatePlayPauseButton(state) {
     const playPauseButton = document.getElementById('play-pause');

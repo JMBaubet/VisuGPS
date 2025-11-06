@@ -1,0 +1,73 @@
+function setupCameraEditListeners() {
+    const backBtn = document.getElementById('back-to-visualize-btn');
+    backBtn.addEventListener('click', () => {
+        document.getElementById('page-camera-edit').style.display = 'none';
+        document.getElementById('page-visualize').style.display = 'block';
+    });
+
+    // Sliders
+    const zoomSlider = document.getElementById('zoom-slider');
+    const tiltSlider = document.getElementById('tilt-slider');
+    zoomSlider.addEventListener('input', () => sendCommand('update_camera', { zoom: parseFloat(zoomSlider.value) }));
+    tiltSlider.addEventListener('input', () => sendCommand('update_camera', { pitch: parseFloat(tiltSlider.value) }));
+
+    // Touch Areas
+    const panArea = document.getElementById('pan-area');
+    const bearingArea = document.getElementById('bearing-area');
+
+    const handleDrag = (element, onDrag) => {
+        let isDragging = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        const start = (x, y) => {
+            isDragging = true;
+            lastX = x;
+            lastY = y;
+            element.style.backgroundColor = '#555';
+        };
+
+        const move = (x, y) => {
+            if (!isDragging) return;
+            const dx = x - lastX;
+            const dy = y - lastY;
+            lastX = x;
+            lastY = y;
+            onDrag(dx, dy);
+        };
+
+        const end = () => {
+            isDragging = false;
+            element.style.backgroundColor = '#444';
+        };
+
+        // Mouse events
+        element.addEventListener('mousedown', (e) => start(e.clientX, e.clientY));
+        document.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+        document.addEventListener('mouseup', end);
+
+        // Touch events
+        element.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            start(touch.clientX, touch.clientY);
+        }, { passive: false });
+        element.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            move(touch.clientX, touch.clientY);
+        });
+        element.addEventListener('touchend', end);
+        element.addEventListener('touchcancel', end);
+    };
+
+    handleDrag(panArea, (dx, dy) => {
+        const panX = dx * g_sensibility_point_de_vue * -1;
+        const panY = dy * g_sensibility_point_de_vue * -1;
+        sendCommand('update_camera', { pan: [panX, panY] });
+    });
+
+    handleDrag(bearingArea, (dx, dy) => {
+        const bearingDelta = dx * g_sensibility_cap * -1;
+        sendCommand('update_camera', { bearing: bearingDelta });
+    });
+}

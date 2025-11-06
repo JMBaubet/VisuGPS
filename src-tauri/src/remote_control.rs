@@ -21,6 +21,8 @@ const REMOTE_CLIENT_STYLE_CSS: &str = include_str!("../../src/remote_client/styl
 const REMOTE_CLIENT_MAIN_JS_TEMPLATE: &str = include_str!("../../src/remote_client/main.js");
 const REMOTE_CLIENT_UTILS_JS: &str = include_str!("../../src/remote_client/remote-utils.js");
 const REMOTE_CLIENT_UI_JS: &str = include_str!("../../src/remote_client/remote-ui.js");
+const REMOTE_CLIENT_SPEED_JS: &str = include_str!("../../src/remote_client/remote-speed.js");
+const REMOTE_CLIENT_CAMERA_JS: &str = include_str!("../../src/remote_client/remote-camera.js");
 const REMOTE_CLIENT_WEBSOCKET_JS: &str = include_str!("../../src/remote_client/remote-websocket.js");
 
 use crate::remote_clients;
@@ -483,6 +485,27 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                             "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_WEBSOCKET_JS.len(),
                             REMOTE_CLIENT_WEBSOCKET_JS
+                        );
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
+                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                        }
+                    },
+
+                    "/remote/remote-speed.js" => {
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            REMOTE_CLIENT_SPEED_JS.len(),
+                            REMOTE_CLIENT_SPEED_JS
+                        );
+                        if let Err(e) = stream.write_all(response.as_bytes()).await {
+                            error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
+                        }
+                    },
+                    "/remote/remote-camera.js" => {
+                        let response = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            REMOTE_CLIENT_CAMERA_JS.len(),
+                            REMOTE_CLIENT_CAMERA_JS
                         );
                         if let Err(e) = stream.write_all(response.as_bytes()).await {
                             error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
