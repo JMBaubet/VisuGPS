@@ -121,7 +121,6 @@ const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
 const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
 
 const visualizeViewState = reactive({
-    isBackButtonVisible: isBackButtonVisible,
     isControlsCardVisible: isControlsCardVisible,
     isAltitudeVisible: isAltitudeVisible,
     isCommuneWidgetVisible: isCommuneWidgetVisible,
@@ -160,9 +159,6 @@ const sendVisualizeViewStateUpdate = () => {
 };
 
 // Watch for changes in individual refs and update the reactive state
-watch(isBackButtonVisible, (newValue) => {
-    visualizeViewState.isBackButtonVisible = newValue;
-});
 watch(isControlsCardVisible, (newValue) => {
     visualizeViewState.isControlsCardVisible = newValue;
 });

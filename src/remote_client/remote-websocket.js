@@ -134,7 +134,6 @@ function connectWebSocket() {
             console.log("Visualize View State Update received:", message.state);
             if (message.state) {
                 // Update switches based on received state
-                // document.getElementById('go-home').checked = message.state.isBackButtonVisible; // Supprimé
                 document.getElementById('toggle-commands').checked = message.state.isControlsCardVisible;
                 document.getElementById('toggle-profile').checked = message.state.isAltitudeVisible;
                 document.getElementById('toggle-communes').checked = message.state.isCommuneWidgetVisible;

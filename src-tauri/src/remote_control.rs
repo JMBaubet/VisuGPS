@@ -106,7 +106,6 @@ pub struct RemoteCommand {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VisualizeViewState {
-    pub is_back_button_visible: bool,
     pub is_controls_card_visible: bool,
     pub is_altitude_visible: bool,
     pub is_commune_widget_visible: bool,
