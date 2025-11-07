@@ -230,7 +230,6 @@ function updatePlayPauseButton(state) {
         case 'Vol_Vers_Depart':
         case 'Survol_Evenementiel':
             playPauseButton.disabled = true;
-            rewindBtn.style.display = 'none';
             break;
 
         case 'En_Pause_au_Depart':
@@ -272,22 +271,15 @@ function updatePlayPauseButton(state) {
             break;
 
         case 'Vol_Final':
-            playPauseButton.innerHTML = '🔄 Redémarrer';
             playPauseButton.disabled = true;
             playPauseButton.onclick = () => sendCommand('restart_animation');
-            rewindBtn.style.display = 'none';
-            break;
 
         case 'Termine':
-            playPauseButton.innerHTML = '🔄 Redémarrer';
             playPauseButton.disabled = false;
             playPauseButton.onclick = () => sendCommand('restart_animation');
-            rewindBtn.style.display = 'none';
-            break;
 
         default:
             playPauseButton.disabled = true;
-            rewindBtn.style.display = 'none';
             break;
     }
 }
