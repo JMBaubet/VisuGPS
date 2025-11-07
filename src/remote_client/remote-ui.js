@@ -1,4 +1,5 @@
 const mainTitle = document.getElementById('main-title');
+let g_current_app_state = null;
 
 let g_speed_min_value = 0.1;
 let g_speed_max_value = 20.0;
@@ -52,6 +53,7 @@ function showRetryButton() {
 }
 
 function updateRemoteInterface(appState) {
+    g_current_app_state = appState;
     // Masquer toutes les pages
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.style.display = 'none');
@@ -236,18 +238,28 @@ function updatePlayPauseButton(state) {
         case 'En_Pause':
             playPauseButton.disabled = false;
 
-            // Automatically switch to camera page on pause
-            document.getElementById('page-visualize').style.display = 'none';
-            document.getElementById('page-camera-edit').style.display = 'block';
-            mainTitle.textContent = 'Contrôle Caméra';
-            
-            // Configure rewindBtn as camera button
-            rewindBtn.innerHTML = '📷';
-            rewindBtn.onclick = () => {
+            if (g_current_app_state === 'Visualize' || g_current_app_state === 'Visualisation') {
+                // In Visualize view, switch to camera page and configure rewind as camera button
                 document.getElementById('page-visualize').style.display = 'none';
                 document.getElementById('page-camera-edit').style.display = 'block';
                 mainTitle.textContent = 'Contrôle Caméra';
-            };
+                
+                rewindBtn.innerHTML = '📷';
+                rewindBtn.onclick = () => {
+                    document.getElementById('page-visualize').style.display = 'none';
+                    document.getElementById('page-camera-edit').style.display = 'block';
+                    mainTitle.textContent = 'Contrôle Caméra';
+                };
+            } else {
+                // Outside Visualize view, configure rewind for actual rewinding
+                const startRewind = () => sendCommand('start_rewind');
+                const stopRewind = () => sendCommand('stop_rewind');
+                rewindBtn.onmousedown = startRewind;
+                rewindBtn.onmouseup = stopRewind;
+                rewindBtn.onmouseleave = stopRewind;
+                rewindBtn.ontouchstart = (e) => { e.preventDefault(); startRewind(); };
+                rewindBtn.ontouchend = stopRewind;
+            }
             break;
 
         case 'En_Animation':
