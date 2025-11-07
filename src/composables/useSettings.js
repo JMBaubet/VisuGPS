@@ -64,8 +64,9 @@ export function useSettings() {
       console.warn(`[useSettings] Paramètre non trouvé pour le chemin: ${path}`);
       return undefined;
     }
+    console.log(`[getSettingValue] paramNode.surcharge for ${path}:`, paramNode.surcharge);
     let value = null;
-    if (paramNode.surcharge != null && paramNode.surcharge !== '') {
+    if (paramNode.surcharge != null) {
       value = paramNode.surcharge;
     } else {
       value = paramNode.defaut;

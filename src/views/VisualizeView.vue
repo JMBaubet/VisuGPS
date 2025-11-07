@@ -644,6 +644,12 @@ const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisat
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
 
+const sensibilityCap = computed(() => getSettingValue('Système/Télécommande/sensibiliteCap') ?? 100);
+const sensibilityPointDeVueX = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 100);
+const sensibilityPointDeVueY = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueY') ?? 100);
+const sensibilityZoom = computed(() => getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 100);
+const sensibilityTilt = computed(() => getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50);
+
 const showAltitudeProfileSetting = computed(() => {
     const value = getSettingValue('Altitude/Visualisation/Affichage');
     return value;
@@ -1148,10 +1154,32 @@ onMounted(() => {
     unlistenFunctions.push(await listen('remote_command::update_camera', (event) => {
         if (!isPaused.value || !map) return;
         const payload = event.payload;
-        if (payload.zoom) map.setZoom(map.getZoom() + payload.zoom);
-        if (payload.pitch) map.setPitch(map.getPitch() + payload.pitch);
-        if (payload.bearing) map.setBearing(map.getBearing() + payload.bearing);
-        if (payload.pan) map.panBy(payload.pan, { duration: 0 });
+        const dx = payload.dx || 0;
+        const dy = payload.dy || 0;
+
+        switch (payload.type) {
+            case 'pan':
+                const panX = dx * (sensibilityPointDeVueX.value / 100) * -1;
+                const panY = dy * (sensibilityPointDeVueY.value / 100) * -1;
+                console.log('Pan - dx:', dx, 'dy:', dy, 'sensibilityPointDeVueX:', sensibilityPointDeVueX.value, 'sensibilityPointDeVueY:', sensibilityPointDeVueY.value, 'panX:', panX, 'panY:', panY);
+                map.panBy([panX, panY], { duration: 0 });
+                break;
+            case 'bearing':
+                const bearingDelta = dx * (sensibilityCap.value / 100) * -1;
+                console.log('Bearing - dx:', dx, 'sensibilityCap:', sensibilityCap.value, 'bearingDelta:', bearingDelta);
+                map.setBearing(map.getBearing() + bearingDelta);
+                break;
+            case 'zoom':
+                const zoomDelta = dy * (sensibilityZoom.value / 1000) * -1;
+                console.log('Zoom - dy:', dy, 'sensibilityZoom:', sensibilityZoom.value, 'zoomDelta:', zoomDelta);
+                map.setZoom(map.getZoom() + zoomDelta);
+                break;
+            case 'tilt':
+                const tiltDelta = dy * (sensibilityTilt.value / 100) * -1;
+                console.log('Tilt - dy:', dy, 'sensibilityTilt:', sensibilityTilt.value, 'tiltDelta:', tiltDelta);
+                map.setPitch(map.getPitch() + tiltDelta);
+                break;
+        }
     }));
     unlistenFunctions.push(await listen('remote_command::start_rewind', () => {
         if (isInitializing.value || isAnimationFinished.value) return;

@@ -1435,6 +1435,51 @@
                 "defaut": 9001,
                 "min": 1024,
                 "max": 65535
+              },
+              {
+                "identifiant": "sensibiliteCap",
+                "libelle": "Sensibilité du cap",
+                "description": "Facteur de sensibilité pour la rotation du cap de la caméra.",
+                "type": "entier",
+                "defaut": 100,
+                "min": 10,
+                "max": 250
+              },
+              {
+                "identifiant": "sensibilitePointDeVueX",
+                "libelle": "Sensibilité du point de vue (X) (1-500)",
+                "description": "Facteur de sensibilité pour le déplacement horizontal du point de vue. Une valeur de 100 correspond à la sensibilité par défaut.",
+                "type": "entier",
+                "defaut": 100,
+                "min": 1,
+                "max": 500
+              },
+              {
+                "identifiant": "sensibilitePointDeVueY",
+                "libelle": "Sensibilité du point de vue (Y) (1-500)",
+                "description": "Facteur de sensibilité pour le déplacement vertical du point de vue. Une valeur de 100 correspond à la sensibilité par défaut.",
+                "type": "entier",
+                "defaut": 100,
+                "min": 1,
+                "max": 500
+              },
+              {
+                "identifiant": "sensibiliteZoom",
+                "libelle": "Sensibilité du zoom (1-500)",
+                "description": "Facteur de sensibilité pour le zoom de la caméra. Une valeur de 100 correspond à la sensibilité par défaut.",
+                "type": "entier",
+                "defaut": 100,
+                "min": 1,
+                "max": 500
+              },
+              {
+                "identifiant": "sensibiliteTilt",
+                "libelle": "Sensibilité de l'inclinaison (tilt)",
+                "description": "Facteur de sensibilité pour l'inclinaison (tilt) de la caméra.",
+                "type": "entier",
+                "defaut": 100,
+                "min": 10,
+                "max": 250
               }
             ]
           }

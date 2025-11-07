@@ -59,23 +59,18 @@ function setupCameraEditListeners() {
     };
 
     handleDrag(panArea, (dx, dy) => {
-        const panX = dx * g_sensibility_point_de_vue_x * -1;
-        const panY = dy * g_sensibility_point_de_vue_y * -1;
-        sendCommand('update_camera', { pan: [panX, panY] });
+        sendCommand('update_camera', { type: 'pan', dx: dx, dy: dy });
     });
 
     handleDrag(bearingArea, (dx, dy) => {
-        const bearingDelta = dx * g_sensibility_cap * -1;
-        sendCommand('update_camera', { bearing: bearingDelta });
+        sendCommand('update_camera', { type: 'bearing', dx: dx, dy: dy });
     });
 
     handleDrag(zoomArea, (dx, dy) => {
-        const zoomDelta = dy * g_sensibility_zoom * -1;
-        sendCommand('update_camera', { zoom: zoomDelta });
+        sendCommand('update_camera', { type: 'zoom', dx: dx, dy: dy });
     });
 
     handleDrag(tiltArea, (dx, dy) => {
-        const tiltDelta = dy * g_sensibility_tilt * -1;
-        sendCommand('update_camera', { pitch: tiltDelta });
+        sendCommand('update_camera', { type: 'tilt', dx: dx, dy: dy });
     });
 }
