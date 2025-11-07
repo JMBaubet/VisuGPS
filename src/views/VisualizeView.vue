@@ -1,6 +1,8 @@
 <template>
   <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
 
+  <center-marker v-if="isCenterMarkerVisible" :color="centerMarkerColor" />
+
   <transition name="fade">
     <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
   </transition>
@@ -70,6 +72,7 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import AltitudeSVG from '@/components/AltitudeSVG.vue';
+import CenterMarker from '@/components/CenterMarker.vue';
 
 const props = defineProps({
   circuitId: {
@@ -96,6 +99,14 @@ const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
 const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
+
+// --- Center Marker Logic ---
+const showCenterMarker = computed(() => getSettingValue('Visualisation/Animation/afficherCroixCentrale'));
+const centerMarkerColor = computed(() => toHex(getSettingValue('Visualisation/Animation/couleurCroixCentrale')));
+const isCenterMarkerVisible = computed(() => {
+  return showCenterMarker.value && animationState.value === 'En_Pause';
+});
+
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
 
 const shouldShowBackButtonBasedOnAnimationState = computed(() => {

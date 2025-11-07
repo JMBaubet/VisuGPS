@@ -1090,6 +1090,21 @@
                 "max": 10000,
                 "step": 500,
                 "unite": "ms"
+              },
+              {
+                "identifiant": "afficherCroixCentrale",
+                "libelle": "Afficher la croix centrale en pause",
+                "description": "Affiche une croix au centre de l'écran lorsque l'animation est en pause.",
+                "type": "booleen",
+                "defaut": true
+              },
+              {
+                "identifiant": "couleurCroixCentrale",
+                "libelle": "Couleur de la croix centrale",
+                "description": "Définit la couleur de la croix centrale affichée en pause.",
+                "type": "couleur",
+                "defaut": "white",
+                "materialDesign": true
               }
             ]
           },
