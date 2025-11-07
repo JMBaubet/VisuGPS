@@ -101,10 +101,11 @@ const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
 
 // --- Center Marker Logic ---
-const showCenterMarker = computed(() => getSettingValue('Visualisation/Animation/afficherCroixCentrale'));
-const centerMarkerColor = computed(() => toHex(getSettingValue('Visualisation/Animation/couleurCroixCentrale')));
+const afficherCroixCentrale = computed(() => getSettingValue('Visualisation/Animation/afficherCroixCentrale'));
+const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Animation/couleurCroixCentrale'));
+const zoomMinimum = computed(() => (getSettingValue('Visualisation/Animation/zoomMinimum') ?? 100) / 10);
 const isCenterMarkerVisible = computed(() => {
-  return showCenterMarker.value && animationState.value === 'En_Pause';
+  return afficherCroixCentrale.value && animationState.value === 'En_Pause';
 });
 
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
@@ -620,6 +621,13 @@ const lerpAngle = (start, end, t) => {
     return result;
 };
 
+// Add this function to handle the zoom event
+const handleMapZoom = () => {
+    if (isPaused.value && map.getZoom() < zoomMinimum.value) {
+        map.setZoom(zoomMinimum.value);
+    }
+};
+
 
 
 // --- Computed settings ---
@@ -721,6 +729,9 @@ watch(isPaused, (paused) => {
         map.on('pitch', onMapInteraction);
         map.on('rotate', onMapInteraction);
 
+        // Add new listener for zoom minimum
+        map.on('zoom', handleMapZoom);
+
     } else {
         // --- RESUMING ---
         // Disable interactions first
@@ -732,6 +743,9 @@ watch(isPaused, (paused) => {
         map.off('zoom', onMapInteraction);
         map.off('pitch', onMapInteraction);
         map.off('rotate', onMapInteraction);
+
+        // Remove listener for zoom minimum
+        map.off('zoom', handleMapZoom);
 
         // On n'exécute la logique de reprise que si un survol n'est pas en cours.
         if (!isFlytoActive.value) {
@@ -1172,7 +1186,11 @@ onMounted(() => {
             case 'zoom':
                 const zoomDelta = dy * (sensibilityZoom.value / 1000) * -1;
                 console.log('Zoom - dy:', dy, 'sensibilityZoom:', sensibilityZoom.value, 'zoomDelta:', zoomDelta);
-                map.setZoom(map.getZoom() + zoomDelta);
+                let newZoom = map.getZoom() + zoomDelta;
+                if (isPaused.value) { // Only apply minimum zoom when paused
+                    newZoom = Math.max(newZoom, zoomMinimum.value);
+                }
+                map.setZoom(newZoom);
                 break;
             case 'tilt':
                 const tiltDelta = dy * (sensibilityTilt.value / 100) * -1;

@@ -1105,6 +1105,16 @@
                 "type": "couleur",
                 "defaut": "white",
                 "materialDesign": true
+              },
+              {
+                "identifiant": "zoomMinimum",
+                "libelle": "Zoom Minimum",
+                "description": "Niveau de zoom minimum autorisé lorsque l'animation est en pause (valeur réelle = valeur / 10).",
+                "type": "entier",
+                "defaut": 100,
+                "step":1,
+                "min": 80,
+                "max": 125
               }
             ]
           },
@@ -1437,49 +1447,51 @@
                 "max": 65535
               },
               {
-                "identifiant": "sensibiliteCap",
-                "libelle": "Sensibilité du cap",
-                "description": "Facteur de sensibilité pour la rotation du cap de la caméra.",
-                "type": "entier",
-                "defaut": 100,
-                "min": 10,
-                "max": 250
-              },
-              {
                 "identifiant": "sensibilitePointDeVueX",
                 "libelle": "Sensibilité du point de vue (X) (1-500)",
                 "description": "Facteur de sensibilité pour le déplacement horizontal du point de vue. Une valeur de 100 correspond à la sensibilité par défaut.",
                 "type": "entier",
-                "defaut": 100,
-                "min": 1,
-                "max": 500
+                "defaut": 200,
+                "min": 50,
+                "max": 500,
+                "step": 10
               },
               {
                 "identifiant": "sensibilitePointDeVueY",
                 "libelle": "Sensibilité du point de vue (Y) (1-500)",
                 "description": "Facteur de sensibilité pour le déplacement vertical du point de vue. Une valeur de 100 correspond à la sensibilité par défaut.",
                 "type": "entier",
-                "defaut": 100,
-                "min": 1,
-                "max": 500
+                "defaut": 200,
+                "min": 50,
+                "max": 500,
+                "step": 10
+              },
+              {
+                "identifiant": "sensibiliteCap",
+                "libelle": "Sensibilité du cap",
+                "description": "Facteur de sensibilité pour la rotation du cap de la caméra.",
+                "type": "entier",
+                "defaut": 50,
+                "min": 10,
+                "max": 200
               },
               {
                 "identifiant": "sensibiliteZoom",
                 "libelle": "Sensibilité du zoom (1-500)",
                 "description": "Facteur de sensibilité pour le zoom de la caméra. Une valeur de 100 correspond à la sensibilité par défaut.",
                 "type": "entier",
-                "defaut": 100,
-                "min": 1,
-                "max": 500
+                "defaut": 50,
+                "min": 10,
+                "max": 200
               },
               {
                 "identifiant": "sensibiliteTilt",
                 "libelle": "Sensibilité de l'inclinaison (tilt)",
                 "description": "Facteur de sensibilité pour l'inclinaison (tilt) de la caméra.",
                 "type": "entier",
-                "defaut": 100,
+                "defaut": 50,
                 "min": 10,
-                "max": 250
+                "max": 200
               }
             ]
           }
