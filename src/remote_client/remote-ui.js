@@ -229,14 +229,12 @@ function updatePlayPauseButton(state) {
         case 'Pause_Observation':
         case 'Vol_Vers_Depart':
         case 'Survol_Evenementiel':
-            playPauseButton.innerHTML = '▶️ Play';
             playPauseButton.disabled = true;
             rewindBtn.style.display = 'none';
             break;
 
         case 'En_Pause_au_Depart':
         case 'En_Pause':
-            playPauseButton.innerHTML = '▶️ Play';
             playPauseButton.disabled = false;
 
             // Automatically switch to camera page on pause
@@ -254,7 +252,6 @@ function updatePlayPauseButton(state) {
             break;
 
         case 'En_Animation':
-            playPauseButton.innerHTML = '⏸️ Pause';
             playPauseButton.disabled = false;
 
             // Si on est sur la page d'édition de la caméra, on retourne à la vue principale
@@ -289,7 +286,6 @@ function updatePlayPauseButton(state) {
             break;
 
         default:
-            playPauseButton.innerHTML = '--';
             playPauseButton.disabled = true;
             rewindBtn.style.display = 'none';
             break;
