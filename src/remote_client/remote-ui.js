@@ -181,6 +181,29 @@ function setupButtonListeners() {
 
 
 
+function handleFullStateUpdate(state) {
+    if (!state) return;
+
+    // Mettre à jour l'état de la vue Visualize
+    if (state.visualize_view) {
+        const visualizeState = state.visualize_view;
+        document.getElementById('toggle-commands').checked = visualizeState.isControlsCardVisible;
+        document.getElementById('toggle-profile').checked = visualizeState.isAltitudeVisible;
+        document.getElementById('toggle-communes').checked = visualizeState.isCommuneWidgetVisible;
+        document.getElementById('toggle-distance').checked = visualizeState.isDistanceDisplayVisible;
+    }
+
+    // Mettre à jour l'état de l'animation
+    if (state.animation_state) {
+        updatePlayPauseButton(state.animation_state);
+    }
+
+    // Mettre à jour la vitesse de l'animation
+    if (state.animation_speed) {
+        updateSpeedDisplay(state.animation_speed);
+    }
+}
+
 function updatePlayPauseButton(state) {
     const playPauseButton = document.getElementById('play-pause');
     const rewindBtn = document.getElementById('rewind');

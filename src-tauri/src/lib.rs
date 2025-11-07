@@ -308,6 +308,8 @@ pub struct AppState {
     pub updating_circuit_name: Option<String>,
     pub current_view: String, // Nouvelle propriété pour la vue actuelle
     pub animation_state: Mutex<String>,
+    pub animation_speed: Mutex<f32>,
+    pub visualize_view_state: Mutex<Option<remote_control::VisualizeViewState>>,
 }
 
 impl Clone for AppState {
@@ -321,6 +323,8 @@ impl Clone for AppState {
             updating_circuit_name: self.updating_circuit_name.clone(),
             current_view: self.current_view.clone(),
             animation_state: Mutex::new(self.animation_state.lock().unwrap().clone()),
+            animation_speed: Mutex::new(*self.animation_speed.lock().unwrap()),
+            visualize_view_state: Mutex::new(self.visualize_view_state.lock().unwrap().clone()),
         }
     }
 }
@@ -927,6 +931,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         updating_circuit_name: None,
         current_view: "MainView".to_string(), // Initialize current_view
         animation_state: Mutex::new("".to_string()),
+        animation_speed: Mutex::new(1.0),
+        visualize_view_state: Mutex::new(None),
     })
 }
 

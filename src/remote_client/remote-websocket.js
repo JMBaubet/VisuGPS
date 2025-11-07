@@ -86,33 +86,26 @@ function connectWebSocket() {
                 }
 
                 // Afficher la page appropriée selon l'état de l'application reçu du serveur
-                console.log("Message de couplage reçu:", message);
                 if (message.appState) {
-                    console.log("✅ État de l'application reçu lors du couplage:", message.appState);
                     updateRemoteInterface(message.appState);
-                } else {
-                    console.log("⚠️ Aucun état d'application reçu, utilisation de la page par défaut");
-                    // Par défaut, afficher la page de visualisation
-                    updateRemoteInterface('Visualize');
                 }
+                // Demander l'état complet pour synchroniser l'UI
+                sendCommand('request_full_state');
+
             } else if (message.status === "refused") {
                 updateStatus(`Couplage refusé : ${message.reason || "Raison inconnue"}`, true);
-                pairingCodeDiv.style.display = 'block'; // Garder le code visible en cas de refus
-                // Masquer toutes les pages
+                pairingCodeDiv.style.display = 'block';
                 const pages = document.querySelectorAll('.page');
                 pages.forEach(page => page.style.display = 'none');
+
             } else if (message.status === "already_paired") {
                 updateStatus("Déjà couplé.", false);
                 pairingCodeDiv.style.display = 'none';
-                // Afficher la page appropriée selon l'état de l'application reçu du serveur
                 if (message.appState) {
-                    console.log("État de l'application reçu lors du couplage (déjà couplé):", message.appState);
                     updateRemoteInterface(message.appState);
-                } else {
-                    console.log("Aucun état d'application reçu (déjà couplé), utilisation de la page par défaut");
-                    // Par défaut, afficher la page de visualisation
-                    updateRemoteInterface('Visualize');
                 }
+                // Demander l'état complet pour synchroniser l'UI
+                sendCommand('request_full_state');
             }
         } else if (message.type === "app_state_update") {
             // Security check: ensure the message is for this client
@@ -134,6 +127,9 @@ function connectWebSocket() {
             // Afficher le bouton de reconnexion immédiatement
             showRetryButton();
 
+        } else if (message.type === "full_state_update") {
+            console.log("Full state update received:", message.state);
+            handleFullStateUpdate(message.state);
         } else if (message.type === "visualize_view_state_update") {
             console.log("Visualize View State Update received:", message.state);
             if (message.state) {

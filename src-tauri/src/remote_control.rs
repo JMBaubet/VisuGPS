@@ -8,6 +8,9 @@ use tauri::{command, AppHandle, Manager, Emitter};
 
 #[command]
 pub fn update_visualize_view_state(app_handle: AppHandle, state: VisualizeViewState) {
+    let app_state = app_handle.state::<Mutex<AppState>>();
+    let app_state_lock = app_state.lock().unwrap();
+    *app_state_lock.visualize_view_state.lock().unwrap() = Some(state.clone());
     send_visualize_view_state_update(&app_handle, state);
 }
 use std::sync::{Arc, Mutex};
@@ -82,6 +85,13 @@ pub struct RemoteSettings {
     pub sensibility_point_de_vue: f32,
     pub sensibility_zoom: f32,
     pub sensibility_inclinaison: f32,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct FullState {
+    pub visualize_view: Option<VisualizeViewState>,
+    pub animation_state: Option<String>,
+    pub animation_speed: Option<f32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -399,21 +409,55 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                         
                                                                                 info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
                                                                                 
-                                                                                app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
-                                                                                    .expect("Failed to emit remote command event");
-                                                                                let response = RemoteCommandResponse {
-                                                                                    r#type: "command_response".to_string(),
-                                                                                    status: "success".to_string(),
-                                                                                    message: format!("Commande {} reçue.", remote_command.command),
-                                                                                    app_state: Some(current_app_view.clone()),
-                                                                                };
-                                                                                if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
-                                                                                    if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
-                                                                                        error!("Erreur lors de l'envoi de la réponse de commande au client {}: {}", peer_addr, e);
-                                                                                    }
-                                                                                }
-                                                                            } else {
-                                                                                info!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
+                                                                                                                                if remote_command.command == "request_full_state" {
+                                                                                
+                                                                                                                                                                                    let app_state = app_handle_clone.state::<Mutex<AppState>>();
+                                                                                
+                                                                                                                                                                                    let app_state_lock = app_state.lock().unwrap();
+                                                                                
+                                                                                                                                
+                                                                                
+                                                                                                                                                                                    let full_state = FullState {
+                                                                                
+                                                                                                                                                                                        visualize_view: app_state_lock.visualize_view_state.lock().unwrap().clone(),
+                                                                                
+                                                                                                                                                                                        animation_state: Some(app_state_lock.animation_state.lock().unwrap().clone()),
+                                                                                
+                                                                                                                                                                                        animation_speed: Some(*app_state_lock.animation_speed.lock().unwrap()),
+                                                                                
+                                                                                                                                                                                    };
+                                                                                
+                                                                                                                                
+                                                                                
+                                                                                                                                                                                    let response = serde_json::json!({
+                                                                                
+                                                                                                                                                                                        "type": "full_state_update",
+                                                                                
+                                                                                                                                                                                        "state": full_state
+                                                                                
+                                                                                                                                                                                    });
+                                                                                
+                                                                                                                                
+                                                                                
+                                                                                                                                                                                    if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                
+                                                                                                                                                                                        if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                
+                                                                                                                                                                                            error!("Erreur lors de l'envoi de la mise à jour complète de l'état au client {}: {}", peer_addr, e);
+                                                                                
+                                                                                                                                                                                        }
+                                                                                
+                                                                                                                                                                                    }
+                                                                                
+                                                                                                                                                                                } else {
+                                                                                
+                                                                                                                                                                                    app_handle_clone.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
+                                                                                
+                                                                                                                                                                                        .expect("Failed to emit remote command event");
+                                                                                
+                                                                                                                                                                                }
+                                                                                
+                                                                                                                                                                            } else {                                                                                info!("Message texte inconnu du client {}: {}", peer_addr, msg_text);
                                                                             }
                                                                         } else if msg.is_binary() {
                                                                             debug!("Reçu des données binaires du client {}", peer_addr);
@@ -658,6 +702,9 @@ pub fn set_speed_to_1x_from_remote(app_handle: AppHandle) {
 
 #[tauri::command]
 pub fn update_animation_speed(app_handle: AppHandle, speed: f32) {
+    let app_state = app_handle.state::<Mutex<AppState>>();
+    let app_state_lock = app_state.lock().unwrap();
+    *app_state_lock.animation_speed.lock().unwrap() = speed;
     send_animation_speed_update(&app_handle, speed);
 }
 
