@@ -275,8 +275,20 @@ function updatePlayPauseButton(state) {
             playPauseButton.onclick = () => sendCommand('restart_animation');
 
         case 'Termine':
-            playPauseButton.disabled = false;
-            playPauseButton.onclick = () => sendCommand('restart_animation');
+            // Désactiver le bouton principal car l'animation est terminée
+            playPauseButton.disabled = true;
+            playPauseButton.onclick = null;
+
+            // Configurer le bouton rewind pour réinitialiser l'animation
+            rewindBtn.innerHTML = '🔄';
+            rewindBtn.onclick = () => sendCommand('restart_animation');
+
+            // Masquer toutes les pages et afficher la page de visualisation
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.style.display = 'none');
+            document.getElementById('page-visualize').style.display = 'block';
+            mainTitle.textContent = 'VisuGPS Visualisation';
+            break;
 
         default:
             playPauseButton.disabled = true;
