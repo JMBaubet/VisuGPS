@@ -24,7 +24,6 @@ function sendCommand(command, payload = {}) {
             command: command,
             payload: payload
         }));
-        console.log(`Commande envoyée: ${command}`, payload);
     } else {
         console.error('WebSocket non connecté');
     }
@@ -33,7 +32,6 @@ function sendCommand(command, payload = {}) {
 function connectWebSocket() {
     manualDisconnect = false; // Reset the flag on new connection attempt
     if (isRetrying) {
-        console.log("Tentative de reconnexion déjà en cours, ignorée.");
         return;
     }
     
@@ -49,11 +47,8 @@ function connectWebSocket() {
         if (!clientId) {
             clientId = generateUUID();
             localStorage.setItem('visugps_remote_client_id', clientId);
-            console.log("Nouveau Client ID généré et stocké :", clientId);
         }
         pairingCodeDiv.textContent = `Code de couplage : ${pairingCode}`;
-        console.log("Client ID :", clientId);
-        console.log("Code de couplage :", pairingCode);
 
         // Envoyer la requête de couplage
         ws.send(JSON.stringify({
@@ -65,7 +60,6 @@ function connectWebSocket() {
 
     ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
-        console.log("Message reçu du serveur :", message);
 
         if (message.type === "pairing_response") {
             if (message.status === "accepted") {
@@ -73,7 +67,6 @@ function connectWebSocket() {
                 pairingCodeDiv.style.display = 'none';
 
                 if (message.settings) {
-                    console.log("Received settings from server:", message.settings);
 
                 }
 
@@ -106,7 +99,6 @@ function connectWebSocket() {
                 return;
             }
             // Gérer les mises à jour de l'état de l'application
-            console.log("État de l'application :", message.appState);
             updateRemoteInterface(message.appState);
         } else if (message.type === "server_shutdown") {
             manualDisconnect = true;
@@ -120,10 +112,8 @@ function connectWebSocket() {
             showRetryButton();
 
         } else if (message.type === "full_state_update") {
-            console.log("Full state update received:", message.state);
             handleFullStateUpdate(message.state);
         } else if (message.type === "visualize_view_state_update") {
-            console.log("Visualize View State Update received:", message.state);
             if (message.state) {
                 // Update switches based on received state
                 document.getElementById('toggle-commands').checked = message.state.isControlsCardVisible;
@@ -132,7 +122,6 @@ function connectWebSocket() {
                 document.getElementById('toggle-distance').checked = message.state.isDistanceDisplayVisible;
             }
         } else if (message.type === "pause_state_update") {
-            console.log("Pause state updated:", message.payload);
         } else if (message.type === "animation_state_update") {
             // const titleElement = document.getElementById('visualize-view-title'); // Supprimé
             // if (titleElement) {
