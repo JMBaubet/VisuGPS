@@ -147,7 +147,8 @@
                     "identifiant": "colorGPXVignette",
                     "libelle": "Couleur de la trace sur la vignette",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Importation_Vignette_Trace_colorGPXVignette.md"
                   },
                   {
                     "defaut": 3,
@@ -157,7 +158,8 @@
                     "type": "entier",
                     "min": 1,
                     "max": 20,
-                    "unite": "px"
+                    "unite": "px",
+                    "doc": "docs/Importation_Vignette_Trace_largeurTrace.md"
                   }
                 ]
               },
