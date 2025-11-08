@@ -57,9 +57,9 @@ pub async fn generate_gpx_thumbnail(
         .and_then(|v| v.as_str()).unwrap_or("mapbox://styles/mapbox/streets-v12");
     let color_gpx_vignette = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Trace.parametres.colorGPXVignette")
         .and_then(|v| v.as_str()).unwrap_or("orange-darken-4");
-    let largeur = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimentions.parametres.largeur")
+    let largeur = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimensions.parametres.largeur")
         .and_then(|v| v.as_u64()).unwrap_or(400) as u32;
-    let format_str = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimentions.parametres.format")
+    let format_str = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.Dimensions.parametres.format")
         .and_then(|v| v.as_str()).unwrap_or("1/1");
     let presence_distance = get_setting_value(&settings, "data.groupes.Importation.groupes.Vignette.groupes.MarqueurDistance.parametres.presenceDistance")
         .and_then(|v| v.as_bool()).unwrap_or(true);
