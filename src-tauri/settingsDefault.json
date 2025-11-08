@@ -110,7 +110,7 @@
             ],
             "groupes": [
               {
-                "libelle": "Dimentions",
+                "libelle": "Dimensions",
                 "parametres": [
                   {
                     "defaut": 512,
