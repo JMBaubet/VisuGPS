@@ -222,12 +222,16 @@ async function executeFlytoSequence(flytoData) {
         bearing: map.getBearing(),
     };
     showSnackbar('Début du survol programmé...', 'info');
+    
+    // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
+    const durationToTarget = Math.max(200, flytoData.duree / currentSpeed.value);
+
     await flyToPromise(map, {
         center: flytoData.coord,
         zoom: flytoData.zoom,
         pitch: flytoData.pitch,
         bearing: flytoData.cap,
-        duration: flytoData.duree,
+        duration: durationToTarget,
     });
 
     // --- Phase 2: En pause sur la cible ---
@@ -247,9 +251,13 @@ async function executeFlytoSequence(flytoData) {
     // --- Phase 3: Vol de retour vers la trace ---
     animationState.value = 'Survol_Evenementiel';
     showSnackbar('Retour à la trace...', 'info');
+
+    // Ajuster également la durée du vol de retour.
+    const durationBackToTrace = Math.max(200, flytoData.duree / currentSpeed.value);
+
     await flyToPromise(map, {
         ...preFlytoCameraOptions.value,
-        duration: flytoData.duree,
+        duration: durationBackToTrace,
     });
 
     // --- Phase 4: Reprise de l'animation ---
