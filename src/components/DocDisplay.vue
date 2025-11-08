@@ -9,13 +9,13 @@
     <v-card-text>
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
-      <div v-else v-html="renderedMarkdown" class="markdown-body"></div>
+      <div v-else v-html="renderedMarkdown" class="markdown-body" ref="markdownBodyRef"></div>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useTheme } from 'vuetify';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
@@ -35,8 +35,38 @@ async function loadHighlightTheme(name) {
   }
 }
 
+const markdownBodyRef = ref(null); // Référence au div markdown-body
+
+const handleLinkClick = (event) => {
+  const target = event.target;
+  if (target.tagName === 'A' && target.href) {
+    const url = new URL(target.href);
+    // Vérifier si le lien est externe à l'application (pas un lien relatif ou interne)
+    // et ne pas ouvrir les liens internes (ex: #ancre)
+    if (url.protocol.startsWith('http') && url.host !== window.location.host) {
+      event.preventDefault();
+      // Utiliser l'API shell de Tauri pour ouvrir le lien dans le navigateur par défaut
+      if (window.__TAURI__ && window.__TAURI__.shell) {
+        window.__TAURI__.shell.open(target.href);
+      } else {
+        // Fallback pour le développement ou si Tauri n'est pas disponible
+        window.open(target.href, '_blank');
+      }
+    }
+  }
+};
+
 onMounted(() => {
   loadHighlightTheme(theme.global.name.value);
+  if (markdownBodyRef.value) {
+    markdownBodyRef.value.addEventListener('click', handleLinkClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (markdownBodyRef.value) {
+    markdownBodyRef.value.removeEventListener('click', handleLinkClick);
+  }
 });
 
 watch(() => theme.global.name.value, (newTheme) => {
