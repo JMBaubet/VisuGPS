@@ -709,33 +709,43 @@ pub fn send_animation_speed_update(_app_handle: &AppHandle, speed: f32) {
 
 #[tauri::command]
 pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), String> {
-    let active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
-    if let Some(client_id) = active_client_id_lock.as_ref() {
-        
-        // Remove client from the authorized list
+    let mut active_client_id_lock = ACTIVE_CLIENT_ID.lock().unwrap();
+
+    if let Some(client_id) = active_client_id_lock.take() { // .take() récupère la valeur et la remplace par None
+        info!("Déconnexion du client actif: {}", client_id);
+
+        // 1. Supprimer le client de la liste des autorisés
         let app_env_path = {
             let state = app_handle.state::<Mutex<AppState>>();
             let state_lock = state.lock().unwrap();
             state_lock.app_env_path.clone()
         };
-        remote_clients::remove_authorized_client(&app_env_path, client_id)?;
+        if let Err(e) = remote_clients::remove_authorized_client(&app_env_path, &client_id) {
+            // On log l'erreur mais on continue, car le plus important est de nettoyer l'état
+            error!("Impossible de supprimer l'autorisation pour le client {}: {}", client_id, e);
+        }
 
-        // Send shutdown message to the client
-        let client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
-        if let Some(addr) = client_id_to_addr_lock.get(client_id) {
+        // 2. Envoyer un message de déconnexion au client
+        let mut client_id_to_addr_lock = CLIENT_ID_TO_ADDR.lock().unwrap();
+        if let Some(addr) = client_id_to_addr_lock.remove(&client_id) { // .remove() pour nettoyer en même temps
             let mut senders_lock = CLIENT_SENDERS.lock().unwrap();
-            if let Some(sender) = senders_lock.get_mut(addr) {
+            if let Some(sender) = senders_lock.get_mut(&addr) {
                 let shutdown_msg = serde_json::json!({
                     "type": "server_shutdown",
                     "reason": "Autorisation révoquée par l'hôte."
                 });
                 if sender.try_send(Message::Text(shutdown_msg.to_string())).is_err() {
-                    log::warn!("Impossible d'envoyer le message de déconnexion au client, mais son autorisation a bien été révoquée.");
+                    log::warn!("Impossible d'envoyer le message de déconnexion au client {}, mais l'état est nettoyé.", client_id);
                 }
             }
         }
+
+        // 3. Émettre l'événement de changement de statut
+        app_handle.emit("remote_control_status_changed", "disconnected").unwrap();
+        info!("Client {} déconnecté par l'hôte et état serveur nettoyé.", client_id);
+        
+        Ok(())
     } else {
-        return Err("Aucun client actif à déconnecter.".to_string());
+        Err("Aucun client actif à déconnecter.".to_string())
     }
-    Ok(())
 }
