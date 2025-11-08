@@ -120,7 +120,8 @@
                     "type": "entier",
                     "min": 400,
                     "max": 1280,
-                    "unite": "px"
+                    "unite": "px",
+                    "doc": "docs/Importation_Vignette_Dimensions_largeur.md"
                   },
                   {
                     "defaut": "1/1",
@@ -132,7 +133,8 @@
                       "1/1",
                       "4/3",
                       "16/9"
-                    ]
+                    ],
+                    "doc": "docs/Importation_Vignette_Dimensions_format.md"
                   }
                 ]
               },
