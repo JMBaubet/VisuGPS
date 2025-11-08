@@ -18,7 +18,8 @@
                     "defaut": 200,
                     "min": 50,
                     "max": 2000,
-                    "unite": "ms"
+                    "unite": "ms",
+                    "doc": "docs/Accueil_MajCommunes_Timers_TimerIGN.md"
                   },
                   {
                     "identifiant": "timerMapbox",
@@ -28,7 +29,8 @@
                     "defaut": 200,
                     "min": 50,
                     "max": 2000,
-                    "unite": "ms"
+                    "unite": "ms",
+                    "doc": "docs/Accueil_MajCommunes_Timers_TimerMapbox.md"
                   },
                   {
                     "identifiant": "timerOSM",
@@ -36,9 +38,10 @@
                     "description": "Délai en millisecondes entre chaque interrogation de l'API OpenStreetMap.",
                     "type": "entier",
                     "defaut": 1000,
-                    "min": 250,
+                    "min": 1000,
                     "max": 5000,
-                    "unite": "ms"
+                    "unite": "ms",
+                    "doc": "docs/Accueil_MajCommunes_Timers_TimerOSM.md"
                   }
                 ]
               },
