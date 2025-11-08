@@ -12,8 +12,18 @@ Le système repose sur trois composants principaux qui communiquent de manière 
 
 ```mermaid
 graph TD
-    A[Client Télécommande (Web)] <-->|WebSocket| B(Serveur WebSocket / Rust Backend);
-    B <-->|Événements Tauri| C(Frontend Desktop / Vue.js);
+    subgraph Client Web
+        A[Client Télécommande]
+    end
+    subgraph "Backend Rust (Tauri)"
+        B[Serveur WebSocket/HTTP]
+    end
+    subgraph "Frontend Vue.js"
+        C[UI Desktop]
+    end
+
+    A <-->|WebSocket| B;
+    B <-->|Événements Tauri| C;
 ```
 
 ---
