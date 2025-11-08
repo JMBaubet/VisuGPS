@@ -1,222 +1,146 @@
-# Documentation Technique : Fonctionnement de la Télécommande VisuGPS
+# Analyse Technique Approfondie : Télécommande VisuGPS
 
-Ce document décrit l'architecture et le flux de communication du système de télécommande pour l'application VisuGPS. Il couvre le client web (la télécommande elle-même), le serveur WebSocket intégré au backend Rust de l'application desktop, et la manière dont les commandes sont transmises au frontend Vue.js.
+Ce document fournit une analyse technique détaillée de l'architecture et des flux de communication du système de télécommande de VisuGPS.
 
-## Table des Matières
+## 1. Architecture Générale
 
-1.  [Introduction](#1-introduction)
-2.  [L'Application de Télécommande (Client Web)](#2-lapplication-de-télécommande-client-web)
-    *   [2.1. Structure des Fichiers](#21-structure-des-fichiers)
-    *   [2.2. Initialisation et Connexion](#22-initialisation-et-connexion)
-    *   [2.3. Processus de Couplage](#23-processus-de-couplage)
-    *   [2.4. Envoi de Commandes](#24-envoi-de-commandes)
-    *   [2.5. Réception des Mises à Jour d'État](#25-réception-des-mises-à-jour-détat)
-3.  [Le Serveur WebSocket (Backend Rust de l'Application Desktop)](#3-le-serveur-websocket-backend-rust-de-lapplication-desktop)
-    *   [3.1. Rôle et Initialisation](#31-rôle-et-initialisation)
-    *   [3.2. Gestion des Connexions et des Clients](#32-gestion-des-connexions-et-des-clients)
-    *   [3.3. Traitement des Requêtes de Couplage](#33-traitement-des-requêtes-de-couplage)
-    *   [3.4. Traitement des Commandes Reçues](#34-traitement-des-commandes-reçues)
-    *   [3.5. Envoi des Mises à Jour d'État](#35-envoi-des-mises-à-jour-détat)
-4.  [Communication entre Backend Rust et Frontend Vue.js](#4-communication-entre-backend-rust-et-frontend-vuejs)
-    *   [4.1. Transmission des Commandes au Frontend](#41-transmission-des-commandes-au-frontend)
-    *   [4.2. Réaction du Frontend aux Commandes](#42-réaction-du-frontend-aux-commandes)
-    *   [4.3. Mise à Jour de l'État de l'Application (Frontend -> Backend -> Télécommande)](#43-mise-à-jour-de-létat-de-lapplication-frontend---backend---télécommande)
-5.  [Flux de Communication Global](#5-flux-de-communication-global)
-6.  [Considérations et Améliorations Futures](#6-considérations-et-améliorations-futures)
+Le système repose sur trois composants principaux qui communiquent de manière asynchrone :
+
+1.  **Le Client de Télécommande**: Une application web monopage (`single-page application`) servie par le backend. C'est l'interface que l'utilisateur manipule sur son appareil mobile.
+2.  **Le Serveur WebSocket/HTTP (Backend Rust)**: Intégré à l'application Tauri, il a un double rôle : servir les fichiers du client web et gérer la communication en temps réel via WebSocket.
+3.  **Le Frontend Desktop (Vue.js)**: L'interface principale de l'application VisuGPS qui exécute les commandes reçues et dont l'état est reflété sur la télécommande.
+
+```mermaid
+graph TD
+    A[Client Télécommande (Web)] <-->|WebSocket| B(Serveur WebSocket / Rust Backend);
+    B <-->|Événements Tauri| C(Frontend Desktop / Vue.js);
+```
 
 ---
 
-## 1. Introduction
+## 2. Le Client de Télécommande : `src/remote_client`
 
-Le système de télécommande VisuGPS permet de contrôler à distance certaines fonctionnalités de l'application desktop principale, notamment lors de la visualisation 3D d'une trace GPX. Il est composé d'une application web légère (le client de télécommande) et d'un serveur WebSocket intégré au backend Rust de l'application desktop. La communication entre le backend Rust et le frontend Vue.js de l'application desktop assure la synchronisation et l'exécution des commandes.
+L'application cliente est conçue pour être légère et réactive. Sa logique est répartie en plusieurs fichiers JavaScript spécialisés.
 
-## 2. L'Application de Télécommande (Client Web)
+### 2.1. Structure et Rôle des Fichiers
 
-Située dans `src/remote_client/`, cette application est une interface web monopage dynamique (HTML, CSS, JavaScript) conçue pour être exécutée sur un appareil mobile ou un autre navigateur. Elle est servie directement par le serveur HTTP intégré au backend Rust.
+*   **`index.html`**: Squelette de l'application. Il définit toutes les "pages" possibles (`#page-visualize`, `#page-camera-edit`, etc.) et les zones de contrôle. La visibilité de ces éléments est entièrement gérée par JavaScript.
 
-### 2.1. Structure des Fichiers
+*   **`style.css`**: Mise en forme de l'interface. Utilise Bootstrap 5 pour les composants de base et ajoute des styles spécifiques pour les zones tactiles (`.touch-area`) et les interrupteurs (`.form-switch`) afin d'améliorer l'ergonomie sur mobile.
 
-*   **`index.html`**: La structure HTML de base. Elle contient :
-    *   Des conteneurs pour le statut, le code de couplage.
-    *   Plusieurs `div` agissant comme des "pages" (`#page-visualize`, `#page-edit`, etc.), dont la visibilité est contrôlée par JavaScript en fonction de l'état de l'application principale.
-*   **`style.css`**: Les styles pour toutes les vues de la télécommande.
-*   **`main.js`**: Le script principal qui gère la connexion, le couplage, l'envoi/réception des messages WebSocket et la logique d'affichage des différentes pages.
+*   **`remote-utils.js`**: Contient des fonctions pures et sans dépendances pour des tâches simples comme la génération d'UUID et de codes aléatoires.
 
-### 2.2. Initialisation et Connexion
+*   **`remote-speed.js`**: Isole la logique complexe de mappage entre la position d'un slider (valeur de 0 à 100) et la vitesse de l'animation. Cette courbe non linéaire permet un contrôle plus fin à basse vitesse.
 
-Au chargement de `main.js`, plusieurs étapes sont effectuées :
+*   **`remote-camera.js`**: Gère la page `#page-camera-edit`. Il implémente une logique de détection de "glisser" (`handleDrag`) sur les différentes zones tactiles. Lorsqu'un glissement est détecté, il calcule le déplacement (`dx`, `dy`) et envoie une commande `update_camera` via WebSocket.
 
-*   **Configuration Réseau Dynamique**: Les constantes `WS_SERVER_IP` et `WS_SERVER_PORT` ne sont plus codées en dur. Le backend Rust génère dynamiquement le fichier `main.js` servi au client en y injectant l'adresse IP locale du serveur et le port configuré. 
-*   **`clientId`**: Un identifiant unique est généré (via `crypto.randomUUID` ou un fallback) et stocké dans le `localStorage` pour permettre à la télécommande de conserver son identité.
-*   **`pairingCode`**: Un code alphanumérique aléatoire est généré pour le processus de couplage initial.
-*   **Connexion WebSocket**: Une connexion est établie avec le serveur. Le script gère les tentatives de reconnexion automatiques en cas d'échec.
-    *   **`ws.onopen`**: Une fois connecté, un message `pairing_request` est envoyé au serveur.
+*   **`remote-websocket.js` (La Couche Transport)**:
+    *   **Rôle**: Gérer exclusivement la connexion WebSocket. Il est le seul module à interagir directement avec l'objet `WebSocket`.
+    *   **Fonctions Clés**:
+        *   `connectWebSocket()`: Tente la connexion, gère les erreurs et la logique de reconnexion automatique (3 tentatives max).
+        *   `sendCommand(command, payload)`: Encapsule et envoie les messages sortants au format JSON. C'est le point d'entrée pour tous les autres modules qui veulent communiquer avec le serveur.
+        *   `ws.onmessage`: Point d'entrée unique pour les messages entrants. Il parse le JSON et, en fonction du `type` de message, appelle les fonctions appropriées dans `remote-ui.js` pour mettre à jour l'interface. Il ne contient aucune logique de manipulation du DOM.
 
-### 2.3. Processus de Couplage
+*   **`remote-ui.js` (Le Chef d'Orchestre)**:
+    *   **Rôle**: Mettre à jour l'état visuel de l'application en réponse aux messages du serveur. Il manipule le DOM pour afficher/masquer des pages, changer le texte, et modifier l'état des contrôles.
+    *   **Fonctions Clés**:
+        *   `updateRemoteInterface(appState)`: Affiche la "page" (`#page-visualize`, `#page-edit`, etc.) correspondant à la vue active de l'application desktop.
+        *   `handleFullStateUpdate(state)`: Fonction cruciale pour la synchronisation. À la connexion, elle reçoit un objet contenant l'état de tous les éléments de l'interface (widgets, vitesse, état de l'animation) et les applique en une seule fois.
+        *   `updatePlayPauseButton(animationState)`: Logique complexe qui adapte l'interface en fonction de l'état précis de l'animation (ex: `En_Pause`, `Termine`). C'est ici que le bouton "Rewind" ⏪ se transforme en bouton "Caméra" 📷 lorsque l'animation est en pause, offrant un raccourci contextuel vers la page de contrôle de la caméra.
+        *   `updateSpeedDisplay(speed)`: Met à jour le texte de la vitesse et la position du slider.
 
-Le couplage associe une télécommande à l'application desktop :
+*   **`main.js` (Le Point d'Entrée)**:
+    *   Initialise la connexion WebSocket au chargement de la page.
+    *   Appelle `setupButtonListeners()` de `remote-ui.js` pour lier les événements (clics, changements) des éléments HTML aux fonctions qui envoient des commandes via `sendCommand`.
 
-*   **Envoi de `pairing_request`**: La télécommande s'identifie auprès du serveur.
-    ```json
-    {
-        "type": "pairing_request",
-        "clientId": "votre_client_id_unique",
-        "pairingCode": "CODEALEA"
-    }
-    ```
-*   **Réception de `pairing_response`**: Le serveur répond en indiquant le statut du couplage et l'état actuel de l'application (`appState`).
-    ```json
-    {
-        "type": "pairing_response",
-        "status": "accepted" | "refused" | "already_paired",
-        "reason": "message_si_refusé",
-        "appState": "Visualize" // ou "Edit", "Main", etc.
-    }
-    ```
-    *   Si le statut est `accepted` ou `already_paired`, l'interface de la télécommande s'adapte à l'`appState` reçu, affichant la page de contrôles correspondante.
-
-### 2.4. Envoi de Commandes
-
-Une fois couplée, la télécommande envoie des commandes via des messages de type `command`. Le message peut inclure un `payload` pour des données additionnelles.
-
-```json
-{
-    "type": "command",
-    "clientId": "votre_client_id_unique",
-    "command": "toggle_play", // Exemple
-    "payload": null // Données optionnelles
-}
-```
-Les commandes incluent `toggle_play`, `toggle_altitude_profile`, `save_circuit`, `preview_circuit`, etc.
-
-### 2.5. Réception des Mises à Jour d'État
-
-La télécommande reçoit deux types de messages du serveur :
-
-*   **`app_state_update`**: Indique un changement de vue dans l'application principale. La télécommande met à jour son interface pour afficher la page de contrôles pertinente.
-    ```json
-    {
-        "type": "app_state_update",
-        "appState": "Edit" 
-    }
-    ```
-*   **`command_response`**: Accusé de réception pour chaque commande envoyée, informant la télécommande si la commande a réussi ou échoué.
-    ```json
-    {
-        "type": "command_response",
-        "status": "success",
-        "message": "Commande toggle_play reçue.",
-        "app_state": "Visualize"
-    }
-    ```
+---
 
 ## 3. Le Serveur (Backend Rust)
 
-Le backend Rust gère un serveur qui remplit un double rôle : serveur HTTP pour distribuer l'application client de la télécommande, et serveur WebSocket pour la communication en temps réel. Il est implémenté dans les modules `remote_setup.rs`, `remote_control.rs`, et `remote_clients.rs`.
+Le backend gère la logique métier de la télécommande.
 
-### 3.1. Rôle et Initialisation
+*   **Double Rôle HTTP/WebSocket**: Le serveur écoute sur un seul port. Il inspecte les en-têtes de chaque nouvelle connexion pour déterminer s'il s'agit d'une requête HTTP (pour servir les fichiers du client) ou d'une demande de mise à niveau WebSocket.
+*   **Injection d'IP Dynamique**: Lors d'une requête pour `/remote/main.js`, le serveur lit le template, remplace les placeholders d'IP et de port par sa propre configuration réseau, et envoie le script personnalisé.
+*   **Gestion des Clients et Persistance**:
+    *   `remote.json`: Fichier contenant la "liste blanche" des clients autorisés (`clientId`, nom, date). Un client présent dans ce fichier est automatiquement accepté après sa `pairing_request`.
+    *   `remote_blacklist.json`: Fichier contenant les `clientId` des appareils explicitement refusés par l'utilisateur. Ces clients sont immédiatement rejetés.
+*   **Rôle de Passerelle (Gateway)**: Le backend ne contient pas la logique de l'animation elle-même. Il agit comme une passerelle :
+    1.  Il reçoit une commande WebSocket de la télécommande.
+    2.  Il la traduit en un **événement Tauri** (ex: `remote_command::toggle_play`).
+    3.  Il propage cet événement au frontend Vue.js.
+    4.  Inversement, lorsque le frontend change d'état, il notifie le backend via une commande Tauri (ex: `update_animation_state`).
+    5.  Le backend traduit cette notification en un message WebSocket (`animation_state_update`) et l'envoie à la télécommande.
 
-*   Au démarrage (`init_remote_control`), le backend lance un serveur TCP qui écoute sur un port configurable (défaut `9001`).
-*   Ce serveur est capable de distinguer les requêtes HTTP (pour servir les fichiers `index.html`, `style.css`, `main.js`) des requêtes de mise à niveau WebSocket.
-*   Pour les requêtes HTTP vers `/remote/main.js`, le serveur injecte dynamiquement son IP locale et son port dans le template JavaScript avant de l'envoyer.
+---
+## 4. Flux de Communication Détaillés (Chronogrammes)
 
-### 3.2. Gestion des Clients et Persistance
+### 4.1. Couplage d'un Nouvel Appareil
 
-*   Le module `remote_clients.rs` gère la persistance des télécommandes autorisées.
-*   Un fichier `remote.json` est créé dans le répertoire de l'environnement d'exécution.
-*   Ce fichier stocke une liste d'objets `RemoteClient`, contenant leur `client_id`, un nom, et la date de dernière connexion.
-*   Lorsqu'une télécommande se connecte, le serveur vérifie si son `client_id` est présent dans `remote.json` pour l'autoriser automatiquement.
+Ce scénario se produit lorsqu'un appareil inconnu se connecte.
 
-### 3.3. Traitement des Requêtes de Couplage
+```mermaid
+sequenceDiagram
+    participant RC as Télécommande
+    participant Server as Backend Rust
+    participant DesktopUI as Frontend Vue.js
 
-Lorsqu'un message `pairing_request` est reçu :
+    RC->>Server: Connexion WebSocket
+    activate Server
+    RC->>Server: pairing_request { clientId: "abc", code: "XYZ" }
+    Server->>Server: Vérifie "abc" dans remote.json (non trouvé)
+    Server->>Server: Vérifie "abc" dans remote_blacklist.json (non trouvé)
+    Server->>DesktopUI: Événement Tauri: ask_pairing_approval { clientId: "abc", code: "XYZ" }
+    activate DesktopUI
+    DesktopUI->>DesktopUI: Affiche une modale de confirmation à l'utilisateur
+    Note over DesktopUI: L'utilisateur accepte
+    DesktopUI->>Server: Commande Tauri: reply_to_pairing_request { clientId: "abc", accepted: true }
+    deactivate DesktopUI
+    Server->>Server: Ajoute "abc" à remote.json
+    Server->>RC: pairing_response { status: "accepted", appState: "Main" }
+    deactivate Server
+    
+    Note over RC: Couplage réussi, demande de l'état complet
+    RC->>Server: command { command: "request_full_state" }
+    activate Server
+    Server->>DesktopUI: Demande l'état actuel (via AppState)
+    DesktopUI-->>Server: Retourne l'état
+    Server->>RC: full_state_update { state: { ... } }
+    deactivate Server
+    RC->>RC: Applique l'état et synchronise son interface
+```
 
-1.  Le serveur vérifie d'abord si le `clientId` est déjà autorisé via `remote_clients::is_client_authorized`.
-2.  **Si oui**, il répond immédiatement avec `pairing_response` {`status: "accepted"`} et l'état actuel de l'application.
-3.  **Si non**, il émet un événement Tauri `ask_pairing_approval` vers le frontend Vue.js, contenant le `clientId` et le `pairingCode`.
-4.  Le frontend affiche une modale de confirmation à l'utilisateur.
-5.  L'utilisateur accepte ou refuse, ce qui déclenche une commande Tauri `reply_to_pairing_request` vers le backend.
-6.  Le backend reçoit la réponse, ajoute le client à `remote.json` si accepté, et envoie la `pairing_response` finale à la télécommande.
+### 4.2. Contrôle de la Caméra en Pause
 
-### 3.4. Traitement des Commandes Reçues
+```mermaid
+sequenceDiagram
+    participant RC as Télécommande
+    participant Server as Backend Rust
+    participant DesktopUI as Frontend Vue.js
 
-Lorsqu'un message `command` est reçu :
+    Note over RC, DesktopUI: Animation en pause
+    RC->>RC: Utilisateur appuie sur le bouton "Caméra" 📷
+    RC->>RC: Affiche la page #page-camera-edit
+    
+    RC->>RC: L'utilisateur glisse sur la zone "Pan"
+    RC->>Server: command { command: "update_camera", payload: { type: "pan", dx: 10, dy: 5 } }
+    activate Server
+    Server->>DesktopUI: Événement Tauri: remote_command::update_camera, payload: { type: "pan", ... }
+    deactivate Server
+    activate DesktopUI
+    DesktopUI->>DesktopUI: Déplace la caméra sur la carte Mapbox
+    deactivate DesktopUI
 
-1.  Le serveur vérifie que le `clientId` est autorisé.
-2.  Il émet un événement Tauri spécifique à la commande vers le frontend, par exemple `remote_command::toggle_play`.
-3.  Il envoie immédiatement une `command_response` à la télécommande pour accuser réception.
-
-### 3.5. Envoi des Mises à Jour d'État
-
-Le serveur envoie des messages `app_state_update` à toutes les télécommandes connectées chaque fois que la vue de l'application principale change. Cette information est récupérée depuis l'état global `AppState` de Tauri, qui est mis à jour par le routeur Vue.js.
-
-## 4. Communication entre Backend Rust et Frontend Vue.js
-
-### 4.1. Transmission des Commandes au Frontend
-
-Le backend émet des événements Tauri avec un nommage spécifique :
-
-*   **Côté Rust (Backend)**:
-    ```rust
-    // Dans le handler de message WebSocket
-    app_handle.emit(&format!("remote_command::{}", remote_command.command), remote_command.payload)
-        .expect("Failed to emit remote command event");
-    ```
-
-### 4.2. Réaction du Frontend aux Commandes
-
-Le frontend Vue.js écoute ces événements spécifiques pour déclencher les actions.
-
-*   **Côté Vue.js (Frontend)**:
-    ```javascript
-    import { listen } from '@tauri-apps/api/event';
-
-    // Dans un composant, ex: VisualizeView.vue
-    listen('remote_command::toggle_play', (event) => {
-      console.log('Commande toggle_play reçue!');
-      // Logique pour basculer la lecture/pause
-    });
-
-    listen('remote_command::save_circuit', (event) => {
-        // etc.
-    });
-    ```
-
-### 4.3. Mise à Jour de l'État de l'Application (Frontend -> Backend -> Télécommande)
-
-Le flux est maintenant plus direct :
-
-1.  **Côté Vue.js**: Le routeur de Vue (`vue-router`) change la vue.
-2.  Un `watcher` sur la route actuelle met à jour une variable dans l'état global `AppState` de Tauri via une commande (ex: `update_current_view`).
-3.  **Côté Rust**: Le backend, via la fonction `send_app_state_update`, lit périodiquement ou sur déclenchement cet `AppState` et envoie le message `app_state_update` aux télécommandes si l'état a changé.
-
-## 5. Flux de Communication Global
-
-1.  **Initialisation & Service**: 
-    *   Le serveur Rust démarre et écoute.
-    *   L'utilisateur de la télécommande navigue vers `http://<ip_serveur>:<port>/remote`.
-    *   Le serveur sert le client web avec la configuration réseau injectée.
-2.  **Couplage**:
-    *   La télécommande se connecte au WebSocket et envoie `pairing_request`.
-    *   Le serveur vérifie `remote.json`. Si le client est inconnu, il demande validation à l'utilisateur desktop. Si connu, il accepte directement.
-    *   Le serveur répond `pairing_response` avec l'état de l'application.
-    *   La télécommande affiche l'interface corresp
-* **Blacklist des clients refusés** : Lorsqu'une demande de couplage est refusée par l'utilisateur, l'identifiant du client est ajouté à un fichier `remote_blacklist.json`. Toute tentative future de connexion en provenance de cet appareil est immédiatement rejetée avec un message explicite ("Cet appareil a été bloqué.").  
-* **Révocation manuelle de l'autorisation** : La déconnexion volontaire d'une télécommande depuis l'application principale révoque désormais son autorisation. Le client est supprimé du fichier `remote.json` et devra se coupler de nouveau via le QR code pour se reconnecter.  
-* **Connexion unique et restrictions de couplage** : Le serveur n'autorise qu'un seul client connecté à la fois. Les tentatives de connexion d'un deuxième appareil sont refusées. De plus, le couplage d'une nouvelle télécommande n'est possible que lorsque l'application desktop se trouve sur la page d'accueil ou dans les paramètres.  
-* **Indicateur de statut** : Une icône dans la barre d'outils principale indique l'état de la télécommande : verte (mdi-remote) lorsqu'une télécommande est connectée et active, bleue (mdi-remote-off) sinon.  
-* **Affichage du QR code de connexion** : Lorsqu'aucune télécommande n'est connectée, un clic sur l'icône de télécommande ouvre une fenêtre modale affichant l'URL de connexion dynamique et un QR code généré à la volée par le backend. Cela facilite le processus de couplage pour les nouveaux appareils.ondant à l'état.
-3.  **Envoi de Commande**:
-    *   L'utilisateur clique sur un bouton de la télécommande.
-    *   La télécommande envoie `command` au serveur.
-    *   Le serveur émet un événement Tauri (`remote_command::...`) vers le frontend Vue.js.
-    *   Le serveur renvoie une `command_response` à la télécommande.
-    *   Le frontend Vue.js exécute l'action.
-
-## 6. Considérations et Améliorations Futures
-
-*   **Adresse IP Codée en Dur**: **Résolu**. L'adresse IP et le port sont maintenant injectés dynamiquement par le serveur Rust lors du service des fichiers du client web.
-*   **Sécurité du Couplage**: Le système utilise maintenant un code pour le premier couplage et un mécanisme de liste blanche persistante (`remote.json`), ce qui améliore la sécurité.
-*   **Gestion des Clients**: **Résolu**. La persistance des clients autorisés est gérée par le module `remote_clients.rs` et le fichier `remote.json`.
-*   **Robustesse des Commandes**: La communication est plus robuste grâce aux messages `command_response` qui fournissent un retour immédiat à la télécommande.
-*   **Feedback Visuel**: **Partiellement résolu**. La télécommande reçoit une confirmation pour chaque commande, mais pourrait être améliorée pour montrer l'état actuel des widgets (ex: si le profil d'altitude est visible ou non).
+    Note over RC: L'utilisateur appuie sur "▶️ Play"
+    RC->>Server: command { command: "toggle_play" }
+    activate Server
+    Server->>DesktopUI: Événement Tauri: remote_command::toggle_play
+    deactivate Server
+    activate DesktopUI
+    DesktopUI->>DesktopUI: Reprend l'animation
+    DesktopUI->>Server: Commande Tauri: update_animation_state { newState: "En_Animation" }
+    activate Server
+    Server->>RC: animation_state_update { animationState: "En_Animation" }
+    deactivate Server
+    deactivate DesktopUI
+    RC->>RC: Reçoit le nouvel état, masque #page-camera-edit et affiche #page-visualize
+```
