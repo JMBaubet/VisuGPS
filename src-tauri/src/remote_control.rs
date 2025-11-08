@@ -386,9 +386,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                                                                     continue;
                                                                                 }
                                         
-                                                                                info!("Commande reçue du client {}: {}", remote_command.client_id, remote_command.command);
-                                                                                
-                                                                                                                                if remote_command.command == "request_full_state" {
+                                                                                if remote_command.command == "request_full_state" {
                                                                                 
                                                                                                                                                                                     let app_state = app_handle_clone.state::<Mutex<AppState>>();
                                                                                 
