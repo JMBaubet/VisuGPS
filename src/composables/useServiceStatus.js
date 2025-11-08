@@ -3,11 +3,13 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from './useSnackbar';
 import { useSettings } from './useSettings';
 
+// --- Singleton State ---
+const serviceStatus = ref('checking');
+const statusMessage = ref('Vérification des services...');
 let previousServiceStatus = null;
+// --- End Singleton State ---
 
 export function useServiceStatus() {
-  const serviceStatus = ref('checking');
-  const statusMessage = ref('Vérification des services...');
   const { showSnackbar } = useSnackbar();
   const { getSettingValue } = useSettings();
 

@@ -96,7 +96,14 @@
         </v-dialog>
 
         <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
-        <v-btn :color="view3DButtonColor" icon="mdi-eye" variant="text" @click.stop="view3D"></v-btn>
+        <v-btn 
+          :color="view3DButtonColor" 
+          icon="mdi-eye" 
+          variant="text" 
+          @click.stop="view3D"
+          :disabled="isView3dDisabled"
+          :title="isView3dDisabled ? 'Service Mapbox non disponible (vérifiez le token ou la connexion)' : 'Visualiser le circuit en 3D'">
+        </v-btn>
         <v-btn icon="mdi-delete" variant="text" @click.stop="deleteCircuit" color="error"></v-btn>
       </v-col>
     </v-row>
@@ -123,6 +130,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
+import { useServiceStatus } from '@/composables/useServiceStatus';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import InformationCircuit from '@/components/InformationCircuit.vue';
 
@@ -149,10 +157,15 @@ const { showSnackbar } = useSnackbar();
 const { appEnvPath } = useEnvironment();
 const { getSettingValue } = useSettings();
 const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } = useCommunesUpdate();
+const { serviceStatus } = useServiceStatus();
 
 const showConfirmDialog = ref(false);
 const showInfoDialog = ref(false);
 const vignetteUrl = ref('');
+
+const isView3dDisabled = computed(() => {
+  return serviceStatus.value !== 'connected';
+});
 
 const getVignetteUrl = async () => {
   if (props.circuit.circuitId) {
