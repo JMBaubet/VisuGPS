@@ -78,7 +78,8 @@
             "libelle": "Nombre de circuits par page",
             "type": "entier",
             "min": 4,
-            "max": 20
+            "max": 20,
+            "doc": "docs/Accueil_circuitsPerPage.md"
           },
           {
             "defaut": 512,
@@ -88,7 +89,8 @@
             "type": "entier",
             "min": 400,
             "max": 1024,
-            "unite": "px"
+            "unite": "px",
+            "doc": "docs/Accueil_TailleVignette.md"
           }
         ]
       },
