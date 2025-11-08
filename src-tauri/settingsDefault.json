@@ -53,7 +53,8 @@
                     "libelle": "Activer l'API IGN par défaut",
                     "description": "Si coché, les requêtes vers l'API de l'IGN seront activeés.",
                     "type": "booleen",
-                    "defaut": true
+                    "defaut": true,
+                    "doc": "docs/Accueil_MajCommunes_APIs_IgnActif.md"
                   },
                   {
                     "identifiant": "mapboxActif",
@@ -61,7 +62,8 @@
                     "description": "Si coché, les requêtes vers l'API Mapbox seront activées.",
                     "type": "booleen",
                     "defaut": false,
-                    "critique": true
+                    "critique": true,
+                    "doc": "docs/Accueil_MajCommunes_APIs_MapboxActif.md"
                   }
                 ]
               }
