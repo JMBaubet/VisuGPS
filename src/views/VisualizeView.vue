@@ -581,23 +581,21 @@ const currentSpeed = computed({
   }
 });
 
-const constanteA = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_A'));
-const constanteB = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/constante_B'));
-const functionType = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/function_type'));
+const intensiteZoomDynamique = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/intensite_zoom_dynamique'));
 
 const dynamicZoomCoefficient = computed(() => {
     const speed = currentSpeed.value;
-    const A = constanteA.value;
-    const B = constanteB.value;
-    const type = functionType.value;
+    const intensite = intensiteZoomDynamique.value;
 
-    if (speed === null || A === null || B === null || type === null) {
+    if (speed === null || intensite === null) {
         return 1.0; // Valeur par défaut si les paramètres ne sont pas chargés
     }
 
-    // Implémentation de la fonction de zoom dynamique
-    // Pour l'instant, nous utilisons une fonction simple comme demandé dans la doc
-    // coefficient = A / (speed^B)
+    // Constantes A et type de fonction sont maintenant fixes.
+    const A = 1.0;
+    const B = intensite / 1000; // Conversion de l'entier (ex: 10) en flottant (ex: 0.01)
+
+    // Implémentation de la fonction de zoom dynamique : coefficient = A / (speed^B)
     if (speed === 0) return A; // Éviter la division par zéro ou puissance de zéro
     return A / (speed ** B);
 });

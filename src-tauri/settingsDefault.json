@@ -1030,32 +1030,14 @@
                 "description": "Paramètres pour la fonction de calcul dynamique du coefficient de zoom.",
                 "parametres": [
                   {
-                    "identifiant": "constante_A",
-                    "libelle": "Constante A",
-                    "description": "Première constante pour la fonction de zoom dynamique (ex: A / (vitesse ^ B)).",
-                    "type": "reel",
-                    "defaut": 1.0,
-                    "min": 0.1,
-                    "max": 5.0,
-                    "decimales": 2
-                  },
-                  {
-                    "identifiant": "constante_B",
-                    "libelle": "Constante B",
-                    "description": "Deuxième constante pour la fonction de zoom dynamique (ex: A / (vitesse ^ B)).",
-                    "type": "reel",
-                    "defaut": 0.2,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "decimales": 2
-                  },
-                  {
-                    "identifiant": "function_type",
-                    "libelle": "Type de fonction",
-                    "description": "Type de fonction mathématique utilisée pour le zoom dynamique.",
-                    "type": "string",
-                    "defaut": "power",
-                    "options": ["power", "linear", "log"]
+                    "identifiant": "intensite_zoom_dynamique",
+                    "libelle": "Intensité du zoom dynamique",
+                    "description": "Définit l'intensité de l'effet de zoom dynamique basé sur la vitesse. Une valeur plus élevée zoome davantage à basse vitesse.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 2,
+                    "max": 50,
+                    "step": 1
                   }
                 ]
               }
