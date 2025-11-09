@@ -171,7 +171,8 @@
                     "description": "Indique si la distance doit être affichée sur la trace.",
                     "identifiant": "presenceDistance",
                     "libelle": "Afficher la distance",
-                    "type": "booleen"
+                    "type": "booleen",
+                    "doc": "docs/Importation_Vignette_MarqueurDistance_presenceDistance.md"
                   },
                   {
                     "defaut": 10,
@@ -180,7 +181,8 @@
                     "libelle": "Intervalle distance",
                     "type": "entier",
                     "min": 1,
-                    "unite": "km"
+                    "unite": "km",
+                    "doc": "docs/Importation_Vignette_MarqueurDistance_Distance.md"
                   },
                   {
                     "defaut": "red",
@@ -189,7 +191,8 @@
                     "libelle": "Couleur des marqueurs de distance",
                     "type": "couleur",
                     "materialDesign": true,
-                    "materialDesignStrict": true
+                    "materialDesignStrict": true,
+                    "doc": "docs/Importation_Vignette_MarqueurDistance_couleurPinDistance.md"
                   }
                 ]
               },
@@ -201,7 +204,8 @@
                     "description": "Indique si les marqueurs de départ et d'arrivée doivent être affichés.",
                     "identifiant": "Vignettes",
                     "libelle": "Afficher les marqueurs",
-                    "type": "booleen"
+                    "type": "booleen",
+                    "doc": "docs/Importation_Vignette_DepartArrivee_Vignettes.md"
                   },
                   {
                     "defaut": "green-darken-2",
@@ -209,7 +213,8 @@
                     "identifiant": "couleurDépart",
                     "libelle": "Couleur du marqueur de départ",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Importation_Vignette_DepartArrivee_couleurDépart.md"
                   },
                   {
                     "defaut": "red-darken-2",
@@ -217,7 +222,8 @@
                     "identifiant": "couleurArrivée",
                     "libelle": "Couleur du marqueur d'arrivée",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Importation_Vignette_DepartArrivee_couleurArrivée.md"
                   },
                   {
                     "defaut": 250,
@@ -226,7 +232,8 @@
                     "libelle": "Distance max départ/arrivée (m)",
                     "type": "entier",
                     "min": 0,
-                    "unite": "m"
+                    "unite": "m",
+                    "doc": "docs/Importation_Vignette_DepartArrivee_distanceMax.md"
                   },
                   {
                     "defaut": "blue-darken-2",
@@ -234,7 +241,8 @@
                     "identifiant": "couleurDépartArrivée",
                     "libelle": "Couleur du marqueur départ/arrivée (proches)",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Importation_Vignette_DepartArrivee_couleurDépartArrivée.md"
                   }
                 ]
               }
