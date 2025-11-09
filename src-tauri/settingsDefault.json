@@ -322,14 +322,16 @@
             "description": "Suppression automatique du fichier *.gpx quand il a été corerectement importé.",
             "identifiant": "autoDelete",
             "libelle": "Suppression après importation",
-            "type": "booleen"
+            "type": "booleen",
+            "doc": "docs/Importation_autoDelete.md"
           },
           {
             "defaut": "DEFAULT_DOWNLOADS",
             "description": "Dossier pour l'importation des fichiers GPX. 'DEFAULT_DOWNLOADS' utilise le dossier de téléchargement de l'utilisateur.",
             "identifiant": "GPXFile",
             "libelle": "Dossier des fichiers GPX",
-            "type": "string"
+            "type": "string",
+            "doc": "docs/Importation_GPXFile.md"
           },
           {
             "defaut": 10,
@@ -339,7 +341,8 @@
             "type": "entier",
             "min": 0,
             "max": 100,
-            "unite": "m"
+            "unite": "m",
+            "doc": "docs/Importation_denivele_lissage_distance.md"
           }
         ]
       },
