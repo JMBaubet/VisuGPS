@@ -486,7 +486,8 @@
                     "description": "Couleur de la courbe de zoom sur le graphe.",
                     "type": "couleur",
                     "defaut": "green",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurZoom.md"
                   },
                   {
                     "libelle": "Couleur Zoom Edité",
@@ -494,7 +495,8 @@
                     "description": "Couleur de la courbe du zoom édité sur le graphe.",
                     "type": "couleur",
                     "defaut": "green-darken-4",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurEditedZoom.md"
                   },
                   {
                     "identifiant": "couleurPitch",
@@ -502,7 +504,8 @@
                     "description": "Couleur de la courbe de pitch sur le graphe.",
                     "type": "couleur",
                     "defaut": "light-blue",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurPitch.md"
                   },
                   {
                     "libelle": "Couleur Pitch Edité",
@@ -510,7 +513,8 @@
                     "description": "Couleur de la courbe du pitch édité sur le graphe.",
                     "type": "couleur",
                     "defaut": "light-blue-darken-4",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurEditedPitch.md"
                   },
                   {
                     "identifiant": "couleurBearingDelta",
@@ -518,7 +522,8 @@
                     "description": "Couleur de la courbe du delta de cap sur le graphe.",
                     "type": "couleur",
                     "defaut": "amber",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurBearingDelta.md"
                   },
                   {
                     "libelle": "Couleur Delta Bearing Edité",
@@ -526,7 +531,8 @@
                     "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
                     "type": "couleur",
                     "defaut": "amber-darken-3",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurEditedBearingDelta.md"
                   },
                   {
                     "identifiant": "couleurBearingTotalDelta",
@@ -534,7 +540,8 @@
                     "description": "Couleur de la courbe du delta de cap total sur le graphe.",
                     "type": "couleur",
                     "defaut": "red",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurBearingTotalDelta.md"
                   },
                   {
                     "libelle": "Couleur Somme Delta Bearing Edité",
@@ -542,7 +549,8 @@
                     "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
                     "type": "couleur",
                     "defaut": "red-darken-4",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Graphe_CouleurCourbes_couleurEditedBearingTotalDelta.md"
                   }
                 ]
               }
