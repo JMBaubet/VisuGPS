@@ -41,15 +41,11 @@ const handleLinkClick = (event) => {
   const target = event.target;
   if (target.tagName === 'A' && target.href) {
     const url = new URL(target.href);
-    // Vérifier si le lien est externe à l'application (pas un lien relatif ou interne)
-    // et ne pas ouvrir les liens internes (ex: #ancre)
     if (url.protocol.startsWith('http') && url.host !== window.location.host) {
       event.preventDefault();
-      // Utiliser l'API shell de Tauri pour ouvrir le lien dans le navigateur par défaut
       if (window.__TAURI__ && window.__TAURI__.shell) {
         window.__TAURI__.shell.open(target.href);
       } else {
-        // Fallback pour le développement ou si Tauri n'est pas disponible
         window.open(target.href, '_blank');
       }
     }
