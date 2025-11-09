@@ -368,7 +368,8 @@
                 "libelle": "Activer le zoom au départ",
                 "description": "Active un dézoom automatique au début du parcours.",
                 "type": "booleen",
-                "defaut": true
+                "defaut": true,
+                "doc": "docs/Edition_Camera_zoomDepart.md"
               },
               {
                 "identifiant": "zoomDepartValeur",
@@ -377,7 +378,8 @@
                 "type": "entier",
                 "defaut": 18,
                 "min": 10,
-                "max": 22
+                "max": 22,
+                "doc": "docs/Edition_Camera_zoomDepartValeur.md"
               },
               {
                 "identifiant": "zoomDepartDistance",
@@ -386,14 +388,16 @@
                 "type": "entier",
                 "defaut": 20,
                 "min": 1,
-                "max": 100
+                "max": 100,
+                "doc": "docs/Edition_Camera_zoomDepartDistance.md"
               },
               {
                 "identifiant": "zoomArrivee",
                 "libelle": "Activer le zoom à l'arrivée",
                 "description": "Active un zoom automatique à l'approche de l'arrivée.",
                 "type": "booleen",
-                "defaut": false
+                "defaut": false,
+                "doc": "docs/Edition_Camera_zoomArrivee.md"
               },
               {
                 "identifiant": "zoomArriveeValeur",
@@ -402,7 +406,8 @@
                 "type": "entier",
                 "defaut": 18,
                 "min": 10,
-                "max": 22
+                "max": 22,
+                "doc": "docs/Edition_Camera_zoomArriveeValeur.md"
               },
               {
                 "identifiant": "distanceZoomArrivee",
@@ -411,7 +416,8 @@
                 "type": "entier",
                 "defaut": 20,
                 "min": 1,
-                "max": 100
+                "max": 100,
+                "doc": "docs/Edition_Camera_distanceZoomArrivee.md"
               }
             ]
           },
