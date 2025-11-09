@@ -251,27 +251,28 @@
           {
             "libelle": "Tracking",
             "parametres": [
-              {
-                "defaut": 100,
-                "description": "Longueur d'un segment pour le tracking en mètres.",
-                "identifiant": "LongueurSegment",
-                "libelle": "Longueur du segment",
-                "type": "entier",
-                "min": 10,
-                "max": 1000,
-                "critique": true,
-                "unite": "m"
-              },
-              {
-                "defaut": 15,
-                "description": "Nombre de segments pour le lissage du cap.",
-                "identifiant": "LissageCap",
-                "libelle": "Lissage du cap",
-                "type": "entier",
-                "min": 1,
-                "max": 50,
-                "critique": true
-              }
+                                {
+                                  "defaut": 100,
+                                  "description": "Longueur d'un segment pour le tracking en mètres.",
+                                  "identifiant": "LongueurSegment",
+                                  "libelle": "Longueur du segment",
+                                  "type": "entier",
+                                  "min": 10,
+                                  "max": 1000,
+                                  "critique": true,
+                                  "unite": "m",
+                                  "doc": "docs/Importation_Tracking_LongueurSegment.md"
+                                },                  {
+                    "defaut": 15,
+                    "description": "Nombre de segments pour le lissage du cap.",
+                    "identifiant": "LissageCap",
+                    "libelle": "Lissage du cap",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 50,
+                    "critique": true,
+                    "doc": "docs/Importation_Tracking_LissageCap.md"
+                  }
             ]
           },
           {
