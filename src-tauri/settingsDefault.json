@@ -432,42 +432,48 @@
                     "libelle": "Afficher Delta Bearing (Calculé)",
                     "description": "Affiche la courbe du delta de cap calculé (valeurs originales).",
                     "type": "booleen",
-                    "defaut": false
+                    "defaut": false,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherBearingDeltaCalcule.md"
                   },
                   {
                     "identifiant": "afficherBearingDeltaEdite",
                     "libelle": "Afficher Delta Bearing (Édité)",
                     "description": "Affiche la courbe du delta de cap édité.",
                     "type": "booleen",
-                    "defaut": false
+                    "defaut": false,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherBearingDeltaEdite.md"
                   },
                   {
                     "identifiant": "afficherBearingTotalDeltaCalcule",
                     "libelle": "Afficher Somme Delta Bearing (Calculé)",
                     "description": "Affiche la courbe de la somme des deltas de cap calculés.",
                     "type": "booleen",
-                    "defaut": false
+                    "defaut": false,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherBearingTotalDeltaCalcule.md"
                   },
                   {
                     "identifiant": "afficherBearingTotalDeltaEdite",
                     "libelle": "Afficher Somme Delta Bearing (Édité)",
                     "description": "Affiche la courbe de la somme des deltas de cap édités.",
                     "type": "booleen",
-                    "defaut": true
+                    "defaut": true,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherBearingTotalDeltaEdite.md"
                   },
                   {
                     "identifiant": "afficherZoomEdite",
                     "libelle": "Afficher Zoom (Édité)",
                     "description": "Affiche la courbe du zoom édité.",
                     "type": "booleen",
-                    "defaut": true
+                    "defaut": true,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherZoomEdite.md"
                   },
                   {
                     "identifiant": "afficherPitchEdite",
                     "libelle": "Afficher Pitch (Édité)",
                     "description": "Affiche la courbe du pitch édité.",
                     "type": "booleen",
-                    "defaut": true
+                    "defaut": true,
+                    "doc": "docs/Edition_Graphe_AffichageCourbes_afficherPitchEdite.md"
                   }
                 ]
               },
