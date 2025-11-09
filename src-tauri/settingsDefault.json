@@ -278,25 +278,26 @@
           {
             "libelle": "Caméra",
             "parametres": [
-              {
-                "defaut": 16,
-                "description": "Niveau de zoom de la caméra par défaut pour le tracking.",
-                "identifiant": "Zoom",
-                "libelle": "Zoom",
-                "type": "entier",
-                "min": 0,
-                "max": 22
-              },
-              {
-                "defaut": 60,
-                "description": "Angle de la caméra (pitch) par défaut pour le tracking.",
-                "identifiant": "Pitch",
-                "libelle": "Pitch",
-                "type": "entier",
-                "min": 0,
-                "max": 90,
-                "unite": "°"
-              }
+                                {
+                                  "defaut": 16,
+                                  "description": "Niveau de zoom de la caméra par défaut pour le tracking.",
+                                  "identifiant": "Zoom",
+                                  "libelle": "Zoom",
+                                  "type": "entier",
+                                  "min": 0,
+                                  "max": 22,
+                                  "doc": "docs/Importation_Camera_Zoom.md"
+                                },                  {
+                    "defaut": 60,
+                    "description": "Angle de la caméra (pitch) par défaut pour le tracking.",
+                    "identifiant": "Pitch",
+                    "libelle": "Pitch",
+                    "type": "entier",
+                    "min": 0,
+                    "max": 90,
+                    "unite": "°",
+                    "doc": "docs/Importation_Camera_Pitch.md"
+                  }
             ]
           },
           {
