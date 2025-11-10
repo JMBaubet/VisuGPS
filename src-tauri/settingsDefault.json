@@ -1342,7 +1342,8 @@
                         "type": "booleen",
                         "defaut": true,
                         "surcharge": null,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_Affichage.md"
                     },
                     {
                         "identifiant": "Abscisse",
@@ -1353,7 +1354,8 @@
                         "surcharge": null,
                         "min": 1,
                         "max": 10,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_Abscisse.md"
                     },
                     {
                         "identifiant": "Ordonnee",
@@ -1364,7 +1366,8 @@
                         "surcharge": null,
                         "min": 1,
                         "max": 10,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_Ordonnee.md"
                     },
                     {
                         "identifiant": "AvancementCouleur",
@@ -1374,7 +1377,8 @@
                         "defaut": "white",
                         "surcharge": null,
                         "materialDesing": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_AvancementCouleur.md"
                     },
                     {
                         "identifiant": "RepereDistance",
@@ -1385,7 +1389,8 @@
                         "surcharge": null,
                         "min": 1,
                         "max": 100,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_RepereDistance.md"
                     },
                     {
                         "identifiant": "RepereAltitude",
@@ -1396,7 +1401,8 @@
                         "surcharge": null,
                         "min": 50,
                         "max": 2000,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_RepereAltitude.md"
                     },
                     {
                         "identifiant": "CurseurPositionKm",
@@ -1405,7 +1411,8 @@
                         "type": "entier",
                         "defaut": 10,
                         "min": 1,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Visualisation_CurseurPositionKm.md"
                     }
                 ]
             },
@@ -1422,7 +1429,8 @@
                         "defaut": "light-blue",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_TrancheNegative.md"
                     },
                     {
                         "identifiant": "Tranche1",
@@ -1432,7 +1440,8 @@
                         "defaut": "green",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_Tranche1.md"
                     },
                     {
                         "identifiant": "Tranche2",
@@ -1442,7 +1451,8 @@
                         "defaut": "yellow",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_Tranche2.md"
                     },
                     {
                         "identifiant": "Tranche3",
@@ -1452,7 +1462,8 @@
                         "defaut": "orange",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_Tranche3.md"
                     },
                     {
                         "identifiant": "Tranche4",
@@ -1462,7 +1473,8 @@
                         "defaut": "red",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_Tranche4.md"
                     },
                     {
                         "identifiant": "Tranche5",
@@ -1472,7 +1484,8 @@
                         "defaut": "purple",
                         "surcharge": null,
                         "materialDesign": true,
-                        "critique": false
+                        "critique": false,
+                        "doc": "docs/Altitude_Couleurs_Tranche5.md"
                     }
                 ]
             }

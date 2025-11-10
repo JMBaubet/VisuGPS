@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/JMBaubet/VisuGPS#readme",
   "dependencies": {
-    "@tauri-apps/api": "^2.9.2",
+    "@tauri-apps/api": "^2.8.5",
     "@tauri-apps/plugin-dialog": "^2.4.0",
     "@tauri-apps/plugin-process": "^2.3.0",
     "@tauri-apps/plugin-window": "^2.0.0-alpha.1",
@@ -38,7 +38,7 @@
     "vuetify": "^3.9.7"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.9.2",
+    "@tauri-apps/cli": "^2.8.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "eslint": "^9.35.0",
     "eslint-plugin-vue": "^10.4.0",

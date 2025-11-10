@@ -14,7 +14,7 @@ import ECharts from 'vue-echarts';
 import 'echarts';
 
 // Import de l'API shell de Tauri
-import { open } from '@tauri-apps/api/shell';
+//import { open } from '@tauri-apps/api/shell';
 
 const vuetify = createVuetify({
   components,
