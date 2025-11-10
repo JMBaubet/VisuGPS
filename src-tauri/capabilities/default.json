@@ -8,6 +8,7 @@
   "permissions": [
     "core:default",
     "dialog:allow-confirm",
+    "shell:allow-open",
     "process:allow-restart",
     {
       "identifier": "core:event:allow-listen",

@@ -32,4 +32,4 @@ L'ajustement de la sensibilité de l'inclinaison est essentiel pour permettre à
 
 -   **Valeur par défaut (50)** : Cette valeur offre une inclinaison modérée, permettant un contrôle fin de l'angle de vue.
 -   **Adapter aux préférences** : Les préférences de sensibilité sont très personnelles. Il est recommandé d'expérimenter pour trouver la valeur la plus confortable.
-```
+
