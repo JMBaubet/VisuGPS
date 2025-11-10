@@ -966,7 +966,8 @@
                 "description": "Style de carte lors de la visualisation",
                 "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Visualisation_Mapbox_styleVisualisation.md"
               }
             ],
             "groupes": [
@@ -979,7 +980,8 @@
                                       "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
                                       "type": "booleen",
                                       "defaut": true,
-                                      "surcharge": null
+                                      "surcharge": null,
+                                      "doc": "docs/Visualisation_Mapbox_Traces_colorerSelonPente.md"
                                     },
                                     {
                                       "defaut": "orange",
@@ -987,7 +989,8 @@
                                       "identifiant": "couleurTrace",
                                       "libelle": "Couleur de la trace",
                                       "type": "couleur",
-                                      "materialDesign": true
+                                      "materialDesign": true,
+                                      "doc": "docs/Visualisation_Mapbox_Traces_couleurTrace.md"
                                     },                  {
                     "defaut": 8,
                     "description": "Epaisseur de la trace GPX sur la carte.",
@@ -995,7 +998,8 @@
                     "libelle": "Epaisseur de la trace",
                     "type": "entier",
                     "min": 1,
-                    "max": 20
+                    "max": 20,
+                    "doc": "docs/Visualisation_Mapbox_Traces_epaisseurTrace.md"
                   },
                   {
                     "defaut": 0.8,
@@ -1005,7 +1009,8 @@
                     "type": "reel",
                     "min": 0,
                     "max": 1,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Mapbox_Traces_opaciteTrace.md"
                   },
                   {
                     "defaut": "white",
@@ -1013,7 +1018,8 @@
                     "identifiant": "couleurComete",
                     "libelle": "Couleur de la comète",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Visualisation_Mapbox_Traces_couleurComete.md"
                   },
                   {
                     "defaut": 8,
@@ -1022,7 +1028,8 @@
                     "libelle": "Epaisseur de la comète",
                     "type": "entier",
                     "min": 1,
-                    "max": 20
+                    "max": 20,
+                    "doc": "docs/Visualisation_Mapbox_Traces_epaisseurComete.md"
                   },
                   {
                     "defaut": 1,
@@ -1032,7 +1039,8 @@
                     "type": "reel",
                     "min": 0,
                     "max": 1,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Mapbox_Traces_opaciteComete.md"
                   },
                   {
                     "defaut": 50,
@@ -1041,7 +1049,8 @@
                     "libelle": "Longueur de la comète (m)",
                     "type": "entier",
                     "min": 10,
-                    "max": 5000
+                    "max": 5000,
+                    "doc": "docs/Visualisation_Mapbox_Traces_longueurComete.md"
                   }
                 ]
               }
@@ -1062,7 +1071,8 @@
                     "defaut": 0.1,
                     "min": 0.05,
                     "max": 1.0,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Animation_Vitesse_min_value.md"
                   },
                   {
                     "identifiant": "max_value",
@@ -1072,7 +1082,8 @@
                     "defaut": 20.0,
                     "min": 1.0,
                     "max": 100.0,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Animation_Vitesse_max_value.md"
                   },
                   {
                     "identifiant": "default_value",
@@ -1082,7 +1093,8 @@
                     "defaut": 1.0,
                     "min": 0.1,
                     "max": 20.0,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Animation_Vitesse_default_value.md"
                   },
                   {
                     "identifiant": "slider_step",
@@ -1092,7 +1104,8 @@
                     "defaut": 0.05,
                     "min": 0.01,
                     "max": 1.0,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Visualisation_Animation_Vitesse_slider_step.md"
                   }
                 ]
               },
@@ -1108,7 +1121,8 @@
                     "defaut": 10,
                     "min": 2,
                     "max": 50,
-                    "step": 1
+                    "step": 1,
+                    "doc": "docs/Visualisation_Animation_ZoomDynamique_intensite_zoom_dynamique.md"
                   }
                 ]
               }
@@ -1121,7 +1135,8 @@
                 "libelle": "Vitesse de l'animation (ms/km)",
                 "type": "entier",
                 "min": 100,
-                "max": 60000
+                "max": 60000,
+                "doc": "docs/Visualisation_Animation_vitesse.md"
               },
               {
                 "defaut": 1000,
@@ -1131,7 +1146,8 @@
                 "type": "entier",
                 "min": 0,
                 "max": 5000,
-                "unite": "ms"
+                "unite": "ms",
+                "doc": "docs/Visualisation_Animation_timerReprisePause.md"
               },
               {
                 "identifiant": "masquerCurseurDelai",
@@ -1142,14 +1158,16 @@
                 "min": 500,
                 "max": 10000,
                 "step": 500,
-                "unite": "ms"
+                "unite": "ms",
+                "doc": "docs/Visualisation_Animation_masquerCurseurDelai.md"
               },
               {
                 "identifiant": "afficherCroixCentrale",
                 "libelle": "Afficher la croix centrale en pause",
                 "description": "Affiche une croix au centre de l'écran lorsque l'animation est en pause.",
                 "type": "booleen",
-                "defaut": true
+                "defaut": true,
+                "doc": "docs/Visualisation_Animation_afficherCroixCentrale.md"
               },
               {
                 "identifiant": "couleurCroixCentrale",
@@ -1157,7 +1175,8 @@
                 "description": "Définit la couleur de la croix centrale affichée en pause.",
                 "type": "couleur",
                 "defaut": "white",
-                "materialDesign": true
+                "materialDesign": true,
+                "doc": "docs/Visualisation_Animation_couleurCroixCentrale.md"
               },
               {
                 "identifiant": "zoomMinimum",
@@ -1167,7 +1186,8 @@
                 "defaut": 100,
                 "step":1,
                 "min": 80,
-                "max": 125
+                "max": 125,
+                "doc": "docs/Visualisation_Animation_zoomMinimum.md"
               }
             ]
           },
@@ -1175,7 +1195,7 @@
             "libelle": "Initialisation",
             "parametres": [
               {
-                "doc": "docs/visualisation.md",
+                "doc": "docs/Visualisation_Initialisation_centerEurope.md",
                 "defaut": [2.3522, 48.8566],
                 "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
                 "identifiant": "centerEurope",
@@ -1189,7 +1209,8 @@
                 "libelle": "Zoom Europe",
                 "type": "entier",
                 "min": 0,
-                "max": 22
+                "max": 22,
+                "doc": "docs/Visualisation_Initialisation_zoomEurope.md"
               },
               {
                 "defaut": 5000,
@@ -1199,7 +1220,8 @@
                 "type": "entier",
                 "min": 1000,
                 "max": 10000,
-                "unite": "ms"
+                "unite": "ms",
+                "doc": "docs/Visualisation_Initialisation_durationEuropeToTrace.md"
               },
               {
                 "defaut": 1000,
@@ -1209,7 +1231,8 @@
                 "type": "entier",
                 "min": 500,
                 "max": 5000,
-                "unite": "ms"
+                "unite": "ms",
+                "doc": "docs/Visualisation_Initialisation_pauseBeforeStart.md"
               },
               {
                 "defaut": 2000,
@@ -1219,7 +1242,8 @@
                 "type": "entier",
                 "min": 1000,
                 "max": 5000,
-                "unite": "ms"
+                "unite": "ms",
+                "doc": "docs/Visualisation_Initialisation_durationTraceToStart.md"
               },
               {
                 "identifiant": "pauseAuKm0",
@@ -1232,7 +1256,7 @@
                 "max": 60,
                 "step": 0.5,
                 "critique": false,
-                "doc": null,
+                "doc": "docs/Visualisation_Initialisation_pauseAuKm0.md",
                 "unite": "sec"
               }
             ]
@@ -1248,7 +1272,8 @@
                 "defaut": 3,
                 "min": 0,
                 "max": 10,
-                "critique": false
+                "critique": false,
+                "doc": "docs/Visualisation_Finalisation_delayAfterAnimationEnd.md"
               },
               {
                 "identifiant": "flyToGlobalDuration",
@@ -1258,7 +1283,8 @@
                 "defaut": 2000,
                 "min": 500,
                 "max": 5000,
-                "critique": false
+                "critique": false,
+                "doc": "docs/Visualisation_Finalisation_flyToGlobalDuration.md"
               },
               {
                 "identifiant": "flyToKm0Duration",
@@ -1268,7 +1294,8 @@
                 "defaut": 1000,
                 "min": 200,
                 "max": 3000,
-                "critique": false
+                "critique": false,
+                "doc": "docs/Visualisation_Finalisation_flyToKm0Duration.md"
               },
               {
                 "identifiant": "repriseAutomatique",
@@ -1277,7 +1304,8 @@
                 "type": "booleen",
                 "defaut": false,
                 "surcharge": null,
-                "critique": false
+                "critique": false,
+                "doc": "docs/Visualisation_Finalisation_repriseAutomatique.md"
               },
               {
                 "identifiant": "pauseAvantReprise",
@@ -1290,7 +1318,8 @@
                 "max": 10.0,
                 "step": 0.5,
                 "critique": false,
-                "unite": "sec"
+                "unite": "sec",
+                "doc": "docs/Visualisation_Finalisation_pauseAvantReprise.md"
               }
             ]
           }
