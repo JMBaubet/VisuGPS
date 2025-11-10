@@ -26,7 +26,7 @@ L'application s'ouvre sur l'écran d'accueil, votre bibliothèque personnelle de
 
 La barre d'outils, située en haut, regroupe les indicateurs de statut et les actions globales.
 
-<img src="docs/images/ToolBar.png" alt="Barre d'outils de l'application" style="width:100%;">
+<img src="./images/ToolBar.png" alt="Barre d'outils de l'application" style="width:100%;">
  
 1.  **Statut des Services** : Une série d'icônes vous informe de l'état des connexions.
     *   ![web-check](https://api.iconify.design/mdi/web-check.svg?color=green&width=24) **Connecté**

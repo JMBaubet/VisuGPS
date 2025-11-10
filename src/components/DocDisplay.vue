@@ -9,7 +9,7 @@
     <v-card-text>
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
-      <div v-else v-html="renderedMarkdown" class="markdown-body" ref="markdownBodyRef"></div>
+      <div v-else v-html="compiledMarkdown" class="markdown-body" ref="markdownBodyRef"></div>
     </v-card-text>
   </v-card>
 </template>
@@ -84,7 +84,7 @@ const loading = ref(false);
 const error = ref(null);
 
 const md = new MarkdownIt({
-  html: true, // Added this line to enable HTML rendering
+  html: true,
   breaks: true,
   highlight: function (str, lang) {
     if (lang && hljs.getLanguage(lang)) {
@@ -96,7 +96,14 @@ const md = new MarkdownIt({
   }
 });
 
-const renderedMarkdown = computed(() => md.render(markdownContent.value));
+function normalizePaths(markdown) {
+  // Remplace les chemins relatifs "." par "docs/" pour les images
+  return markdown.replace(/src="\.\//g, 'src="/docs/');
+}
+
+const compiledMarkdown = computed(() =>
+  md.render(normalizePaths(markdownContent.value))
+);
 
 async function fetchDocumentation(path) {
   loading.value = true;
