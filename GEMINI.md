@@ -93,7 +93,7 @@ Afin que tu n'ancitipes pas le codage de certaines features, les étapes te sero
 
 A chaque réalisation d'étape, j'enregistrerai dans ce fichier l'identifiant du commit git
 
-## Visualisation des Flyto
+## Visualisation des Flyto Réalisée
 
 Nous allons travailler sur la vue VisualizeView, pour la prise en compte des evenements décrits dans le fichier evt.json
 
