@@ -84,6 +84,7 @@ const loading = ref(false);
 const error = ref(null);
 
 const md = new MarkdownIt({
+  html: true, // Added this line to enable HTML rendering
   breaks: true,
   highlight: function (str, lang) {
     if (lang && hljs.getLanguage(lang)) {

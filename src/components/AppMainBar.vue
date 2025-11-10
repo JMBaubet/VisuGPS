@@ -15,7 +15,7 @@
 
       <v-col clos="12" md="4" class="d-flex justify-center align-center"> <!-- This column will take remaining space and center content -->
         <!-- Centered Title -->
-        <div class="text-center">Gestion des circuits importés</div>
+        <div class="text-center">Gestion des circuits</div>
         <!-- Chip for APP_ENV -->
         <v-chip
           v-if="showAppEnvChip"
@@ -30,12 +30,17 @@
       <v-col cols="12" md="4" class="d-flex justify-end align-center">
         <!-- Import GPX Button -->
         <v-btn icon @click="openGpxImportDialog">
-          <v-icon>mdi-file-import-outline</v-icon>
+          <v-icon >mdi-file-import-outline</v-icon>
         </v-btn>
 
         <!-- Settings Button -->
         <v-btn icon to="/settings">
           <v-icon>mdi-cog</v-icon>
+        </v-btn>
+
+        <!-- Help Button -->
+        <v-btn icon @click="showHelpDialog = true">
+          <v-icon color="info">mdi-book-open-outline</v-icon>
         </v-btn>
 
         <!-- Dark/Light Mode Switch -->
@@ -44,6 +49,11 @@
     </v-row>
   </v-toolbar>
   <RemoteControlDialog v-model="showRemoteDialog" />
+  
+  <!-- Help Dialog -->
+  <v-dialog v-model="showHelpDialog" max-width="800px">
+    <DocDisplay doc-path="/docs/GUIDE_UTILISATEUR.md" @close="showHelpDialog = false" />
+  </v-dialog>
 </template>
 
 <script setup>
@@ -55,6 +65,7 @@ import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 import MajCommunesInfo from './MajCommunesInfo.vue';
 import RemoteControlDialog from './RemoteControlDialog.vue';
+import DocDisplay from './DocDisplay.vue'; // Added this import
 import { invoke } from '@tauri-apps/api/core';
 import { confirm } from '@tauri-apps/plugin-dialog';
 
@@ -63,6 +74,8 @@ const emit = defineEmits(['open-gpx-import-dialog']);
 function openGpxImportDialog() {
   emit('open-gpx-import-dialog');
 }
+
+const showHelpDialog = ref(false); // Added this line
 
 // Environment composable is only for display purposes now (chip)
 const { appEnv, executionMode } = useEnvironment();
