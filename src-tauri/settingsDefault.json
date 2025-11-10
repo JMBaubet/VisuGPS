@@ -1539,7 +1539,8 @@
                 "type": "entier",
                 "defaut": 9001,
                 "min": 1024,
-                "max": 65535
+                "max": 65535,
+                "doc": "docs/Systeme_Telecommande_Port.md"
               },
               {
                 "identifiant": "sensibilitePointDeVueX",
@@ -1549,7 +1550,8 @@
                 "defaut": 200,
                 "min": 50,
                 "max": 500,
-                "step": 10
+                "step": 10,
+                "doc": "docs/Systeme_Telecommande_sensibilitePointDeVueX.md"
               },
               {
                 "identifiant": "sensibilitePointDeVueY",
@@ -1559,7 +1561,8 @@
                 "defaut": 200,
                 "min": 50,
                 "max": 500,
-                "step": 10
+                "step": 10,
+                "doc": "docs/Systeme_Telecommande_sensibilitePointDeVueY.md"
               },
               {
                 "identifiant": "sensibiliteCap",
@@ -1568,7 +1571,8 @@
                 "type": "entier",
                 "defaut": 50,
                 "min": 10,
-                "max": 200
+                "max": 200,
+                "doc": "docs/Systeme_Telecommande_sensibiliteCap.md"
               },
               {
                 "identifiant": "sensibiliteZoom",
@@ -1577,7 +1581,8 @@
                 "type": "entier",
                 "defaut": 50,
                 "min": 10,
-                "max": 200
+                "max": 200,
+                "doc": "docs/Systeme_Telecommande_sensibiliteZoom.md"
               },
               {
                 "identifiant": "sensibiliteTilt",
@@ -1586,7 +1591,8 @@
                 "type": "entier",
                 "defaut": 50,
                 "min": 10,
-                "max": 200
+                "max": 200,
+                "doc": "docs/Systeme_Telecommande_sensibiliteTilt.md"
               }
             ]
           }
