@@ -31,6 +31,6 @@ L'ajustement de la vitesse de base permet de calibrer l'animation pour qu'elle c
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (3730 ms/km)** : Cette valeur correspond approximativement à une vitesse de 1 km en 3.73 secondes, soit environ 9.6 km/h, ce qui est une vitesse de course modérée. C'est un bon point de départ pour une visualisation dynamique.
+-   **Valeur par défaut (3730 ms/km)** : Cette valeur correspond approximativement à une vitesse de 1 km en 3.73 secondes. C'est un bon point de départ pour une visualisation dynamique.
 -   **Expérimentation** : Testez différentes valeurs pour trouver celle qui convient le mieux à la durée et au rythme souhaités pour votre animation.
 -   **Impact sur les multiplicateurs** : Gardez à l'esprit que cette valeur est la base sur laquelle les multiplicateurs de vitesse sont appliqués.

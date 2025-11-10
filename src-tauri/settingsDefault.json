@@ -619,6 +619,7 @@
                 "libelle": "Couleur des pauses",
                 "description": "Couleur des marqueurs de pause sur le graphe.",
                 "type": "couleur",
+                "materialDesign": true,
                 "defaut": "purple",
                 "surcharge": null,
                 "doc": "docs/Edition_Evenements_couleurPause.md"
@@ -683,6 +684,7 @@
                     "description": "Couleur du marqueur de message sur le graphe.",
                     "type": "couleur",
                     "defaut": "purple",
+                    "materialDesign": true,
                     "surcharge": null,
                     "doc": "docs/Edition_Evenements_Message_couleurMarqueur.md"
                   },
