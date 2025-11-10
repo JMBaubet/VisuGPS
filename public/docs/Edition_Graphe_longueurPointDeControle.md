@@ -1,0 +1,36 @@
+# 📏 Paramètre : Longueur des points de contrôle (Graphe)
+
+Ce document détaille le paramètre `longueurPointDeControle`, qui définit la longueur en pixels des indicateurs de points de contrôle sur le graphe d'édition.
+
+---
+
+## 🎯 Rôle du Paramètre
+
+Le paramètre `longueurPointDeControle` contrôle la longueur visuelle des marqueurs qui représentent les points de contrôle sur le graphe.
+
+-   **Libellé**: Longueur Point de Contrôle
+-   **Type**: Entier
+-   **Valeur par défaut**: 20 px
+-   **Minimum**: 5 px
+-   **Maximum**: 50 px
+-   **Unité**: px (pixels)
+
+## ⚖️ Justification : Pourquoi ajuster la longueur des points de contrôle ?
+
+L'ajustement de la longueur permet de trouver un équilibre entre la visibilité des points de contrôle et leur discrétion sur le graphe.
+
+### 1. 👀 Visibilité et Repérage
+
+-   Une longueur plus grande rend les points de contrôle plus visibles, ce qui peut être utile pour les identifier rapidement.
+-   Une longueur plus petite les rend plus discrets, évitant qu'ils ne surchargent le graphe.
+
+### 2. 🎨 Esthétique
+
+-   Permet de personnaliser l'apparence du graphe selon les préférences de l'utilisateur.
+
+---
+
+## ⚠️ Recommandations
+
+-   **Valeur par défaut (20 px)** : C'est un bon compromis qui rend les points de contrôle visibles sans être trop imposants.
+-   **Ajuster selon les préférences** : Vous pouvez augmenter la longueur si vous souhaitez que les points soient plus prononcés, ou la diminuer si vous préférez une indication plus subtile.

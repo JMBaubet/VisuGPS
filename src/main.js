@@ -13,6 +13,9 @@ import * as directives from 'vuetify/directives';
 import ECharts from 'vue-echarts';
 import 'echarts';
 
+// Import de l'API shell de Tauri
+import { open } from '@tauri-apps/api/shell';
+
 const vuetify = createVuetify({
   components,
   directives,
@@ -29,6 +32,18 @@ async function startApp() {
   app.use(vuetify);
   app.component('v-chart', ECharts);
 
+  // Intercepter les clics sur les liens externes
+  document.addEventListener('click', (ev) => {
+    const a = ev.target.closest && ev.target.closest('a');
+    if (!a) return;
+
+    const href = a.getAttribute('href') || '';
+    // filtre liens externes (https/http)
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      ev.preventDefault();       // empêche la navigation dans la webview
+      open(href);               // ouvre dans le navigateur système
+    }
+  });
 
   app.mount('#app');
 }

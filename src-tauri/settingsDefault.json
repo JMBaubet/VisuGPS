@@ -562,7 +562,8 @@
                 "description": "Couleur de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe.",
                 "type": "couleur",
                 "defaut": "yellow",
-                "materialDesign": true
+                "materialDesign": true,
+                "doc": "docs/Edition_Graphe_couleurAvancementZone.md"
               },
               {
                 "identifiant": "opaciteAvancementZone",
@@ -572,7 +573,8 @@
                 "defaut": 0.1,
                 "min": 0.0,
                 "max": 1.0,
-                "decimales": 2
+                "decimales": 2,
+                "doc": "docs/Edition_Graphe_opaciteAvancementZone.md"
               },
               {
                 "libelle": "Couleur Point de Contrôle",
@@ -582,7 +584,8 @@
                 "defaut": "purple",
                 "surcharge": null,
                 "critique": false,
-                "materialDesign": true
+                "materialDesign": true,
+                "doc": "docs/Edition_Graphe_couleurPointDeControle.md"
               },
               {
                 "libelle": "Epaisseur Point de Contrôle",
@@ -592,7 +595,8 @@
                 "defaut": 3,
                 "surcharge": null,
                 "min": 1,
-                "max": 10
+                "max": 10,
+                "doc": "docs/Edition_Graphe_epaisseurPointDeControle.md"
               },
               {
                 "libelle": "Longueur Point de Contrôle",
@@ -602,7 +606,8 @@
                 "defaut": 20,
                 "min": 5,
                 "max": 50,
-                "unite": "px"
+                "unite": "px",
+                "doc": "docs/Edition_Graphe_longueurPointDeControle.md"
               }
             ]
           },
@@ -615,7 +620,8 @@
                 "description": "Couleur des marqueurs de pause sur le graphe.",
                 "type": "couleur",
                 "defaut": "purple",
-                "surcharge": null
+                "surcharge": null,
+                "doc": "docs/Edition_Evenements_couleurPause.md"
               },
               {
                 "identifiant": "longueurPause",
@@ -625,7 +631,8 @@
                 "defaut": 12,
                 "surcharge": null,
                 "min": 5,
-                "max": 50
+                "max": 50,
+                "doc": "docs/Edition_Evenements_longueurPause.md"
               }
             ],
             "groupes": [
@@ -643,7 +650,7 @@
                     "step": 100,
                     "unite": "ms",
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Flyto_duree.md"
                   },
                   {
                     "identifiant": "couleur",
@@ -651,7 +658,8 @@
                     "description": "Couleur du marqueur représentant un événement Flyto dans le graphe.",
                     "type": "couleur",
                     "defaut": "orange-darken-1",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Evenements_Flyto_couleur.md"
                   },
                   {
                     "identifiant": "longueur",
@@ -661,7 +669,8 @@
                     "defaut": 20,
                     "min": 5,
                     "max": 50,
-                    "unite": "px"
+                    "unite": "px",
+                    "doc": "docs/Edition_Evenements_Flyto_longueur.md"
                   }
                 ]
               },
@@ -674,7 +683,8 @@
                     "description": "Couleur du marqueur de message sur le graphe.",
                     "type": "couleur",
                     "defaut": "purple",
-                    "surcharge": null
+                    "surcharge": null,
+                    "doc": "docs/Edition_Evenements_Message_couleurMarqueur.md"
                   },
                   {
                     "identifiant": "longueurMarqueur",
@@ -684,7 +694,8 @@
                     "defaut": 12,
                     "surcharge": null,
                     "min": 5,
-                    "max": 50
+                    "max": 50,
+                    "doc": "docs/Edition_Evenements_Message_longueurMarqueur.md"
                   },
                   {
                     "identifiant": "couleurFond",
@@ -694,7 +705,7 @@
                     "materialDesign": true,
                     "defaut": "indigo",
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_couleurFond.md"
                   },
                   {
                     "identifiant": "couleurBordure",
@@ -704,7 +715,7 @@
                     "materialDesign": true,
                     "defaut": "white",
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_couleurBordure.md"
                   },
                   {
                     "identifiant": "tailleBordure",
@@ -717,7 +728,7 @@
                     "step": 1,
                     "unite": "px",
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_tailleBordure.md"
                   },
                   {
                     "identifiant": "preAffichage",
@@ -729,7 +740,7 @@
                     "max": 50,
                     "step": 1,
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_preAffichage.md"
                   },
                   {
                     "identifiant": "postAffichage",
@@ -741,7 +752,7 @@
                     "max": 100,
                     "step": 1,
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_postAffichage.md"
                   },
                   {
                     "identifiant": "rayonBordure",
@@ -754,7 +765,7 @@
                     "step": 1,
                     "unite": "px",
                     "critique": false,
-                    "documentation": null
+                    "doc": "docs/Edition_Evenements_Message_rayonBordure.md"
                   }
                 ]
               }
@@ -770,7 +781,8 @@
                 "libelle": "Incrément Avancement",
                 "type": "entier",
                 "min": 1,
-                "max": 10
+                "max": 10,
+                "doc": "docs/Edition_CommandesClavier_incrementAvancement.md"
               },
               {
                 "defaut": 10,
@@ -779,7 +791,8 @@
                 "libelle": "Incrément Avancement (Shift)",
                 "type": "entier",
                 "min": 1,
-                "max": 50
+                "max": 50,
+                "doc": "docs/Edition_CommandesClavier_incrementAvancementShift.md"
               },
               {
                 "defaut": 1,
@@ -789,7 +802,8 @@
                 "type": "entier",
                 "min": 1,
                 "max": 10,
-                "unite": "°"
+                "unite": "°",
+                "doc": "docs/Edition_CommandesClavier_incrementPitch.md"
               },
               {
                 "defaut": 5,
@@ -799,35 +813,40 @@
                 "type": "entier",
                 "min": 1,
                 "max": 20,
-                "unite": "°"
+                "unite": "°",
+                "doc": "docs/Edition_CommandesClavier_incrementPitchShift.md"
               },
               {
                 "defaut": "ArrowRight",
                 "description": "Touche pour avancer (flèche droite).",
                 "identifiant": "toucheAvancementAvant",
                 "libelle": "Touche Avancement Avant",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Edition_CommandesClavier_toucheAvancementAvant.md"
               },
               {
                 "defaut": "ArrowLeft",
                 "description": "Touche pour reculer (flèche gauche).",
                 "identifiant": "toucheAvancementArriere",
                 "libelle": "Touche Avancement Arrière",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Edition_CommandesClavier_toucheAvancementArriere.md"
               },
               {
                 "defaut": "ArrowUp",
                 "description": "Touche pour augmenter le pitch (flèche haut).",
                 "identifiant": "touchePitchHaut",
                 "libelle": "Touche Pitch Haut",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Edition_CommandesClavier_touchePitchHaut.md"
               },
               {
                 "defaut": "ArrowDown",
                 "description": "Touche pour diminuer le pitch (flèche bas).",
                 "identifiant": "touchePitchBas",
                 "libelle": "Touche Pitch Bas",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Edition_CommandesClavier_touchePitchBas.md"
               }
             ]
           },
@@ -842,7 +861,8 @@
                 "type": "reel",
                 "min": 0.01,
                 "max": 1.0,
-                "decimales": 2
+                "decimales": 2,
+                "doc": "docs/Edition_CommandesSouris_incrementZoom.md"
               },
               {
                 "defaut": 1.0,
@@ -852,7 +872,8 @@
                 "type": "reel",
                 "min": 0.1,
                 "max": 5.0,
-                "decimales": 2
+                "decimales": 2,
+                "doc": "docs/Edition_CommandesSouris_incrementZoomShift.md"
               }
             ]
           },
@@ -864,7 +885,8 @@
                 "description": "Style de carte lors de l'édition",
                 "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
-                "type": "string"
+                "type": "string",
+                "doc": "docs/Edition_Mapbox_styleVisualisation.md"
               }
             ],
             "groupes": [
@@ -877,7 +899,8 @@
                     "identifiant": "couleur",
                     "libelle": "Couleur de la trace",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Mapbox_Trace_couleur.md"
                   },
                   {
                     "defaut": 3,
@@ -887,7 +910,8 @@
                     "type": "entier",
                     "min": 1,
                     "max": 20,
-                    "unite": "px"
+                    "unite": "px",
+                    "doc": "docs/Edition_Mapbox_Trace_epaisseur.md"
                   },
                   {
                     "defaut": "yellow",
@@ -895,7 +919,8 @@
                     "identifiant": "couleurAvancement",
                     "libelle": "Couleur de l'avancement",
                     "type": "couleur",
-                    "materialDesign": true
+                    "materialDesign": true,
+                    "doc": "docs/Edition_Mapbox_Trace_couleurAvancement.md"
                   },
                   {
                     "defaut": 5,
@@ -905,7 +930,8 @@
                     "type": "entier",
                     "min": 1,
                     "max": 20,
-                    "unite": "px"
+                    "unite": "px",
+                    "doc": "docs/Edition_Mapbox_Trace_epaisseurAvancement.md"
                   }
                 ]
               },
@@ -920,7 +946,8 @@
                     "type": "reel",
                     "min": 0.0,
                     "max": 2.0,
-                    "decimales": 2
+                    "decimales": 2,
+                    "doc": "docs/Edition_Mapbox_Relief_exaggeration.md"
                   }
                 ]
               }
