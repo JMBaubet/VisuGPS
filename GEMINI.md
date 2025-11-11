@@ -71,46 +71,6 @@ L'application est divisée en plusieurs vues distinctes pour une meilleure clart
 
 ---
 
-# Implémentation step by step
-
-Pour créer cette application nous allons travailler étape par étape. 
-
-Toi en tant qu'expert Tauri, javascript, vue, vuetity, tu va m'assisteras à créer le code nécessaire à la réalisation de l'étape. 
-
-On gardera dans ce fichier l'historique des étapes, afin que tu saches quelles sont les étapes déjà réalisées et les principes mis en oeuvre. 
-
-Lorsqu'une étape me semble complètement réalisée, cette dernère au niveau de son titre `heading 2` aura un sufixe `Réalisée`.
-
-Les étapes seront numérotées sous la forme Etape x.y.z 
-
-- x : représentant un avancement majeur de l'application
-
-- y : représentéant une nouvelle feature de l'application
-
-- z : représentant, un point de control de la feature en cours de réalisation
-
-Afin que tu n'ancitipes pas le codage de certaines features, les étapes te seront décrite au fur et à mesure. 
-
-A chaque réalisation d'étape, j'enregistrerai dans ce fichier l'identifiant du commit git
-
-## Visualisation des Flyto Réalisée
-
-Nous allons travailler sur la vue VisualizeView, pour la prise en compte des evenements décrits dans le fichier evt.json
-
-## Visualisation des Messages
-
-## Zooms automatiques au départ et à l'arrivée.
-
-## Profil d'altitude
-
-## Détection des pentes
-
-## Suppession des fichiers après l'import
-
-## Fiche circuit
-
----
-
 ## 🤝 Contribution
 
 Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBUTING.md`
