@@ -49,6 +49,9 @@
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
+        ref="controlTabsWidgetRef"
+        @mouseenter="isMouseOverControlTabsWidget = true"
+        @mouseleave="isMouseOverControlTabsWidget = false"
         v-model:show-calculee-bearing-delta="showCalculeeBearingDelta"
         v-model:show-editee-bearing-delta="showEditeeBearingDelta"
         v-model:show-calculee-bearing-total-delta="showCalculeeBearingTotalDelta"
@@ -171,6 +174,13 @@ const touchePitchBas = ref('ArrowDown');
 // Commandes Souris
 const incrementZoom = ref(0.1);
 const incrementZoomShift = ref(1.0);
+const incrementBearing = ref(1); // New: Bearing increment for mouse wheel
+const incrementBearingShift = ref(5); // New: Bearing shift increment for mouse wheel
+
+// New: Refs for ControlTabsWidget interaction
+const controlTabsWidgetRef = ref(null);
+const isMouseOverControlTabsWidget = ref(false);
+const activeControlTab = ref('camera'); // Assumed default tab name
 
 watch(zoomDepart, async (newValue) => {
   if (!dataLoaded.value) return;
@@ -190,6 +200,7 @@ const updateCameraInfo = () => {
 };
 
 const handleTabChange = (newTab) => {
+  activeControlTab.value = newTab; // New: Update the active tab state
   if (!map) return;
   if (newTab === 'camera') {
     map.dragPan.disable();
@@ -1015,25 +1026,54 @@ const destroyMap = () => {
 
 const handleWheel = (event) => {
   if (!map) return;
-  event.preventDefault();
 
-  let zoomStep = incrementZoom.value;
-  if (event.shiftKey) {
-    zoomStep = incrementZoomShift.value;
+  // Check if the event target is within the map container or the control tabs widget
+  const isOverMap = mapContainer.value && mapContainer.value.contains(event.target);
+  // For Vue components, we need to access the root DOM element via .$el
+  const isOverWidget = controlTabsWidgetRef.value && controlTabsWidgetRef.value.$el && controlTabsWidgetRef.value.$el.contains(event.target);
+
+  if (!isOverMap && !isOverWidget) {
+    // The wheel event is not over the map or the widget, do nothing and allow default scroll.
+    return;
   }
 
-  const currentZoom = map.getZoom();
-  let newZoom;
+  event.preventDefault(); // Now, prevent default only for our target areas.
 
-  if (event.deltaY < 0) {
-    // Zoom in
-    newZoom = currentZoom + zoomStep;
+  // If the mouse is over ControlTabsWidget and the active tab is 'camera'
+  if (isMouseOverControlTabsWidget.value && activeControlTab.value === 'camera') {
+    let bearingStep = incrementBearing.value;
+    if (event.shiftKey) {
+      bearingStep = incrementBearingShift.value;
+    }
+
+    const currentBearing = map.getBearing();
+    let newBearing;
+
+    if (event.deltaY < 0) { // Scroll up: increase bearing (rotate right)
+      newBearing = currentBearing + bearingStep;
+    } else { // Scroll down: decrease bearing (rotate left)
+      newBearing = currentBearing - bearingStep;
+    }
+    map.setBearing(newBearing);
   } else {
-    // Zoom out
-    newZoom = currentZoom - zoomStep;
-  }
+    // Existing zoom behavior (when not over the widget or not on the camera tab)
+    let zoomStep = incrementZoom.value;
+    if (event.shiftKey) {
+      zoomStep = incrementZoomShift.value;
+    }
 
-  map.setZoom(newZoom);
+    const currentZoom = map.getZoom();
+    let newZoom;
+
+    if (event.deltaY < 0) {
+      // Zoom in
+      newZoom = currentZoom + zoomStep;
+    } else {
+      // Zoom out
+      newZoom = currentZoom - zoomStep;
+    }
+    map.setZoom(newZoom);
+  }
 };
 
 const handleContextMenu = (event) => {
@@ -1043,8 +1083,8 @@ const handleContextMenu = (event) => {
 onUnmounted(() => {
   destroyMap();
   window.removeEventListener('keydown', handleKeydown);
+  window.removeEventListener('wheel', handleWheel);
   if (mapContainer.value) {
-    mapContainer.value.removeEventListener('wheel', handleWheel);
     mapContainer.value.removeEventListener('contextmenu', handleContextMenu);
   }
 });
@@ -1248,6 +1288,8 @@ onMounted(async () => {
     // Load Commandes Souris settings
     incrementZoom.value = await getSettingValue('Edition/Commandes souris/incrementZoom');
     incrementZoomShift.value = await getSettingValue('Edition/Commandes souris/incrementZoomShift');
+    incrementBearing.value = await getSettingValue('Edition/Commandes souris/incrementBearing') || 1; // Default to 1 if not found
+    incrementBearingShift.value = await getSettingValue('Edition/Commandes souris/incrementBearingShift') || 5; // Default to 5 if not found
 
     // Initial interpolation
     updateInterpolation();
@@ -1298,11 +1340,8 @@ onMounted(async () => {
       keyboard: false, // Disable default keyboard navigation
     });
 
-    // Add custom event listeners for mouse interactions
-    mapContainer.value.addEventListener('wheel', handleWheel, { passive: false });
-    // mapContainer.value.addEventListener('mousedown', handleMouseDown); // Let Mapbox handle dragPan
-    // mapContainer.value.addEventListener('mousemove', handleMouseMove);
-    // mapContainer.value.addEventListener('mouseup', handleMouseUp);
+    // Add custom event listeners
+    window.addEventListener('wheel', handleWheel, { passive: false });
     mapContainer.value.addEventListener('contextmenu', handleContextMenu);
 
     map.on('load', () => {

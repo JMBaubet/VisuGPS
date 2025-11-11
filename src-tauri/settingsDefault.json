@@ -880,6 +880,28 @@
                 "max": 5,
                 "decimales": 2,
                 "doc": "docs/DocParametrage/Edition/CommandesSouris/incrementZoomShift.md"
+              },
+              {
+                "defaut": 1,
+                "description": "Incrément de cap de la caméra avec la molette de la souris.",
+                "identifiant": "incrementBearing",
+                "libelle": "Incrément Cap",
+                "type": "reel",
+                "min": 0.1,
+                "max": 10,
+                "decimales": 1,
+                "doc": "docs/DocParametrage/Edition/CommandesSouris/incrementBearing.md"
+              },
+              {
+                "defaut": 5,
+                "description": "Incrément de cap de la caméra avec la molette de la souris et la touche Shift.",
+                "identifiant": "incrementBearingShift",
+                "libelle": "Incrément Cap (Shift)",
+                "type": "reel",
+                "min": 1,
+                "max": 20,
+                "decimales": 1,
+                "doc": "docs/DocParametrage/Edition/CommandesSouris/incrementBearingShift.md"
               }
             ]
           },
