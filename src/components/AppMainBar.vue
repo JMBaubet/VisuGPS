@@ -52,7 +52,7 @@
   
   <!-- Help Dialog -->
   <v-dialog v-model="showHelpDialog" max-width="800px">
-    <DocDisplay doc-path="/docs/GUIDE_UTILISATEUR.md" @close="showHelpDialog = false" />
+    <DocDisplay doc-path="/docs/DocUtilisateur/GUIDE_UTILISATEUR.md" @close="showHelpDialog = false" />
   </v-dialog>
 </template>
 
