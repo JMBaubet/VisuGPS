@@ -1027,52 +1027,42 @@ const destroyMap = () => {
 const handleWheel = (event) => {
   if (!map) return;
 
-  // Check if the event target is within the map container or the control tabs widget
   const isOverMap = mapContainer.value && mapContainer.value.contains(event.target);
-  // For Vue components, we need to access the root DOM element via .$el
   const isOverWidget = controlTabsWidgetRef.value && controlTabsWidgetRef.value.$el && controlTabsWidgetRef.value.$el.contains(event.target);
 
   if (!isOverMap && !isOverWidget) {
-    // The wheel event is not over the map or the widget, do nothing and allow default scroll.
     return;
   }
 
-  event.preventDefault(); // Now, prevent default only for our target areas.
+  event.preventDefault();
 
-  // If the mouse is over ControlTabsWidget and the active tab is 'camera'
-  if (isMouseOverControlTabsWidget.value && activeControlTab.value === 'camera') {
-    let bearingStep = incrementBearing.value;
-    if (event.shiftKey) {
-      bearingStep = incrementBearingShift.value;
-    }
+  // Determine scroll direction in a cross-browser-compatible way.
+  // `wheelDelta` is a legacy property, but `deltaY` can be 0 on some devices.
+  const delta = Math.max(-1, Math.min(1, (event.wheelDelta || -event.deltaY)));
 
+  if (delta === 0) {
+    // No vertical scroll detected, do nothing.
+    return;
+  }
+  const direction = delta > 0 ? 1 : -1; // 1 for up, -1 for down
+
+  const isCameraTab = isMouseOverControlTabsWidget.value && activeControlTab.value === 'camera';
+
+  if (isCameraTab) {
+    // Bearing logic
+    const step = event.shiftKey ? parseFloat(incrementBearingShift.value) : parseFloat(incrementBearing.value);
+    const change = step * direction;
+    
     const currentBearing = map.getBearing();
-    let newBearing;
+    map.setBearing(currentBearing + change);
 
-    if (event.deltaY < 0) { // Scroll up: increase bearing (rotate right)
-      newBearing = currentBearing + bearingStep;
-    } else { // Scroll down: decrease bearing (rotate left)
-      newBearing = currentBearing - bearingStep;
-    }
-    map.setBearing(newBearing);
   } else {
-    // Existing zoom behavior (when not over the widget or not on the camera tab)
-    let zoomStep = incrementZoom.value;
-    if (event.shiftKey) {
-      zoomStep = incrementZoomShift.value;
-    }
+    // Zoom logic
+    const step = event.shiftKey ? parseFloat(incrementZoomShift.value) : parseFloat(incrementZoom.value);
+    const change = step * direction;
 
     const currentZoom = map.getZoom();
-    let newZoom;
-
-    if (event.deltaY < 0) {
-      // Zoom in
-      newZoom = currentZoom + zoomStep;
-    } else {
-      // Zoom out
-      newZoom = currentZoom - zoomStep;
-    }
-    map.setZoom(newZoom);
+    map.setZoom(currentZoom + change);
   }
 };
 
