@@ -22,7 +22,7 @@ Ce document décrit le projet **VisuGPS**, une application de bureau multiplatef
 
 ## 🛠️ Technologies utilisées
 
-* **Tauri** : Pour la création d'applications de bureau natives.
+* **Tauri 2.8.5** : Pour la création d'applications de bureau natives.
 * **Vue.js 3** & **Vuetify** : Pour une interface utilisateur réactive et élégante.
 * **Mapbox GL JS** : Pour l'affichage de la carte 3D.
 * **Turf.js** : Pour l'analyse et le traitement des données géospatiales (calcul de longueur, etc.).
@@ -56,6 +56,8 @@ L'application est divisée en plusieurs vues distinctes pour une meilleure clart
 - **Visualisation 3D** : La trace GPX est affichée dans un environnement 3D interactif.
 
 - **Positionnement de la caméra** : L'utilisateur peut ajuster la position et l'angle de la caméra.
+
+- **Gestion des évènements** : L'utilisateur peut gérer des évènements de type Flyto, Pause et message, sont sauvegardés dans un fichier JSON.
 
 - **Sauvegarde des paramètres** : Les paramètres de la caméra, essentiels pour la future animation, sont sauvegardés dans un fichier JSON.
   

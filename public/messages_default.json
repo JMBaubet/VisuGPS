@@ -1,0 +1,29 @@
+[
+  {
+    "id": "Ravitaillement_blue-darken-2_skewed-rect",
+    "text": "Ravitaillement",
+    "style": {
+      "backgroundColor": "blue-darken-2",
+      "textColor": "white",
+      "shape": "skewed-rect"
+    }
+  },
+  {
+    "id": "Point_deau_cyan-darken-3_skewed-rect",
+    "text": "Point d'eau",
+    "style": {
+      "backgroundColor": "cyan-darken-3",
+      "textColor": "white",
+      "shape": "skewed-rect"
+    }
+  },
+  {
+    "id": "Depart_green-darken-2_skewed-rect",
+    "text": "Départ",
+    "style": {
+      "backgroundColor": "green-darken-2",
+      "textColor": "white",
+      "shape": "skewed-rect"
+    }
+  }
+]

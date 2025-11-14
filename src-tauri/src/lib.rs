@@ -684,6 +684,174 @@ fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, St
     Ok(new_traceur)
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageStyle {
+    background_color: String,
+    text_color: String,
+    shape: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Message {
+    id: String,
+    text: String,
+    style: MessageStyle,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source: Option<String>,
+}
+
+// Helper to generate ID
+fn generate_message_id(text: &str, color: &str, shape: &str) -> String {
+    // Replace spaces with underscores and remove characters that are not file-system friendly
+    let safe_text = text.replace(" ", "_").chars().filter(|c| c.is_alphanumeric() || *c == '_').collect::<String>();
+    format!("{}_{}_{}", safe_text, color, shape)
+}
+
+
+const EMBEDDED_DEFAULT_MESSAGES: &str = include_str!("../../public/messages_default.json");
+
+#[tauri::command]
+fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<Vec<Message>, String> {
+    let state_lock = state.lock().unwrap();
+
+    // 1. Read default messages from embedded string
+    let mut default_messages: Vec<Message> = serde_json::from_str(EMBEDDED_DEFAULT_MESSAGES)
+        .map_err(|e| format!("Failed to parse embedded messages_default.json: {}", e))?;
+    for msg in &mut default_messages {
+        msg.source = Some("default".to_string());
+    }
+
+    // 2. Read user messages
+    let user_messages_path = state_lock.app_env_path.join("messages_user.json");
+    let user_messages: Vec<Message> = if user_messages_path.exists() {
+        let user_content = fs::read_to_string(&user_messages_path)
+            .map_err(|e| format!("Failed to read messages_user.json: {}", e))?;
+        if user_content.trim().is_empty() {
+            Vec::new()
+        } else {
+            let mut messages: Vec<Message> = serde_json::from_str(&user_content)
+                .map_err(|e| format!("Failed to parse messages_user.json: {}", e))?;
+            for msg in &mut messages {
+                msg.source = Some("user".to_string());
+            }
+            messages
+        }
+    } else {
+        Vec::new()
+    };
+
+    // 3. Merge lists (user messages have priority)
+    let mut final_messages = user_messages;
+    let user_ids: std::collections::HashSet<String> = final_messages.iter().map(|m| m.id.clone()).collect();
+
+    for msg in default_messages {
+        if !user_ids.contains(&msg.id) {
+            final_messages.push(msg);
+        }
+    }
+
+    Ok(final_messages)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NewMessage {
+    text: String,
+    style: MessageStyle,
+}
+
+#[tauri::command]
+fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
+    // Construct the full Message struct from the NewMessage payload
+    let message = Message {
+        id: generate_message_id(&new_message.text, &new_message.style.background_color, &new_message.style.shape),
+        text: new_message.text,
+        style: new_message.style,
+        source: None, // Source is for frontend display only and is never saved
+    };
+
+    let path = match target.as_str() {
+        "user" => {
+            let state = state.lock().unwrap();
+            state.app_env_path.join("messages_user.json")
+        },
+        "default" => {
+            #[cfg(not(debug_assertions))]
+            {
+                return Err("Cannot modify default messages in production mode.".to_string());
+            }
+            #[cfg(debug_assertions)]
+            {
+                app_handle.path().resolve("public/messages_default.json", tauri::path::BaseDirectory::Resource)
+                    .map_err(|e| format!("Failed to resolve resource path for default messages: {}", e))?
+            }
+        },
+        _ => return Err("Invalid target specified.".to_string()),
+    };
+
+    let mut messages: Vec<Message> = if path.exists() {
+        let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        if content.trim().is_empty() {
+            Vec::new()
+        } else {
+            serde_json::from_str(&content).map_err(|e| e.to_string())?
+        }
+    } else {
+        Vec::new()
+    };
+
+    // Remove existing message with same ID, if any, to perform an "upsert"
+    messages.retain(|m| m.id != message.id);
+    messages.push(message);
+
+    let new_content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
+    fs::write(&path, new_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn delete_message(app_handle: AppHandle, state: State<Mutex<AppState>>, id: String, target: String) -> Result<(), String> {
+    let path = match target.as_str() {
+        "user" => {
+            let state = state.lock().unwrap();
+            state.app_env_path.join("messages_user.json")
+        },
+        "default" => {
+            #[cfg(not(debug_assertions))]
+            {
+                return Err("Cannot modify default messages in production mode.".to_string());
+            }
+            #[cfg(debug_assertions)]
+            {
+                app_handle.path().resolve("public/messages_default.json", tauri::path::BaseDirectory::Resource)
+                    .map_err(|e| format!("Failed to resolve resource path for default messages: {}", e))?
+            }
+        },
+        _ => return Err("Invalid target specified.".to_string()),
+    };
+
+    if !path.exists() {
+        return Ok(()); // Nothing to delete
+    }
+
+    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    if content.trim().is_empty() {
+        return Ok(());
+    }
+    
+    let mut messages: Vec<Message> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    messages.retain(|m| m.id != id);
+
+    let new_content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
+    fs::write(&path, new_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 #[tauri::command]
 fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
     let mut state = state.lock().unwrap();
@@ -1098,37 +1266,48 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, get_circuits_for_display, get_debug_data, delete_circuit,         get_thumbnail_as_base64,
-        get_qrcode_as_base64,
-        read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, geo_processor::process_tracking_data, get_filter_data, update_tracking_km, communes_updater::start_communes_update, communes_updater::interrupt_communes_update, communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api,             communes_updater::toggle_mapbox_api, 
-            communes_updater::get_ign_status, communes_updater::get_mapbox_status, communes_updater::get_commune_update_progress,
-        event::get_events,
-        event::add_pause_event,
-        event::delete_pause_event,
-        event::add_flyto_event,
-        event::delete_flyto_event,
-        event::add_message_event,
-        event::delete_message_event,
-        event::get_known_message_texts,
-        trace_style::get_slope_color_expression,
-        get_circuit_data,
-        update_circuit_zoom_settings,
-        update_circuit_traceur,
-        update_current_view,
-        remote_control::update_visualize_view_state,
-        remote_control::remote_command_increase_speed,
-        remote_control::remote_command_decrease_speed,
-        remote_control::update_animation_speed,
-        remote_control::update_speed_from_remote,
-        remote_control::set_speed_to_1x_from_remote,
-
-
-        remote_setup::reply_to_pairing_request,
-        remote_setup::get_remote_control_status,
-        remote_control::disconnect_active_remote_client,
-        gpx_processor::generate_qrcode_base64,
-                        gpx_processor::get_remote_control_url,
-                        update_animation_state            ])
+        .invoke_handler(tauri::generate_handler![
+            get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, 
+            create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, 
+            analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, 
+            get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, get_qrcode_as_base64,
+            read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, 
+            geo_processor::process_tracking_data, get_filter_data, update_tracking_km, 
+            communes_updater::start_communes_update, communes_updater::interrupt_communes_update, 
+            communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api, 
+            communes_updater::toggle_mapbox_api, communes_updater::get_ign_status, communes_updater::get_mapbox_status, 
+            communes_updater::get_commune_update_progress,
+            // Event commands
+            event::get_events,
+            event::add_pause_event,
+            event::delete_pause_event,
+            event::add_flyto_event,
+            event::delete_flyto_event,
+            event::add_message_event,
+            event::delete_message_event,
+            // New message library commands
+            get_message_library,
+            save_message,
+            delete_message,
+            // Other commands
+            trace_style::get_slope_color_expression,
+            get_circuit_data,
+            update_circuit_zoom_settings,
+            update_circuit_traceur,
+            update_current_view,
+            remote_control::update_visualize_view_state,
+            remote_control::remote_command_increase_speed,
+            remote_control::remote_command_decrease_speed,
+            remote_control::update_animation_speed,
+            remote_control::update_speed_from_remote,
+            remote_control::set_speed_to_1x_from_remote,
+            remote_setup::reply_to_pairing_request,
+            remote_setup::get_remote_control_status,
+            remote_control::disconnect_active_remote_client,
+            gpx_processor::generate_qrcode_base64,
+            gpx_processor::get_remote_control_url,
+            update_animation_state
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
