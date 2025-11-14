@@ -1,14 +1,5 @@
 [
   {
-    "id": "Point_deau_cyan-darken-3_skewed-rect",
-    "text": "Point d'eau",
-    "style": {
-      "backgroundColor": "cyan-darken-3",
-      "textColor": "white",
-      "shape": "skewed-rect"
-    }
-  },
-  {
     "id": "Arrivée_orange-darken-2_skewed-rect",
     "text": "Arrivée",
     "style": {

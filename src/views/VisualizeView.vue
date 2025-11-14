@@ -1,7 +1,7 @@
 <template>
   <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
 
-  <center-marker v-if="isCenterMarkerVisible" :color="centerMarkerColor" />
+  <center-marker v-if="isCenterMarkerVisible" :color="couleurCroixCentrale" />
 
   <transition name="fade">
     <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
@@ -268,7 +268,7 @@ async function executeFlytoSequence(flytoData) {
     isWatcherActive = true; // Réactivation du watcher principal
 }
 
-const animate = (timestamp) => {
+  const animate = (timestamp) => {
   if (isResuming.value) {
       if (map) map.triggerRepaint();
       animationFrameId = requestAnimationFrame(animate);
@@ -301,7 +301,8 @@ const animate = (timestamp) => {
 
   if (isRewinding.value) {
       accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * currentSpeed.value));
-  } else {
+  }
+  else {
       accumulatedTime += deltaTime * currentSpeed.value;
   }
 
@@ -315,7 +316,8 @@ const animate = (timestamp) => {
   if (distanceTraveled > startDistance) {
       const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
       map.getSource('comet-source').setData(cometSlice);
-  } else {
+  }
+  else {
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
   }
 
@@ -336,39 +338,47 @@ const animate = (timestamp) => {
       currentCommuneName.value = currentPoint.commune;
   }
 
-  const currentIncrement = currentPoint?.increment;
+    const currentIncrement = currentPoint?.increment;
+    console.log("Current Increment:", currentIncrement); // Log every frame
 
-  // 2. Handle events using the accurate increment
-  if (currentIncrement !== undefined) {
-      // Popups
-      if (map && rangeEvents.value.length > 0) {
-          const newVisibleIds = new Set();
-          for (const msg of rangeEvents.value) {
-              if (currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement) {
-                  newVisibleIds.add(msg.id);
-              }
-          }
-          const currentVisibleIds = new Set(activePopups.keys());
-          for (const id of currentVisibleIds) {
-              if (!newVisibleIds.has(id)) {
-                  activePopups.get(id)?.remove();
-                  activePopups.delete(id);
-              }
-          }
-          for (const id of newVisibleIds) {
-              if (!currentVisibleIds.has(id)) {
-                  const newMsg = rangeEvents.value.find(m => m.id === id);
-                  if (newMsg) {
-                      const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom', className: 'map-message-popup' })
-                          .setLngLat(newMsg.coord)
-                          .setHTML(`<div style="background-color: ${newMsg.backgroundColor || 'white'}; color: black; font-weight: bold; font-size: 16px; border-color: ${newMsg.borderColor || 'black'}; border-width: ${newMsg.borderWidth != null ? newMsg.borderWidth + 'px' : '1px'}; border-radius: ${newMsg.borderRadius != null ? newMsg.borderRadius + 'px' : '4px'}; padding: 5px 10px; border-style: solid;">${newMsg.text}</div>`)
-                          .addTo(map);
-                      activePopups.set(id, popup);
-                  }
-              }
-          }
-      }
+    // 2. Handle events using the accurate increment
+    if (currentIncrement !== undefined) {
+        // Popups
+        if (map && rangeEvents.value.length > 0) {
+            // console.log("Range events for comparison:", rangeEvents.value); // Keep this if needed, but it can be noisy
+            const newVisibleIds = new Set();
+            for (const msg of rangeEvents.value) {
+                const isVisible = currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement;
+                console.log(`Checking message ID: ${msg.eventId} (start: ${msg.startIncrement}, end: ${msg.endIncrement}). Is visible: ${isVisible}`); // Log every check
 
+                if (isVisible) {
+                    newVisibleIds.add(msg.eventId); // Use eventId here
+                }
+            }
+            const currentVisibleIds = new Set(activePopups.keys());
+            for (const id of currentVisibleIds) {
+                if (!newVisibleIds.has(id)) {
+                    activePopups.get(id)?.remove();
+                    activePopups.delete(id);
+                }
+            }
+            for (const id of newVisibleIds) {
+                if (!currentVisibleIds.has(id)) {
+                    const newMsg = rangeEvents.value.find(m => m.eventId === id); // Use eventId here
+                    if (newMsg) {
+                        console.log("New message to display:", newMsg); // Debug log
+                        console.log("Message coordinates:", newMsg.coord); // Log coordinates
+                        const svgContent = createMessageSVG(newMsg);
+                        console.log("Generated SVG:", svgContent); // Debug log
+                        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom-left', className: 'map-message-popup' })
+                            .setLngLat(newMsg.coord)
+                            .setHTML(svgContent)
+                            .addTo(map);
+                        activePopups.set(id, popup);
+                    }
+                }
+            }
+        }
       // Flyto
       const flytoData = flytoEvents.value[currentIncrement];
       if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
@@ -521,6 +531,68 @@ const animate = (timestamp) => {
       }
     }, delayAfterAnimationEnd.value);
   }
+};
+
+const createMessageSVG = (message) => {
+  const text = message.message.text;
+  const backgroundColor = message.message.style.backgroundColor || 'white';
+  const textColor = message.message.style.textColor || 'black';
+  const shape = message.message.style.shape || 'rect';
+
+  const scaleFactor = 0.4; // Réduire de 60% (0.4 de la taille originale)
+
+  // Base dimensions for the rectangle
+  const baseRectHeight = 150 * scaleFactor;
+  const rectRx = 20 * scaleFactor;
+
+  let transform = '';
+  if (shape === 'skewed-rect') {
+    transform = 'skewY(-20)';
+  }
+
+  // Dynamic font size adjustment
+  let fontSize = 100 * scaleFactor;
+  const maxTextLengthForBaseFontSize = 8;
+  if (text.length > maxTextLengthForBaseFontSize) {
+    fontSize = Math.max(40 * scaleFactor, (100 - (text.length - maxTextLengthForBaseFontSize) * 5) * scaleFactor);
+  }
+
+  // Estimate text width (this is a heuristic, a more precise method would require canvas measurement)
+  // Assuming an average character width for the chosen font and size
+  const averageCharWidth = fontSize * 0.6; // Heuristic factor
+  const estimatedTextWidth = text.length * averageCharWidth;
+
+  // Calculate dynamic rect width, ensuring a minimum width
+  const minRectWidth = 300 * scaleFactor; // Minimum width for small texts
+  const padding = 50 * scaleFactor; // Padding around the text
+  const rectWidth = Math.max(minRectWidth, estimatedTextWidth + padding);
+
+  // Adjust viewBox and text position based on dynamic width
+  const viewBoxWidth = rectWidth;
+  const skewOffset = rectWidth * Math.tan(20 * Math.PI / 180);
+  const rectYOffset = skewOffset; // Shift content down by this amount
+
+  const newViewBoxHeight = baseRectHeight + skewOffset; // Total height needed
+
+  const textX = padding / 2;
+  const textY = rectYOffset + baseRectHeight / 2 + fontSize / 3; // Adjust textY by the same offset
+
+  return `
+    <svg width="${viewBoxWidth}" height="${newViewBoxHeight}" viewBox="0 0 ${viewBoxWidth} ${newViewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
+      <rect fill="${backgroundColor}" x="0" y="${rectYOffset}" width="${rectWidth}" height="${baseRectHeight}" rx="${rectRx}" transform="${transform}" />
+      <text text-anchor="start" x="${textX}" y="${textY}" transform="${transform}">
+        ${text}
+      </text>
+      <style>
+        <![CDATA[
+        text {
+          font: bold ${fontSize}px Roboto, sans-serif;
+          fill: ${textColor};
+        }
+        ]]>
+      </style>
+    </svg>
+  `;
 };
 
 const isPaused = ref(true);
@@ -913,6 +985,7 @@ const initializeMap = async () => {
     }
 
     if (fetchedEvents) {
+        console.log("Fetched events:", fetchedEvents); // Debug log
         if (fetchedEvents.pointEvents) {
             pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
                 .filter(increment =>
@@ -931,6 +1004,7 @@ const initializeMap = async () => {
             flytoEvents.value = flytos;
         }
         rangeEvents.value = fetchedEvents.rangeEvents || [];
+        console.log("Range events loaded:", rangeEvents.value); // Debug log
     }
 
     if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {
