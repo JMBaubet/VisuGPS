@@ -77,14 +77,10 @@
         v-model:flyto-duration-setting="flytoDurationSetting" 
         :is-current-point-control-point="isCurrentPointControlPoint"
         :message-events="messageEventsForDisplay"
-        :full-message-events="eventsFile.rangeEvents"
-        :known-message-texts="knownMessageTexts"
-        v-model:message-background-color-setting="messageBackgroundColorSetting"
-        v-model:message-border-color-setting="messageBorderColorSetting"
-        v-model:message-border-width-setting="messageBorderWidthSetting"
+        :current-message-event="currentMessageEvent"
+        :selected-message="selectedMessageForNewEvent"
         v-model:message-pre-affichage-setting="messagePreAffichageSetting"
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
-        v-model:message-border-radius-setting="messageBorderRadiusSetting"
         v-model:zoom-depart="zoomDepart"
         v-model:zoom-depart-valeur="zoomDepartValeur"
         v-model:zoom-depart-distance="zoomDepartDistance"
@@ -98,6 +94,7 @@
         @delete-flyto="handleDeleteFlytoEvent"
         @add-message="handleAddMessageEvent"
         @delete-message="handleDeleteMessageEvent"
+        @open-message-library="handleOpenMessageLibrary"
         @save-control-point="saveControlPoint"
         @delete-control-point="deleteControlPoint"
         @update:marker-visible="showCenterMarker = $event"
@@ -113,11 +110,15 @@
       @confirm="resolveConfirmation(true)"
       @cancel="resolveConfirmation(false)"
     />
+    <MessageLibraryModal 
+      v-model="showLibraryModal" 
+      @select-message="handleSelectMessage" 
+    />
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'; // Import computed
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
@@ -132,6 +133,7 @@ import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
 import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 
@@ -332,7 +334,43 @@ const currentProgressDistance = ref(0);
 const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
-const eventsFile = ref({ pointEvents: {}, rangeEvents: [] }); // Nouvelle structure pour stocker les événements
+const eventsFile = ref({ pointEvents: {}, rangeEvents: [] });
+
+// --- New Message Library Logic ---
+const showLibraryModal = ref(false);
+const selectedMessageForNewEvent = ref(null);
+const defaultMessagePreAffichage = ref(0);
+const defaultMessagePostAffichage = ref(0);
+
+const currentMessageEvent = computed(() => 
+  eventsFile.value.rangeEvents?.find(e => e.anchorIncrement === trackProgress.value) || null
+);
+
+watch(trackProgress, () => {
+  selectedMessageForNewEvent.value = null;
+});
+
+const handleOpenMessageLibrary = () => {
+  showLibraryModal.value = true;
+};
+
+const handleSelectMessage = async (messageId) => {
+  try {
+    const library = await invoke('get_message_library');
+    const selected = library.find(m => m.id === messageId);
+    if (selected) {
+      selectedMessageForNewEvent.value = selected;
+      // Reset sliders to default values for the new selection
+      messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
+      messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
+    }
+  } catch (error) {
+    console.error("Failed to fetch message from library:", error);
+    showSnackbar(`Erreur: ${error}`, 'error');
+  }
+  showLibraryModal.value = false;
+};
+// --- End New Message Library Logic ---
 
 // Computed property to extract increments with Pause events for display
 const pauseEventsForDisplay = computed(() => {
@@ -346,7 +384,6 @@ const pauseEventsForDisplay = computed(() => {
   return pauses;
 });
 
-// Computed property to extract increments with Flyto events for display
 const flytoEventsForDisplay = computed(() => {
   if (!eventsFile.value.pointEvents) return [];
   const flytos = [];
@@ -358,54 +395,67 @@ const flytoEventsForDisplay = computed(() => {
   return flytos;
 });
 
-// Computed property to extract increments with Message events for display
 const messageEventsForDisplay = computed(() => {
   if (!eventsFile.value.rangeEvents) return [];
-  // Use a Set to get unique anchor increments
   const messageIncrements = new Set(eventsFile.value.rangeEvents.map(event => event.anchorIncrement));
   return Array.from(messageIncrements);
 });
 
-const knownMessageTexts = ref([]);
-const messageBackgroundColorSetting = ref('');
-const messageBorderColorSetting = ref('');
-const messageBorderWidthSetting = ref(0);
 const messagePreAffichageSetting = ref(0);
 const messagePostAffichageSetting = ref(0);
-const messageBorderRadiusSetting = ref(5); // Déclaration de la ref manquante
+
 const handleAddMessageEvent = async (messageData) => {
-  // Always add coordinates
-  if (map) {
-    const center = map.getCenter();
-    messageData.coord = [center.lng, center.lat];
-  } else {
-    showSnackbar('Erreur: La carte n\'est pas initialisée.', 'error');
+  if (!messageData.messageId) {
+    showSnackbar('Aucun message sélectionné.', 'error');
     return;
   }
+  
+  if (map) {
+    const isUpdate = !!currentMessageEvent.value;
+    const eventIdToDelete = isUpdate ? currentMessageEvent.value.eventId : null;
 
-  try {
-    console.log('Invoking add_message_event with payload:', JSON.stringify(messageData, null, 2));
-    const updatedEventsFile = await invoke('add_message_event', {
-      circuitId: circuitId,
-      increment: trackProgress.value,
-      messagePayload: messageData,
-    });
-    eventsFile.value = updatedEventsFile;
-    showSnackbar('Message ajouté avec succès', 'success');
-  } catch (error) {
-    console.error("Failed to add message event:", error);
-    showSnackbar(`Erreur lors de l\'ajout du message: ${error}`, 'error');
+    // If it's an update, delete the old event first.
+    if (isUpdate && eventIdToDelete) {
+      try {
+        await invoke('delete_message_event', {
+          circuitId: circuitId,
+          eventId: eventIdToDelete,
+        });
+      } catch (error) {
+        console.error("Failed to delete old message during update:", error);
+        showSnackbar(`Erreur lors de la suppression de l'ancien message: ${error}`, 'error');
+        return; // Stop if delete fails to prevent data loss.
+      }
+    }
+
+    const center = map.getCenter();
+    const payload = {
+      messageId: messageData.messageId,
+      preAffichage: messageData.preAffichage,
+      postAffichage: messageData.postAffichage,
+      coord: [center.lng, center.lat],
+      anchorIncrement: trackProgress.value,
+    };
+
+    try {
+      const updatedEventsFile = await invoke('add_message_event', {
+        circuitId: circuitId,
+        payload: payload,
+      });
+      eventsFile.value = updatedEventsFile;
+      selectedMessageForNewEvent.value = null; // Clear selection after adding
+      showSnackbar(`Message ${isUpdate ? 'mis à jour' : 'ajouté'} avec succès`, 'success');
+    } catch (error) {
+      console.error("Failed to add message event:", error);
+      showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
+      // Note: If this fails after a successful delete, the event is lost.
+      // A proper backend transaction would be the ideal solution.
+    }
   }
 };
 
 const handleDeleteMessageEvent = async () => {
-  if (!eventsFile.value.rangeEvents) return;
-
-  // Find the first message at the current increment to delete it.
-  // This is a limitation of the current UI.
-  const eventToDelete = eventsFile.value.rangeEvents.find(
-    event => event.anchorIncrement === trackProgress.value
-  );
+  const eventToDelete = currentMessageEvent.value;
 
   if (!eventToDelete) {
     showSnackbar('Aucun message à supprimer à ce point.', 'info');
@@ -415,7 +465,7 @@ const handleDeleteMessageEvent = async () => {
   try {
     const updatedEventsFile = await invoke('delete_message_event', {
       circuitId: circuitId,
-      eventId: eventToDelete.id,
+      eventId: eventToDelete.eventId,
     });
     eventsFile.value = updatedEventsFile;
     showSnackbar('Message supprimé avec succès', 'success');
@@ -425,16 +475,17 @@ const handleDeleteMessageEvent = async () => {
   }
 };
 
-const flytoDurationSetting = ref(2000); // Default value, will be loaded from settings
+const flytoDurationSetting = ref(2000);
 
-// Synchronize the progress bar widget with the internal point index
 watch(trackProgress, (newProgress) => {
   if (currentPointIndex.value !== newProgress) {
     currentPointIndex.value = newProgress;
     updateCameraPosition(newProgress);
   }
 });
-          watch(currentPointIndex, (newIndex) => {  if (trackProgress.value !== newIndex) {
+
+watch(currentPointIndex, (newIndex) => {
+  if (trackProgress.value !== newIndex) {
     trackProgress.value = newIndex;
   }
 });
@@ -444,7 +495,6 @@ const couleurAvancement = ref('');
 const traceColor = ref('#FFA726');
 const mapboxAvancementColorHex = ref('');
 
-// New granular visibility toggles
 const showCalculeeBearingDelta = ref(false);
 const showEditeeBearingDelta = ref(false);
 const showCalculeeBearingTotalDelta = ref(false);
@@ -452,7 +502,6 @@ const showEditeeBearingTotalDelta = ref(false);
 const showEditeeZoom = ref(false);
 const showEditeePitch = ref(false);
 
-// Graph curve colors
 const graphZoomColor = ref('green');
 const graphPitchColor = ref('blue');
 const graphBearingDeltaColor = ref('amber');
@@ -463,7 +512,6 @@ const graphEditedPitchColor = ref('cyan-accent-3');
 const graphEditedBearingDeltaColor = ref('yellow-accent-3');
 const graphEditedBearingTotalDeltaColor = ref('#000000');
 
-// Refs for checkbox colors to be passed to ControlTabsWidget
 const colorOrigineBearingDelta = ref('#000000');
 const colorEditedBearingDelta = ref('#000000');
 const colorOrigineBearingTotalDelta = ref('#000000');
@@ -473,7 +521,7 @@ const colorEditedZoom = ref('#000000');
 const colorOriginePitch = ref('#000000');
 const colorEditedPitch = ref('#000000');
 
-const { toHex } = useVuetifyColors(); // New line
+const { toHex } = useVuetifyColors();
 
 const currentZoom = ref(0);
 const currentPitch = ref(0);
@@ -505,16 +553,13 @@ const applyZoomDepart = async () => {
 
   pointEnd.pointDeControl = true;
   pointEnd.editedZoom = pointEnd.zoom;
-  // Ne pas modifier editedPitch et editedCap pour conserver les modifications utilisateur existantes
 
   zoomDepartIsActive.value = true;
   updateInterpolation();
 
-  // Après l'interpolation générale, forcer la rampe de zoom linéaire pour la zone de départ.
-  // Cela garantit que le zoom est correct même s'il y a des points de contrôle intermédiaires.
   const endIndexForRamp = zoomDepartDistance.value;
   const startZoom = zoomDepartValeur.value;
-  const endZoom = pointEnd.zoom; // La rampe se termine sur le zoom original du point final.
+  const endZoom = pointEnd.zoom;
   const zoomStep = (endZoom - startZoom) / endIndexForRamp;
 
   for (let i = 0; i <= endIndexForRamp; i++) {
@@ -538,10 +583,9 @@ const removeZoomDepart = async () => {
 
   const endIndex = zoomDepartDistance.value;
   if (endIndex >= trackingPoints.value.length) {
-    return; // Nothing to do
+    return;
   }
 
-  // Explicitly reset the editedZoom values in the affected range to their original zoom value
   for (let i = 0; i <= endIndex; i++) {
     if (trackingPoints.value[i]) {
       trackingPoints.value[i].editedZoom = trackingPoints.value[i].zoom;
@@ -656,17 +700,6 @@ watch(zoomArrivee, async (newValue) => {
   await updateCircuitZoomSettings();
 });
 
-    // Load Zoom Depart settings
-    const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
-    zoomDepart.value = circuitData.zoom.depart.enabled;
-    zoomDepartValeur.value = circuitData.zoom.depart.valeur;
-    zoomDepartDistance.value = circuitData.zoom.depart.distance;
-
-    // Load Zoom Arrivee settings
-    zoomArrivee.value = circuitData.zoom.arrivee.enabled;
-    zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
-    distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
-
 async function updateCircuitZoomSettings() {
   try {
     const zoomSettings = {
@@ -697,18 +730,15 @@ const updateInterpolation = () => {
   const points = trackingPoints.value;
   const controlPoints = points.map((p, i) => ({ ...p, originalIndex: i })).filter(p => p.pointDeControl);
 
-  // Reset all nbrSegment to 0 initially
   points.forEach(p => p.nbrSegment = 0);
 
   if (controlPoints.length === 0) {
-    // No control points, reset all edited values to original
     for (let i = 0; i < points.length; i++) {
       points[i].editedZoom = points[i].zoom;
       points[i].editedPitch = points[i].pitch;
       points[i].editedCap = points[i].cap;
     }
   } else {
-    // Interpolate between control points
     for (let i = 0; i < controlPoints.length - 1; i++) {
       const startCp = controlPoints[i];
       const endCp = controlPoints[i + 1];
@@ -736,7 +766,6 @@ const updateInterpolation = () => {
       }
     }
 
-    // Reset points after the last control point
     const lastCpIndex = controlPoints[controlPoints.length - 1].originalIndex;
     for (let i = lastCpIndex + 1; i < points.length; i++) {
       points[i].editedZoom = points[i].zoom;
@@ -765,14 +794,12 @@ const saveControlPoint = async () => {
   point.pointDeControl = true;
 
   if (zoomDepartIsActive.value && currentPointIndex.value <= zoomDepartDistance.value) {
-    // In the departure zone, lock the zoom to the linear ramp
     const endIndex = zoomDepartDistance.value;
     const startZoom = zoomDepartValeur.value;
-    const endZoom = trackingPoints.value[endIndex].zoom; // Use the original zoom of the end point
+    const endZoom = trackingPoints.value[endIndex].zoom;
     const zoomStep = (endZoom - startZoom) / endIndex;
     point.editedZoom = parseFloat((startZoom + currentPointIndex.value * zoomStep).toFixed(1));
   } else if (zoomArriveeIsActive.value && currentPointIndex.value >= (trackingPoints.value.length - 1 - distanceZoomArrivee.value)) {
-    // In the arrival zone, lock the zoom to the linear ramp
     const lastIndex = trackingPoints.value.length - 1;
     const startIndex = lastIndex - distanceZoomArrivee.value;
     const startZoom = trackingPoints.value[startIndex].zoom;
@@ -804,7 +831,6 @@ const saveControlPoint = async () => {
     });
     showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
 
-    // Update trackingKm in circuits.json if this is the furthest control point
     const controlPoints = trackingPoints.value.filter(p => p.pointDeControl);
     if (controlPoints.length > 0) {
       const furthestControlPoint = controlPoints.reduce((max, p) => p.distance > max.distance ? p : max, controlPoints[0]);
@@ -825,7 +851,6 @@ const saveControlPoint = async () => {
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du fichier de tracking:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
-    // Revert on error?
   }
 };
 
@@ -839,7 +864,7 @@ const deleteControlPoint = async () => {
       'Ce point fait partie du zoom de départ. Le supprimer désactivera le zoom de départ. Continuer ?'
     );
     if (confirmed) {
-      zoomDepart.value = false; // This will trigger the watcher to call removeZoomDepart
+      zoomDepart.value = false;
     }
     return; 
   }
@@ -852,7 +877,7 @@ const deleteControlPoint = async () => {
       'Ce point fait partie du zoom d\'arrivée. Le supprimer désactivera le zoom d\'arrivée. Continuer ?'
     );
     if (confirmed) {
-      zoomArrivee.value = false; // This will trigger the watcher
+      zoomArrivee.value = false;
     }
     return;
   }
@@ -868,7 +893,6 @@ const deleteControlPoint = async () => {
 
   updateInterpolation();
 
-  // Find the new furthest control point to update trackingKm
   const controlPoints = trackingPoints.value.filter(p => p.pointDeControl);
   let newTrackingKm = 0;
   if (controlPoints.length > 0) {
@@ -877,7 +901,6 @@ const deleteControlPoint = async () => {
   }
 
   try {
-    // Save tracking file and update trackingKm in parallel
     await Promise.all([
       invoke('save_tracking_file', {
         circuitId: circuitId,
@@ -896,12 +919,11 @@ const deleteControlPoint = async () => {
 };
 
 const forceUpdateCamera = () => {
-  if (cameraSyncMode.value !== 'off') return; // Only works in manual mode
+  if (cameraSyncMode.value !== 'off') return;
 
   const point = trackingPoints.value[currentPointIndex.value];
   if (!point) return;
 
-  // Snap to ORIGINAL values
   currentZoom.value = point.zoom;
   currentPitch.value = point.pitch;
   currentBearing.value = point.cap;
@@ -919,12 +941,10 @@ const forceUpdateCamera = () => {
 const handleSeekDistance = (distanceInKm) => {
   if (!trackingPoints.value || trackingPoints.value.length === 0) return;
 
-  // Find the closest point in trackingPoints to the clicked distance
   const closest = trackingPoints.value.reduce((prev, curr) => {
     return (Math.abs(curr.distance - distanceInKm) < Math.abs(prev.distance - distanceInKm) ? curr : prev);
   });
 
-  // Find the index of that closest point
   const closestIndex = trackingPoints.value.findIndex(p => p.increment === closest.increment);
 
   if (closestIndex !== -1) {
@@ -936,7 +956,6 @@ const handleSeekDistance = (distanceInKm) => {
 const updateCameraPosition = (index) => {
   if (!map || !trackingPoints.value.length) return;
 
-  // Detach listeners to prevent state corruption during animation
   map.off('zoom', updateCameraInfo);
   map.off('pitch', updateCameraInfo);
   map.off('rotate', updateCameraInfo);
@@ -946,10 +965,9 @@ const updateCameraPosition = (index) => {
   const flyToOptions = {
     center: point.coordonnee,
     essential: true,
-    duration: 150 // A short duration for smoother repeated calls
+    duration: 150
   };
 
-  // Determine target camera values based on mode and set them for the animation
   if (cameraSyncMode.value === 'original') {
     flyToOptions.zoom = point.zoom;
     flyToOptions.pitch = point.pitch;
@@ -959,25 +977,20 @@ const updateCameraPosition = (index) => {
     flyToOptions.pitch = point.editedPitch;
     flyToOptions.bearing = point.editedCap;
   } else if (cameraSyncMode.value === 'off') {
-    // In 'off' mode, maintain the current user-set camera values
     flyToOptions.zoom = currentZoom.value;
     flyToOptions.pitch = currentPitch.value;
     flyToOptions.bearing = currentBearing.value;
   }
 
   map.once('moveend', () => {
-    // After movement, forcefully sync the component state with the intended final values
-    // This prevents the state from reflecting intermediate, incorrect animation values.
     if (flyToOptions.zoom !== undefined) {
         currentZoom.value = flyToOptions.zoom;
         currentPitch.value = flyToOptions.pitch;
         currentBearing.value = flyToOptions.bearing;
     } else {
-        // Fallback: if options weren't set for some reason, sync from map's final state
         updateCameraInfo();
     }
 
-    // Re-attach listeners for manual user control
     map.on('zoom', updateCameraInfo);
     map.on('pitch', updateCameraInfo);
     map.on('rotate', updateCameraInfo);
@@ -985,7 +998,6 @@ const updateCameraPosition = (index) => {
 
   map.flyTo(flyToOptions);
 
-  // This part of the function handles the progress line and can run immediately
   if (totalLineLength.value > 0) {
     currentProgressDistance.value = point.distance;
     progressPercentage.value = (point.distance / totalLineLength.value) * 100;
@@ -1015,8 +1027,6 @@ const updateCameraPosition = (index) => {
   }
 };
 
-
-
 const destroyMap = () => {
   if (map) {
     map.remove();
@@ -1036,20 +1046,16 @@ const handleWheel = (event) => {
 
   event.preventDefault();
 
-  // Determine scroll direction in a cross-browser-compatible way.
-  // `wheelDelta` is a legacy property, but `deltaY` can be 0 on some devices.
   const delta = Math.max(-1, Math.min(1, (event.wheelDelta || -event.deltaY)));
 
   if (delta === 0) {
-    // No vertical scroll detected, do nothing.
     return;
   }
-  const direction = delta > 0 ? 1 : -1; // 1 for up, -1 for down
+  const direction = delta > 0 ? 1 : -1;
 
   const isCameraTab = isMouseOverControlTabsWidget.value && activeControlTab.value === 'camera';
 
   if (isCameraTab) {
-    // Bearing logic
     const step = event.shiftKey ? parseFloat(incrementBearingShift.value) : parseFloat(incrementBearing.value);
     const change = step * direction;
     
@@ -1057,7 +1063,6 @@ const handleWheel = (event) => {
     map.setBearing(currentBearing + change);
 
   } else {
-    // Zoom logic
     const step = event.shiftKey ? parseFloat(incrementZoomShift.value) : parseFloat(incrementZoom.value);
     const change = step * direction;
 
@@ -1067,7 +1072,7 @@ const handleWheel = (event) => {
 };
 
 const handleContextMenu = (event) => {
-  event.preventDefault(); // Prevent default context menu on right-click
+  event.preventDefault();
 };
 
 onUnmounted(() => {
@@ -1084,8 +1089,6 @@ const handleKeydown = (event) => {
   if (targetNodeName === 'INPUT' || targetNodeName === 'TEXTAREA' || event.target.isContentEditable) {
     return;
   }
-
-
 
   const pressedKey = event.key.toLowerCase();
 
@@ -1162,18 +1165,16 @@ onMounted(async () => {
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
     const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
     let rawCouleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
-    // Extract the base color name (e.g., "yellow" from "yellow-darken-4")
     if (rawCouleurAvancement) {
       const parts = rawCouleurAvancement.split('-');
-      couleurAvancement.value = parts[0]; // Take the first part as the base color name
-      mapboxAvancementColorHex.value = toHex(couleurAvancement.value); // Convert to hex for Mapbox
+      couleurAvancement.value = parts[0];
+      mapboxAvancementColorHex.value = toHex(couleurAvancement.value);
     } else {
-      couleurAvancement.value = 'primary'; // Fallback if not found
-      mapboxAvancementColorHex.value = toHex('primary'); // Convert fallback to hex
+      couleurAvancement.value = 'primary';
+      mapboxAvancementColorHex.value = toHex('primary');
     }
     const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
 
-    // Load graph curve colors
     const rawGraphZoomColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom');
     const rawGraphPitchColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurPitch');
     const rawGraphBearingDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingDelta');
@@ -1192,7 +1193,6 @@ onMounted(async () => {
     graphEditedBearingDeltaColor.value = toHex(rawGraphEditedBearingDeltaColor);
     graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
 
-    // Load graph visibility settings
     showCalculeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaCalcule');
     showEditeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaEdite');
     showCalculeeBearingTotalDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingTotalDeltaCalcule');
@@ -1200,7 +1200,6 @@ onMounted(async () => {
     showEditeeZoom.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherZoomEdite');
     showEditeePitch.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherPitchEdite');
 
-    // Load colors for checkboxes
     colorOrigineBearingDelta.value = toHex(rawGraphBearingDeltaColor);
     colorEditedBearingDelta.value = toHex(rawGraphEditedBearingDeltaColor);
     colorOrigineBearingTotalDelta.value = toHex(rawGraphBearingTotalDeltaColor);
@@ -1209,8 +1208,6 @@ onMounted(async () => {
     colorEditedZoom.value = toHex(rawGraphEditedZoomColor);
     colorOriginePitch.value = toHex(rawGraphPitchColor);
     colorEditedPitch.value = toHex(rawGraphEditedPitchColor);
-
-
 
     const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
     const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
@@ -1225,12 +1222,10 @@ onMounted(async () => {
       return;
     }
 
-    // Process tracking data to add cumulative distance (performant method)
-    const segmentLengthKm = 0.1; // Each tracking point represents a 100m segment
+    const segmentLengthKm = 0.1;
     const processedTrackingPoints = rawTrackingData.map((point, index) => ({
       ...point,
       distance: parseFloat((index * segmentLengthKm).toFixed(2)),
-      // Initialize edited values only if they don't already exist, for persistence
       editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
       editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
       editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
@@ -1240,63 +1235,50 @@ onMounted(async () => {
     const events = await invoke('get_events', { circuitId: circuitId });
     eventsFile.value = events;
 
-    // Load Flyto duration setting
     flytoDurationSetting.value = await getSettingValue('Edition/Evenements/Flyto/duree');
 
     // Load Message settings
-    knownMessageTexts.value = await invoke('get_known_message_texts', { circuitId: circuitId });
-    messageBackgroundColorSetting.value = await getSettingValue('Edition/Evenements/Message/couleurFond');
-    messageBorderColorSetting.value = await getSettingValue('Edition/Evenements/Message/couleurBordure');
-    messageBorderWidthSetting.value = await getSettingValue('Edition/Evenements/Message/tailleBordure');
-    messagePreAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
-    messagePostAffichageSetting.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
-    messageBorderRadiusSetting.value = await getSettingValue('Edition/Evenements/Message/rayonBordure');
+    defaultMessagePreAffichage.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
+    defaultMessagePostAffichage.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
+    messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
+    messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
 
-    // Load Zoom Depart settings
     const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
     zoomDepart.value = circuitData.zoom.depart.enabled;
     zoomDepartValeur.value = circuitData.zoom.depart.valeur;
     zoomDepartDistance.value = circuitData.zoom.depart.distance;
 
-    // Load Zoom Arrivee settings
     zoomArrivee.value = circuitData.zoom.arrivee.enabled;
     zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
     distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
 
-    // Load Commandes Clavier settings
     incrementAvancement.value = await getSettingValue('Edition/Commandes clavier/incrementAvancement');
     incrementAvancementShift.value = await getSettingValue('Edition/Commandes clavier/incrementAvancementShift');
     incrementPitch.value = await getSettingValue('Edition/Commandes clavier/incrementPitch');
     incrementPitchShift.value = await getSettingValue('Edition/Commandes clavier/incrementPitchShift');
 
-    // Load Touches configurables
     toucheAvancementAvant.value = await getSettingValue('Edition/Commandes clavier/toucheAvancementAvant');
     toucheAvancementArriere.value = await getSettingValue('Edition/Commandes clavier/toucheAvancementArriere');
     touchePitchHaut.value = await getSettingValue('Edition/Commandes clavier/touchePitchHaut');
     touchePitchBas.value = await getSettingValue('Edition/Commandes clavier/touchePitchBas');
 
-    // Load Commandes Souris settings
     incrementZoom.value = await getSettingValue('Edition/Commandes souris/incrementZoom');
     incrementZoomShift.value = await getSettingValue('Edition/Commandes souris/incrementZoomShift');
-    incrementBearing.value = await getSettingValue('Edition/Commandes souris/incrementBearing') || 1; // Default to 1 if not found
-    incrementBearingShift.value = await getSettingValue('Edition/Commandes souris/incrementBearingShift') || 5; // Default to 5 if not found
+    incrementBearing.value = await getSettingValue('Edition/Commandes souris/incrementBearing') || 1;
+    incrementBearingShift.value = await getSettingValue('Edition/Commandes souris/incrementBearingShift') || 5;
 
-    // Initial interpolation
     updateInterpolation();
 
     currentPointIndex.value = 0;
 
-    // Set data loaded flag to true
     dataLoaded.value = true;
 
-    // Apply initial zoom depart state
     if (zoomDepart.value) {
       await applyZoomDepart();
     } else {
       zoomDepartIsActive.value = false;
     }
 
-    // Apply initial zoom arrivee state
     if (zoomArrivee.value) {
       await applyZoomArrivee();
     } else {
@@ -1323,22 +1305,19 @@ onMounted(async () => {
       pitch: initialPitch,
       bearing: initialBearing,
       antialias: true,
-      scrollZoom: false, // Disable default scroll zoom
-      dragRotate: true, // Enable default drag rotate
-      dragPan: true, // Enable default drag pan
+      scrollZoom: false,
+      dragRotate: true,
+      dragPan: true,
       pitchWithRotate: false,
-      keyboard: false, // Disable default keyboard navigation
+      keyboard: false,
     });
 
-    // Add custom event listeners
     window.addEventListener('wheel', handleWheel, { passive: false });
     mapContainer.value.addEventListener('contextmenu', handleContextMenu);
 
     map.on('load', () => {
-      // Initial state for dragPan based on default tab (camera)
       map.dragPan.disable();
 
-      // Listen for map movements to update the info widget
       map.on('zoom', updateCameraInfo);
       map.on('pitch', updateCameraInfo);
       map.on('rotate', updateCameraInfo);
@@ -1371,7 +1350,7 @@ onMounted(async () => {
           'line-cap': 'round',
         },
                   paint: {
-                    'line-color': traceColor.value, // Explicitly use .value
+                    'line-color': traceColor.value,
                     'line-width': traceWidth,
                   },      });
 
@@ -1396,7 +1375,7 @@ onMounted(async () => {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': mapboxAvancementColorHex.value, // Use hex color for Mapbox
+          'line-color': mapboxAvancementColorHex.value,
           'line-width': epaisseurAvancement,
         },
       });

@@ -8,10 +8,8 @@ import SettingsView from '../views/SettingsView.vue'
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    // Temporairement, pour le test de MessageLibraryModal.vue
-    // component: MainView
-    component: () => import('../views/TestMessageLibraryView.vue') // <-- Modifier ici
+    name: 'Main',
+    component: MainView
   },
   {
     path: '/edit/:circuitId',
@@ -33,11 +31,6 @@ const routes = [
     path: '/debug-tracking/:circuitId',
     name: 'DebugTracking',
     component: () => import('../views/DebugTrackingView.vue')
-  },
-  {
-    path: '/test-messages',
-    name: 'TestMessages',
-    component: () => import('../views/TestMessageLibraryView.vue')
   }
 ]
 

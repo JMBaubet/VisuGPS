@@ -780,7 +780,7 @@ pub struct NewMessage {
 }
 
 #[tauri::command]
-fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
+fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
     // Generate the ID for the new or updated message based on its content
     let new_id = generate_message_id(&new_message.text, &new_message.style.background_color, &new_message.style.shape);
 
@@ -842,7 +842,7 @@ fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_messag
 }
 
 #[tauri::command]
-fn delete_message(app_handle: AppHandle, state: State<Mutex<AppState>>, id: String, target: String) -> Result<(), String> {
+fn delete_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, id: String, target: String) -> Result<(), String> {
     let path = match target.as_str() {
         "user" => {
             let state = state.lock().unwrap();

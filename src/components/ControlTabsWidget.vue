@@ -253,59 +253,26 @@
 
       <!-- Onglet Message -->
       <v-window-item value="message">
-        <div class="pa-2 d-flex flex-column">
-          <v-row dense>
-            <v-col cols="12">
-              <v-combobox
-                label="Texte du message"
-                :items="knownMessageTexts"
-                v-model="messageText"
-                density="compact"
-                variant="outlined"
-                hide-details
-              ></v-combobox>
-            </v-col>
-          </v-row>
+        <div class="pa-2 d-flex flex-column fill-height">
+          <v-btn block color="primary" variant="tonal" @click="emit('open-message-library')">
+            Choisir un message
+          </v-btn>
 
           <v-divider class="my-4"></v-divider>
 
-          <v-row dense class="align-center">
-            <v-col cols="2" class="d-flex justify-center">
-              <v-btn icon="mdi-palette" size="small" :color="messageBackgroundColor" @click="showColorPicker('background')"></v-btn>
-            </v-col>
-            <v-col cols="2" class="d-flex justify-center">
-              <v-btn icon="mdi-palette" size="small" :color="messageBorderColor" @click="showColorPicker('border')"></v-btn>
-            </v-col>
-            <v-col cols="4">
-              <v-slider
-                v-model="messageBorderWidth"
-                :min="messageBorderWidthMin"
-                :max="messageBorderWidthMax"
-                :step="messageBorderWidthStep"
-                thumb-label
-                hide-details
-                :thumb-color="messageBorderColor"
-              ></v-slider>
-            </v-col>
-            <v-col cols="4">
-              <v-slider
-                v-model="messageBorderRadius"
-                :min="messageBorderRadiusMin"
-                :max="messageBorderRadiusMax"
-                :step="messageBorderRadiusStep"
-                thumb-label
-                hide-details
-                :thumb-color="messageBorderColor"
-              ></v-slider>
-            </v-col>
-          </v-row>
-
-          <v-row dense>
-            <v-col cols="2" class="text-center text-caption">Fond</v-col>
-            <v-col cols="2" class="text-center text-caption">Bordure</v-col>
-            <v-col cols="4" class="text-center text-caption">Taille (px)</v-col>
-            <v-col cols="4" class="text-center text-caption">Rayon (px)</v-col>
-          </v-row>
+          <div v-if="messageToDisplay" class="text-center">
+            <p class="text-caption">Message sélectionné :</p>
+            <v-chip
+              :color="messageToDisplay.style.backgroundColor"
+              :text-color="messageToDisplay.style.textColor"
+              class="ma-2"
+            >
+              {{ messageToDisplay.text }}
+            </v-chip>
+          </div>
+          <div v-else class="text-center text-disabled">
+            Aucun message sélectionné
+          </div>
 
           <v-divider class="my-4"></v-divider>
 
@@ -328,6 +295,7 @@
             </v-col>
           </v-row>
 
+          <v-spacer></v-spacer>
 
           <v-row dense>
             <v-col cols="12" class="d-flex justify-space-around align-center">
@@ -335,41 +303,14 @@
                 <span class="mr-2">Supprimer Message</span>
                 <v-icon icon="mdi-delete"></v-icon>
               </v-btn>
-              <v-btn v-else color="primary" variant="text" @click="onAddMessage">
-                <span class="mr-2">Ajouter Message</span>
-                <v-icon icon="mdi-plus"></v-icon>
+              <v-btn :disabled="!messageToDisplay" color="primary" variant="text" @click="onAddMessage">
+                <span class="mr-2">{{ isMessageEvent ? 'Mettre à jour' : 'Ajouter Message' }}</span>
+                <v-icon>{{ isMessageEvent ? 'mdi-check' : 'mdi-plus' }}</v-icon>
               </v-btn>
-            </v-col>
-          </v-row>
-
-          <v-row dense>
-            <v-col cols="12">
-              <v-card
-                class="mt-1 mb-1 mx-auto"
-                :style="previewMessageStyle"
-                elevation="2"
-              >
-                <span v-if="messageText">{{ messageText }}</span>
-                <span v-else class="text-disabled">Prévisualisation du message</span>
-              </v-card>
             </v-col>
           </v-row>
         </div>
       </v-window-item>
-
-      <v-dialog v-model="colorPickerDialog" max-width="400px">
-        <v-card>
-          <v-card-title>Sélectionner une couleur</v-card-title>
-          <v-card-text>
-            <v-color-picker v-model="selectedColor" :swatches="baseSwatches" show-swatches hide-inputs class="mx-auto"></v-color-picker>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn text @click="colorPickerDialog = false">Annuler</v-btn>
-            <v-btn color="primary" @click="applyColor">Appliquer</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
 
     </v-window>
   </v-sheet>
@@ -377,14 +318,10 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
-import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
 
 const mainTab = ref('camera');
 const zoomTab = ref('depart');
-
-const { toHex, toName, baseSwatches } = useVuetifyColors();
 
 // --- Props --- 
 const props = defineProps({
@@ -409,244 +346,148 @@ const props = defineProps({
   graphPitchColor: String,
   // Event props
   currentIncrement: Number,
-  pauseEvents: Array, // This prop now receives pauseEventsForDisplay from EditView.vue
+  pauseEvents: Array,
   flytoEvents: Array,
   flytoDurationSetting: Number,
   // Message props
   messageEvents: Array,
-  fullMessageEvents: { type: Array, default: () => [] },
-  knownMessageTexts: Array,
-  messageBackgroundColorSetting: String,
-  messageBorderColorSetting: String,
-  messageBorderWidthSetting: Number,
+  currentMessageEvent: Object, // An existing event at the current increment
+  selectedMessage: Object, // A new message selected from the library
   messagePreAffichageSetting: Number,
-    messagePostAffichageSetting: Number,
-    messageBorderRadiusSetting: Number,
-    // Toolbar props
-    isCurrentPointControlPoint: Boolean,
-    cameraSyncMode: String,
-    // Zoom Depart props
-    zoomDepart: Boolean,
-    zoomDepartValeur: Number,
-    zoomDepartDistance: Number,
-    zoomArrivee: Boolean,
-    zoomArriveeValeur: Number,
-    distanceZoomArrivee: Number,
-  });
-  
-  // --- Emits ---
-  const emit = defineEmits([
-    // Graph emits
-    'update:showCalculeeBearingDelta',
-    'update:showEditeeBearingDelta',
-    'update:showCalculeeBearingTotalDelta',
-    'update:showEditeeBearingTotalDelta',
-    'update:showEditeeZoom',
-    'update:showEditeePitch',
-    // Event emits
-    'delete-pause',
-    'add-pause', // Added this
-    'add-flyto',
-    'delete-flyto',
-    'update:flytoDurationSetting',
-    // Message emits
-    'add-message',
-    'delete-message',
-    'update:messageBackgroundColorSetting',
-    'update:messageBorderColorSetting',
-    'update:messageBorderWidthSetting',
-    'update:messagePreAffichageSetting',
-    'update:messagePostAffichageSetting',
-    'update:messageBorderRadiusSetting',
-    // Toolbar emits
-    'save-control-point',
-    'delete-control-point',
-    'update:cameraSyncMode',
-    // Mode emits
-    'update:marker-visible',
-    'tab-changed',
-    // Zoom Depart emits
-    'update:zoomDepart',
-    'update:zoomDepartValeur',
-    'update:zoomDepartDistance',
-    'update:zoomArrivee',
-    'update:zoomArriveeValeur',
-    'update:distanceZoomArrivee',
-  ]);
-  
-  watch(mainTab, (newTab) => {
-    emit('tab-changed', newTab);
-  });
-  
-  // --- Models for Graph Tab ---
-  const createModel = (propName) => computed({
-    get: () => props[propName],
-    set: (value) => emit(`update:${propName}`, value),
-  });
-  
-  const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
-  const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
-  const showCalculeeBearingTotalDeltaModel = createModel('showCalculeeBearingTotalDelta');
-  const showEditeeBearingTotalDeltaModel = createModel('showEditeeBearingTotalDelta');
-  const showEditeeZoomModel = createModel('showEditeeZoom');
-  const showEditeePitchModel = createModel('showEditeePitch');
-  
-  const cameraSyncModeModel = createModel('cameraSyncMode');
-  const zoomDepartModel = createModel('zoomDepart');
-  const zoomDepartValeurModel = createModel('zoomDepartValeur');
-  const zoomDepartDistanceModel = createModel('zoomDepartDistance');
-  const zoomArriveeModel = createModel('zoomArrivee');
-  const zoomArriveeValeurModel = createModel('zoomArriveeValeur');
-  const zoomArriveeDistanceModel = createModel('distanceZoomArrivee');
-  
-  // --- Message Event Logic ---
-  const messageText = ref('');
-  const messageBackgroundColor = createModel('messageBackgroundColorSetting');
-  const messageBorderColor = createModel('messageBorderColorSetting');
-  const messageBorderWidth = createModel('messageBorderWidthSetting');
-  const messageBorderRadius = createModel('messageBorderRadiusSetting');
-  
-  const messageBorderWidthMin = ref(0); // TODO: Get from settings
-  const messageBorderWidthMax = ref(10); // TODO: Get from settings
-  const messageBorderWidthStep = ref(1); // TODO: Get from settings
-  
-  const messageBorderRadiusMin = ref(0); // TODO: Get from settings
-  const messageBorderRadiusMax = ref(20); // TODO: Get from settings
-  const messageBorderRadiusStep = ref(1); // TODO: Get from settings
-  
-  const messagePreAffichageMin = ref(-50); // From settings, now negative for pre-display
-  const messagePostAffichageMax = ref(100); // From settings
-  const messagePreAffichageStep = ref(1); // From settings
-  
-  const messageDisplayRange = computed({
-    get: () => [-props.messagePreAffichageSetting, props.messagePostAffichageSetting],
-    set: (value) => {
-      let newPreAffichage = -value[0]; // Convert negative slider value to positive preAffichage
-      let newPostAffichage = value[1];
-  
-      // Ensure preAffichage is within its valid range (0 to 50)
-      newPreAffichage = Math.max(0, Math.min(50, newPreAffichage));
-      // Ensure postAffichage is within its valid range (1 to 100)
-      newPostAffichage = Math.max(1, Math.min(100, newPostAffichage));
-
-      if (props.messagePreAffichageSetting !== newPreAffichage) {
-        emit('update:messagePreAffichageSetting', newPreAffichage);
-      }
-      if (props.messagePostAffichageSetting !== newPostAffichage) {
-        emit('update:messagePostAffichageSetting', newPostAffichage);
-      }
-    },
-  });
-
-// Function to determine contrast color (black or white)
-const getContrastColor = (hexColor) => {
-  if (!hexColor) return 'black'; // Default to black if no color
-
-  // Convert hex to RGB
-  let r = 0, g = 0, b = 0;
-  if (hexColor.length === 7) { // #RRGGBB
-    r = parseInt(hexColor.substring(1, 3), 16);
-    g = parseInt(hexColor.substring(3, 5), 16);
-    b = parseInt(hexColor.substring(5, 7), 16);
-  } else if (hexColor.length === 4) { // #RGB
-    r = parseInt(hexColor[1] + hexColor[1], 16);
-    g = parseInt(hexColor[2] + hexColor[2], 16);
-    b = parseInt(hexColor[3] + hexColor[3], 16);
-  }
-
-  // Calculate luminance (perceived brightness)
-  // Formula: (0.299*R + 0.587*G + 0.114*B)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-  // Use a threshold to decide between black and white
-  return luminance > 0.5 ? 'black' : 'white';
-};
-
-const previewTextColor = computed(() => {
-  // Convert Vuetify color name to hex for luminance calculation
-  const hexBgColor = toHex(messageBackgroundColor.value);
-  return getContrastColor(hexBgColor);
+  messagePostAffichageSetting: Number,
+  // Toolbar props
+  isCurrentPointControlPoint: Boolean,
+  cameraSyncMode: String,
+  // Zoom Depart props
+  zoomDepart: Boolean,
+  zoomDepartValeur: Number,
+  zoomDepartDistance: Number,
+  zoomArrivee: Boolean,
+  zoomArriveeValeur: Number,
+  distanceZoomArrivee: Number,
 });
-
-const previewMessageStyle = computed(() => {
-  const hexBgColor = toHex(messageBackgroundColor.value);
-  const hexBorderColor = toHex(messageBorderColor.value);
-
-  return {
-    backgroundColor: hexBgColor,
-    color: previewTextColor.value,
-    border: `${messageBorderWidth.value}px solid ${hexBorderColor}`,
-    borderRadius: `${messageBorderRadius.value}px`,
-    padding: '4px 8px',
-    textAlign: 'center',
-    minHeight: '40px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    wordBreak: 'break-word',
-    whiteSpace: 'pre-wrap',
-    width: 'fit-content',
-    fontWeight: 'bold',
-  };
+  
+// --- Emits ---
+const emit = defineEmits([
+  // Graph emits
+  'update:showCalculeeBearingDelta',
+  'update:showEditeeBearingDelta',
+  'update:showCalculeeBearingTotalDelta',
+  'update:showEditeeBearingTotalDelta',
+  'update:showEditeeZoom',
+  'update:showEditeePitch',
+  // Event emits
+  'delete-pause',
+  'add-pause',
+  'add-flyto',
+  'delete-flyto',
+  'update:flytoDurationSetting',
+  // Message emits
+  'add-message',
+  'delete-message',
+  'open-message-library',
+  'update:messagePreAffichageSetting',
+  'update:messagePostAffichageSetting',
+  // Toolbar emits
+  'save-control-point',
+  'delete-control-point',
+  'update:cameraSyncMode',
+  // Mode emits
+  'update:marker-visible',
+  'tab-changed',
+  // Zoom Depart emits
+  'update:zoomDepart',
+  'update:zoomDepartValeur',
+  'update:zoomDepartDistance',
+  'update:zoomArrivee',
+  'update:zoomArriveeValeur',
+  'update:distanceZoomArrivee',
+]);
+  
+watch(mainTab, (newTab) => {
+  emit('tab-changed', newTab);
 });
-
-const colorPickerDialog = ref(false);
-const selectedColor = ref('');
-const colorPickerTarget = ref(''); // 'background' or 'border'
-
-const showColorPicker = async (target) => {
-  colorPickerTarget.value = target;
-  const colorName = target === 'background' ? messageBackgroundColor.value : messageBorderColor.value;
   
-  try {
-    // Convert Vuetify name to hex for the color picker
-    selectedColor.value = await invoke('convert_vuetify_color', { colorName: colorName });
-  } catch (error) {
-    console.error(`Failed to convert color ${colorName}:`, error);
-    selectedColor.value = '#000000'; // Fallback to black on error
-  }
+// --- Models for Graph Tab ---
+const createModel = (propName) => computed({
+  get: () => props[propName],
+  set: (value) => emit(`update:${propName}`, value),
+});
   
-  colorPickerDialog.value = true;
-};
+const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
+const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
+const showCalculeeBearingTotalDeltaModel = createModel('showCalculeeBearingTotalDelta');
+const showEditeeBearingTotalDeltaModel = createModel('showEditeeBearingTotalDelta');
+const showEditeeZoomModel = createModel('showEditeeZoom');
+const showEditeePitchModel = createModel('showEditeePitch');
+  
+const cameraSyncModeModel = createModel('cameraSyncMode');
+const zoomDepartModel = createModel('zoomDepart');
+const zoomDepartValeurModel = createModel('zoomDepartValeur');
+const zoomDepartDistanceModel = createModel('zoomDepartDistance');
+const zoomArriveeModel = createModel('zoomArrivee');
+const zoomArriveeValeurModel = createModel('zoomArriveeValeur');
+const zoomArriveeDistanceModel = createModel('distanceZoomArrivee');
+  
+// --- Message Event Logic ---
+const messagePreAffichageMin = ref(-50);
+const messagePostAffichageMax = ref(100);
+const messagePreAffichageStep = ref(1);
 
-const applyColor = () => {
-  // Convert the selected hex color back to its closest Vuetify name
-  const colorName = toName(selectedColor.value);
+const messageToDisplay = computed(() => 
+  props.currentMessageEvent?.message || props.selectedMessage
+);
 
-  if (colorPickerTarget.value === 'background') {
-    messageBackgroundColor.value = colorName;
-  } else {
-    messageBorderColor.value = colorName;
-  }
-  colorPickerDialog.value = false;
-};
+const messageDisplayRange = computed({
+  get: () => {
+    const pre = props.messagePreAffichageSetting ?? 0;
+    const post = props.messagePostAffichageSetting ?? 0;
+    return [-pre, post];
+  },
+  set: (value) => {
+    let newPreAffichage = -value[0];
+    let newPostAffichage = value[1];
+
+    newPreAffichage = Math.max(0, Math.min(50, newPreAffichage));
+    newPostAffichage = Math.max(1, Math.min(100, newPostAffichage));
+
+    if (props.messagePreAffichageSetting !== newPreAffichage) {
+      emit('update:messagePreAffichageSetting', newPreAffichage);
+    }
+    if (props.messagePostAffichageSetting !== newPostAffichage) {
+      emit('update:messagePostAffichageSetting', newPostAffichage);
+    }
+  },
+});
 
 const isMessageEvent = computed(() => {
-  return props.messageEvents.includes(props.currentIncrement);
+  return !!props.currentMessageEvent;
 });
 
 const onAddMessage = () => {
-  if (!messageText.value) {
-    // Optionally show a snackbar error
+  if (!messageToDisplay.value) {
     return;
   }
   const messageData = {
-    text: messageText.value,
+    messageId: messageToDisplay.value.id,
     preAffichage: props.messagePreAffichageSetting,
     postAffichage: props.messagePostAffichageSetting,
-    coord: null, // Always null, parent will fill with map center
-    backgroundColor: messageBackgroundColor.value,
-    borderColor: messageBorderColor.value,
-    borderWidth: messageBorderWidth.value,
-    borderRadius: messageBorderRadius.value,
   };
-  console.log('Emitting add-message with data:', JSON.stringify(messageData, null, 2));
   emit('add-message', messageData);
 };
 
 const onDeleteMessage = () => {
   emit('delete-message');
 };
+
+watch(() => props.currentMessageEvent, (event) => {
+  if (event) {
+    const pre = event.anchorIncrement - event.startIncrement;
+    const post = event.endIncrement - event.anchorIncrement;
+    emit('update:messagePreAffichageSetting', pre);
+    emit('update:messagePostAffichageSetting', post);
+  }
+}, { immediate: true });
 
 
 // --- Logic for Events Tab --- 
@@ -678,27 +519,6 @@ watch(isMarkerVisible, (newValue) => {
   emit('update:marker-visible', newValue);
 });
 
-watch(() => props.currentIncrement, (newIncrement) => {
-  const currentEvent = props.fullMessageEvents.find(
-    event => event.anchorIncrement === newIncrement
-  );
-
-  if (currentEvent) {
-    // Recalculate pre/post from the event's increments
-    const preAffichage = currentEvent.anchorIncrement - currentEvent.startIncrement;
-    const postAffichage = currentEvent.endIncrement - currentEvent.anchorIncrement;
-
-    messageText.value = currentEvent.text;
-    messageBackgroundColor.value = currentEvent.backgroundColor;
-    messageBorderColor.value = currentEvent.borderColor;
-    messageBorderWidth.value = currentEvent.borderWidth;
-    messageBorderRadius.value = currentEvent.borderRadius;
-    
-    emit('update:messagePreAffichageSetting', preAffichage);
-    emit('update:messagePostAffichageSetting', postAffichage);
-  }
-  // No 'else' block: if no event is found, the controls retain their current state.
-}, { immediate: true });
 </script>
 
 <style scoped>
@@ -711,5 +531,4 @@ watch(() => props.currentIncrement, (newIncrement) => {
   display: flex;
   flex-direction: column;
 }
-
 </style>
