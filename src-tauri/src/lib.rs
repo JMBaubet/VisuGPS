@@ -710,15 +710,30 @@ fn generate_message_id(text: &str, color: &str, shape: &str) -> String {
 }
 
 
-const EMBEDDED_DEFAULT_MESSAGES: &str = include_str!("../../public/messages_default.json");
-
 #[tauri::command]
 fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<Vec<Message>, String> {
     let state_lock = state.lock().unwrap();
 
-    // 1. Read default messages from embedded string
-    let mut default_messages: Vec<Message> = serde_json::from_str(EMBEDDED_DEFAULT_MESSAGES)
-        .map_err(|e| format!("Failed to parse embedded messages_default.json: {}", e))?;
+    // 1. Read default messages
+    let mut default_messages: Vec<Message> = {
+        #[cfg(debug_assertions)]
+        {
+            // In DEV mode, always read from the source file to see live changes
+            let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+            let mut path = std::path::PathBuf::from(manifest_dir);
+            path.push("../public/messages_default.json");
+            let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+            serde_json::from_str(&content).map_err(|e| e.to_string())?
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            // In PROD mode, use the version embedded at compile time
+            const EMBEDDED_DEFAULT_MESSAGES: &str = include_str!("../../public/messages_default.json");
+            serde_json::from_str(EMBEDDED_DEFAULT_MESSAGES)
+                .map_err(|e| format!("Failed to parse embedded messages_default.json: {}", e))?
+        }
+    };
+
     for msg in &mut default_messages {
         msg.source = Some("default".to_string());
     }
@@ -758,19 +773,16 @@ fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) ->
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NewMessage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    id: Option<String>, // The original ID, if editing
     text: String,
     style: MessageStyle,
 }
 
 #[tauri::command]
 fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
-    // Construct the full Message struct from the NewMessage payload
-    let message = Message {
-        id: generate_message_id(&new_message.text, &new_message.style.background_color, &new_message.style.shape),
-        text: new_message.text,
-        style: new_message.style,
-        source: None, // Source is for frontend display only and is never saved
-    };
+    // Generate the ID for the new or updated message based on its content
+    let new_id = generate_message_id(&new_message.text, &new_message.style.background_color, &new_message.style.shape);
 
     let path = match target.as_str() {
         "user" => {
@@ -784,8 +796,10 @@ fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_messag
             }
             #[cfg(debug_assertions)]
             {
-                app_handle.path().resolve("public/messages_default.json", tauri::path::BaseDirectory::Resource)
-                    .map_err(|e| format!("Failed to resolve resource path for default messages: {}", e))?
+                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+                let mut path = std::path::PathBuf::from(manifest_dir);
+                path.push("../public/messages_default.json");
+                path
             }
         },
         _ => return Err("Invalid target specified.".to_string()),
@@ -802,9 +816,24 @@ fn save_message(app_handle: AppHandle, state: State<Mutex<AppState>>, new_messag
         Vec::new()
     };
 
-    // Remove existing message with same ID, if any, to perform an "upsert"
-    messages.retain(|m| m.id != message.id);
-    messages.push(message);
+    // If an original ID was passed (i.e., it's an edit), remove the original message.
+    if let Some(original_id) = new_message.id {
+        if original_id != new_id { // Only delete if the ID has actually changed
+            messages.retain(|m| m.id != original_id);
+        }
+    }
+
+    // Now, perform an "upsert" for the new/modified message.
+    // This handles both creation and the case where the user edits a message back to a state that has an existing ID.
+    messages.retain(|m| m.id != new_id);
+
+    let message_to_save = Message {
+        id: new_id,
+        text: new_message.text,
+        style: new_message.style,
+        source: None,
+    };
+    messages.push(message_to_save);
 
     let new_content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
     fs::write(&path, new_content).map_err(|e| e.to_string())?;
@@ -826,8 +855,10 @@ fn delete_message(app_handle: AppHandle, state: State<Mutex<AppState>>, id: Stri
             }
             #[cfg(debug_assertions)]
             {
-                app_handle.path().resolve("public/messages_default.json", tauri::path::BaseDirectory::Resource)
-                    .map_err(|e| format!("Failed to resolve resource path for default messages: {}", e))?
+                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+                let mut path = std::path::PathBuf::from(manifest_dir);
+                path.push("../public/messages_default.json");
+                path
             }
         },
         _ => return Err("Invalid target specified.".to_string()),

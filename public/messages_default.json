@@ -1,14 +1,5 @@
 [
   {
-    "id": "Ravitaillement_blue-darken-2_skewed-rect",
-    "text": "Ravitaillement",
-    "style": {
-      "backgroundColor": "blue-darken-2",
-      "textColor": "white",
-      "shape": "skewed-rect"
-    }
-  },
-  {
     "id": "Point_deau_cyan-darken-3_skewed-rect",
     "text": "Point d'eau",
     "style": {
@@ -18,10 +9,19 @@
     }
   },
   {
-    "id": "Depart_green-darken-2_skewed-rect",
+    "id": "Arrivée_orange-darken-2_skewed-rect",
+    "text": "Arrivée",
+    "style": {
+      "backgroundColor": "orange-darken-2",
+      "textColor": "white",
+      "shape": "skewed-rect"
+    }
+  },
+  {
+    "id": "Départ_red-darken-2_skewed-rect",
     "text": "Départ",
     "style": {
-      "backgroundColor": "green-darken-2",
+      "backgroundColor": "red-darken-2",
       "textColor": "white",
       "shape": "skewed-rect"
     }
