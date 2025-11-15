@@ -9,10 +9,10 @@
     }
   },
   {
-    "id": "Départ_red-darken-2_skewed-rect",
+    "id": "Départ_green_skewed-rect",
     "text": "Départ",
     "style": {
-      "backgroundColor": "red-darken-2",
+      "backgroundColor": "green",
       "textColor": "white",
       "shape": "skewed-rect"
     }

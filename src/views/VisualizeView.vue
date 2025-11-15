@@ -539,23 +539,28 @@ const createMessageSVG = (message) => {
   const textColor = message.message.style.textColor || 'black';
   const shape = message.message.style.shape || 'rect';
 
-  const scaleFactor = 0.4; // Réduire de 60% (0.4 de la taille originale)
+  // Reference design values (before any scaling)
+  const designBaseFontSize = 100;
+  const designBaseRectHeight = 150;
+  const designRectRx = 20;
+  const designMinRectWidth = 300;
+  const designPadding = 50;
 
-  // Base dimensions for the rectangle
-  const baseRectHeight = 150 * scaleFactor;
-  const rectRx = 20 * scaleFactor;
+  // Calculate fontScaleFactor based on the user's baseMessageFontSize setting
+  // If baseMessageFontSize is 40, fontScaleFactor will be 0.4
+  const fontScaleFactor = baseMessageFontSize.value / designBaseFontSize;
+
+  // Apply fontScaleFactor to other dimensions
+  const baseRectHeight = designBaseRectHeight * fontScaleFactor;
+  const rectRx = designRectRx * fontScaleFactor;
 
   let transform = '';
   if (shape === 'skewed-rect') {
     transform = 'skewY(-20)';
   }
 
-  // Dynamic font size adjustment
-  let fontSize = 100 * scaleFactor;
-  const maxTextLengthForBaseFontSize = 8;
-  if (text.length > maxTextLengthForBaseFontSize) {
-    fontSize = Math.max(40 * scaleFactor, (100 - (text.length - maxTextLengthForBaseFontSize) * 5) * scaleFactor);
-  }
+  // Use the baseMessageFontSize directly for fontSize
+  const fontSize = baseMessageFontSize.value;
 
   // Estimate text width (this is a heuristic, a more precise method would require canvas measurement)
   // Assuming an average character width for the chosen font and size
@@ -563,8 +568,8 @@ const createMessageSVG = (message) => {
   const estimatedTextWidth = text.length * averageCharWidth;
 
   // Calculate dynamic rect width, ensuring a minimum width
-  const minRectWidth = 300 * scaleFactor; // Minimum width for small texts
-  const padding = 50 * scaleFactor; // Padding around the text
+  const minRectWidth = designMinRectWidth * fontScaleFactor; // Minimum width for small texts
+  const padding = designPadding * fontScaleFactor; // Padding around the text
   const rectWidth = Math.max(minRectWidth, estimatedTextWidth + padding);
 
   // Adjust viewBox and text position based on dynamic width
@@ -729,6 +734,7 @@ const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finali
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
+const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Messages/baseFontSize'));
 
 const sensibilityCap = computed(() => getSettingValue('Système/Télécommande/sensibiliteCap') ?? 100);
 const sensibilityPointDeVueX = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 100);
