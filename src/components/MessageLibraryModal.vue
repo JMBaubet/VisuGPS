@@ -1,32 +1,47 @@
 <template>
   <v-dialog v-model="dialog" max-width="800px">
     <v-card>
-      <v-card-title class="headline d-flex justify-space-between align-center">
+      <v-card-title class="headline d-flex align-center">
         <span>Bibliothèque de Messages</span>
-        <v-btn color="primary" @click="openNewMessageDialog">Nouveau Message</v-btn>
+        <v-spacer></v-spacer>
+        <v-text-field
+          v-model="filterText"
+          label="Filtrer par texte"
+          prepend-inner-icon="mdi-magnify"
+          variant="solo-filled"
+          density="compact"
+          hide-details
+          single-line
+          class="ml-4"
+          style="max-width: 250px;"
+        ></v-text-field>
+        <v-btn color="primary" class="ml-4" @click="openNewMessageDialog">Nouveau Message</v-btn>
       </v-card-title>
       <v-card-text>
         <v-progress-circular v-if="loading" indeterminate color="primary"></v-progress-circular>
         <v-list v-else>
           <v-list-item
-            v-for="message in messages"
+            v-for="message in filteredMessages"
             :key="message.id"
           >
-            <v-list-item-title>{{ message.text }}</v-list-item-title>
+            <div
+              :style="{
+                backgroundColor: toHex(message.style.backgroundColor),
+                color: getContrastColor(message.style.backgroundColor),
+                padding: '4px 8px',
+                borderRadius: '4px',
+                display: 'inline-block'
+              }"
+            >
+              {{ message.text }}
+            </div>
             <template v-slot:append>
               <v-chip
-                :color="message.style.backgroundColor"
-                :text-color="message.style.textColor"
-                class="ml-2"
-              >
-                {{ message.style.shape }}
-              </v-chip>
-              <v-chip
-                :color="message.source === 'user' ? 'blue' : 'grey'"
+                :color="message.source === 'user' ? 'primary' : 'warning'"
                 class="ml-2"
                 size="small"
               >
-                {{ message.source }}
+                {{ message.source === 'user' ? 'Utilisateur' : 'Production' }}
               </v-chip>
               <v-btn
                 icon="mdi-pencil"
@@ -82,6 +97,7 @@ import { ref, watch, onMounted, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import MessageEditDialog from './MessageEditDialog.vue';
 import ConfirmationDialog from './ConfirmationDialog.vue'; // Assuming this component exists
+import { useVuetifyColors } from '@/composables/useVuetifyColors'; // Import added
 
 const props = defineProps({
   modelValue: Boolean,
@@ -95,13 +111,35 @@ const loading = ref(false);
 const editDialog = ref(false);
 const deleteDialog = ref(false);
 const selectedMessage = ref(null);
+const filterText = ref('');
 
 const isDevMode = computed(() => import.meta.env.DEV);
+const { toHex, getContrastColor } = useVuetifyColors(); // Destructure color utilities
+
+const getTextForSorting = (text) => {
+  const firstLetterMatch = text.match(/\p{L}/u);
+  if (firstLetterMatch) {
+    return text.substring(firstLetterMatch.index);
+  }
+  return text; // Fallback to original text if no letters are found
+};
+
+const filteredMessages = computed(() => {
+  if (!filterText.value) {
+    return messages.value;
+  }
+  return messages.value.filter(message =>
+    getTextForSorting(message.text).toLowerCase().includes(filterText.value.toLowerCase())
+  );
+});
 
 const fetchMessages = async () => {
   loading.value = true;
   try {
-    messages.value = await invoke('get_message_library');
+    const fetchedMessages = await invoke('get_message_library');
+    messages.value = fetchedMessages.sort((a, b) =>
+      getTextForSorting(a.text).localeCompare(getTextForSorting(b.text))
+    );
   } catch (error) {
     console.error("Erreur lors de la récupération de la bibliothèque de messages:", error);
   } finally {
@@ -126,7 +164,9 @@ const confirmDelete = (message) => {
 
 const saveMessage = async ({ message, target }) => {
   try {
-    await invoke('save_message', { newMessage: message, target });
+    // Convert 'Utilisateur'/'Production' back to 'user'/'default' for backend
+    const backendTarget = target === 'Utilisateur' ? 'user' : 'default';
+    await invoke('save_message', { newMessage: message, target: backendTarget });
     fetchMessages(); // Refresh the list
   } catch (error) {
     console.error("Erreur lors de la sauvegarde du message:", error);

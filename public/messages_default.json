@@ -1,20 +1,42 @@
 [
   {
-    "id": "Arrivée_orange-darken-2_skewed-rect",
-    "text": "Arrivée",
+    "id": "_Photo_blue",
+    "text": "📷 Photo",
     "style": {
-      "backgroundColor": "orange-darken-2",
-      "textColor": "white",
-      "shape": "skewed-rect"
+      "backgroundColor": "blue",
+      "textColor": "white"
     }
   },
   {
-    "id": "Départ_green_skewed-rect",
-    "text": "Départ",
+    "id": "_Ravitaillement_blue",
+    "text": "🍔 Ravitaillement",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Fontaine_blue",
+    "text": "🚰 Fontaine",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Départ_green",
+    "text": "⏱️ Départ",
     "style": {
       "backgroundColor": "green",
-      "textColor": "white",
-      "shape": "skewed-rect"
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Arrivée_red",
+    "text": "🏁 Arrivée",
+    "style": {
+      "backgroundColor": "red",
+      "textColor": "white"
     }
   }
 ]

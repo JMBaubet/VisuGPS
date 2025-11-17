@@ -181,10 +181,30 @@ export function useVuetifyColors() {
     return findClosestBaseColorName(hex);
   };
 
+  /**
+   * Calculates the best contrasting color (black or white) for a given color name.
+   * @param {string} colorName The name of the color (e.g., 'red-darken-1').
+   * @returns {'black'|'white'}
+   */
+  const getContrastColor = (colorName) => {
+    if (!colorName) return 'black';
+    
+    const resolvedHex = toHex(colorName);
+    if (!resolvedHex || !resolvedHex.startsWith('#')) return 'black';
+
+    const rgb = hexToRgb(resolvedHex);
+    if (!rgb) return 'black';
+
+    const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+    return luminance > 0.5 ? 'black' : 'white';
+  };
+
   return {
     toHex,
     toName,
-    toBaseName, // Nouvelle fonction exportée
+    toBaseName,
+    hexToRgb,
+    getContrastColor, // Export getContrastColor
     swatches,
     baseSwatches,
     vuetifyColors

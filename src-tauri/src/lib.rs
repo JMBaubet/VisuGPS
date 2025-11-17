@@ -689,7 +689,6 @@ fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, St
 pub struct MessageStyle {
     background_color: String,
     text_color: String,
-    shape: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -703,10 +702,10 @@ pub struct Message {
 }
 
 // Helper to generate ID
-fn generate_message_id(text: &str, color: &str, shape: &str) -> String {
+fn generate_message_id(text: &str, color: &str) -> String {
     // Replace spaces with underscores and remove characters that are not file-system friendly
     let safe_text = text.replace(" ", "_").chars().filter(|c| c.is_alphanumeric() || *c == '_').collect::<String>();
-    format!("{}_{}_{}", safe_text, color, shape)
+    format!("{}_{}", safe_text, color)
 }
 
 
@@ -782,7 +781,7 @@ pub struct NewMessage {
 #[tauri::command]
 fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
     // Generate the ID for the new or updated message based on its content
-    let new_id = generate_message_id(&new_message.text, &new_message.style.background_color, &new_message.style.shape);
+    let new_id = generate_message_id(&new_message.text, &new_message.style.background_color);
 
     let path = match target.as_str() {
         "user" => {
