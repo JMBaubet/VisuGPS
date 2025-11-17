@@ -38,6 +38,8 @@ pub struct RangeEventData {
     pub start_increment: u32,
     pub end_increment: u32,
     pub coord: Vec<f64>,
+    #[serde(default = "default_orientation")]
+    pub orientation: String,
 }
 
 // Main structure for the evt.json file (updated)
@@ -62,6 +64,8 @@ pub struct HydratedRangeEvent {
     pub start_increment: u32,
     pub end_increment: u32,
     pub coord: Vec<f64>,
+    #[serde(default = "default_orientation")]
+    pub orientation: String,
     pub message: Message,
 }
 
@@ -83,6 +87,15 @@ pub struct NewMessagePayload {
     pub post_affichage: u32,
     pub coord: Vec<f64>,
     pub anchor_increment: u32,
+    #[serde(default = "default_orientation")]
+    pub orientation: String,
+}
+
+
+// --- Default value function ---
+
+fn default_orientation() -> String {
+    "Droite".to_string()
 }
 
 
@@ -141,6 +154,7 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile) -> Result<Hyd
                 start_increment: event_data.start_increment,
                 end_increment: event_data.end_increment,
                 coord: event_data.coord,
+                orientation: event_data.orientation,
                 message: hydrated_message,
             });
         } else {
@@ -178,6 +192,7 @@ pub fn add_message_event(app_handle: AppHandle, circuit_id: String, payload: New
         start_increment,
         end_increment,
         coord: payload.coord,
+        orientation: payload.orientation,
     };
 
     events_file.range_events.push(new_event);

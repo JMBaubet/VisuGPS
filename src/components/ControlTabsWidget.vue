@@ -295,6 +295,24 @@
             </v-col>
           </v-row>
 
+          <v-row dense class="justify-center align-center mt-4">
+            <v-col cols="auto" class="text-right pr-0">
+              <label class="text-caption">Gauche</label>
+            </v-col>
+            <v-col cols="auto">
+              <v-switch
+                v-model="messageOrientationModel"
+                class="primary-big-switch"
+                color="primary"
+                hide-details
+                inset
+              ></v-switch>
+            </v-col>
+            <v-col cols="auto" class="text-left pl-0">
+              <label class="text-caption">Droite</label>
+            </v-col>
+          </v-row>
+
           <v-spacer></v-spacer>
 
           <v-row dense>
@@ -355,6 +373,7 @@ const props = defineProps({
   selectedMessage: Object, // A new message selected from the library
   messagePreAffichageSetting: Number,
   messagePostAffichageSetting: Number,
+  messageOrientation: String, // New prop: 'Gauche' or 'Droite'
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
@@ -388,6 +407,7 @@ const emit = defineEmits([
   'open-message-library',
   'update:messagePreAffichageSetting',
   'update:messagePostAffichageSetting',
+  'update:messageOrientation', // New emit
   // Toolbar emits
   'save-control-point',
   'delete-control-point',
@@ -413,6 +433,11 @@ const createModel = (propName) => computed({
   get: () => props[propName],
   set: (value) => emit(`update:${propName}`, value),
 });
+
+const createSwitchModel = (propName, trueValue, falseValue) => computed({
+  get: () => props[propName] === trueValue,
+  set: (value) => emit(`update:${propName}`, value ? trueValue : falseValue),
+});
   
 const showCalculeeBearingDeltaModel = createModel('showCalculeeBearingDelta');
 const showEditeeBearingDeltaModel = createModel('showEditeeBearingDelta');
@@ -428,8 +453,9 @@ const zoomDepartDistanceModel = createModel('zoomDepartDistance');
 const zoomArriveeModel = createModel('zoomArrivee');
 const zoomArriveeValeurModel = createModel('zoomArriveeValeur');
 const zoomArriveeDistanceModel = createModel('distanceZoomArrivee');
-  
+
 // --- Message Event Logic ---
+const messageOrientationModel = createSwitchModel('messageOrientation', 'Droite', 'Gauche');
 const messagePreAffichageMin = ref(-50);
 const messagePostAffichageMax = ref(100);
 const messagePreAffichageStep = ref(1);
@@ -472,6 +498,7 @@ const onAddMessage = () => {
     messageId: messageToDisplay.value.id,
     preAffichage: props.messagePreAffichageSetting,
     postAffichage: props.messagePostAffichageSetting,
+    orientation: props.messageOrientation,
   };
   emit('add-message', messageData);
 };
@@ -486,6 +513,7 @@ watch(() => props.currentMessageEvent, (event) => {
     const post = event.endIncrement - event.anchorIncrement;
     emit('update:messagePreAffichageSetting', pre);
     emit('update:messagePostAffichageSetting', post);
+    emit('update:messageOrientation', event.orientation || 'Droite');
   }
 }, { immediate: true });
 
@@ -530,5 +558,33 @@ watch(isMarkerVisible, (newValue) => {
   height: 400px; /* Match graph height */
   display: flex;
   flex-direction: column;
+}
+
+/* --- SWITCH PRIMARY AVEC THUMB GROS EN PERMANENCE --- */
+
+/* Track toujours Primary */
+:deep(.primary-big-switch .v-switch__track) {
+  background-color: rgb(var(--v-theme-primary)) !important;
+  opacity: 1 !important;
+}
+
+/* Thumb toujours gros */
+:deep(.primary-big-switch .v-switch__thumb) {
+  background-color: white !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+
+  /* Taille du thumb -> tu peux modifier 1.3 pour plus ou moins gros */
+  transform: scale(1) !important;
+}
+
+/* Neutralise l'effet actif de Vuetify (ON) */
+:deep(.primary-big-switch.v-input--dirty .v-switch__track) {
+  background-color: rgb(var(--v-theme-primary)) !important;
+}
+
+:deep(.primary-big-switch.v-input--dirty .v-switch__thumb) {
+  background-color: white !important;
+  transform: scale(1) !important; /* même taille en ON */
 }
 </style>

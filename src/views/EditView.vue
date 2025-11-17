@@ -81,6 +81,7 @@
         :selected-message="selectedMessageForNewEvent"
         v-model:message-pre-affichage-setting="messagePreAffichageSetting"
         v-model:message-post-affichage-setting="messagePostAffichageSetting"
+        v-model:message-orientation="messageOrientation"
         v-model:zoom-depart="zoomDepart"
         v-model:zoom-depart-valeur="zoomDepartValeur"
         v-model:zoom-depart-distance="zoomDepartDistance"
@@ -341,13 +342,24 @@ const showLibraryModal = ref(false);
 const selectedMessageForNewEvent = ref(null);
 const defaultMessagePreAffichage = ref(0);
 const defaultMessagePostAffichage = ref(0);
+const messageOrientation = ref('Droite'); // New state for orientation
 
 const currentMessageEvent = computed(() => 
   eventsFile.value.rangeEvents?.find(e => e.anchorIncrement === trackProgress.value) || null
 );
 
+watch(currentMessageEvent, (event) => {
+  if (event) {
+    messageOrientation.value = event.orientation || 'Droite';
+  }
+}, { immediate: true });
+
 watch(trackProgress, () => {
   selectedMessageForNewEvent.value = null;
+  // Reset orientation to default when moving to a new increment without a message
+  if (!currentMessageEvent.value) {
+    messageOrientation.value = 'Droite';
+  }
 });
 
 const handleOpenMessageLibrary = () => {
@@ -435,6 +447,7 @@ const handleAddMessageEvent = async (messageData) => {
       postAffichage: messageData.postAffichage,
       coord: [center.lng, center.lat],
       anchorIncrement: trackProgress.value,
+      orientation: messageData.orientation, // Pass orientation
     };
 
     try {
@@ -1272,6 +1285,9 @@ onMounted(async () => {
     currentPointIndex.value = 0;
 
     dataLoaded.value = true;
+
+    // Ensure default message orientation is 'Droite' on load
+    messageOrientation.value = 'Droite';
 
     if (zoomDepart.value) {
       await applyZoomDepart();

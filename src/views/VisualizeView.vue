@@ -370,7 +370,11 @@ async function executeFlytoSequence(flytoData) {
                         console.log("Message coordinates:", newMsg.coord); // Log coordinates
                         const svgContent = createMessageSVG(newMsg);
                         console.log("Generated SVG:", svgContent); // Debug log
-                        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: 'bottom-left', className: 'map-message-popup' })
+
+                        const orientation = newMsg.orientation || 'Droite';
+                        const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+
+                        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: anchor, className: 'map-message-popup' })
                             .setLngLat(newMsg.coord)
                             .setHTML(svgContent)
                             .addTo(map);
@@ -537,54 +541,34 @@ const createMessageSVG = (message) => {
   const text = message.message.text;
   const backgroundColor = message.message.style.backgroundColor || 'white';
   const textColor = message.message.style.textColor || 'black';
-  const shape = message.message.style.shape || 'rect';
+  const orientation = message.orientation || 'Droite';
 
-  // Reference design values (before any scaling)
   const designBaseFontSize = 100;
-  const designBaseRectHeight = 150;
-  const designRectRx = 20;
-  const designMinRectWidth = 300;
-  const designPadding = 50;
-
-  // Calculate fontScaleFactor based on the user's baseMessageFontSize setting
-  // If baseMessageFontSize is 40, fontScaleFactor will be 0.4
   const fontScaleFactor = baseMessageFontSize.value / designBaseFontSize;
-
-  // Apply fontScaleFactor to other dimensions
-  const baseRectHeight = designBaseRectHeight * fontScaleFactor;
-  const rectRx = designRectRx * fontScaleFactor;
-
-  let transform = '';
-  if (shape === 'skewed-rect') {
-    transform = 'skewY(-20)';
-  }
-
-  // Use the baseMessageFontSize directly for fontSize
   const fontSize = baseMessageFontSize.value;
+  const baseRectHeight = 150 * fontScaleFactor;
+  const rectRx = 20 * fontScaleFactor;
+  const minRectWidth = 300 * fontScaleFactor;
+  const padding = 50 * fontScaleFactor;
 
-  // Estimate text width (this is a heuristic, a more precise method would require canvas measurement)
-  // Assuming an average character width for the chosen font and size
-  const averageCharWidth = fontSize * 0.6; // Heuristic factor
+  const averageCharWidth = fontSize * 0.6;
   const estimatedTextWidth = text.length * averageCharWidth;
-
-  // Calculate dynamic rect width, ensuring a minimum width
-  const minRectWidth = designMinRectWidth * fontScaleFactor; // Minimum width for small texts
-  const padding = designPadding * fontScaleFactor; // Padding around the text
   const rectWidth = Math.max(minRectWidth, estimatedTextWidth + padding);
 
-  // Adjust viewBox and text position based on dynamic width
+  const skewAngle = orientation === 'Gauche' ? 20 : -20;
+  const transform = `skewY(${skewAngle})`;
+
+  const skewOffset = Math.abs(rectWidth * Math.tan(skewAngle * Math.PI / 180));
+  const viewBoxHeight = baseRectHeight + skewOffset;
   const viewBoxWidth = rectWidth;
-  const skewOffset = rectWidth * Math.tan(20 * Math.PI / 180);
-  const rectYOffset = skewOffset; // Shift content down by this amount
 
-  const newViewBoxHeight = baseRectHeight + skewOffset; // Total height needed
-
+  const rectY = (orientation === 'Gauche') ? 0 : skewOffset;
+  const textY = rectY + (baseRectHeight / 2) + (fontSize / 3);
   const textX = padding / 2;
-  const textY = rectYOffset + baseRectHeight / 2 + fontSize / 3; // Adjust textY by the same offset
 
   return `
-    <svg width="${viewBoxWidth}" height="${newViewBoxHeight}" viewBox="0 0 ${viewBoxWidth} ${newViewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
-      <rect fill="${backgroundColor}" x="0" y="${rectYOffset}" width="${rectWidth}" height="${baseRectHeight}" rx="${rectRx}" transform="${transform}" />
+    <svg width="${viewBoxWidth}" height="${viewBoxHeight}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
+      <rect fill="${backgroundColor}" x="0" y="${rectY}" width="${rectWidth}" height="${baseRectHeight}" rx="${rectRx}" transform="${transform}" />
       <text text-anchor="start" x="${textX}" y="${textY}" transform="${transform}">
         ${text}
       </text>
