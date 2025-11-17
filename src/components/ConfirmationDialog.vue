@@ -2,7 +2,7 @@
   <v-dialog v-model="dialog" max-width="500px">
     <v-card>
       <v-card-title class="headline">{{ title }}</v-card-title>
-      <v-card-text>{{ message }}</v-card-text>
+      <v-card-text v-html="message"></v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="grey-darken-1" variant="text" @click="cancel">{{ cancelText }}</v-btn>

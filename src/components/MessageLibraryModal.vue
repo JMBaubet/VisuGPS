@@ -85,7 +85,7 @@
     <ConfirmationDialog
       v-model="deleteDialog"
       title="Confirmer la suppression"
-      text="Êtes-vous sûr de vouloir supprimer ce message ?"
+      :message="`Êtes-vous sûr de vouloir supprimer le message :<br>'${selectedMessage?.text}' ?`"
       @confirm="deleteMessage"
     />
 

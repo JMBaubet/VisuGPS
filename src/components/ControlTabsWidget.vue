@@ -255,26 +255,31 @@
       <v-window-item value="message">
         <div class="pa-2 d-flex flex-column fill-height">
           <v-btn block color="primary" variant="tonal" @click="emit('open-message-library')">
-            Choisir un message
+            Sélectionner un message
           </v-btn>
 
-          <v-divider class="my-4"></v-divider>
+          <v-divider class="my-1"></v-divider>
 
           <div v-if="messageToDisplay" class="text-center">
             <p class="text-caption">Message sélectionné :</p>
-            <v-chip
-              :color="messageToDisplay.style.backgroundColor"
-              :text-color="messageToDisplay.style.textColor"
-              class="ma-2"
+            <div
+              :style="{
+                backgroundColor: toHex(messageToDisplay.style.backgroundColor),
+                color: getContrastColor(messageToDisplay.style.backgroundColor),
+                padding: '4px 8px',
+                borderRadius: '4px',
+                display: 'inline-block',
+                margin: '8px'
+              }"
             >
               {{ messageToDisplay.text }}
-            </v-chip>
+            </div>
           </div>
           <div v-else class="text-center text-disabled">
             Aucun message sélectionné
           </div>
 
-          <v-divider class="my-4"></v-divider>
+          <div class="my-4"></div>
 
           <v-row dense>
             <v-col cols="12">
@@ -295,9 +300,9 @@
             </v-col>
           </v-row>
 
-          <v-row dense class="justify-center align-center mt-4">
-            <v-col cols="auto" class="text-right pr-0">
-              <label class="text-caption">Gauche</label>
+          <v-row dense class="justify-center align-center">
+            <v-col cols="auto" class="text-right pr-2">
+              <label class="text-caption">Gauche </label>
             </v-col>
             <v-col cols="auto">
               <v-switch
@@ -308,8 +313,8 @@
                 inset
               ></v-switch>
             </v-col>
-            <v-col cols="auto" class="text-left pl-0">
-              <label class="text-caption">Droite</label>
+            <v-col cols="auto" class="text-left pl-2">
+              <label class="text-caption"> Droite</label>
             </v-col>
           </v-row>
 
@@ -318,7 +323,7 @@
           <v-row dense>
             <v-col cols="12" class="d-flex justify-space-around align-center">
               <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
-                <span class="mr-2">Supprimer Message</span>
+                <span class="mr-2">Supprimer</span>
                 <v-icon icon="mdi-delete"></v-icon>
               </v-btn>
               <v-btn :disabled="!messageToDisplay" color="primary" variant="text" @click="onAddMessage">
@@ -337,6 +342,9 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
+
+const { toHex, getContrastColor } = useVuetifyColors();
 
 const mainTab = ref('camera');
 const zoomTab = ref('depart');
