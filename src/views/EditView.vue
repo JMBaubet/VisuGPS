@@ -290,14 +290,13 @@ const handleDeletePauseEvent = async () => {
 const handleAddFlytoEvent = async (duration, override = false) => {
   if (!map) return;
   try {
-    const cameraPos = map.getFreeCameraOptions().position;
-    const lngLat = cameraPos.toLngLat();
+    const center = map.getCenter(); // Obtient le centre de la carte
 
     const flytoContent = {
       cap: Math.round((map.getBearing() % 360 + 360) % 360), // Normalize bearing to 0-360
       coord: [
-        parseFloat(lngLat.lng.toFixed(5)),
-        parseFloat(lngLat.lat.toFixed(5))
+        parseFloat(center.lng.toFixed(5)),
+        parseFloat(center.lat.toFixed(5))
       ],
       duree: duration, // Use duration from ControlTabsWidget
       pitch: Math.round(map.getPitch()),
