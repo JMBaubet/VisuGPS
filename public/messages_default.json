@@ -62,5 +62,21 @@
       "backgroundColor": "blue",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Droite_blue",
+    "text": "➡️ Droite",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Gauche_blue",
+    "text": "⬅️ Gauche",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
   }
 ]

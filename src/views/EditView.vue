@@ -1366,6 +1366,9 @@ onMounted(async () => {
       map.dragPan.disable();
 
       map.on('mousedown', (e) => {
+        if (activeControlTab.value === 'camera') {
+          return;
+        }
         if (e.originalEvent.button === 0) { // Left mouse button
           console.log('Mousedown detected (left button)');
           previousPitch = map.getPitch();
@@ -1394,6 +1397,9 @@ onMounted(async () => {
       });
 
       map.on('mouseup', (e) => {
+        if (activeControlTab.value === 'camera') {
+          return;
+        }
         if (e.originalEvent.button === 0) { // Left mouse button
           console.log('Mouseup detected (left button)');
 
