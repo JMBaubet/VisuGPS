@@ -8,14 +8,6 @@
     }
   },
   {
-    "id": "_Ravitaillement_blue",
-    "text": "🍔 Ravitaillement",
-    "style": {
-      "backgroundColor": "blue",
-      "textColor": "white"
-    }
-  },
-  {
     "id": "_Fontaine_blue",
     "text": "🚰 Fontaine",
     "style": {
@@ -74,6 +66,14 @@
   {
     "id": "_Gauche_blue",
     "text": "⬅️ Gauche",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Ravitaillement_blue",
+    "text": "🥪 Ravitaillement",
     "style": {
       "backgroundColor": "blue",
       "textColor": "white"

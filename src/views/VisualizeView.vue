@@ -350,7 +350,6 @@ async function executeFlytoSequence(flytoData) {
             const newVisibleIds = new Set();
             for (const msg of rangeEvents.value) {
                 const isVisible = currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement;
-                console.log(`Checking message ID: ${msg.eventId} (start: ${msg.startIncrement}, end: ${msg.endIncrement}). Is visible: ${isVisible}`); // Log every check
 
                 if (isVisible) {
                     newVisibleIds.add(msg.eventId); // Use eventId here
@@ -366,7 +365,7 @@ async function executeFlytoSequence(flytoData) {
             for (const id of newVisibleIds) {
                 if (!currentVisibleIds.has(id)) {
                     const newMsg = rangeEvents.value.find(m => m.eventId === id); // Use eventId here
-                    if (newMsg) {
+                    if (newMsg && newMsg.message) {
                         console.log("New message to display:", newMsg); // Debug log
                         console.log("Message coordinates:", newMsg.coord); // Log coordinates
                         const svgContent = createMessageSVG(newMsg);
@@ -929,24 +928,24 @@ const initializeMap = async () => {
     }
 
     if (fetchedEvents) {
-        if (fetchedEvents.point_events) {
-            pauseIncrements.value = Object.keys(fetchedEvents.point_events)
+        if (fetchedEvents.pointEvents) {
+            pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
                 .filter(increment =>
-                    fetchedEvents.point_events[increment].some(event => event.type === 'Pause')
+                    fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
                 )
                 .map(Number);
             
             const flytos = {};
-            for (const incrementStr in fetchedEvents.point_events) {
+            for (const incrementStr in fetchedEvents.pointEvents) {
                 const increment = Number(incrementStr);
-                const flytoEvent = fetchedEvents.point_events[increment].find(event => event.type === 'Flyto');
+                const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
                 if (flytoEvent) {
                     flytos[increment] = flytoEvent.data;
                 }
             }
             flytoEvents.value = flytos;
         }
-        rangeEvents.value = fetchedEvents.range_events || []; // Utiliser les événements hydratés et filtrés
+        rangeEvents.value = fetchedEvents.rangeEvents || []; // Utiliser les événements hydratés et filtrés
 
         // --- Message Error Handling for VisualizeView ---
         const missingMessageErrors = fetchedEvents.missingMessageErrors ?? []; // S'assurer que c'est un tableau

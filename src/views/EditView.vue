@@ -1579,7 +1579,7 @@ onMounted(async () => {
         // 2. Add new visible popups
         for (const eventId of visibleMessageIds) {
             const messageEvent = eventsFile.value.rangeEvents.find(e => e.eventId === eventId);
-            if (messageEvent) {
+            if (messageEvent && messageEvent.message) {
                 const svgContent = createMessageSVG(messageEvent);
                 const orientation = messageEvent.orientation || 'Droite';
                 const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
