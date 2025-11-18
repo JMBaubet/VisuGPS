@@ -146,6 +146,13 @@ const { getSettingValue } = useSettings();
 const { isBackButtonVisible } = useSharedUiState();
 const { createMessageSVG } = useMessageDisplay(); // Import the SVG creation function
 
+const pitchTransitionDuration = ref(500); // Default value
+let previousPitch = 0;
+let originalDragPanState = false; // To store whether dragPan was enabled before mousedown
+
+const isCustomPanning = ref(false);
+const lastMousePosition = { x: 0, y: 0 };
+
 // --- Message Popups ---
 const activePopups = ref(new Map());
 
@@ -1047,6 +1054,8 @@ const updateCameraPosition = (index) => {
 
 const destroyMap = () => {
   if (map) {
+    map.off('mousedown');
+    map.off('mouseup');
     map.remove();
     map = null;
   }
@@ -1091,6 +1100,21 @@ const handleWheel = (event) => {
 
 const handleContextMenu = (event) => {
   event.preventDefault();
+};
+
+const handleCustomMouseMove = (e) => {
+  if (!map || !isCustomPanning.value) return;
+
+  const deltaX = e.clientX - lastMousePosition.x;
+  const deltaY = e.clientY - lastMousePosition.y;
+
+  // panBy expects [x, y] where x is horizontal and y is vertical.
+  // Positive x moves right, positive y moves down.
+  // To pan the map in the direction of mouse movement, we use -deltaX and -deltaY.
+  map.panBy([-deltaX, -deltaY], { animate: false });
+
+  lastMousePosition.x = e.clientX;
+  lastMousePosition.y = e.clientY;
 };
 
 onUnmounted(() => {
@@ -1261,6 +1285,8 @@ onMounted(async () => {
     messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
     messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
 
+    pitchTransitionDuration.value = await getSettingValue('Edition/Evenements/Message/transitionDuree');
+
     const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
     zoomDepart.value = circuitData.zoom.depart.enabled;
     zoomDepartValeur.value = circuitData.zoom.depart.valeur;
@@ -1338,6 +1364,66 @@ onMounted(async () => {
 
     map.on('load', () => {
       map.dragPan.disable();
+
+      map.on('mousedown', (e) => {
+        if (e.originalEvent.button === 0) { // Left mouse button
+          console.log('Mousedown detected (left button)');
+          previousPitch = map.getPitch();
+          console.log('Previous pitch saved:', previousPitch);
+
+          originalDragPanState = map.dragPan.isEnabled();
+          console.log('Original dragPan state:', originalDragPanState);
+
+          // Always disable dragPan to prevent it from interfering with pitch animation and custom panning
+          map.dragPan.disable();
+          console.log('dragPan disabled for pitch animation and custom panning');
+
+          map.easeTo({ pitch: 0, duration: pitchTransitionDuration.value });
+          console.log('easeTo called for pitch 0');
+
+          // Once the pitch animation completes, start custom panning
+          map.once('moveend', () => {
+            console.log('Pitch to 0 animation ended. Starting custom panning.');
+            isCustomPanning.value = true;
+            lastMousePosition.x = e.originalEvent.clientX;
+            lastMousePosition.y = e.originalEvent.clientY;
+            mapContainer.value.addEventListener('mousemove', handleCustomMouseMove);
+            console.log('Custom panning activated. Mousemove listener added.');
+          });
+        }
+      });
+
+      map.on('mouseup', (e) => {
+        if (e.originalEvent.button === 0) { // Left mouse button
+          console.log('Mouseup detected (left button)');
+
+          // Stop custom panning
+          if (isCustomPanning.value) {
+            mapContainer.value.removeEventListener('mousemove', handleCustomMouseMove);
+            isCustomPanning.value = false;
+            console.log('Custom panning deactivated. Mousemove listener removed.');
+          }
+
+          // Disable dragPan before restoring pitch (it should already be disabled by custom panning logic)
+          map.dragPan.disable();
+          console.log('dragPan disabled before pitch restoration');
+
+          map.easeTo({ pitch: previousPitch, duration: pitchTransitionDuration.value });
+          console.log('easeTo called for previous pitch:', previousPitch);
+
+          // After the pitch animation completes, restore dragPan to its original state
+          map.once('moveend', () => {
+            console.log('Pitch restoration animation ended.');
+            if (originalDragPanState) {
+              map.dragPan.enable();
+              console.log('dragPan re-enabled to original state (enabled)');
+            } else {
+              map.dragPan.disable();
+              console.log('dragPan re-disabled to original state (disabled)');
+            }
+          });
+        }
+      });
 
       map.on('zoom', updateCameraInfo);
       map.on('pitch', updateCameraInfo);

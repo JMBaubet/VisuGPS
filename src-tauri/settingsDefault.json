@@ -772,6 +772,19 @@
                     "unite": "px",
                     "critique": false,
                     "doc": "docs/DocParametrage/Edition/Evenements/Message/rayonBordure.md"
+                  },
+                  {
+                    "identifiant": "transitionDuree",
+                    "libelle": "Durée de transition du pitch (ms)",
+                    "description": "Durée de la transition du pitch de la caméra lors du déplacement de la carte avec la souris.",
+                    "type": "entier",
+                    "defaut": 500,
+                    "min": 0,
+                    "max": 2000,
+                    "step": 50,
+                    "unite": "ms",
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Edition/Evenements/Message/transitionDuree.md"
                   }
                 ]
               }
