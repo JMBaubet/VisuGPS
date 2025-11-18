@@ -137,12 +137,17 @@ import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
+import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 
 const route = useRoute();
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { getSettingValue } = useSettings();
 const { isBackButtonVisible } = useSharedUiState();
+const { createMessageSVG } = useMessageDisplay(); // Import the SVG creation function
+
+// --- Message Popups ---
+const activePopups = ref(new Map());
 
 // Confirmation Dialog
 const showConfirmationDialog = ref(false);
@@ -1395,6 +1400,51 @@ onMounted(async () => {
           'line-width': epaisseurAvancement,
         },
       });
+
+      // Function to update message popups based on current increment
+      const updateMessagePopups = (currentIncrement) => {
+        if (!map || !eventsFile.value.rangeEvents) return;
+
+        // Clear all existing popups first
+        activePopups.value.forEach(popup => popup.remove());
+        activePopups.value.clear();
+
+        const visibleMessageIds = new Set();
+
+        // 1. Determine visible messages
+        for (const msg of eventsFile.value.rangeEvents) {
+            if (currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement) {
+                visibleMessageIds.add(msg.eventId);
+            }
+        }
+
+        // 2. Add new visible popups
+        for (const eventId of visibleMessageIds) {
+            const messageEvent = eventsFile.value.rangeEvents.find(e => e.eventId === eventId);
+            if (messageEvent) {
+                const svgContent = createMessageSVG(messageEvent);
+                const orientation = messageEvent.orientation || 'Droite';
+                const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+
+                const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: anchor, className: 'map-message-popup' })
+                    .setLngLat(messageEvent.coord)
+                    .setHTML(svgContent)
+                    .addTo(map);
+                
+                activePopups.value.set(eventId, popup);
+            }
+        }
+      };
+
+      // Watch for progress changes to display messages
+      watch(trackProgress, (newIncrement) => {
+        updateMessagePopups(newIncrement);
+      }, { immediate: true });
+
+      // Watch for changes in message events to update display instantaneously
+      watch(eventsFile, () => {
+        updateMessagePopups(trackProgress.value);
+      }, { deep: true });
     });
 
     map.on('error', (e) => {
@@ -1432,5 +1482,16 @@ onMounted(async () => {
 #map-container {
   width: 100%;
   height: 100%;
+}
+
+/* Remove the default white box and pointer/tip from our custom popups */
+.map-message-popup .mapboxgl-popup-content {
+  background: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.map-message-popup .mapboxgl-popup-tip {
+  display: none;
 }
 </style>
