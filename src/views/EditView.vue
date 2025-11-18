@@ -154,7 +154,9 @@ const resolveMissingMessageError = ref(null);
 
 const missingMessageErrorDetailsMessage = computed(() => {
   const details = missingMessageErrorDetails.value;
-  return `Le message avec l'ID "${details.messageId}" (Nom: ${details.messageName || 'Inconnu'}) utilisé à l'incrément ${details.increment} de la trace ${details.circuitId} est introuvable dans la bibliothèque de messages. \n\nQue souhaitez-vous faire ?`;
+  const segmentLengthKm = 0.1; // Assurez-vous que cette valeur est cohérente avec celle utilisée pour le calcul des trackingPoints
+  const distanceKm = (details.increment * segmentLengthKm).toFixed(1);
+  return `Le message du km ${distanceKm} est introuvable dans la bibliothèque.<br><br>Que voulez-vous faire ?`;
 });
 
 const route = useRoute();
@@ -362,6 +364,12 @@ const handleMissingMessageErrorResolution = async (confirmDelete) => {
         });
         eventsFile.value = updatedEventsFile;
         showSnackbar('Événement de message manquant supprimé avec succès.', 'success');
+
+        // Supprimer également l'entrée correspondante dans errors.json
+        await invoke('delete_error_entry', {
+            circuitId: circuitId,
+            eventId: missingMessageErrorDetails.value.eventId,
+        });
     } catch (error) {
         console.error("Failed to delete missing message event:", error);
         showSnackbar(`Erreur lors de la suppression de l'événement de message manquant: ${error}`, 'error');

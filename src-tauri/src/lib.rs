@@ -1338,7 +1338,8 @@ pub fn run() {
             gpx_processor::generate_qrcode_base64,
             gpx_processor::get_remote_control_url,
             update_animation_state,
-            error_logger::save_error_event // Nouvelle ligne
+            error_logger::save_error_event,
+            error_logger::delete_error_entry // Ajout de la nouvelle commande
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -954,8 +954,8 @@ const initializeMap = async () => {
             const missingMessageErrorsForLog = missingMessageErrors.map(errorDetail => ({
                 errorType: 'MissingMessage',
                 messageId: errorDetail.messageId,
-                circuitId: errorDetail.circuitId,
                 anchorIncrement: errorDetail.anchorIncrement,
+                eventId: errorDetail.eventId,
                 timestamp: new Date().toISOString(),
                 description: errorDetail.description,
             }));
