@@ -7,10 +7,10 @@ Définit la durée (en millisecondes) de la transition du pitch (angle d'inclina
 
 Lorsque le bouton gauche de la souris est enfoncé, le pitch de la caméra passe à 0 degré avec cette durée de transition. Lorsque le bouton est relâché, le pitch revient à sa valeur précédente avec la même durée de transition.
 
-**Valeur par défaut :** 500
+**Valeur par défaut :** 50
 **Type :** Entier
-**Min :** 0
-**Max :** 2000
-**Pas :** 50
+**Min :** 10
+**Max :** 500
+**Pas :** 10
 **Unité :** ms
 **Critique :** Non

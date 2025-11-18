@@ -38,5 +38,29 @@
       "backgroundColor": "red",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Sommet__orange",
+    "text": "🗻 Sommet ",
+    "style": {
+      "backgroundColor": "orange",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Col_blue",
+    "text": "🏔 Col",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Stop_blue",
+    "text": "🛑 Stop",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
   }
 ]
