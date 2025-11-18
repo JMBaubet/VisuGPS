@@ -342,6 +342,17 @@ async function executeFlytoSequence(flytoData) {
 
     const currentIncrement = currentPoint?.increment;
 
+    // Si nous rembobinons et passons avant un événement déjà déclenché,
+    // nous réinitialisons son état pour qu'il puisse se redéclencher.
+    if (isRewinding.value) {
+        if (triggeredPauseIncrement.value !== null && currentIncrement < triggeredPauseIncrement.value) {
+            triggeredPauseIncrement.value = null;
+        }
+        if (triggeredFlytoIncrement.value !== null && currentIncrement < triggeredFlytoIncrement.value) {
+            triggeredFlytoIncrement.value = null;
+        }
+    }
+
     // 2. Handle events using the accurate increment
     if (currentIncrement !== undefined) {
         // Popups
