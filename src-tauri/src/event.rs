@@ -75,6 +75,17 @@ pub struct HydratedEventsFile {
     pub schema_version: String,
     pub point_events: BTreeMap<u32, Vec<PointEvent>>,
     pub range_events: Vec<HydratedRangeEvent>,
+    pub missing_message_errors: Vec<MissingMessageError>, // Nouvelle ligne
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MissingMessageError {
+    pub event_id: String,
+    pub message_id: String,
+    pub anchor_increment: u32,
+    pub circuit_id: String, // Ajouté pour le contexte dans le frontend
+    pub description: String,
 }
 
 // --- Frontend Payload ---
@@ -132,12 +143,13 @@ fn write_events(app_handle: &AppHandle, circuit_id: &str, events_file: &EventsFi
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
-fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile) -> Result<HydratedEventsFile, String> {
+fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile, circuit_id: &str) -> Result<HydratedEventsFile, String> {
     let state: State<Mutex<AppState>> = app_handle.state();
     let library = crate::get_message_library(app_handle.clone(), state)?;
     let message_map: BTreeMap<String, Message> = library.into_iter().map(|m| (m.id.clone(), m)).collect();
 
     let mut hydrated_range_events = Vec::new();
+    let mut missing_message_errors = Vec::new(); // Nouvelle liste d'erreurs
 
     for event_data in events_file.range_events {
         if let Some(message) = message_map.get(&event_data.message_id) {
@@ -158,8 +170,15 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile) -> Result<Hyd
                 message: hydrated_message,
             });
         } else {
-            // Optionally log that a message ID was not found in the library
-            log::warn!("Message with ID '{}' not found in library for circuit.", event_data.message_id);
+            // Collecter l'erreur au lieu de juste la logger
+            missing_message_errors.push(MissingMessageError {
+                event_id: event_data.event_id.clone(), // Cloner pour éviter le déplacement
+                message_id: event_data.message_id.clone(), // Cloner pour éviter le déplacement
+                anchor_increment: event_data.anchor_increment,
+                circuit_id: circuit_id.to_string(), // Ajouter le circuit_id
+                description: format!("Message with ID '{}' not found in library.", event_data.message_id),
+            });
+            // Ne pas ajouter cet événement à hydrated_range_events
         }
     }
 
@@ -167,6 +186,7 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile) -> Result<Hyd
         schema_version: events_file.schema_version,
         point_events: events_file.point_events,
         range_events: hydrated_range_events,
+        missing_message_errors, // Retourner les erreurs
     })
 }
 
@@ -175,7 +195,7 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile) -> Result<Hyd
 #[tauri::command]
 pub fn get_events(app_handle: AppHandle, circuit_id: String) -> Result<HydratedEventsFile, String> {
     let events_file = read_events(&app_handle, &circuit_id)?;
-    hydrate_events(&app_handle, events_file)
+    hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
 #[tauri::command]
@@ -197,7 +217,7 @@ pub fn add_message_event(app_handle: AppHandle, circuit_id: String, payload: New
 
     events_file.range_events.push(new_event);
     write_events(&app_handle, &circuit_id, &events_file)?;
-    hydrate_events(&app_handle, events_file)
+    hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
 #[tauri::command]
@@ -205,7 +225,7 @@ pub fn delete_message_event(app_handle: AppHandle, circuit_id: String, event_id:
     let mut events_file = read_events(&app_handle, &circuit_id)?;
     events_file.range_events.retain(|e| e.event_id != event_id);
     write_events(&app_handle, &circuit_id, &events_file)?;
-    hydrate_events(&app_handle, events_file)
+    hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
 #[tauri::command]

@@ -341,7 +341,6 @@ async function executeFlytoSequence(flytoData) {
   }
 
     const currentIncrement = currentPoint?.increment;
-    console.log("Current Increment:", currentIncrement); // Log every frame
 
     // 2. Handle events using the accurate increment
     if (currentIncrement !== undefined) {
@@ -930,26 +929,43 @@ const initializeMap = async () => {
     }
 
     if (fetchedEvents) {
-        console.log("Fetched events:", fetchedEvents); // Debug log
-        if (fetchedEvents.pointEvents) {
-            pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
+        if (fetchedEvents.point_events) {
+            pauseIncrements.value = Object.keys(fetchedEvents.point_events)
                 .filter(increment =>
-                    fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
+                    fetchedEvents.point_events[increment].some(event => event.type === 'Pause')
                 )
                 .map(Number);
             
             const flytos = {};
-            for (const incrementStr in fetchedEvents.pointEvents) {
+            for (const incrementStr in fetchedEvents.point_events) {
                 const increment = Number(incrementStr);
-                const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
+                const flytoEvent = fetchedEvents.point_events[increment].find(event => event.type === 'Flyto');
                 if (flytoEvent) {
                     flytos[increment] = flytoEvent.data;
                 }
             }
             flytoEvents.value = flytos;
         }
-        rangeEvents.value = fetchedEvents.rangeEvents || [];
-        console.log("Range events loaded:", rangeEvents.value); // Debug log
+        rangeEvents.value = fetchedEvents.range_events || []; // Utiliser les événements hydratés et filtrés
+
+        // --- Message Error Handling for VisualizeView ---
+        const missingMessageErrors = fetchedEvents.missingMessageErrors ?? []; // S'assurer que c'est un tableau
+        if (missingMessageErrors.length > 0) {
+            const missingMessageErrorsForLog = missingMessageErrors.map(errorDetail => ({
+                errorType: 'MissingMessage',
+                messageId: errorDetail.messageId,
+                circuitId: errorDetail.circuitId,
+                anchorIncrement: errorDetail.anchorIncrement,
+                timestamp: new Date().toISOString(),
+                description: errorDetail.description,
+            }));
+
+            try {
+                await invoke('save_error_event', { circuitId: props.circuitId, newErrors: missingMessageErrorsForLog });
+            } catch (error) {
+                console.error("Failed to save missing message errors to file:", error);
+            }
+        }
     }
 
     if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {

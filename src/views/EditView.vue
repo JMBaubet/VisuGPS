@@ -115,6 +115,15 @@
       v-model="showLibraryModal" 
       @select-message="handleSelectMessage" 
     />
+    <ConfirmationDialog
+      v-model="showMissingMessageErrorModal"
+      :title="'Erreur de Message Manquant'"
+      :message="missingMessageErrorDetailsMessage"
+      :confirm-text="'Supprimer l\'événement'"
+      :cancel-text="'Ignorer'"
+      @confirm="handleMissingMessageErrorResolution(true)"
+      @cancel="handleMissingMessageErrorResolution(false)"
+    />
   </v-container>
 </template>
 
@@ -138,6 +147,15 @@ import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
+
+const showMissingMessageErrorModal = ref(false);
+const missingMessageErrorDetails = ref({ messageId: '', messageName: '', circuitId: '', increment: 0, eventId: '' });
+const resolveMissingMessageError = ref(null);
+
+const missingMessageErrorDetailsMessage = computed(() => {
+  const details = missingMessageErrorDetails.value;
+  return `Le message avec l'ID "${details.messageId}" (Nom: ${details.messageName || 'Inconnu'}) utilisé à l'incrément ${details.increment} de la trace ${details.circuitId} est introuvable dans la bibliothèque de messages. \n\nQue souhaitez-vous faire ?`;
+});
 
 const route = useRoute();
 const router = useRouter();
@@ -333,6 +351,27 @@ const askForConfirmation = (title, message) => {
       resolve(decision);
     };
   });
+};
+
+const handleMissingMessageErrorResolution = async (confirmDelete) => {
+  if (confirmDelete) {
+    try {
+        const updatedEventsFile = await invoke('delete_message_event', {
+            circuitId: circuitId,
+            eventId: missingMessageErrorDetails.value.eventId,
+        });
+        eventsFile.value = updatedEventsFile;
+        showSnackbar('Événement de message manquant supprimé avec succès.', 'success');
+    } catch (error) {
+        console.error("Failed to delete missing message event:", error);
+        showSnackbar(`Erreur lors de la suppression de l'événement de message manquant: ${error}`, 'error');
+    }
+  } else {
+    showSnackbar('Erreur de message manquant ignorée. L\'événement restera dans la trace mais ne sera pas affiché.', 'warning');
+  }
+  if (resolveMissingMessageError.value) {
+    resolveMissingMessageError.value(); // Resolve the promise that was blocking onMounted
+  }
 };
 
 const circuitId = route.params.circuitId;
@@ -1275,7 +1314,26 @@ onMounted(async () => {
     trackingPoints.value = processedTrackingPoints;
 
     const events = await invoke('get_events', { circuitId: circuitId });
-    eventsFile.value = events;
+    eventsFile.value.pointEvents = events.pointEvents; // Correction du camelCase
+    eventsFile.value.rangeEvents = events.rangeEvents; // Correction du camelCase
+
+    // --- Message Error Handling ---
+    if (events.missingMessageErrors.length > 0) { // Accès direct à missingMessageErrors
+      for (const errorDetail of events.missingMessageErrors) {
+          missingMessageErrorDetails.value = {
+              messageId: errorDetail.messageId, // Correction du camelCase
+              messageName: 'Inconnu', // Le nom n'est pas disponible pour les messages manquants
+              circuitId: errorDetail.circuitId, // Correction du camelCase
+              increment: errorDetail.anchorIncrement, // Correction du camelCase
+              eventId: errorDetail.eventId, // Correction du camelCase
+          };
+          showMissingMessageErrorModal.value = true;
+          // Block further execution until the user resolves this specific error
+          await new Promise(resolve => {
+              resolveMissingMessageError.value = resolve;
+          });
+      }
+    }
 
     flytoDurationSetting.value = await getSettingValue('Edition/Evenements/Flyto/duree');
 

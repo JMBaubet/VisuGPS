@@ -20,6 +20,7 @@ pub mod remote_control;
 pub mod remote_clients;
 pub mod remote_setup;
 pub mod remote_blacklist;
+pub mod error_logger;
 
 
 
@@ -1336,7 +1337,8 @@ pub fn run() {
             remote_control::disconnect_active_remote_client,
             gpx_processor::generate_qrcode_base64,
             gpx_processor::get_remote_control_url,
-            update_animation_state
+            update_animation_state,
+            error_logger::save_error_event // Nouvelle ligne
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
