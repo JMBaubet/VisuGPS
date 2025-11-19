@@ -53,6 +53,7 @@
               variant="text"
               v-bind="menuProps"
               @click.stop="showInfoDialog = true"
+              :color="informationIconColor"
             ></v-btn>
           </template>
           <v-card>
@@ -219,6 +220,10 @@ const view3DButtonColor = computed(() => {
   if (props.circuit.trackingKm === 0) return 'error';
   if (props.circuit.trackingKm === props.circuit.distanceKm) return 'success';
   return 'warning';
+});
+
+const informationIconColor = computed(() => {
+  return props.circuit.hasErrors ? 'error' : undefined;
 });
 
 const debugCircuit = () => {

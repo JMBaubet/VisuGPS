@@ -474,6 +474,7 @@ pub struct CircuitForDisplay {
     tracking_km: f64,
     iso_date_time: DateTime<Utc>,
     avancement_communes: i32,
+    has_errors: bool,
 }
 
 #[tauri::command]
@@ -481,7 +482,7 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
 
-    let mut circuits_for_display: Vec<CircuitForDisplay> = circuits_file.circuits.iter().map(|circuit| {
+    let circuits_for_display: Vec<CircuitForDisplay> = circuits_file.circuits.iter().map(|circuit| {
         let ville_depart = circuits_file.villes
             .iter()
             .find(|v| v.id == circuit.ville_depart_id)
@@ -497,6 +498,15 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             .find(|e| e.id == circuit.editeur_id)
             .map_or("Inconnu".to_string(), |e| e.nom.clone());
 
+        let errors_path = state.app_env_path.join("data").join(&circuit.circuit_id).join("errors.json");
+        let has_errors = if errors_path.exists() {
+            let content = fs::read_to_string(errors_path).unwrap_or_else(|_| "[]".to_string());
+            let errors: Vec<Value> = serde_json::from_str(&content).unwrap_or_else(|_| vec![]);
+            !errors.is_empty()
+        } else {
+            false
+        };
+
         CircuitForDisplay {
             circuit_id: circuit.circuit_id.clone(),
             nom: circuit.nom.clone(),
@@ -511,11 +521,9 @@ fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<Circuit
             tracking_km: circuit.tracking_km,
             iso_date_time: circuit.iso_date_time,
             avancement_communes: circuit.avancement_communes,
+            has_errors,
         }
     }).collect();
-
-    // Sort by date descending by default
-    circuits_for_display.sort_by(|a, b| b.iso_date_time.cmp(&a.iso_date_time));
 
     Ok(circuits_for_display)
 }
