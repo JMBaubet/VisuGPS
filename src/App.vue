@@ -7,11 +7,12 @@
     </v-container>
     <SnackbarContainer />
     <PairingDialog /> <!-- Added PairingDialog -->
+    <MigrationReportModal v-model="showMigrationModal" :report="migrationReport" />
   </v-app>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useTheme } from 'vuetify';
 import { listen } from '@tauri-apps/api/event';
 import { useEnvironment } from '@/composables/useEnvironment';
@@ -20,12 +21,17 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 import PairingDialog from '@/components/PairingDialog.vue';
+import MigrationReportModal from '@/components/MigrationReportModal.vue';
+import { invoke } from '@tauri-apps/api/core';
 
 const { executionMode } = useEnvironment();
 const { initSettings } = useSettings();
 const theme = useTheme();
 const { toggleBackButtonVisibility } = useSharedUiState();
 useCommunesUpdate(); // Initialize the composable
+
+const showMigrationModal = ref(false);
+const migrationReport = ref('');
 
 const showFrame = computed(() => {
   return executionMode.value === 'EVAL' || executionMode.value === 'TEST';
@@ -57,6 +63,17 @@ onMounted(async () => {
     console.log('[DIAGNOSTIC] Received test-event from backend:', event.payload);
   });
   // --- END DIAGNOSTIC ---
+
+  // Check for migration report
+  try {
+    const report = await invoke('get_migration_report');
+    if (report) {
+      migrationReport.value = report;
+      showMigrationModal.value = true;
+    }
+  } catch (e) {
+    console.error("Failed to check for migration report:", e);
+  }
 });
 </script>
 

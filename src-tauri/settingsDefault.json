@@ -816,19 +816,6 @@
                     "doc": "docs/DocParametrage/Edition/Evenements/Message/postAffichage.md"
                   },
                   {
-                    "identifiant": "rayonBordure",
-                    "libelle": "Rayon de la bordure",
-                    "description": "Rayon de la bordure du message en pixels.",
-                    "type": "entier",
-                    "defaut": 5,
-                    "min": 0,
-                    "max": 20,
-                    "step": 1,
-                    "unite": "px",
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/rayonBordure.md"
-                  },
-                  {
                     "identifiant": "transitionDuree",
                     "libelle": "Durée de transition du pitch (ms)",
                     "description": "Durée de la transition du pitch de la caméra lors du déplacement de la carte avec la souris.",

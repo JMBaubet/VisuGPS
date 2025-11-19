@@ -21,6 +21,7 @@ pub mod remote_clients;
 pub mod remote_setup;
 pub mod remote_blacklist;
 pub mod error_logger;
+pub mod settings_migration;
 
 
 
@@ -311,6 +312,7 @@ pub struct AppState {
     pub animation_state: Mutex<String>,
     pub animation_speed: Mutex<f32>,
     pub visualize_view_state: Mutex<Option<remote_control::VisualizeViewState>>,
+    pub migration_report: Mutex<Option<String>>,
 }
 
 impl Clone for AppState {
@@ -326,8 +328,16 @@ impl Clone for AppState {
             animation_state: Mutex::new(self.animation_state.lock().unwrap().clone()),
             animation_speed: Mutex::new(*self.animation_speed.lock().unwrap()),
             visualize_view_state: Mutex::new(self.visualize_view_state.lock().unwrap().clone()),
+            migration_report: Mutex::new(self.migration_report.lock().unwrap().clone()),
         }
     }
+}
+
+#[tauri::command]
+fn get_migration_report(state: State<Mutex<AppState>>) -> Option<String> {
+    let state = state.lock().unwrap();
+    let report = state.migration_report.lock().unwrap().take();
+    report
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1107,6 +1117,8 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
 
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
+    let mut migration_report_content = None;
+
     if !settings_path.exists() {
         // Parse the default settings
         let mut settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
@@ -1127,6 +1139,27 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         
         fs::write(&settings_path, new_settings_content)
             .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    } else {
+        // Settings file exists, check for migration
+        let existing_content = fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read existing settings: {}", e))?;
+        let existing_settings: Value = serde_json::from_str(&existing_content)
+            .map_err(|e| format!("Failed to parse existing settings: {}", e))?;
+
+        let default_settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
+            .map_err(|e| format!("Default settings corrupted: {}", e))?;
+
+        let (merged_settings, report) = settings_migration::compare_and_merge(&existing_settings, &default_settings);
+
+        if let Some(rep) = report {
+            migration_report_content = Some(rep);
+            
+            // Write merged settings
+            let new_content = serde_json::to_string_pretty(&merged_settings)
+                .map_err(|e| format!("Failed to serialize merged settings: {}", e))?;
+            fs::write(&settings_path, new_content)
+                .map_err(|e| format!("Failed to write merged settings: {}", e))?;
+        }
     }
 
     // Manage circuits.json file
@@ -1160,6 +1193,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         animation_state: Mutex::new("".to_string()),
         animation_speed: Mutex::new(1.0),
         visualize_view_state: Mutex::new(None),
+        migration_report: Mutex::new(migration_report_content),
     })
 }
 
@@ -1367,7 +1401,9 @@ pub fn run() {
             gpx_processor::get_remote_control_url,
             update_animation_state,
             error_logger::save_error_event,
-            error_logger::delete_error_entry // Ajout de la nouvelle commande
+            error_logger::save_error_event,
+            error_logger::delete_error_entry,
+            get_migration_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
