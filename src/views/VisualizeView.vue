@@ -1172,6 +1172,19 @@ const initializeMap = async () => {
 
       // Séquence 1: Vol vers l'aperçu de la trace
       animationState.value = 'Vol_Vers_Vue_Globale';
+      
+      // Préparer l'affichage des messages avec anchorIncrement === 0
+      // Ils apparaîtront pendant les derniers 33% du flyTo (de 66% à 100%)
+      const { atKm0, nearKm0 } = getMessagesForKm0();
+      if (atKm0.length > 0) {
+        const delayBeforeStart = durationEuropeToTrace.value * 0.66; // Démarrer à 66%
+        const fadeDuration = durationEuropeToTrace.value * 0.34; // Durer 34% (jusqu'à 100%)
+        
+        setTimeout(() => {
+          displayMessagesWithFade(atKm0, fadeDuration);
+        }, delayBeforeStart);
+      }
+      
       await flyToPromise(map, {
           pitch: 0,
           bearing: 0,
@@ -1179,14 +1192,8 @@ const initializeMap = async () => {
           ...map.cameraForBounds(traceBbox, { padding: 40 }) // Utiliser cameraForBounds pour obtenir le centre/zoom
       });
 
-      // Séquence 2: Pause sur la vue globale
+      // Séquence 2: Pause sur la vue globale (messages atKm0 déjà visibles)
       animationState.value = 'Pause_Observation';
-      
-      // Afficher les messages avec anchorIncrement === 0 avec animation progressive
-      const { atKm0, nearKm0 } = getMessagesForKm0();
-      if (atKm0.length > 0) {
-        await displayMessagesWithFade(atKm0, pauseBeforeStart.value);
-      }
       
       await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
 
