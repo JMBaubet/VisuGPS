@@ -1245,7 +1245,7 @@ onMounted(async () => {
 
     const styleVisualisation = await getSettingValue('Edition/Mapbox/styleVisualisation');
 
-    const colorTraceBySlope = await getSettingValue('Visualisation/Mapbox/Traces/colorerSelonPente');
+    const colorTraceBySlope = await getSettingValue('Edition/Mapbox/Trace/colorerSelonPente');
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
     let paintProps = { 'line-width': traceWidth };
     let useGradient = false;
@@ -1281,10 +1281,13 @@ onMounted(async () => {
     }
 
     if (!useGradient) {
-        const rawTraceColor = await getSettingValue('Visualisation/Mapbox/Traces/couleurTrace');
-        const resolvedColor = toHex(rawTraceColor || 'orange'); // Fallback to orange if setting is not found
-        traceColor.value = resolvedColor;
-        paintProps['line-color'] = resolvedColor;
+        let rawTraceColor = await getSettingValue('Edition/Mapbox/Trace/couleur');
+        if (rawTraceColor && !rawTraceColor.startsWith('#')) {
+            traceColor.value = await invoke('convert_vuetify_color', { colorName: rawTraceColor });
+        } else {
+            traceColor.value = rawTraceColor || '#FFA726'; // Default to orange if setting is missing
+        }
+        paintProps['line-color'] = traceColor.value;
     }
     const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
     let rawCouleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');

@@ -202,7 +202,7 @@ const trackingProgress = computed(() => {
 });
 
 const trackingBgColor = computed(() => {
-  return getSettingValue('Visualisation/Mapbox/Traces/couleurTrace') || 'grey-lighten-2';
+  return getSettingValue('Edition/Mapbox/Trace/couleur') || 'grey-lighten-2';
 });
 
 const trackingProgressColor = computed(() => {
