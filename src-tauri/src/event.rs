@@ -176,7 +176,7 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile, circuit_id: &
                 message_id: event_data.message_id.clone(), // Cloner pour éviter le déplacement
                 anchor_increment: event_data.anchor_increment,
                 circuit_id: circuit_id.to_string(), // Ajouter le circuit_id
-                description: format!("Message with ID '{}' not found in library.", event_data.message_id),
+                description: format!("Le message '{}' n'a pas été trouvé dans la bibliothèque.", event_data.message_id),
             });
             // Ne pas ajouter cet événement à hydrated_range_events
         }

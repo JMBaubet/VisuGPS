@@ -413,6 +413,26 @@ fn read_tracking_file(state: State<Mutex<AppState>>, circuit_id: String) -> Resu
 }
 
 #[tauri::command]
+fn read_errors_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Vec<error_logger::ErrorEntry>, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(circuit_id);
+    let errors_path = data_dir.join("errors.json");
+
+    if !errors_path.exists() {
+        return Ok(Vec::new()); // No errors file, return empty vec
+    }
+
+    let file_content = fs::read_to_string(errors_path).map_err(|e| e.to_string())?;
+    
+    if file_content.trim().is_empty() {
+        return Ok(Vec::new()); // Empty file, return empty vec
+    }
+
+    let errors: Vec<error_logger::ErrorEntry> = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    Ok(errors)
+}
+
+#[tauri::command]
 fn convert_vuetify_color(color_name: String) -> String {
     let hex_color = colors::convert_vuetify_color_to_hex(&color_name);
     format!("#{}", hex_color)
@@ -1310,7 +1330,7 @@ pub fn run() {
             create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, 
             analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, 
             get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, get_qrcode_as_base64,
-            read_line_string_file, read_tracking_file, save_tracking_file, convert_vuetify_color, update_camera_position, 
+            read_line_string_file, read_tracking_file, read_errors_file, save_tracking_file, convert_vuetify_color, update_camera_position, 
             geo_processor::process_tracking_data, get_filter_data, update_tracking_km, 
             communes_updater::start_communes_update, communes_updater::interrupt_communes_update, 
             communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api, 

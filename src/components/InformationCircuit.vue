@@ -1,10 +1,21 @@
 <template>
   <v-card>
     <v-card-title class="headline d-flex justify-space-between align-center">
-      {{ circuit.nom }}
-      <v-btn icon @click="closeDialog">
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
+      <span>{{ circuit.nom }}</span>  <!-- circuit.nom as first element -->
+      <div class="d-flex align-center"> <!-- Group the alert and close buttons -->
+        <v-btn icon
+          v-if="props.circuit.hasErrors"
+          color="error"
+          class="mr-2"
+          @click.stop="showErrorsModal"
+          size="default"
+        >
+          <v-icon>mdi-alert-circle</v-icon>
+        </v-btn>
+        <v-btn icon @click="closeDialog">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </div>
     </v-card-title>
     <v-card-text>
       <v-row>
@@ -108,6 +119,36 @@
       </v-row>
     </v-card-text>
   </v-card>
+
+  <v-dialog v-model="showErrorsDialog" max-width="800">
+    <v-card>
+      <v-card-title class="headline d-flex justify-space-between align-center">
+        Erreurs pour le circuit : {{ circuit.nom }}
+        <v-btn icon @click="showErrorsDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+      </v-card-title>
+      <v-card-text>
+        <v-list v-if="circuitErrors.length > 0">
+          <v-list-item v-for="(error, index) in circuitErrors" :key="index">
+            <v-list-item-title>
+              <strong>Type d'erreur :</strong> {{ error.errorType }}
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              <p><strong>Description :</strong> {{ error.description }}</p>
+              <p v-if="error.messageId"><strong>ID du message :</strong> {{ error.messageId }}</p>
+              <p v-if="error.anchorIncrement !== undefined"><strong>Incrément :</strong> {{ error.anchorIncrement }}</p>
+              <p v-if="error.eventId"><strong>ID de l'événement :</strong> {{ error.eventId }}</p>
+              <p v-if="error.timestamp"><strong>Timestamp :</strong> {{ new Date(error.timestamp).toLocaleString() }}</p>
+            </v-list-item-subtitle>
+          </v-list-item>
+        </v-list>
+        <v-alert v-else type="info">
+          Aucune erreur détaillée trouvée pour ce circuit.
+        </v-alert>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
@@ -139,6 +180,19 @@ const { showSnackbar } = useSnackbar();
 const communeNom = ref('');
 const qrCodePath = ref('');
 const editedTraceur = ref(props.circuit.traceur);
+
+const showErrorsDialog = ref(false);
+const circuitErrors = ref([]);
+
+const showErrorsModal = async () => {
+  try {
+    circuitErrors.value = await invoke('read_errors_file', { circuitId: props.circuit.circuitId });
+    showErrorsDialog.value = true;
+  } catch (error) {
+    showSnackbar(`Erreur lors du chargement des erreurs : ${error}`, 'error');
+    console.error('Error loading errors:', error);
+  }
+};
 
 const trackingProgress = computed(() => {
   if (props.circuit.distanceKm === 0) return 0;
@@ -238,5 +292,15 @@ watch(appEnvPath, () => {
 .v-card-title {
   background-color: rgb(var(--v-theme-primary));
   color: white;
+}
+
+.blinking-button {
+  animation: blink 1s linear infinite;
+}
+
+@keyframes blink {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
 }
 </style>
