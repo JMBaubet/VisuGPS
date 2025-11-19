@@ -785,6 +785,17 @@
                     "unite": "ms",
                     "critique": false,
                     "doc": "docs/DocParametrage/Edition/Evenements/Message/transitionDuree.md"
+                  },
+                  {
+                    "identifiant": "hauteurGraphique",
+                    "libelle": "Hauteur des messages sur le graphe (px)",
+                    "description": "Hauteur des rectangles représentant les messages sur le graphe des événements.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 3,
+                    "max": 20,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Edition/Graphe/Message/hauteurGraphique.md"
                   }
                 ]
               }

@@ -26,7 +26,7 @@
 
     <div class="bottom-ui-container">
       <CameraGraph 
-        v-if="trackingPoints.length > 0 && showGraph"
+        v-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'camera'"
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
@@ -43,9 +43,25 @@
         :defaultCameraZoom="defaultZoom"
         :currentCameraPitch="currentPitch"
         :defaultCameraPitch="defaultPitch"
+        @seek-distance="handleSeekDistance"
+      />
+      <MessageGraph
+        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'message'"
+        :trackingPoints="trackingPoints"
+        :totalLength="totalLineLength"
+        :currentDistance="currentProgressDistance"
+        :range-events="eventsFile.rangeEvents"
+        @seek-distance="handleSeekDistance"
+        :message-graph-height="messageGraphHeight"
+        :message-library="messageLibrary"
+      />
+      <PauseFlytoGraph
+        v-else-if="trackingPoints.length > 0 && showGraph && (activeControlTab === 'pause' || activeControlTab === 'flyto')"
+        :trackingPoints="trackingPoints"
+        :totalLength="totalLineLength"
+        :currentDistance="currentProgressDistance"
         :pause-events="pauseEventsForDisplay"
         :flyto-events="flytoEventsForDisplay"
-        :range-events="eventsFile.rangeEvents"
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
@@ -144,6 +160,8 @@ import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
 import CameraGraph from '@/components/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
+import MessageGraph from '@/components/MessageGraph.vue';
+import PauseFlytoGraph from '@/components/PauseFlytoGraph.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
@@ -394,12 +412,14 @@ const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
 const eventsFile = ref({ pointEvents: {}, rangeEvents: [] });
+const messageLibrary = ref([]); // New ref for message library
 
 // --- New Message Library Logic ---
 const showLibraryModal = ref(false);
 const selectedMessageForNewEvent = ref(null);
 const defaultMessagePreAffichage = ref(0);
 const defaultMessagePostAffichage = ref(0);
+const messageGraphHeight = ref(10);
 const messageOrientation = ref('Droite'); // New state for orientation
 
 const currentMessageEvent = computed(() => 
@@ -1362,6 +1382,9 @@ onMounted(async () => {
     eventsFile.value.pointEvents = events.pointEvents; // Correction du camelCase
     eventsFile.value.rangeEvents = events.rangeEvents; // Correction du camelCase
 
+    // Fetch the message library
+    messageLibrary.value = await invoke('get_message_library');
+
     // --- Message Error Handling ---
     if (events.missingMessageErrors.length > 0) { // Accès direct à missingMessageErrors
       for (const errorDetail of events.missingMessageErrors) {
@@ -1385,6 +1408,7 @@ onMounted(async () => {
     // Load Message settings
     defaultMessagePreAffichage.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
     defaultMessagePostAffichage.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
+    messageGraphHeight.value = await getSettingValue('Edition/Evenements/Message/hauteurGraphique');
     messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
     messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
 

@@ -2,26 +2,6 @@
   <div class="graph-container-wrapper" @wheel.prevent>
     <div class="graph-container" :class="{ 'is-scrollable': isScrollable }" ref="scrollContainer">
       <svg :width="svgWidth" :height="svgHeight" @click="handleGraphClick">
-        <!-- Range Events (Messages) -->
-        <g v-for="(event, index) in processedRangeEvents" :key="`re-${index}`">
-          <rect
-            :x="event.x"
-            :y="event.y"
-            :width="event.width"
-            :height="event.height"
-            :fill="event.fillColor"
-            rx="2"
-          />
-          <line
-            :x1="event.anchorX"
-            :y1="event.y - 1"
-            :x2="event.anchorX"
-            :y2="event.y + event.height + 1"
-            :stroke="event.strokeColor"
-            stroke-width="3"
-          />
-        </g>
-
         <!-- Axe X de référence -->
         <line :x1="0" :y1="graphCenterY" :x2="svgWidth" :y2="graphCenterY" class="axis-line" />
 
@@ -90,30 +70,7 @@
           />
         </g>
 
-        <!-- Marqueurs de pause -->
-        <g v-for="point in pausePoints" :key="`pause-${point.increment}`">
-          <line
-            :x1="point.distance * kmToPx"
-            :y1="0"
-            :x2="point.distance * kmToPx"
-            :y2="pauseLength"
-            :stroke="pauseColor"
-            stroke-width="3"
-          />
-        </g>
-
-        <!-- Marqueurs Flyto -->
-        <g v-for="point in flytoPoints" :key="`flyto-${point.increment}`">
-          <line
-            :x1="point.distance * kmToPx"
-            :y1="0"
-            :x2="point.distance * kmToPx"
-            :y2="flytoLength"
-            :stroke="flytoColor"
-            stroke-width="3"
-          />
-        </g>
-      </svg>
+</svg>
     </div>
   </div>
 </template>
@@ -133,21 +90,22 @@ const pitchColor = ref('');
 const bearingDeltaColor = ref('');
 const bearingTotalDeltaColor = ref('');
 const progressZoneColor = ref('');
-const progressZoneOpacity = ref(0.1); // New ref for opacity
+const progressZoneOpacity = ref(0.1);
 const controlPointColor = ref('');
 const controlPointThickness = ref(3);
 const controlPointLength = ref(20);
-
-const pauseColor = ref('white');
-const pauseLength = ref(12);
-
-const flytoColor = ref('orange'); // Default, will be loaded from settings
-const flytoLength = ref(12); // Default, will be loaded from settings
 
 const editedZoomColor = ref('');
 const editedPitchColor = ref('');
 const editedBearingDeltaColor = ref('');
 const editedBearingTotalDeltaColor = ref('');
+
+// Graph scaling constants
+const kmToPx = 30;
+const zoomToPx = 1 / 0.1;
+const pitchToPx = 1;
+const bearingDeltaToPx = 3;
+const bearingTotalDeltaToPx = 1;
 
 onMounted(async () => {
   zoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom'));
@@ -159,12 +117,6 @@ onMounted(async () => {
   controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
   controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
   controlPointLength.value = await getSettingValue('Edition/Graphe/longueurPointDeControle');
-
-  pauseColor.value = toHex(await getSettingValue('Edition/Evenements/couleurPause'));
-  pauseLength.value = await getSettingValue('Edition/Evenements/longueurPause');
-
-  flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Flyto/couleur'));
-  flytoLength.value = await getSettingValue('Edition/Evenements/Flyto/longueur');
 
   editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedZoom'));
   editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedPitch'));
@@ -182,98 +134,16 @@ const props = defineProps({
   showEditedPitch: { type: Boolean, default: false },
   showEditedBearingDelta: { type: Boolean, default: false },
   showEditedBearingTotalDelta: { type: Boolean, default: false },
-  currentCameraBearing: { type: Number, default: 0 }, // New prop for current camera bearing
-  initialCameraBearing: { type: Number, default: 0 }, // New prop for initial bearing (km 0)
+  currentCameraBearing: { type: Number, default: 0 },
+  initialCameraBearing: { type: Number, default: 0 },
   currentCameraZoom: { type: Number, default: 0 },
   defaultCameraZoom: { type: Number, default: 0 },
   currentCameraPitch: { type: Number, default: 0 },
   defaultCameraPitch: { type: Number, default: 0 },
-  pauseEvents: { type: Array, default: () => [] },
-  flytoEvents: { type: Array, default: () => [] },
-  rangeEvents: { type: Array, default: () => [] },
 });
 
 const controlPoints = computed(() => {
   return props.trackingPoints.filter(p => p.pointDeControl);
-});
-
-const pausePoints = computed(() => {
-  if (!props.pauseEvents || props.pauseEvents.length === 0) return [];
-  const pauseIncrements = new Set(props.pauseEvents);
-  return props.trackingPoints.filter(p => pauseIncrements.has(p.increment));
-});
-
-const flytoPoints = computed(() => {
-  if (!props.flytoEvents || props.flytoEvents.length === 0) return [];
-  const flytoIncrements = new Set(props.flytoEvents);
-  return props.trackingPoints.filter(p => flytoIncrements.has(p.increment));
-});
-
-const processedRangeEvents = computed(() => {
-  if (!props.rangeEvents || props.rangeEvents.length === 0 || props.trackingPoints.length === 0) {
-    return [];
-  }
-
-  const trackingMap = new Map(props.trackingPoints.map(p => [p.increment, p.distance]));
-
-  const eventsWithCoords = props.rangeEvents.map(event => {
-    // Use the start/end increments provided directly by the event data
-    const startIncrement = event.startIncrement;
-    const endIncrement = event.endIncrement;
-    const anchorIncrement = event.anchorIncrement;
-
-    const startDistance = trackingMap.get(startIncrement);
-    const endDistance = trackingMap.get(endIncrement);
-    const anchorDistance = trackingMap.get(anchorIncrement);
-
-    if (startDistance === undefined || endDistance === undefined || anchorDistance === undefined) {
-      return null; // Event is out of bounds or invalid
-    }
-
-    return {
-      ...event,
-      startX: startDistance * kmToPx,
-      endX: endDistance * kmToPx,
-      anchorX: anchorDistance * kmToPx,
-    };
-  }).filter(Boolean);
-
-  // Sort events by startX
-  eventsWithCoords.sort((a, b) => a.startX - b.startX);
-
-  const lanes = []; // Each lane stores the endX of the last event
-  const rectangleHeight = 3;
-  const verticalGap = 3;
-  const baseOffsetY = 5; // Offset from the bottom of the graph
-
-  return eventsWithCoords.map(event => {
-    let assignedLane = -1;
-
-    // Find an available lane
-    for (let i = 0; i < lanes.length; i++) {
-      if (event.startX >= lanes[i]) {
-        assignedLane = i;
-        lanes[i] = event.endX;
-        break;
-      }
-    }
-
-    // If no lane was found, create a new one
-    if (assignedLane === -1) {
-      assignedLane = lanes.length;
-      lanes.push(event.endX);
-    }
-
-    return {
-      ...event,
-      x: event.startX,
-      y: svgHeight - baseOffsetY - (assignedLane * (rectangleHeight + verticalGap)),
-      width: event.endX - event.startX,
-      height: rectangleHeight,
-      fillColor: toHex(event.backgroundColor),
-      strokeColor: toHex(event.borderColor),
-    };
-  });
 });
 
 const handleGraphClick = (event) => {
@@ -287,13 +157,6 @@ const handleGraphClick = (event) => {
 const scrollContainer = ref(null);
 const svgHeight = 400;
 const graphCenterY = svgHeight / 2;
-
-// --- Échelles ---
-const kmToPx = 30;
-const zoomToPx = 1 / 0.1;
-const pitchToPx = 1;
-const bearingDeltaToPx = 3;
-const bearingTotalDeltaToPx = 1;
 
 const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
 
@@ -320,7 +183,6 @@ const isScrollable = computed(() => {
   return contentWidth > containerWidth;
 });
 
-// --- Génération des repères --- 
 const xMarkers = computed(() => {
   const markers = [];
   const intervalKm = 10;
@@ -337,7 +199,6 @@ const xMarkers = computed(() => {
   return markers;
 });
 
-// Auto-scroll logic
 watch(() => props.currentDistance, (newDistance) => {
   if (!scrollContainer.value) return;
 
@@ -369,7 +230,6 @@ watch(() => props.currentDistance, (newDistance) => {
   });
 });
 
-// --- Calcul des chemins SVG ---
 const zoomPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultZoom = props.trackingPoints[0]?.zoom || 16;
@@ -419,7 +279,6 @@ const bearingTotalDeltaPath = computed(() => {
   }).join(' ');
 });
 
-// --- Calcul des chemins SVG pour les données éditées ---
 const editedZoomPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultZoom = props.trackingPoints[0]?.zoom || 16;
