@@ -800,6 +800,76 @@ watch(isPaused, (paused) => {
     }
 });
 
+// --- Message Display Functions for Initialization ---
+const getMessagesForKm0 = () => {
+  if (!rangeEvents.value || rangeEvents.value.length === 0) {
+    return { atKm0: [], nearKm0: [] };
+  }
+  
+  const atKm0 = [];
+  const nearKm0 = [];
+  
+  for (const msg of rangeEvents.value) {
+    // Messages visibles au km0 (startIncrement <= 0 && endIncrement >= 0)
+    if (msg.startIncrement <= 0 && msg.endIncrement >= 0) {
+      if (msg.anchorIncrement === 0) {
+        atKm0.push(msg);
+      } else {
+        nearKm0.push(msg);
+      }
+    }
+  }
+  
+  return { atKm0, nearKm0 };
+};
+
+const displayMessagesWithFade = async (messages, duration) => {
+  if (!map || messages.length === 0) return;
+  
+  const popupsToAnimate = [];
+  
+  // Créer les popups avec opacité 0
+  for (const msg of messages) {
+    const svgContent = createMessageSVG(msg);
+    const orientation = msg.orientation || 'Droite';
+    const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+    
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      anchor: anchor,
+      className: 'map-message-popup fade-in-message'
+    })
+      .setLngLat(msg.coord)
+      .setHTML(svgContent)
+      .addTo(map);
+    
+    // Stocker pour animation
+    popupsToAnimate.push({ popup, msg });
+    activePopups.set(msg.eventId, popup);
+  }
+  
+  // Animer l'opacité
+  const startTime = performance.now();
+  const animateOpacity = (timestamp) => {
+    const elapsed = timestamp - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    popupsToAnimate.forEach(({ popup }) => {
+      const element = popup.getElement();
+      if (element) {
+        element.style.opacity = progress;
+      }
+    });
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateOpacity);
+    }
+  };
+  
+  requestAnimationFrame(animateOpacity);
+};
+
 const goBack = () => {
   router.push({ name: 'Main' });
 };
@@ -1109,18 +1179,31 @@ const initializeMap = async () => {
           ...map.cameraForBounds(traceBbox, { padding: 40 }) // Utiliser cameraForBounds pour obtenir le centre/zoom
       });
 
-      // Séquence 2: Pause
+      // Séquence 2: Pause sur la vue globale
       animationState.value = 'Pause_Observation';
+      
+      // Afficher les messages avec anchorIncrement === 0 avec animation progressive
+      const { atKm0, nearKm0 } = getMessagesForKm0();
+      if (atKm0.length > 0) {
+        await displayMessagesWithFade(atKm0, pauseBeforeStart.value);
+      }
+      
       await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
 
-      // Séquence 2: Vol vers le début de la trace (km 0)
+      // Séquence 3: Vol vers le début de la trace (km 0)
       animationState.value = 'Vol_Vers_Depart';
+      
+      // Afficher les messages avec anchorIncrement !== 0 pendant le flyTo
+      if (nearKm0.length > 0) {
+        displayMessagesWithFade(nearKm0, durationTraceToStart.value); // Pas de await, animation en parallèle
+      }
+      
       await flyToPromise(map, {
           ...startCameraOptions,
           duration: durationTraceToStart.value,
       });
 
-      // Séquence 3: Afficher l'interface utilisateur et démarrer l'animation après une pause
+      // Séquence 4: Afficher l'interface utilisateur et démarrer l'animation après une pause
       animationState.value = 'En_Pause_au_Depart';
       isInitializing.value = false;
       isPaused.value = true; // On reste en pause le temps du timer
@@ -1436,5 +1519,10 @@ onUnmounted(() => {
 .fade-leave-to {
   opacity: 0;
   max-height: 0 !important;
+}
+
+/* Fade-in animation for messages during initialization */
+.fade-in-message {
+  opacity: 0;
 }
 </style>
