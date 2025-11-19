@@ -935,15 +935,6 @@
                 "libelle": "Trace",
                 "parametres": [
                   {
-                    "defaut": "orange-darken-4",
-                    "description": "Couleur de la trace GPX pour l'édition",
-                    "identifiant": "couleur",
-                    "libelle": "Couleur de la trace",
-                    "type": "couleur",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/couleur.md"
-                  },
-                  {
                     "defaut": 3,
                     "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
                     "identifiant": "epaisseur",

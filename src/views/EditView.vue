@@ -1244,13 +1244,48 @@ onMounted(async () => {
     mapboxgl.accessToken = mapboxToken;
 
     const styleVisualisation = await getSettingValue('Edition/Mapbox/styleVisualisation');
-    let rawTraceColor = await getSettingValue('Edition/Mapbox/Trace/couleur');
-    if (rawTraceColor && !rawTraceColor.startsWith('#')) {
-      traceColor.value = await invoke('convert_vuetify_color', { colorName: rawTraceColor });
-    } else {
-      traceColor.value = rawTraceColor;
-    }
+
+    const colorTraceBySlope = await getSettingValue('Visualisation/Mapbox/Traces/colorerSelonPente');
     const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
+    let paintProps = { 'line-width': traceWidth };
+    let useGradient = false;
+
+    if (colorTraceBySlope) {
+        try {
+            const slopeColors = {
+                TrancheNegative: toHex(await getSettingValue('Altitude/Couleurs/TrancheNegative')),
+                Tranche1: toHex(await getSettingValue('Altitude/Couleurs/Tranche1')),
+                Tranche2: toHex(await getSettingValue('Altitude/Couleurs/Tranche2')),
+                Tranche3: toHex(await getSettingValue('Altitude/Couleurs/Tranche3')),
+                Tranche4: toHex(await getSettingValue('Altitude/Couleurs/Tranche4')),
+                Tranche5: toHex(await getSettingValue('Altitude/Couleurs/Tranche5')),
+            };
+            const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment');
+
+            const colorExpression = await invoke('get_slope_color_expression', {
+                circuitId: circuitId,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength,
+            });
+
+            if (colorExpression && Array.isArray(colorExpression)) {
+                paintProps['line-gradient'] = colorExpression;
+                useGradient = true;
+            } else {
+                showSnackbar("Impossible de générer les couleurs de pente, utilisation de la couleur par défaut.", "warning");
+            }
+        } catch (e) {
+            console.error("Erreur lors de la génération des couleurs de pente:", e);
+            showSnackbar("Erreur lors de la génération des couleurs de pente, utilisation de la couleur par défaut.", "error");
+        }
+    }
+
+    if (!useGradient) {
+        const rawTraceColor = await getSettingValue('Visualisation/Mapbox/Traces/couleurTrace');
+        const resolvedColor = toHex(rawTraceColor || 'orange'); // Fallback to orange if setting is not found
+        traceColor.value = resolvedColor;
+        paintProps['line-color'] = resolvedColor;
+    }
     const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
     let rawCouleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
     if (rawCouleurAvancement) {
@@ -1517,6 +1552,7 @@ onMounted(async () => {
             coordinates: lineStringCoordinates.value,
           },
         },
+        lineMetrics: true, // Required for line-gradient
       });
 
       map.addLayer({
@@ -1527,10 +1563,8 @@ onMounted(async () => {
           'line-join': 'round',
           'line-cap': 'round',
         },
-                  paint: {
-                    'line-color': traceColor.value,
-                    'line-width': traceWidth,
-                  },      });
+        paint: paintProps,
+      });
 
       map.addSource('progress-line', {
         type: 'geojson',
