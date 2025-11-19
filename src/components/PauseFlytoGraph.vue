@@ -1,4 +1,7 @@
 <template>
+  <div v-if="tooltipVisible" class="custom-tooltip" :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }">
+    <div v-html="tooltipText"></div>
+  </div>
   <div class="graph-container-wrapper" @wheel.prevent>
     <div class="graph-container" :class="{ 'is-scrollable': isScrollable }" ref="scrollContainer">
       <svg :width="svgWidth" :height="svgHeight" @click="handleGraphClick">
@@ -25,24 +28,26 @@
         />
 
         <!-- Marqueurs de pause -->
-        <g v-for="point in pausePoints" :key="`pause-${point.increment}`">
+        <g v-for="(point, index) in processedPauseMarkers" :key="`pause-${index}`">
           <line
-            :x1="point.distance * kmToPx"
-            :y1="0"
-            :x2="point.distance * kmToPx"
-            :y2="pauseLength"
+            :x1="point.x"
+            :y1="graphCenterY"
+            :x2="point.x"
+            :y2="graphCenterY - pauseLength"
             :stroke="pauseColor"
             stroke-width="3"
           />
         </g>
 
         <!-- Marqueurs Flyto -->
-        <g v-for="point in flytoPoints" :key="`flyto-${point.increment}`">
+        <g v-for="(point, index) in processedFlytoMarkers" :key="`flyto-${index}`">
           <line
-            :x1="point.distance * kmToPx"
-            :y1="0"
-            :x2="point.distance * kmToPx"
-            :y2="flytoLength"
+            @mouseenter="showCustomTooltip(point, $event)"
+            @mouseleave="hideCustomTooltip()"
+            :x1="point.x"
+            :y1="graphCenterY - 15" 
+            :x2="point.x"
+            :y2="graphCenterY - 15 - flytoLength"
             :stroke="flytoColor"
             stroke-width="3"
           />
@@ -56,6 +61,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import * as turf from '@turf/turf';
 
 const emit = defineEmits(['seek-distance']);
 
@@ -64,28 +70,49 @@ const { toHex } = useVuetifyColors();
 
 const progressZoneColor = ref('');
 const progressZoneOpacity = ref(0.1);
-const pauseColor = ref('white');
+const pauseColor = ref('purple');
 const pauseLength = ref(12);
 const flytoColor = ref('orange');
-const flytoLength = ref(12);
+const flytoLength = ref(20);
+
+// Tooltip state
+const tooltipVisible = ref(false);
+const tooltipText = ref('');
+const tooltipX = ref(0);
+const tooltipY = ref(0);
+
+const showCustomTooltip = (pointData, mouseEvent) => {
+  tooltipText.value = pointData.tooltipContent;
+  tooltipX.value = mouseEvent.clientX + 10;
+  tooltipY.value = mouseEvent.clientY - 10;
+  tooltipVisible.value = true;
+};
+
+const hideCustomTooltip = () => {
+  tooltipVisible.value = false;
+};
 
 onMounted(async () => {
-  progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
-  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
+  try {
+    const pColor = await getSettingValue('Edition/Evenements/Graphe/Pauses/couleur');
+    progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
+    progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
 
-  pauseColor.value = toHex(await getSettingValue('Edition/Evenements/couleurPause'));
-  pauseLength.value = await getSettingValue('Edition/Evenements/longueurPause');
+    pauseColor.value = toHex(pColor || 'purple');
+    pauseLength.value = await getSettingValue('Edition/Evenements/Graphe/Pauses/longueur') || 12;
 
-  flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Flyto/couleur'));
-  flytoLength.value = await getSettingValue('Edition/Evenements/Flyto/longueur');
+    flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Graphe/Flytos/couleur') || 'orange');
+    flytoLength.value = await getSettingValue('Edition/Evenements/Graphe/Flytos/longueur') || 20;
+  } catch (e) {
+    console.error('Error in PauseFlytoGraph onMounted:', e);
+  }
 });
 
 const props = defineProps({
   trackingPoints: { type: Array, required: true },
   totalLength: { type: Number, required: true },
   currentDistance: { type: Number, required: true },
-  pauseEvents: { type: Array, default: () => [] },
-  flytoEvents: { type: Array, default: () => [] },
+  pointEventsData: { type: Object, default: () => ({}) }, // Changed prop
 });
 
 const handleGraphClick = (event) => {
@@ -97,8 +124,8 @@ const handleGraphClick = (event) => {
 };
 
 const scrollContainer = ref(null);
-const svgHeight = 400; // Fixed height for the graph container
-const graphCenterY = svgHeight / 2; // Central Y-axis for markers, not directly used by messages
+const svgHeight = 100; // Reduced height as we don't need as much space
+const graphCenterY = svgHeight - 20; // Align close to bottom, leaving space for text
 
 const kmToPx = 30; // Scale: 30 pixels per kilometer
 
@@ -108,7 +135,7 @@ const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5
 
 const isScrollable = computed(() => {
   const contentWidth = props.totalLength * kmToPx;
-  const containerWidth = 1500; // Assuming a fixed container width for now, will be dynamic based on parent
+  const containerWidth = 1500; 
   return contentWidth > containerWidth;
 });
 
@@ -161,16 +188,71 @@ watch(() => props.currentDistance, (newDistance) => {
   });
 });
 
-const pausePoints = computed(() => {
-  if (!props.pauseEvents || props.pauseEvents.length === 0) return [];
-  const pauseIncrements = new Set(props.pauseEvents);
-  return props.trackingPoints.filter(p => pauseIncrements.has(p.increment));
+const processedPauseMarkers = computed(() => {
+  if (!props.pointEventsData || !props.trackingPoints.length) return [];
+  
+  const markers = [];
+  for (const [incrementStr, events] of Object.entries(props.pointEventsData)) {
+    const increment = parseInt(incrementStr);
+    if (events.some(e => e.type === 'Pause')) {
+      const point = props.trackingPoints.find(p => p.increment === increment);
+      if (point) {
+        markers.push({
+          x: point.distance * kmToPx,
+        });
+      } else {
+         console.warn(`[PauseFlytoGraph] Pause event at increment ${increment} but no matching tracking point found.`);
+      }
+    }
+  }
+  return markers;
 });
 
-const flytoPoints = computed(() => {
-  if (!props.flytoEvents || props.flytoEvents.length === 0) return [];
-  const flytoIncrements = new Set(props.flytoEvents);
-  return props.trackingPoints.filter(p => flytoIncrements.has(p.increment));
+const processedFlytoMarkers = computed(() => {
+  if (!props.pointEventsData || !props.trackingPoints.length) return [];
+
+  const markers = [];
+  for (const [incrementStr, events] of Object.entries(props.pointEventsData)) {
+    const increment = parseInt(incrementStr);
+    const flytoEvent = events.find(e => e.type === 'Flyto');
+    
+    if (flytoEvent) {
+      const point = props.trackingPoints.find(p => p.increment === increment);
+      if (point) {
+        // Validate coordinates
+        const pLon = Number(point.coordonnee?.[0]);
+        const pLat = Number(point.coordonnee?.[1]);
+        const tLon = flytoEvent.data?.coord?.[0];
+        const tLat = flytoEvent.data?.coord?.[1];
+
+        if (isNaN(pLon) || isNaN(pLat) || isNaN(Number(tLon)) || isNaN(Number(tLat))) {
+            console.warn(`[PauseFlytoGraph] Invalid coordinates for Flyto at increment ${increment}`);
+            continue;
+        }
+
+        // Calculate distance and bearing
+        const from = turf.point([pLon, pLat]);
+        const to = turf.point([Number(tLon), Number(tLat)]);
+        
+        const distance = turf.distance(from, to, { units: 'kilometers' });
+        const bearing = turf.bearing(from, to);
+        
+        // Format tooltip content
+        const tooltipContent = `
+          <div><strong>Distance:</strong> ${distance.toFixed(2)} km</div>
+          <div><strong>Cap:</strong> ${bearing.toFixed(1)}°</div>
+          <div><strong>Zoom:</strong> ${flytoEvent.data.zoom}</div>
+          <div><strong>Pitch:</strong> ${flytoEvent.data.pitch}°</div>
+        `;
+
+        markers.push({
+          x: point.distance * kmToPx,
+          tooltipContent: tooltipContent
+        });
+      }
+    }
+  }
+  return markers;
 });
 
 </script>
@@ -179,7 +261,7 @@ const flytoPoints = computed(() => {
 .graph-container-wrapper {
   flex-grow: 1;
   width: 0;
-  height: 400px;
+  height: 100px; /* Match svgHeight */
   background-color: rgba(var(--v-theme-surface), 0.8);
   backdrop-filter: blur(4px);
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.2);
@@ -219,5 +301,20 @@ const flytoPoints = computed(() => {
 path {
   fill: none;
   stroke-width: 1.5;
+}
+
+.custom-tooltip {
+  position: fixed;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.9);
+  color: white;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(0, -100%); /* Position above cursor */
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
 }
 </style>

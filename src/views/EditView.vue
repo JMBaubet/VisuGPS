@@ -56,12 +56,11 @@
         :message-library="messageLibrary"
       />
       <PauseFlytoGraph
-        v-else-if="trackingPoints.length > 0 && showGraph && (activeControlTab === 'pause' || activeControlTab === 'flyto')"
+        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'stop'"
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
-        :pause-events="pauseEventsForDisplay"
-        :flyto-events="flytoEventsForDisplay"
+        :pointEventsData="eventsFile.pointEvents"
         @seek-distance="handleSeekDistance"
       />
       <ControlTabsWidget
