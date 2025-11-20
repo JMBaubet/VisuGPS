@@ -14,17 +14,6 @@
       </v-btn>
 
       <v-btn 
-          :variant="model === 'original' ? 'flat' : 'outlined'"
-          :color="model === 'original' ? 'primary' : undefined"
-          @click="model = 'original'"
-          rounded="pill"
-          size="small"
-          class="flex-grow-1"
-      >
-          Calculée
-      </v-btn>
-
-      <v-btn 
           :variant="model === 'edited' ? 'flat' : 'outlined'"
           :color="model === 'edited' ? 'primary' : undefined"
           @click="model = 'edited'"
@@ -32,7 +21,7 @@
           size="small"
           class="flex-grow-1"
       >
-          Editée
+          Animée
       </v-btn>
     </div>
   </div>

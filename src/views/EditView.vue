@@ -443,7 +443,7 @@ const lineStringCoordinates = ref([]);
 const totalLineLength = ref(0);
 const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
-const cameraSyncMode = ref('original'); // 'off', 'original', 'edited'
+const cameraSyncMode = ref('edited'); // 'off', 'edited'
 const showCenterMarker = ref(false);
 const trackProgress = ref(0);
 const eventsFile = ref({ pointEvents: {}, rangeEvents: [] });
@@ -1094,11 +1094,7 @@ const updateCameraPosition = (index) => {
     duration: 150
   };
 
-  if (cameraSyncMode.value === 'original') {
-    flyToOptions.zoom = point.zoom;
-    flyToOptions.pitch = point.pitch;
-    flyToOptions.bearing = point.cap;
-  } else if (cameraSyncMode.value === 'edited') {
+  if (cameraSyncMode.value === 'edited') {
     flyToOptions.zoom = point.editedZoom;
     flyToOptions.pitch = point.editedPitch;
     flyToOptions.bearing = point.editedCap;
