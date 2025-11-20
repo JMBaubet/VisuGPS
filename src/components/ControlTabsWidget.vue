@@ -16,67 +16,180 @@
           </div>
           <v-divider></v-divider>
 
-          <!-- Checkbox Table -->
+          <!-- Checkbox Table in Expansion Panel -->
           <div class="pa-2">
-            <v-table density="compact">
-              <thead>
-                <tr>
-                  <th class="text-left">Courbe</th>
-                  <th class="text-left">Calculée</th>
-                  <th class="text-left">Editée</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Δ Cap</td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showCalculeeBearingDeltaModel" :color="props.colorOrigineBearingDelta"></v-checkbox-btn>
-                    </div>
-                  </td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showEditeeBearingDeltaModel" :color="props.colorEditedBearingDelta"></v-checkbox-btn>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Cap</td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showCalculeeBearingTotalDeltaModel" :color="props.colorOrigineBearingTotalDelta"></v-checkbox-btn>
-                    </div>
-                  </td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showEditeeBearingTotalDeltaModel" :color="props.colorEditedBearingTotalDelta"></v-checkbox-btn>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Zoom</td>
-                  <td class="text-center">
-                    <!-- Empty cell -->
-                  </td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showEditeeZoomModel" :color="props.colorEditedZoom"></v-checkbox-btn>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Pitch</td>
-                  <td class="text-center">
-                    <!-- Empty cell -->
-                  </td>
-                  <td class="text-center">
-                    <div class="d-flex justify-center">
-                      <v-checkbox-btn v-model="showEditeePitchModel" :color="props.colorEditedPitch"></v-checkbox-btn>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
+            <v-expansion-panels>
+              <v-expansion-panel>
+                <v-expansion-panel-title>
+                  <span class="text-subtitle-2">Affichage des courbes</span>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <v-table density="compact">
+                    <thead>
+                      <tr>
+                        <th class="text-left">Courbe</th>
+                        <th class="text-left">Calculée</th>
+                        <th class="text-left">Editée</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Δ Cap</td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showCalculeeBearingDeltaModel" :color="props.colorOrigineBearingDelta"></v-checkbox-btn>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showEditeeBearingDeltaModel" :color="props.colorEditedBearingDelta"></v-checkbox-btn>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Cap</td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showCalculeeBearingTotalDeltaModel" :color="props.colorOrigineBearingTotalDelta"></v-checkbox-btn>
+                          </div>
+                        </td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showEditeeBearingTotalDeltaModel" :color="props.colorEditedBearingTotalDelta"></v-checkbox-btn>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Zoom</td>
+                        <td class="text-center">
+                          <!-- Empty cell -->
+                        </td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showEditeeZoomModel" :color="props.colorEditedZoom"></v-checkbox-btn>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>Pitch</td>
+                        <td class="text-center">
+                          <!-- Empty cell -->
+                        </td>
+                        <td class="text-center">
+                          <div class="d-flex justify-center">
+                            <v-checkbox-btn v-model="showEditeePitchModel" :color="props.colorEditedPitch"></v-checkbox-btn>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
+          </div>
+
+          <v-divider></v-divider>
+
+          <!-- Zoom Tabs -->
+          <div class="pa-2">
+            <v-tabs v-model="zoomTab" bg-color="surface" density="compact" color="primary" class="mb-2">
+              <v-tab value="depart">Zoom Départ</v-tab>
+              <v-tab value="arrivee">Zoom Arrivée</v-tab>
+            </v-tabs>
+
+            <v-window v-model="zoomTab">
+              <v-window-item value="depart">
+                <div class="d-flex flex-column pa-0">
+                  <v-row dense no-gutters class="align-center">
+                    <v-col cols="2">
+                      <v-checkbox
+                        v-model="zoomDepartModel"
+                        color="primary"
+                        density="compact"
+                        hide-details
+                        class="flex-grow-0 mt-0 pt-0"
+                      ></v-checkbox>
+                    </v-col>
+                    <v-col cols="10">
+                      <v-slider
+                        v-model="zoomDepartValeurModel"
+                        :disabled="!zoomDepartModel"
+                        :label="`Zoom : ${zoomDepartValeurModel.toFixed(1)}`"
+                        :min="16.5"
+                        :max="20"
+                        :step="0.1"
+                        hide-details
+                        density="compact"
+                        class="mt-2"
+                      >
+                      </v-slider>
+                    </v-col>
+                  </v-row>
+                  <v-row dense no-gutters>
+                    <v-col cols="12">
+                      <v-slider
+                        v-model="zoomDepartDistanceModel"
+                        :disabled="!zoomDepartModel"
+                        :label="`Distance : ${zoomDepartDistanceModel * 100}m`"
+                        :min="5"
+                        :max="50"
+                        :step="1"
+                        hide-details
+                        density="compact"
+                        class="mt-2"
+                      >
+                      </v-slider>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-window-item>
+
+              <v-window-item value="arrivee">
+                <div class="d-flex flex-column pa-0">
+                  <v-row dense no-gutters class="align-center">
+                    <v-col cols="2">
+                      <v-checkbox
+                        v-model="zoomArriveeModel"
+                        color="primary"
+                        density="compact"
+                        hide-details
+                        class="flex-grow-0 mt-0 pt-0"
+                      ></v-checkbox>
+                    </v-col>
+                    <v-col cols="10">
+                      <v-slider
+                        v-model="zoomArriveeValeurModel"
+                        :disabled="!zoomArriveeModel"
+                        :label="`Zoom : ${zoomArriveeValeurModel.toFixed(1)}`"
+                        :min="16.5"
+                        :max="20"
+                        :step="0.1"
+                        hide-details
+                        density="compact"
+                        class="mt-2"
+                      >
+                      </v-slider>
+                    </v-col>
+                  </v-row>
+                  <v-row dense no-gutters>
+                    <v-col cols="12">
+                      <v-slider
+                        v-model="zoomArriveeDistanceModel"
+                        :disabled="!zoomArriveeModel"
+                        :label="`Distance : ${zoomArriveeDistanceModel * 100}m`"
+                        :min="5"
+                        :max="50"
+                        :step="1"
+                        hide-details
+                        density="compact"
+                        class="mt-2"
+                      >
+                      </v-slider>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-window-item>
+            </v-window>
           </div>
 
           <v-spacer></v-spacer>
@@ -152,106 +265,6 @@
             </v-btn>
           </div>
 
-          <v-divider class="my-2"></v-divider>
-
-          <v-tabs v-model="zoomTab" bg-color="surface" density="compact" color="primary" class="mb-2">
-            <v-tab value="depart">Zoom Départ</v-tab>
-            <v-tab value="arrivee">Zoom Arrivée</v-tab>
-          </v-tabs>
-
-          <v-window v-model="zoomTab">
-            <v-window-item value="depart">
-              <div class="d-flex flex-column pa-0">
-                <v-row dense no-gutters class="align-center">
-                  <v-col cols="2">
-                    <v-checkbox
-                      v-model="zoomDepartModel"
-                      color="primary"
-                      density="compact"
-                      hide-details
-                      class="flex-grow-0 mt-0 pt-0"
-                    ></v-checkbox>
-                  </v-col>
-                  <v-col cols="10">
-                    <v-slider
-                      v-model="zoomDepartValeurModel"
-                      :disabled="!zoomDepartModel"
-                      :label="`Zoom : ${zoomDepartValeurModel.toFixed(1)}`"
-                      :min="16.5"
-                      :max="20"
-                      :step="0.1"
-                      hide-details
-                      density="compact"
-                      class="mt-2"
-                    >
-                    </v-slider>
-                  </v-col>
-                </v-row>
-                <v-row dense no-gutters>
-                  <v-col cols="12">
-                    <v-slider
-                      v-model="zoomDepartDistanceModel"
-                      :disabled="!zoomDepartModel"
-                      :label="`Distance : ${zoomDepartDistanceModel * 100}m`"
-                      :min="5"
-                      :max="50"
-                      :step="1"
-                      hide-details
-                      density="compact"
-                      class="mt-2"
-                    >
-                    </v-slider>
-                  </v-col>
-                </v-row>
-              </div>
-            </v-window-item>
-
-            <v-window-item value="arrivee">
-              <div class="d-flex flex-column pa-0">
-                <v-row dense no-gutters class="align-center">
-                  <v-col cols="2">
-                    <v-checkbox
-                      v-model="zoomArriveeModel"
-                      color="primary"
-                      density="compact"
-                      hide-details
-                      class="flex-grow-0 mt-0 pt-0"
-                    ></v-checkbox>
-                  </v-col>
-                  <v-col cols="10">
-                    <v-slider
-                      v-model="zoomArriveeValeurModel"
-                      :disabled="!zoomArriveeModel"
-                      :label="`Zoom : ${zoomArriveeValeurModel.toFixed(1)}`"
-                      :min="16.5"
-                      :max="20"
-                      :step="0.1"
-                      hide-details
-                      density="compact"
-                      class="mt-2"
-                    >
-                    </v-slider>
-                  </v-col>
-                </v-row>
-                <v-row dense no-gutters>
-                  <v-col cols="12">
-                    <v-slider
-                      v-model="zoomArriveeDistanceModel"
-                      :disabled="!zoomArriveeModel"
-                      :label="`Distance : ${zoomArriveeDistanceModel * 100}m`"
-                      :min="5"
-                      :max="50"
-                      :step="1"
-                      hide-details
-                      density="compact"
-                      class="mt-2"
-                    >
-                    </v-slider>
-                  </v-col>
-                </v-row>
-              </div>
-            </v-window-item>
-          </v-window>
         </div>
       </v-window-item>
 
