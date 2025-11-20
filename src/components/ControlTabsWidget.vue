@@ -141,6 +141,13 @@
                       </v-slider>
                     </v-col>
                   </v-row>
+                  <v-row v-if="zoomDepartChanged" dense no-gutters class="mt-2">
+                    <v-col cols="12" class="d-flex justify-center">
+                      <v-btn color="primary" variant="tonal" size="small" @click="updateZoomDepart">
+                        Mettre à jour le Zoom
+                      </v-btn>
+                    </v-col>
+                  </v-row>
                 </div>
               </v-window-item>
 
@@ -185,6 +192,13 @@
                         class="mt-2"
                       >
                       </v-slider>
+                    </v-col>
+                  </v-row>
+                  <v-row v-if="zoomArriveeChanged" dense no-gutters class="mt-2">
+                    <v-col cols="12" class="d-flex justify-center">
+                      <v-btn color="primary" variant="tonal" size="small" @click="updateZoomArrivee">
+                        Mettre à jour le Zoom
+                      </v-btn>
                     </v-col>
                   </v-row>
                 </div>
@@ -448,6 +462,8 @@ const emit = defineEmits([
   'update:zoomArriveeValeur',
   'update:distanceZoomArrivee',
   'verify-flyto',
+  'update-zoom-depart',
+  'update-zoom-arrivee',
 ]);
   
 watch(mainTab, (newTab) => {
@@ -479,6 +495,70 @@ const zoomDepartDistanceModel = createModel('zoomDepartDistance');
 const zoomArriveeModel = createModel('zoomArrivee');
 const zoomArriveeValeurModel = createModel('zoomArriveeValeur');
 const zoomArriveeDistanceModel = createModel('distanceZoomArrivee');
+
+// --- Zoom Update Logic ---
+// Track initial values for Zoom Depart
+const initialZoomDepartValeur = ref(props.zoomDepartValeur);
+const initialZoomDepartDistance = ref(props.zoomDepartDistance);
+
+// Track initial values for Zoom Arrivee
+const initialZoomArriveeValeur = ref(props.zoomArriveeValeur);
+const initialZoomArriveeDistance = ref(props.distanceZoomArrivee);
+
+// Detect changes for Zoom Depart
+const zoomDepartChanged = computed(() => {
+  return props.zoomDepart && (
+    props.zoomDepartValeur !== initialZoomDepartValeur.value ||
+    props.zoomDepartDistance !== initialZoomDepartDistance.value
+  );
+});
+
+// Detect changes for Zoom Arrivee
+const zoomArriveeChanged = computed(() => {
+  return props.zoomArrivee && (
+    props.zoomArriveeValeur !== initialZoomArriveeValeur.value ||
+    props.distanceZoomArrivee !== initialZoomArriveeDistance.value
+  );
+});
+
+// Update Zoom Depart
+const updateZoomDepart = () => {
+  emit('update-zoom-depart');
+  initialZoomDepartValeur.value = props.zoomDepartValeur;
+  initialZoomDepartDistance.value = props.zoomDepartDistance;
+};
+
+// Update Zoom Arrivee
+const updateZoomArrivee = () => {
+  emit('update-zoom-arrivee');
+  initialZoomArriveeValeur.value = props.zoomArriveeValeur;
+  initialZoomArriveeDistance.value = props.distanceZoomArrivee;
+};
+
+// Watch for external changes to reset initial values
+watch(() => props.zoomDepartValeur, (newVal) => {
+  if (!zoomDepartChanged.value) {
+    initialZoomDepartValeur.value = newVal;
+  }
+});
+
+watch(() => props.zoomDepartDistance, (newVal) => {
+  if (!zoomDepartChanged.value) {
+    initialZoomDepartDistance.value = newVal;
+  }
+});
+
+watch(() => props.zoomArriveeValeur, (newVal) => {
+  if (!zoomArriveeChanged.value) {
+    initialZoomArriveeValeur.value = newVal;
+  }
+});
+
+watch(() => props.distanceZoomArrivee, (newVal) => {
+  if (!zoomArriveeChanged.value) {
+    initialZoomArriveeDistance.value = newVal;
+  }
+});
 
 // --- Message Event Logic ---
 const messageOrientationModel = createSwitchModel('messageOrientation', 'Droite', 'Gauche');

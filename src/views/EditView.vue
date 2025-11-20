@@ -117,6 +117,8 @@
         @update:marker-visible="showCenterMarker = $event"
         @tab-changed="handleTabChange"
         @verify-flyto="handleVerifyFlyto"
+        @update-zoom-depart="handleUpdateZoomDepart"
+        @update-zoom-arrivee="handleUpdateZoomArrivee"
       />
     </div>
 
@@ -825,6 +827,25 @@ watch(zoomArrivee, async (newValue) => {
   }
   await updateCircuitZoomSettings();
 });
+
+const handleUpdateZoomDepart = async () => {
+  if (!dataLoaded.value) return;
+  if (zoomDepart.value) {
+    await applyZoomDepart();
+    await updateCircuitZoomSettings();
+    showSnackbar('Zoom de départ mis à jour.', 'success');
+  }
+};
+
+const handleUpdateZoomArrivee = async () => {
+  if (!dataLoaded.value) return;
+  if (zoomArrivee.value) {
+    await applyZoomArrivee();
+    await updateCircuitZoomSettings();
+    showSnackbar('Zoom d\'arrivée mis à jour.', 'success');
+  }
+};
+
 
 async function updateCircuitZoomSettings() {
   try {
