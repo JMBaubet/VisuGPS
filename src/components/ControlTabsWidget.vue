@@ -134,6 +134,10 @@
               <span class="mr-2">Supprimer le Survol</span>
               <v-icon icon="mdi-delete"></v-icon>
             </v-btn>
+            <v-btn color="info" variant="text" @click="emit('verify-flyto')">
+              <span class="mr-2">Vérifier</span>
+              <v-icon icon="mdi-play"></v-icon>
+            </v-btn>
           </div>
 
           <!-- Case 3: No event exists -->
@@ -430,6 +434,7 @@ const emit = defineEmits([
   'update:zoomArrivee',
   'update:zoomArriveeValeur',
   'update:distanceZoomArrivee',
+  'verify-flyto',
 ]);
   
 watch(mainTab, (newTab) => {

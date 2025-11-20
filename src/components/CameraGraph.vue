@@ -8,7 +8,7 @@
         <!-- Repères sur l'axe X -->
         <g v-for="marker in xMarkers" :key="marker.label">
           <line :x1="marker.x" :y1="graphCenterY - 5" :x2="marker.x" :y2="graphCenterY + 5" class="marker-line" />
-          <text :x="marker.x" :y="graphCenterY + 20" class="marker-text">{{ marker.label }}</text>
+          <text :x="marker.x" :y="graphCenterY + 20" class="marker-text" :style="{ textAnchor: marker.anchor }">{{ marker.label }}</text>
         </g>
 
         <!-- Zone d'avancement -->
@@ -61,9 +61,9 @@
         <!-- Points de contrôle -->
         <g v-for="point in controlPoints" :key="`cp-${point.increment}`">
           <line
-            :x1="point.distance * kmToPx"
+            :x1="(point.distance * kmToPx) + startOffsetPx"
             :y1="0"
-            :x2="point.distance * kmToPx"
+            :x2="(point.distance * kmToPx) + startOffsetPx"
             :y2="controlPointLength"
             :stroke="controlPointColor"
             :stroke-width="controlPointThickness"
@@ -102,6 +102,8 @@ const editedBearingTotalDeltaColor = ref('');
 
 // Graph scaling constants
 const kmToPx = 30;
+const startOffsetKm = 0.2;
+const startOffsetPx = startOffsetKm * kmToPx;
 const zoomToPx = 1 / 0.1;
 const pitchToPx = 1;
 const bearingDeltaToPx = 3;
@@ -150,7 +152,7 @@ const handleGraphClick = (event) => {
   const svgRect = event.currentTarget.getBoundingClientRect();
   const x = event.clientX - svgRect.left;
   
-  const clickedKm = x / kmToPx;
+  const clickedKm = (x - startOffsetPx) / kmToPx;
   emit('seek-distance', clickedKm);
 };
 
@@ -158,9 +160,9 @@ const scrollContainer = ref(null);
 const svgHeight = 400;
 const graphCenterY = svgHeight / 2;
 
-const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
+const svgWidth = computed(() => (props.totalLength * kmToPx) + startOffsetPx + 10);
 
-const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
+const progressIndicatorX = computed(() => ((props.currentDistance * kmToPx) + startOffsetPx) - 1.5);
 
 const currentBearingDeltaY = computed(() => {
   let delta = props.currentCameraBearing - props.initialCameraBearing;
@@ -189,11 +191,12 @@ const xMarkers = computed(() => {
   if (props.totalLength < intervalKm) return [];
 
   const markerCount = Math.floor(props.totalLength / intervalKm);
-  for (let i = 1; i <= markerCount; i++) {
+  for (let i = 0; i <= markerCount; i++) {
     const distance = i * intervalKm;
     markers.push({
-      x: distance * kmToPx,
-      label: `${distance}km`
+      x: (distance * kmToPx) + startOffsetPx,
+      label: `${distance}km`,
+      anchor: distance === 0 ? 'start' : 'middle'
     });
   }
   return markers;
@@ -209,7 +212,7 @@ watch(() => props.currentDistance, (newDistance) => {
   const clientWidth = scrollContainer.value.clientWidth;
   const maxScrollLeft = scrollWidth - clientWidth;
 
-  let targetScrollLeft = (newDistance - indicatorMarginKm) * kmToPx;
+  let targetScrollLeft = ((newDistance - indicatorMarginKm) * kmToPx) + startOffsetPx;
 
   if (targetScrollLeft < 0) {
     targetScrollLeft = 0;
@@ -234,7 +237,7 @@ const zoomPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultZoom = props.trackingPoints[0]?.zoom || 16;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     const y = graphCenterY - ((p.zoom - defaultZoom) * zoomToPx);
     return (i === 0 ? 'M' : 'L') + `${x},${y}`;
   }).join(' ');
@@ -244,7 +247,7 @@ const pitchPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultPitch = props.trackingPoints[0]?.pitch || 60;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     const y = graphCenterY - ((p.pitch - defaultPitch) * pitchToPx);
     return (i === 0 ? 'M' : 'L') + `${x},${y}`;
   }).join(' ');
@@ -254,7 +257,7 @@ const bearingDeltaPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   let lastBearing = props.trackingPoints[0]?.cap || 0;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     let delta = p.cap - lastBearing;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
@@ -269,7 +272,7 @@ const bearingTotalDeltaPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const initialBearing = props.trackingPoints[0]?.cap || 0;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     let delta = p.cap - initialBearing;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
@@ -283,7 +286,7 @@ const editedZoomPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultZoom = props.trackingPoints[0]?.zoom || 16;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     const y = graphCenterY - ((p.editedZoom - defaultZoom) * zoomToPx);
     return (i === 0 ? 'M' : 'L') + `${x},${y}`;
   }).join(' ');
@@ -293,7 +296,7 @@ const editedPitchPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const defaultPitch = props.trackingPoints[0]?.pitch || 60;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     const y = graphCenterY - ((p.editedPitch - defaultPitch) * pitchToPx);
     return (i === 0 ? 'M' : 'L') + `${x},${y}`;
   }).join(' ');
@@ -303,7 +306,7 @@ const editedBearingDeltaPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   let lastBearing = props.trackingPoints[0]?.editedCap || 0;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     let delta = p.editedCap - lastBearing;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;
@@ -318,7 +321,7 @@ const editedBearingTotalDeltaPath = computed(() => {
   if (props.trackingPoints.length < 2) return '';
   const initialBearing = props.trackingPoints[0]?.editedCap || 0;
   return props.trackingPoints.map((p, i) => {
-    const x = p.distance * kmToPx;
+    const x = (p.distance * kmToPx) + startOffsetPx;
     let delta = p.editedCap - initialBearing;
     if (delta > 180) delta -= 360;
     if (delta < -180) delta += 360;

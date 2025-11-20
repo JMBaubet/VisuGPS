@@ -86,7 +86,7 @@ watch(mapboxToken, (newToken) => {
 }, { immediate: true });
 
 async function loadNonMapData() {
-  const lissageCapValue = await getSettingValue('data.groupes.Importation.groupes.Tracking.parametres.LissageCap');
+  const lissageCapValue = await getSettingValue('Importation/Tracking/LissageCap');
   lissageCap.value = lissageCapValue || 15;
 
   try {

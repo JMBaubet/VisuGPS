@@ -62,6 +62,7 @@
         :currentDistance="currentProgressDistance"
         :pointEventsData="eventsFile.pointEvents"
         @seek-distance="handleSeekDistance"
+        @verify-flyto="handleVerifyFlyto"
       />
       <ControlTabsWidget
         ref="controlTabsWidgetRef"
@@ -115,6 +116,7 @@
         @delete-control-point="deleteControlPoint"
         @update:marker-visible="showCenterMarker = $event"
         @tab-changed="handleTabChange"
+        @verify-flyto="handleVerifyFlyto"
       />
     </div>
 
@@ -356,7 +358,41 @@ const handleDeleteFlytoEvent = async () => {
     showSnackbar('Événement Survol supprimé avec succès', 'success');
   } catch (error) {
     console.error("Failed to delete flyto event:", error);
-    showSnackbar(`Erreur lors de la suppression de l\'événement Survol: ${error}`, 'error');
+    showSnackbar(`Erreur lors de la suppression de l'événement Survol: ${error}`, 'error');
+  }
+};
+
+const handleVerifyFlyto = (eventData) => {
+  if (!map) return;
+
+  let flytoData = null;
+
+  if (eventData) {
+    // Event data passed directly (e.g. from graph click)
+    flytoData = eventData.data;
+  } else {
+    // No event data passed (e.g. from "Verify" button), find event at current increment
+    const currentEvents = eventsFile.value.pointEvents[trackProgress.value];
+    if (currentEvents) {
+      const flytoEvent = currentEvents.find(e => e.type === 'Flyto');
+      if (flytoEvent) {
+        flytoData = flytoEvent.data;
+      }
+    }
+  }
+
+  if (flytoData) {
+    map.flyTo({
+      center: flytoData.coord,
+      zoom: flytoData.zoom,
+      pitch: flytoData.pitch,
+      bearing: flytoData.cap,
+      duration: flytoData.duree || 2000,
+      essential: true
+    });
+    showSnackbar('Vérification du Survol...', 'info');
+  } else {
+    showSnackbar('Aucun événement Survol trouvé à vérifier.', 'warning');
   }
 };
 
@@ -1688,6 +1724,7 @@ onMounted(async () => {
   display: flex;
   align-items: flex-end; /* Aligns children (graph, widget) to the bottom */
   gap: 8px; /* Add space between children */
+  padding: 0 0 4px 8px; /* Add padding-left and padding-bottom */
   z-index: 1000;
   pointer-events: none; /* Allows map interaction through the container */
 }

@@ -11,7 +11,7 @@
         <!-- Repères sur l'axe X -->
         <g v-for="marker in xMarkers" :key="marker.label">
           <line :x1="marker.x" :y1="xAxisY - 5" :x2="marker.x" :y2="xAxisY + 5" class="marker-line" />
-          <text :x="marker.x" :y="xAxisY + 20" class="marker-text">{{ marker.label }}</text>
+          <text :x="marker.x" :y="xAxisY + 20" class="marker-text" :style="{ textAnchor: marker.anchor }">{{ marker.label }}</text>
         </g>
 
         <!-- Zone d'avancement -->
@@ -105,7 +105,7 @@ const handleGraphClick = (event) => {
   const svgRect = event.currentTarget.getBoundingClientRect();
   const x = event.clientX - svgRect.left;
   
-  const clickedKm = x / kmToPx;
+  const clickedKm = (x - startOffsetPx) / kmToPx;
   emit('seek-distance', clickedKm);
 };
 
@@ -121,12 +121,14 @@ const dynamicSvgHeight = computed(() => {
 const xAxisY = computed(() => dynamicSvgHeight.value - xAxisMargin); // Position X-axis relative to dynamicSvgHeight
 
 const kmToPx = 30; // Scale: 30 pixels per kilometer
+const startOffsetKm = 0.2;
+const startOffsetPx = startOffsetKm * kmToPx;
 const verticalGap = 3; // Gap between message lanes
 const svgContainerHeight = 400; // Fixed height for the graph container wrapper
 
-const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
+const svgWidth = computed(() => (props.totalLength * kmToPx) + startOffsetPx + 10);
 
-const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
+const progressIndicatorX = computed(() => ((props.currentDistance * kmToPx) + startOffsetPx) - 1.5);
 
 const isScrollable = computed(() => {
   const contentWidth = props.totalLength * kmToPx;
@@ -141,11 +143,12 @@ const xMarkers = computed(() => {
   if (props.totalLength < intervalKm) return [];
 
   const markerCount = Math.floor(props.totalLength / intervalKm);
-  for (let i = 1; i <= markerCount; i++) {
+  for (let i = 0; i <= markerCount; i++) {
     const distance = i * intervalKm;
     markers.push({
-      x: distance * kmToPx,
-      label: `${distance}km`
+      x: (distance * kmToPx) + startOffsetPx,
+      label: `${distance}km`,
+      anchor: distance === 0 ? 'start' : 'middle'
     });
   }
   return markers;
@@ -162,7 +165,7 @@ watch(() => props.currentDistance, (newDistance) => {
   const clientWidth = scrollContainer.value.clientWidth;
   const maxScrollLeft = scrollWidth - clientWidth;
 
-  let targetScrollLeft = (newDistance - indicatorMarginKm) * kmToPx;
+  let targetScrollLeft = ((newDistance - indicatorMarginKm) * kmToPx) + startOffsetPx;
 
   if (targetScrollLeft < 0) {
     targetScrollLeft = 0;
@@ -209,9 +212,9 @@ const processedRangeEvents = computed(() => {
 
     return {
       ...event,
-      startX: startDistance * kmToPx,
-      endX: endDistance * kmToPx,
-      anchorX: anchorDistance * kmToPx,
+      startX: (startDistance * kmToPx) + startOffsetPx,
+      endX: (endDistance * kmToPx) + startOffsetPx,
+      anchorX: (anchorDistance * kmToPx) + startOffsetPx,
     };
   }).filter(Boolean);
 

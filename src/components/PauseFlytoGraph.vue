@@ -11,7 +11,7 @@
         <!-- Repères sur l'axe X -->
         <g v-for="marker in xMarkers" :key="marker.label">
           <line :x1="marker.x" :y1="graphCenterY - 5" :x2="marker.x" :y2="graphCenterY + 5" class="marker-line" />
-          <text :x="marker.x" :y="graphCenterY + 20" class="marker-text">{{ marker.label }}</text>
+          <text :x="marker.x" :y="graphCenterY + 20" class="marker-text" :style="{ textAnchor: marker.anchor }">{{ marker.label }}</text>
         </g>
 
         <!-- Zone d'avancement -->
@@ -31,23 +31,25 @@
         <g v-for="(point, index) in processedPauseMarkers" :key="`pause-${index}`">
           <line
             :x1="point.x"
-            :y1="graphCenterY"
+            :y1="graphCenterY - 3"
             :x2="point.x"
-            :y2="graphCenterY - pauseLength"
+            :y2="graphCenterY - 3 - pauseLength"
             :stroke="pauseColor"
             stroke-width="3"
           />
         </g>
 
         <!-- Marqueurs Flyto -->
-        <g v-for="(point, index) in processedFlytoMarkers" :key="`flyto-${index}`">
+        <g v-for="(point, index) in processedFlytoMarkers" :key="`flyto-${index}`" 
+           @click.stop="emit('verify-flyto', point.eventData)" 
+           style="cursor: pointer">
           <line
             @mouseenter="showCustomTooltip(point, $event)"
             @mouseleave="hideCustomTooltip()"
             :x1="point.x"
-            :y1="graphCenterY - 15" 
+            :y1="graphCenterY - 3" 
             :x2="point.x"
-            :y2="graphCenterY - 15 - flytoLength"
+            :y2="graphCenterY - 3 - flytoLength"
             :stroke="flytoColor"
             stroke-width="3"
           />
@@ -63,7 +65,7 @@ import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import * as turf from '@turf/turf';
 
-const emit = defineEmits(['seek-distance']);
+const emit = defineEmits(['seek-distance', 'verify-flyto']);
 
 const { getSettingValue } = useSettings();
 const { toHex } = useVuetifyColors();
@@ -119,19 +121,21 @@ const handleGraphClick = (event) => {
   const svgRect = event.currentTarget.getBoundingClientRect();
   const x = event.clientX - svgRect.left;
   
-  const clickedKm = x / kmToPx;
+  const clickedKm = (x - startOffsetPx) / kmToPx;
   emit('seek-distance', clickedKm);
 };
 
 const scrollContainer = ref(null);
-const svgHeight = 100; // Reduced height as we don't need as much space
-const graphCenterY = svgHeight - 20; // Align close to bottom, leaving space for text
+const svgHeight = 50; 
+const graphCenterY = 25;
 
 const kmToPx = 30; // Scale: 30 pixels per kilometer
+const startOffsetKm = 0.2;
+const startOffsetPx = startOffsetKm * kmToPx;
 
-const svgWidth = computed(() => (props.totalLength * kmToPx) + 10);
+const svgWidth = computed(() => (props.totalLength * kmToPx) + startOffsetPx + 10);
 
-const progressIndicatorX = computed(() => (props.currentDistance * kmToPx) - 1.5);
+const progressIndicatorX = computed(() => ((props.currentDistance * kmToPx) + startOffsetPx) - 1.5);
 
 const isScrollable = computed(() => {
   const contentWidth = props.totalLength * kmToPx;
@@ -146,11 +150,12 @@ const xMarkers = computed(() => {
   if (props.totalLength < intervalKm) return [];
 
   const markerCount = Math.floor(props.totalLength / intervalKm);
-  for (let i = 1; i <= markerCount; i++) {
+  for (let i = 0; i <= markerCount; i++) {
     const distance = i * intervalKm;
     markers.push({
-      x: distance * kmToPx,
-      label: `${distance}km`
+      x: (distance * kmToPx) + startOffsetPx,
+      label: `${distance}km`,
+      anchor: distance === 0 ? 'start' : 'middle'
     });
   }
   return markers;
@@ -167,7 +172,7 @@ watch(() => props.currentDistance, (newDistance) => {
   const clientWidth = scrollContainer.value.clientWidth;
   const maxScrollLeft = scrollWidth - clientWidth;
 
-  let targetScrollLeft = (newDistance - indicatorMarginKm) * kmToPx;
+  let targetScrollLeft = ((newDistance - indicatorMarginKm) * kmToPx) + startOffsetPx;
 
   if (targetScrollLeft < 0) {
     targetScrollLeft = 0;
@@ -198,7 +203,7 @@ const processedPauseMarkers = computed(() => {
       const point = props.trackingPoints.find(p => p.increment === increment);
       if (point) {
         markers.push({
-          x: point.distance * kmToPx,
+          x: (point.distance * kmToPx) + startOffsetPx,
         });
       } else {
          console.warn(`[PauseFlytoGraph] Pause event at increment ${increment} but no matching tracking point found.`);
@@ -246,8 +251,9 @@ const processedFlytoMarkers = computed(() => {
         `;
 
         markers.push({
-          x: point.distance * kmToPx,
-          tooltipContent: tooltipContent
+          x: (point.distance * kmToPx) + startOffsetPx,
+          tooltipContent: tooltipContent,
+          eventData: flytoEvent // Store the full event data
         });
       }
     }
@@ -261,7 +267,7 @@ const processedFlytoMarkers = computed(() => {
 .graph-container-wrapper {
   flex-grow: 1;
   width: 0;
-  height: 100px; /* Match svgHeight */
+  height: 50px; /* Match svgHeight */
   background-color: rgba(var(--v-theme-surface), 0.8);
   backdrop-filter: blur(4px);
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.2);
