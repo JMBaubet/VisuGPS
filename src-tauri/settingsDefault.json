@@ -645,52 +645,36 @@
                 "libelle": "Graphe",
                 "groupes": [
                   {
-                    "libelle": "Pauses",
+                    "libelle": "PauseZoom",
                     "parametres": [
                       {
-                        "identifiant": "couleur",
-                        "libelle": "Couleur",
+                        "identifiant": "couleurPause",
+                        "libelle": "Couleur Pause",
                         "description": "Couleur des marqueurs de pause sur le graphe.",
                         "type": "couleur",
                         "defaut": "purple",
                         "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Graphe/Pauses/couleur.md"
+                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/couleurPause.md"
+                      },
+                      {
+                        "identifiant": "couleurFlyTo",
+                        "libelle": "Couleur FlyTo",
+                        "description": "Couleur des marqueurs de flyto sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "orange-darken-1",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/couleurFlyTo.md"
                       },
                       {
                         "identifiant": "longueur",
                         "libelle": "Longueur (px)",
-                        "description": "Longueur des marqueurs de pause sur le graphe.",
+                        "description": "Longueur des marqueurs de pause et flyto sur le graphe.",
                         "type": "entier",
                         "defaut": 12,
                         "min": 5,
                         "max": 50,
                         "unite": "px",
-                        "doc": "docs/DocParametrage/Edition/Graphe/Pauses/longueur.md"
-                      }
-                    ]
-                  },
-                  {
-                    "libelle": "Flytos",
-                    "parametres": [
-                      {
-                        "identifiant": "couleur",
-                        "libelle": "Couleur",
-                        "description": "Couleur des marqueurs de flyto sur le graphe.",
-                        "type": "couleur",
-                        "defaut": "orange-darken-1",
-                        "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Graphe/Flytos/couleur.md"
-                      },
-                      {
-                        "identifiant": "longueur",
-                        "libelle": "Longueur (px)",
-                        "description": "Longueur des marqueurs de flyto sur le graphe.",
-                        "type": "entier",
-                        "defaut": 20,
-                        "min": 5,
-                        "max": 50,
-                        "unite": "px",
-                        "doc": "docs/DocParametrage/Edition/Graphe/Flytos/longueur.md"
+                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/longueur.md"
                       }
                     ]
                   }
@@ -711,26 +695,6 @@
                     "unite": "ms",
                     "critique": false,
                     "doc": "docs/DocParametrage/Edition/Evenements/Flyto/duree.md"
-                  },
-                  {
-                    "identifiant": "couleur",
-                    "libelle": "Couleur du marqueur (Graphe)",
-                    "description": "Couleur du marqueur représentant un événement Flyto dans le graphe.",
-                    "type": "couleur",
-                    "defaut": "orange-darken-1",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Flyto/couleur.md"
-                  },
-                  {
-                    "identifiant": "longueur",
-                    "libelle": "Longueur du marqueur (Graphe)",
-                    "description": "Longueur en pixels du marqueur représentant un événement Flyto dans le graphe.",
-                    "type": "entier",
-                    "defaut": 20,
-                    "min": 5,
-                    "max": 50,
-                    "unite": "px",
-                    "doc": "docs/DocParametrage/Edition/Evenements/Flyto/longueur.md"
                   }
                 ]
               },

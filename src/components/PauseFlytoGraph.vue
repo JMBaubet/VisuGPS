@@ -96,15 +96,15 @@ const hideCustomTooltip = () => {
 
 onMounted(async () => {
   try {
-    const pColor = await getSettingValue('Edition/Evenements/Graphe/Pauses/couleur');
+    const pColor = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/couleurPause');
     progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
     progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
 
     pauseColor.value = toHex(pColor || 'purple');
-    pauseLength.value = await getSettingValue('Edition/Evenements/Graphe/Pauses/longueur') || 12;
+    pauseLength.value = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/longueur') || 12;
 
-    flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Graphe/Flytos/couleur') || 'orange');
-    flytoLength.value = await getSettingValue('Edition/Evenements/Graphe/Flytos/longueur') || 20;
+    flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Graphe/PauseZoom/couleurFlyTo') || 'orange');
+    flytoLength.value = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/longueur') || 20;
   } catch (e) {
     console.error('Error in PauseFlytoGraph onMounted:', e);
   }
