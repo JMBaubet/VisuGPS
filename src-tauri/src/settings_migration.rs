@@ -171,8 +171,9 @@ fn process_parameter(
         
         if def_val != exist_val {
             modified = true;
-            let def_str = format_value(def_val);
-            let exist_str = format_value(exist_val);
+            let is_secret = def_obj.get("type").and_then(|v| v.as_str()).unwrap_or("") == "secret";
+            let def_str = format_value(def_val, is_secret);
+            let exist_str = format_value(exist_val, is_secret);
             changes.push(format!("{}: {} -> {}", attr, exist_str, def_str));
         }
     }
@@ -204,7 +205,8 @@ fn process_parameter(
                 }
             }
 
-            report.all_overrides.push((path.clone(), format_value(Some(surcharge)), is_out_of_bounds));
+            let is_secret = def_obj.get("type").and_then(|v| v.as_str()).unwrap_or("") == "secret";
+            report.all_overrides.push((path.clone(), format_value(Some(surcharge), is_secret), is_out_of_bounds));
             
             // Keep the surcharge in the new parameter
             new_param.insert("surcharge".to_string(), surcharge.clone());
@@ -214,7 +216,10 @@ fn process_parameter(
     Value::Object(new_param)
 }
 
-fn format_value(v: Option<&Value>) -> String {
+fn format_value(v: Option<&Value>, is_secret: bool) -> String {
+    if is_secret {
+        return "******".to_string();
+    }
     match v {
         Some(Value::String(s)) => s.clone(),
         Some(Value::Number(n)) => n.to_string(),

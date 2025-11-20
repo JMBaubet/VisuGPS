@@ -1611,7 +1611,7 @@
                 "max": 125,
                 "min": 85,
                 "surcharge": "",
-                "type": "string"
+                "type": "secret"
               }
             ]
           },

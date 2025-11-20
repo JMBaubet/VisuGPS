@@ -32,6 +32,7 @@
         <template v-slot:append>
             <v-avatar v-if="param.type === 'couleur'" :color="param.surcharge || param.defaut" size="24"></v-avatar>
             <v-chip v-else-if="param.type === 'entier' || param.type === 'reel'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
+            <v-chip v-else-if="param.type === 'secret'" size="small">******</v-chip>
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
       </v-list-item>
@@ -92,6 +93,15 @@
       :group-path="fullPath"
       @update:show="isCoordDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les secrets -->
+    <EditSecretDialog
+      v-if="selectedParameter && selectedParameter.type === 'secret'"
+      :show="isSecretDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isSecretDialogVisible = $event"
+    />
   </div>
 </template>
 
@@ -103,6 +113,7 @@ import EditBoolDialog from './EditBoolDialog.vue';
 import EditColorDialog from './EditColorDialog.vue';
 import EditFloatDialog from './EditFloatDialog.vue';
 import EditCoordDialog from './EditCoordDialog.vue';
+import EditSecretDialog from './EditSecretDialog.vue';
 
 const props = defineProps({
   node: {
@@ -121,6 +132,7 @@ const isBoolDialogVisible = ref(false);
 const isColorDialogVisible = ref(false);
 const isFloatDialogVisible = ref(false);
 const isCoordDialogVisible = ref(false);
+const isSecretDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
@@ -137,6 +149,8 @@ const openEditDialog = (param) => {
     isFloatDialogVisible.value = true;
   } else if (param.type === 'coord') {
     isCoordDialogVisible.value = true;
+  } else if (param.type === 'secret') {
+    isSecretDialogVisible.value = true;
   }
 };
 
