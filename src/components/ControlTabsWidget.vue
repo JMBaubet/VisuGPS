@@ -20,7 +20,7 @@
           <div class="pa-2">
             <v-expansion-panels>
               <v-expansion-panel>
-                <v-expansion-panel-title>
+                <v-expansion-panel-title collapse-icon="mdi-menu-down" expand-icon="mdi-menu-down" class="py-1" style="min-height: 40px;">
                   <span class="text-subtitle-2">Affichage des courbes</span>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
