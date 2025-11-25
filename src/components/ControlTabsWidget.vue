@@ -363,6 +363,22 @@
               </v-btn>
             </v-col>
           </v-row>
+
+          <v-divider class="my-2"></v-divider>
+
+          <v-row dense>
+            <v-col cols="12">
+              <v-btn 
+                block 
+                color="secondary" 
+                variant="outlined"
+                @click="emit('open-distance-markers-dialog')"
+              >
+                <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
+                Configurer les distances
+              </v-btn>
+            </v-col>
+          </v-row>
         </div>
       </v-window-item>
 
@@ -444,6 +460,7 @@ const emit = defineEmits([
   'add-message',
   'delete-message',
   'open-message-library',
+  'open-distance-markers-dialog',
   'update:messagePreAffichageSetting',
   'update:messagePostAffichageSetting',
   'update:messageOrientation', // New emit

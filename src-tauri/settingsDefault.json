@@ -808,6 +808,69 @@
             ]
           },
           {
+            "libelle": "Distance",
+            "parametres": [
+              {
+                "identifiant": "afficher",
+                "libelle": "Afficher les distances",
+                "description": "Active ou désactive l'affichage automatique des bornes kilométriques le long de la trace.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Edition/Distance/afficher.md"
+              },
+              {
+                "identifiant": "intervalle",
+                "libelle": "Intervalle (km)",
+                "description": "Intervalle en kilomètres entre chaque borne kilométrique affichée.",
+                "type": "entier",
+                "defaut": 10,
+                "min": 1,
+                "max": 20,
+                "unite": "km",
+                "doc": "docs/DocParametrage/Edition/Distance/intervalle.md"
+              },
+              {
+                "identifiant": "preAffichage",
+                "libelle": "Pré-affichage (incréments)",
+                "description": "Nombre d'incréments avant la borne où le message commence à s'afficher.",
+                "type": "entier",
+                "defaut": 10,
+                "min": 0,
+                "max": 20,
+                "step": 1,
+                "doc": "docs/DocParametrage/Edition/Distance/preAffichage.md"
+              },
+              {
+                "identifiant": "postAffichage",
+                "libelle": "Post-affichage (incréments)",
+                "description": "Nombre d'incréments après la borne où le message cesse de s'afficher.",
+                "type": "entier",
+                "defaut": 10,
+                "min": 0,
+                "max": 20,
+                "step": 1,
+                "doc": "docs/DocParametrage/Edition/Distance/postAffichage.md"
+              },
+              {
+                "identifiant": "couleur",
+                "libelle": "Couleur des messages",
+                "description": "Couleur Material Design des messages de distance.",
+                "type": "couleur",
+                "materialDesign": true,
+                "defaut": "red",
+                "doc": "docs/DocParametrage/Edition/Distance/couleur.md"
+              },
+              {
+                "identifiant": "orientation",
+                "libelle": "Orientation à droite",
+                "description": "Si activé, les messages s'affichent à droite, sinon à gauche.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Edition/Distance/orientation.md"
+              }
+            ]
+          },
+          {
             "libelle": "Commandes clavier",
             "parametres": [
               {

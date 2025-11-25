@@ -1,11 +1,11 @@
+use crate::{AppState, Message};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 use uuid::Uuid;
-use crate::{AppState, Message};
-use std::sync::Mutex;
 
 use crate::colors;
 
@@ -102,13 +102,11 @@ pub struct NewMessagePayload {
     pub orientation: String,
 }
 
-
 // --- Default value function ---
 
 fn default_orientation() -> String {
     "Droite".to_string()
 }
-
 
 // --- File I/O & Logic ---
 
@@ -116,13 +114,19 @@ fn get_events_path(app_handle: &AppHandle, circuit_id: &str) -> Result<PathBuf, 
     let state_mutex = app_handle.state::<Mutex<AppState>>();
     let app_state = state_mutex.lock().unwrap();
     let data_dir = app_state.app_env_path.join("data").join(circuit_id);
-    fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data directory for {}: {}", circuit_id, e))?;
+    fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("Failed to create data directory for {}: {}", circuit_id, e))?;
     Ok(data_dir.join("evt.json"))
 }
 
-fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFile, String> {
+pub fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFile, String> {
     let path = get_events_path(app_handle, circuit_id)?;
-    if !path.exists() || fs::read_to_string(&path).map_err(|e| e.to_string())?.trim().is_empty() {
+    if !path.exists()
+        || fs::read_to_string(&path)
+            .map_err(|e| e.to_string())?
+            .trim()
+            .is_empty()
+    {
         let default_events = EventsFile {
             schema_version: "3.0".to_string(), // New version for new structure
             point_events: BTreeMap::new(),
@@ -134,31 +138,73 @@ fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFile, S
     }
 
     let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| format!("Failed to parse evt.json: {}. Content: {}", e, content))
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse evt.json: {}. Content: {}", e, content))
 }
 
-fn write_events(app_handle: &AppHandle, circuit_id: &str, events_file: &EventsFile) -> Result<(), String> {
+pub fn write_events(
+    app_handle: &AppHandle,
+    circuit_id: &str,
+    events_file: &EventsFile,
+) -> Result<(), String> {
     let path = get_events_path(app_handle, circuit_id)?;
     let content = serde_json::to_string_pretty(events_file).map_err(|e| e.to_string())?;
     fs::write(&path, content).map_err(|e| e.to_string())
 }
 
-fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile, circuit_id: &str) -> Result<HydratedEventsFile, String> {
+pub fn hydrate_events(
+    app_handle: &AppHandle,
+    events_file: EventsFile,
+    circuit_id: &str,
+) -> Result<HydratedEventsFile, String> {
     let state: State<Mutex<AppState>> = app_handle.state();
     let library = crate::get_message_library(app_handle.clone(), state)?;
-    let message_map: BTreeMap<String, Message> = library.into_iter().map(|m| (m.id.clone(), m)).collect();
+    let message_map: BTreeMap<String, Message> =
+        library.into_iter().map(|m| (m.id.clone(), m)).collect();
 
     let mut hydrated_range_events = Vec::new();
     let mut missing_message_errors = Vec::new(); // Nouvelle liste d'erreurs
 
     for event_data in events_file.range_events {
-        if let Some(message) = message_map.get(&event_data.message_id) {
-            let mut hydrated_message = message.clone();
-            
-            if !hydrated_message.style.background_color.starts_with('#') {
-                hydrated_message.style.background_color = format!("#{}", colors::convert_vuetify_color_to_hex(&hydrated_message.style.background_color));
-            }
+        // Check if this is a distance marker (km_X) or a regular message
+        let message_opt: Option<Message> =
+            if crate::distance_markers::is_distance_marker(&event_data.message_id) {
+                // Generate distance message dynamically
+                let distance_text = event_data.message_id.strip_prefix("km_").unwrap_or("0");
 
+                // Get the color from the range event's metadata or use default
+                // For now, we'll use a default color, but we should store it in the event
+                let background_color = format!("#{}", colors::convert_vuetify_color_to_hex("red"));
+
+                Some(Message {
+                    id: event_data.message_id.clone(),
+                    text: format!("km {}", distance_text),
+                    style: crate::MessageStyle {
+                        background_color,
+                        text_color: "#FFFFFF".to_string(),
+                    },
+                    source: Some("distance_markers".to_string()),
+                })
+            } else if let Some(message) = message_map.get(&event_data.message_id) {
+                let mut hydrated_message = message.clone();
+
+                if !hydrated_message.style.background_color.starts_with('#') {
+                    hydrated_message.style.background_color = format!(
+                        "#{}",
+                        colors::convert_vuetify_color_to_hex(
+                            &hydrated_message.style.background_color
+                        )
+                    );
+                }
+
+                Some(hydrated_message)
+            } else {
+                None
+            };
+
+        // Handle the message
+        if let Some(message) = message_opt {
+            // Add the hydrated event to the result
             hydrated_range_events.push(HydratedRangeEvent {
                 event_id: event_data.event_id,
                 message_id: event_data.message_id,
@@ -167,18 +213,21 @@ fn hydrate_events(app_handle: &AppHandle, events_file: EventsFile, circuit_id: &
                 end_increment: event_data.end_increment,
                 coord: event_data.coord,
                 orientation: event_data.orientation,
-                message: hydrated_message,
+                message,
             });
         } else {
-            // Collecter l'erreur au lieu de juste la logger
+            // Collecter l'erreur
+            let message_id_clone = event_data.message_id.clone();
             missing_message_errors.push(MissingMessageError {
-                event_id: event_data.event_id.clone(), // Cloner pour éviter le déplacement
-                message_id: event_data.message_id.clone(), // Cloner pour éviter le déplacement
+                event_id: event_data.event_id,
+                message_id: event_data.message_id,
                 anchor_increment: event_data.anchor_increment,
-                circuit_id: circuit_id.to_string(), // Ajouter le circuit_id
-                description: format!("Le message '{}' n'a pas été trouvé dans la bibliothèque.", event_data.message_id),
+                circuit_id: circuit_id.to_string(),
+                description: format!(
+                    "Le message '{}' n'a pas été trouvé dans la bibliothèque.",
+                    message_id_clone
+                ),
             });
-            // Ne pas ajouter cet événement à hydrated_range_events
         }
     }
 
@@ -199,11 +248,19 @@ pub fn get_events(app_handle: AppHandle, circuit_id: String) -> Result<HydratedE
 }
 
 #[tauri::command]
-pub fn add_message_event(app_handle: AppHandle, circuit_id: String, payload: NewMessagePayload) -> Result<HydratedEventsFile, String> {
+pub fn add_message_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    payload: NewMessagePayload,
+) -> Result<HydratedEventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
 
-    let start_increment = payload.anchor_increment.saturating_sub(payload.pre_affichage);
-    let end_increment = payload.anchor_increment.saturating_add(payload.post_affichage);
+    let start_increment = payload
+        .anchor_increment
+        .saturating_sub(payload.pre_affichage);
+    let end_increment = payload
+        .anchor_increment
+        .saturating_add(payload.post_affichage);
 
     let new_event = RangeEventData {
         event_id: Uuid::new_v4().to_string(),
@@ -221,7 +278,11 @@ pub fn add_message_event(app_handle: AppHandle, circuit_id: String, payload: New
 }
 
 #[tauri::command]
-pub fn delete_message_event(app_handle: AppHandle, circuit_id: String, event_id: String) -> Result<HydratedEventsFile, String> {
+pub fn delete_message_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    event_id: String,
+) -> Result<HydratedEventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
     events_file.range_events.retain(|e| e.event_id != event_id);
     write_events(&app_handle, &circuit_id, &events_file)?;
@@ -229,18 +290,35 @@ pub fn delete_message_event(app_handle: AppHandle, circuit_id: String, event_id:
 }
 
 #[tauri::command]
-pub fn add_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32, override_existing: bool) -> Result<EventsFile, String> {
+pub fn add_pause_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+    override_existing: bool,
+) -> Result<EventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
-    let events_at_increment = events_file.point_events.entry(increment).or_insert_with(Vec::new);
-    
-    if events_at_increment.iter().any(|e| matches!(e, PointEvent::Flyto(_))) {
+    let events_at_increment = events_file
+        .point_events
+        .entry(increment)
+        .or_insert_with(Vec::new);
+
+    if events_at_increment
+        .iter()
+        .any(|e| matches!(e, PointEvent::Flyto(_)))
+    {
         if !override_existing {
-            return Err(format!("A Flyto event already exists at increment {}", increment));
+            return Err(format!(
+                "A Flyto event already exists at increment {}",
+                increment
+            ));
         }
         events_at_increment.retain(|e| !matches!(e, PointEvent::Flyto(_)));
     }
 
-    if !events_at_increment.iter().any(|e| matches!(e, PointEvent::Pause)) {
+    if !events_at_increment
+        .iter()
+        .any(|e| matches!(e, PointEvent::Pause))
+    {
         events_at_increment.push(PointEvent::Pause);
         write_events(&app_handle, &circuit_id, &events_file)?;
     }
@@ -248,7 +326,11 @@ pub fn add_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32
 }
 
 #[tauri::command]
-pub fn delete_pause_event(app_handle: AppHandle, circuit_id: String, increment: u32) -> Result<EventsFile, String> {
+pub fn delete_pause_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+) -> Result<EventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
     if let Some(events) = events_file.point_events.get_mut(&increment) {
         events.retain(|e| !matches!(e, PointEvent::Pause));
@@ -261,18 +343,37 @@ pub fn delete_pause_event(app_handle: AppHandle, circuit_id: String, increment: 
 }
 
 #[tauri::command]
-pub fn add_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32, mut flyto_content: FlytoEventContent, override_existing: bool) -> Result<EventsFile, String> {
+pub fn add_flyto_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+    mut flyto_content: FlytoEventContent,
+    override_existing: bool,
+) -> Result<EventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
-    let events_at_increment = events_file.point_events.entry(increment).or_insert_with(Vec::new);
+    let events_at_increment = events_file
+        .point_events
+        .entry(increment)
+        .or_insert_with(Vec::new);
 
-    if events_at_increment.iter().any(|e| matches!(e, PointEvent::Pause)) {
+    if events_at_increment
+        .iter()
+        .any(|e| matches!(e, PointEvent::Pause))
+    {
         if !override_existing {
-            return Err(format!("A Pause event already exists at increment {}", increment));
+            return Err(format!(
+                "A Pause event already exists at increment {}",
+                increment
+            ));
         }
         events_at_increment.retain(|e| !matches!(e, PointEvent::Pause));
     }
 
-    flyto_content.coord = flyto_content.coord.iter().map(|&v| (v * 100000.0).round() / 100000.0).collect();
+    flyto_content.coord = flyto_content
+        .coord
+        .iter()
+        .map(|&v| (v * 100000.0).round() / 100000.0)
+        .collect();
 
     events_at_increment.retain(|e| !matches!(e, PointEvent::Flyto(_)));
     events_at_increment.push(PointEvent::Flyto(flyto_content));
@@ -281,7 +382,11 @@ pub fn add_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32
 }
 
 #[tauri::command]
-pub fn delete_flyto_event(app_handle: AppHandle, circuit_id: String, increment: u32) -> Result<EventsFile, String> {
+pub fn delete_flyto_event(
+    app_handle: AppHandle,
+    circuit_id: String,
+    increment: u32,
+) -> Result<EventsFile, String> {
     let mut events_file = read_events(&app_handle, &circuit_id)?;
     if let Some(events) = events_file.point_events.get_mut(&increment) {
         events.retain(|e| !matches!(e, PointEvent::Flyto(_)));

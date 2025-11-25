@@ -10,6 +10,7 @@ use uuid::Uuid;
 
 pub mod colors;
 pub mod communes_updater;
+pub mod distance_markers;
 pub mod error_logger;
 pub mod event;
 pub mod geo_processor;
@@ -1588,6 +1589,9 @@ pub fn run() {
             get_message_library,
             save_message,
             delete_message,
+            // Distance markers commands
+            distance_markers::generate_distance_markers,
+            distance_markers::remove_distance_markers,
             // Other commands
             trace_style::get_slope_color_expression,
             get_circuit_data,

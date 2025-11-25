@@ -111,6 +111,16 @@
                     </v-list-item-title>
                   </v-list-item>
                 </v-list>
+                <v-btn 
+                  color="primary" 
+                  variant="tonal" 
+                  @click="showDistanceMarkersDialog = true"
+                  class="mt-2"
+                  block
+                >
+                  <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
+                  Configurer les distances
+                </v-btn>
               </v-col>
             </v-row>
         </v-col>
@@ -147,6 +157,13 @@
       </v-card-text>
     </v-card>
   </v-dialog>
+
+  <DistanceMarkersDialog
+    v-model="showDistanceMarkersDialog"
+    :circuit-id="circuit.circuitId"
+    :total-distance-km="circuit.distanceKm"
+    @updated="handleDistanceMarkersUpdated"
+  />
 </template>
 
 <script setup>
@@ -154,6 +171,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
+import DistanceMarkersDialog from './DistanceMarkersDialog.vue';
 
 const props = defineProps({
   circuit: {
@@ -181,6 +199,7 @@ const editedTraceur = ref(props.circuit.traceur);
 
 const showErrorsDialog = ref(false);
 const circuitErrors = ref([]);
+const showDistanceMarkersDialog = ref(false);
 
 const showErrorsModal = async () => {
   try {
@@ -264,6 +283,11 @@ const saveTraceur = async () => {
     showSnackbar('Erreur lors de la mise à jour du traceur : ' + error, 'error');
     editedTraceur.value = props.circuit.traceur; // Revert on error
   }
+};
+
+const handleDistanceMarkersUpdated = () => {
+  // Optionally refresh circuit data or notify parent
+  showSnackbar('Les bornes kilométriques ont été mises à jour', 'success');
 };
 
 const closeDialog = () => {
