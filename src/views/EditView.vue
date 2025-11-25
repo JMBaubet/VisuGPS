@@ -119,6 +119,7 @@
         @verify-flyto="handleVerifyFlyto"
         @update-zoom-depart="handleUpdateZoomDepart"
         @update-zoom-arrivee="handleUpdateZoomArrivee"
+        @open-distance-markers-dialog="showDistanceMarkersDialog = true"
       />
     </div>
 
@@ -133,6 +134,12 @@
     <MessageLibraryModal 
       v-model="showLibraryModal" 
       @select-message="handleSelectMessage" 
+    />
+    <DistanceMarkersDialog
+      v-model="showDistanceMarkersDialog"
+      :circuit-id="circuitId"
+      :total-distance-km="totalLineLength"
+      @updated="handleDistanceMarkersUpdated"
     />
     <ConfirmationDialog
       v-model="showMissingMessageErrorModal"
@@ -165,6 +172,7 @@ import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
 import MessageGraph from '@/components/MessageGraph.vue';
 import PauseFlytoGraph from '@/components/PauseFlytoGraph.vue';
+import DistanceMarkersDialog from '@/components/DistanceMarkersDialog.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
@@ -453,6 +461,7 @@ const messageLibrary = ref([]); // New ref for message library
 
 // --- New Message Library Logic ---
 const showLibraryModal = ref(false);
+const showDistanceMarkersDialog = ref(false);
 const selectedMessageForNewEvent = ref(null);
 const defaultMessagePreAffichage = ref(0);
 const defaultMessagePostAffichage = ref(0);
@@ -843,6 +852,16 @@ const handleUpdateZoomArrivee = async () => {
     await applyZoomArrivee();
     await updateCircuitZoomSettings();
     // showSnackbar('Zoom d\'arrivée mis à jour.', 'success');
+  }
+};
+
+const handleDistanceMarkersUpdated = async () => {
+  // Reload events file to reflect the updated distance markers
+  try {
+    const updatedEventsFile = await invoke('get_events', { circuitId });
+    eventsFile.value = updatedEventsFile;
+  } catch (error) {
+    console.error('Failed to reload events after distance markers update:', error);
   }
 };
 
