@@ -260,10 +260,10 @@ const handleTabChange = (newTab) => {
   if (!map) return;
   if (newTab === 'camera') {
     map.dragPan.disable();
-    showSnackbar('Déplacement de la carte désactivé.', 'info');
+    // showSnackbar('Déplacement de la carte désactivé.', 'info');
   } else {
     map.dragPan.enable();
-    showSnackbar('Déplacement de la carte activé.', 'info');
+    // showSnackbar('Déplacement de la carte activé.', 'info');
   }
 };
 
@@ -275,7 +275,7 @@ const handleAddPauseEvent = async (override = false) => {
             overrideExisting: override,
         });
         eventsFile.value = updatedEventsFile;
-        showSnackbar('Pause ajoutée avec succès', 'success');
+        // showSnackbar('Pause ajoutée avec succès', 'success');
     } catch (error) {
         console.error("Failed to add pause event:", error);
         if (error.includes("Cannot add Pause event: A Flyto event already exists")) {
@@ -286,7 +286,7 @@ const handleAddPauseEvent = async (override = false) => {
             if (confirmed) {
                 await handleAddPauseEvent(true); // Retry with override
             } else {
-                showSnackbar('Ajout de la Pause annulé.', 'info');
+                // showSnackbar('Ajout de la Pause annulé.', 'info');
             }
         } else {
             showSnackbar(`Erreur lors de l\'ajout de la la pause: ${error}`, 'error');
@@ -301,7 +301,7 @@ const handleDeletePauseEvent = async () => {
             increment: trackProgress.value,
         });
         eventsFile.value = updatedEventsFile;
-        showSnackbar('Pause supprimée avec succès', 'success');
+        // showSnackbar('Pause supprimée avec succès', 'success');
     } catch (error) {
         console.error("Failed to delete pause event:", error);
         showSnackbar(`Erreur lors de la suppression de la pause: ${error}`, 'error');
@@ -331,7 +331,7 @@ const handleAddFlytoEvent = async (duration, override = false) => {
       overrideExisting: override,
     });
     eventsFile.value = updatedEventsFile;
-    showSnackbar('Événement Survol ajouté avec succès', 'success');
+    // showSnackbar('Événement Survol ajouté avec succès', 'success');
   } catch (error) {
     console.error("Failed to add flyto event:", error);
     if (error.includes("Cannot add Flyto event: A Pause event already exists")) {
@@ -342,7 +342,7 @@ const handleAddFlytoEvent = async (duration, override = false) => {
         if (confirmed) {
             await handleAddFlytoEvent(duration, true); // Retry with override
         } else {
-            showSnackbar('Ajout du Survol annulé.', 'info');
+            // showSnackbar('Ajout du Survol annulé.', 'info');
         }
     } else {
         showSnackbar(`Erreur lors de l\'ajout de l\'événement Survol: ${error}`, 'error');
@@ -357,7 +357,7 @@ const handleDeleteFlytoEvent = async () => {
       increment: trackProgress.value,
     });
     eventsFile.value = updatedEventsFile;
-    showSnackbar('Événement Survol supprimé avec succès', 'success');
+    // showSnackbar('Événement Survol supprimé avec succès', 'success');
   } catch (error) {
     console.error("Failed to delete flyto event:", error);
     showSnackbar(`Erreur lors de la suppression de l'événement Survol: ${error}`, 'error');
@@ -392,7 +392,7 @@ const handleVerifyFlyto = (eventData) => {
       duration: flytoData.duree || 2000,
       essential: true
     });
-    showSnackbar('Vérification du Survol...', 'info');
+    // showSnackbar('Vérification du Survol...', 'info');
   } else {
     showSnackbar('Aucun événement Survol trouvé à vérifier.', 'warning');
   }
@@ -417,7 +417,7 @@ const handleMissingMessageErrorResolution = async (confirmDelete) => {
             eventId: missingMessageErrorDetails.value.eventId,
         });
         eventsFile.value = updatedEventsFile;
-        showSnackbar('Événement de message manquant supprimé avec succès.', 'success');
+        // showSnackbar('Événement de message manquant supprimé avec succès.', 'success');
 
         // Supprimer également l'entrée correspondante dans errors.json
         await invoke('delete_error_entry', {
@@ -572,7 +572,7 @@ const handleAddMessageEvent = async (messageData) => {
       });
       eventsFile.value = updatedEventsFile;
       selectedMessageForNewEvent.value = null; // Clear selection after adding
-      showSnackbar(`Message ${isUpdate ? 'mis à jour' : 'ajouté'} avec succès`, 'success');
+      // showSnackbar(`Message ${isUpdate ? 'mis à jour' : 'ajouté'} avec succès`, 'success');
     } catch (error) {
       console.error("Failed to add message event:", error);
       showSnackbar(`Erreur lors de l'ajout du message: ${error}`, 'error');
@@ -586,7 +586,7 @@ const handleDeleteMessageEvent = async () => {
   const eventToDelete = currentMessageEvent.value;
 
   if (!eventToDelete) {
-    showSnackbar('Aucun message à supprimer à ce point.', 'info');
+    // showSnackbar('Aucun message à supprimer à ce point.', 'info');
     return;
   }
 
@@ -596,7 +596,7 @@ const handleDeleteMessageEvent = async () => {
       eventId: eventToDelete.eventId,
     });
     eventsFile.value = updatedEventsFile;
-    showSnackbar('Message supprimé avec succès', 'success');
+    // showSnackbar('Message supprimé avec succès', 'success');
   } catch (error) {
     console.error("Failed to delete message event:", error);
     showSnackbar(`Erreur lors de la suppression du message: ${error}`, 'error');
@@ -699,7 +699,7 @@ const applyZoomDepart = async () => {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
     });
-    showSnackbar('Zoom de départ appliqué.', 'success');
+    // showSnackbar('Zoom de départ appliqué.', 'success');
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du zoom de départ:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
@@ -732,7 +732,7 @@ const removeZoomDepart = async () => {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
     });
-    showSnackbar('Zoom de départ supprimé.', 'info');
+    // showSnackbar('Zoom de départ supprimé.', 'info');
   } catch (error) {
     console.error('Erreur lors de la suppression du zoom de départ:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
@@ -779,7 +779,7 @@ const applyZoomArrivee = async () => {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
     });
-    showSnackbar('Zoom d\'arrivée appliqué.', 'success');
+    // showSnackbar('Zoom d\'arrivée appliqué.', 'success');
   } catch (error) {
     console.error('Erreur lors de la sauvegarde du zoom d\'arrivée:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
@@ -811,7 +811,7 @@ const removeZoomArrivee = async () => {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
     });
-    showSnackbar('Zoom d\'arrivée supprimé.', 'info');
+    // showSnackbar('Zoom d\'arrivée supprimé.', 'info');
   } catch (error) {
     console.error('Erreur lors de la suppression du zoom d\'arrivée:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
@@ -833,7 +833,7 @@ const handleUpdateZoomDepart = async () => {
   if (zoomDepart.value) {
     await applyZoomDepart();
     await updateCircuitZoomSettings();
-    showSnackbar('Zoom de départ mis à jour.', 'success');
+    // showSnackbar('Zoom de départ mis à jour.', 'success');
   }
 };
 
@@ -842,7 +842,7 @@ const handleUpdateZoomArrivee = async () => {
   if (zoomArrivee.value) {
     await applyZoomArrivee();
     await updateCircuitZoomSettings();
-    showSnackbar('Zoom d\'arrivée mis à jour.', 'success');
+    // showSnackbar('Zoom d\'arrivée mis à jour.', 'success');
   }
 };
 
@@ -862,7 +862,7 @@ async function updateCircuitZoomSettings() {
       },
     };
     await invoke('update_circuit_zoom_settings', { circuitId: circuitId, zoomSettings: zoomSettings });
-    showSnackbar('Paramètres de zoom mis à jour dans circuits.json.', 'success');
+    // showSnackbar('Paramètres de zoom mis à jour dans circuits.json.', 'success');
   } catch (error) {
     console.error('Erreur lors de la mise à jour des paramètres de zoom dans circuits.json:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
@@ -976,7 +976,7 @@ const saveControlPoint = async () => {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
     });
-    showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
+    // showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
 
     const controlPoints = trackingPoints.value.filter(p => p.pointDeControl);
     if (controlPoints.length > 0) {
@@ -987,7 +987,7 @@ const saveControlPoint = async () => {
             circuitId: circuitId,
             trackingKm: furthestControlPoint.distance
           });
-          showSnackbar('Distance de tracking mise à jour.', 'success');
+          // showSnackbar('Distance de tracking mise à jour.', 'success');
         } catch (e) {
           console.error('Erreur lors de la mise à jour de trackingKm:', e);
           showSnackbar(`Erreur trackingKm: ${e.message || e}`, 'error');
@@ -1058,7 +1058,7 @@ const deleteControlPoint = async () => {
         trackingKm: newTrackingKm
       })
     ]);
-    showSnackbar('Point de contrôle supprimé et tracking mis à jour.', 'info');
+    // showSnackbar('Point de contrôle supprimé et tracking mis à jour.', 'info');
   } catch (error) {
     console.error('Erreur lors de la suppression du point de contrôle:', error);
     showSnackbar(`Erreur: ${error.message || error}`, 'error');
