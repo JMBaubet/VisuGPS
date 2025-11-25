@@ -40,6 +40,8 @@ pub struct RangeEventData {
     pub coord: Vec<f64>,
     #[serde(default = "default_orientation")]
     pub orientation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
 // Main structure for the evt.json file (updated)
@@ -172,9 +174,15 @@ pub fn hydrate_events(
                 // Generate distance message dynamically
                 let distance_text = event_data.message_id.strip_prefix("km_").unwrap_or("0");
 
-                // Get the color from the range event's metadata or use default
-                // For now, we'll use a default color, but we should store it in the event
-                let background_color = format!("#{}", colors::convert_vuetify_color_to_hex("red"));
+                // Get the color from metadata or use default
+                let color = event_data
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("color"))
+                    .and_then(|c| c.as_str())
+                    .unwrap_or("red");
+
+                let background_color = format!("#{}", colors::convert_vuetify_color_to_hex(color));
 
                 Some(Message {
                     id: event_data.message_id.clone(),
@@ -270,6 +278,7 @@ pub fn add_message_event(
         end_increment,
         coord: payload.coord,
         orientation: payload.orientation,
+        metadata: None,
     };
 
     events_file.range_events.push(new_event);

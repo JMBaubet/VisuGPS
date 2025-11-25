@@ -124,6 +124,13 @@ pub fn generate_distance_marker_events(
         let start_increment = anchor_increment.saturating_sub(config.pre_affichage);
         let end_increment = anchor_increment.saturating_add(config.post_affichage);
 
+        // Create metadata with color
+        let mut metadata = serde_json::Map::new();
+        metadata.insert(
+            "color".to_string(),
+            serde_json::Value::String(config.couleur.clone()),
+        );
+
         let event = RangeEventData {
             event_id: Uuid::new_v4().to_string(),
             message_id: create_distance_message_id(distance_km),
@@ -132,6 +139,7 @@ pub fn generate_distance_marker_events(
             end_increment,
             coord: coords,
             orientation: config.orientation.clone(),
+            metadata: Some(serde_json::Value::Object(metadata)),
         };
 
         events.push(event);
