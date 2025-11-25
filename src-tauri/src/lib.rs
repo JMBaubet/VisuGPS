@@ -1,42 +1,40 @@
-use tauri::{App, Manager, State, AppHandle};
+use tauri::{App, AppHandle, Manager, State};
 
+use base64::{engine::general_purpose, Engine as _};
+use reqwest;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use reqwest;
-use serde_json::Value;
 use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use base64::{engine::general_purpose, Engine as _};
 
-mod gpx_processor;
 pub mod colors;
-pub mod thumbnail_generator;
-pub mod tracking_processor;
 pub mod communes_updater;
-pub mod geo_processor;
-pub mod event;
-pub mod trace_style;
-pub mod remote_control;
-pub mod remote_clients;
-pub mod remote_setup;
-pub mod remote_blacklist;
 pub mod error_logger;
+pub mod event;
+pub mod geo_processor;
+mod gpx_processor;
+pub mod remote_blacklist;
+pub mod remote_clients;
+pub mod remote_control;
+pub mod remote_setup;
 pub mod settings_migration;
+pub mod thumbnail_generator;
+pub mod trace_style;
+pub mod tracking_processor;
 
-
-
-
-use chrono::prelude::*;use gpx_processor::{Circuit, DraftCircuit, CircuitSommet};
+use chrono::prelude::*;
 #[allow(unused_imports)]
-use geo_processor::{TrackingPointJs, ProcessedTrackingPoint, ProcessedTrackingDataResult, process_tracking_data};
-
+use geo_processor::{
+    process_tracking_data, ProcessedTrackingDataResult, ProcessedTrackingPoint, TrackingPointJs,
+};
+use gpx_processor::{Circuit, CircuitSommet, DraftCircuit};
 
 use std::sync::Mutex;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
-
 
 #[derive(serde::Serialize, Clone)]
 pub struct MapboxStatusResult {
@@ -57,30 +55,60 @@ async fn check_internet_connectivity() -> bool {
 #[tauri::command]
 async fn check_mapbox_status(token: String) -> MapboxStatusResult {
     let client = reqwest::Client::new();
-    let url = format!("https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token={}", token);
+    let url = format!(
+        "https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token={}",
+        token
+    );
 
     match client.get(&url).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                let body: Value = response.json().await.unwrap_or_else(|_| serde_json::from_str("{}").unwrap());
-                if body["message"].is_string() && body["message"].as_str().unwrap().contains("Not Authorized") {
-                    MapboxStatusResult { success: false, reason: Some("invalid_token".to_string()) }
+                let body: Value = response
+                    .json()
+                    .await
+                    .unwrap_or_else(|_| serde_json::from_str("{}").unwrap());
+                if body["message"].is_string()
+                    && body["message"].as_str().unwrap().contains("Not Authorized")
+                {
+                    MapboxStatusResult {
+                        success: false,
+                        reason: Some("invalid_token".to_string()),
+                    }
                 } else if body["features"].is_array() {
-                    MapboxStatusResult { success: true, reason: None }
+                    MapboxStatusResult {
+                        success: true,
+                        reason: None,
+                    }
                 } else {
-                    MapboxStatusResult { success: false, reason: Some("unexpected_response".to_string()) } // Handle unexpected valid responses
+                    MapboxStatusResult {
+                        success: false,
+                        reason: Some("unexpected_response".to_string()),
+                    } // Handle unexpected valid responses
                 }
             } else if response.status().as_u16() == 401 || response.status().as_u16() == 403 {
-                MapboxStatusResult { success: false, reason: Some("invalid_token".to_string()) }
+                MapboxStatusResult {
+                    success: false,
+                    reason: Some("invalid_token".to_string()),
+                }
             } else {
-                MapboxStatusResult { success: false, reason: Some(format!("server_error_{}", response.status().as_u16())) }
+                MapboxStatusResult {
+                    success: false,
+                    reason: Some(format!("server_error_{}", response.status().as_u16())),
+                }
             }
-        },
+        }
         Err(e) => {
-            if e.is_connect() || e.is_timeout() || e.is_request() { // Added e.is_request()
-                MapboxStatusResult { success: false, reason: Some("unreachable".to_string()) }
+            if e.is_connect() || e.is_timeout() || e.is_request() {
+                // Added e.is_request()
+                MapboxStatusResult {
+                    success: false,
+                    reason: Some("unreachable".to_string()),
+                }
             } else {
-                MapboxStatusResult { success: false, reason: Some(format!("network_error_{}", e)) }
+                MapboxStatusResult {
+                    success: false,
+                    reason: Some(format!("network_error_{}", e)),
+                }
             }
         }
     }
@@ -95,10 +123,8 @@ fn get_app_state(state: State<Mutex<AppState>>) -> AppState {
 fn read_settings(state: State<Mutex<AppState>>) -> Result<Value, String> {
     let state = state.lock().unwrap();
     let settings_path = state.app_env_path.join("settings.json");
-    let file_content = fs::read_to_string(settings_path)
-        .map_err(|e| e.to_string())?;
-    let json_content: Value = serde_json::from_str(&file_content)
-        .map_err(|e| e.to_string())?;
+    let file_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
+    let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
     Ok(json_content)
 }
 
@@ -109,10 +135,11 @@ fn list_gpx_files(state: State<Mutex<AppState>>) -> Result<Vec<String>, String> 
     let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
 
-    let gpx_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "GPXFile setting not found".to_string())?;
+    let gpx_dir_setting =
+        get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "GPXFile setting not found".to_string())?;
 
     let gpx_path = if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
         dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
@@ -145,7 +172,10 @@ fn list_gpx_files(state: State<Mutex<AppState>>) -> Result<Vec<String>, String> 
 #[tauri::command]
 fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMode>, String> {
     let state = state.lock().unwrap();
-    let visugps_dir = state.app_env_path.parent().ok_or("Could not get parent directory".to_string())?;
+    let visugps_dir = state
+        .app_env_path
+        .parent()
+        .ok_or("Could not get parent directory".to_string())?;
     let mut modes = Vec::new();
 
     for entry in fs::read_dir(visugps_dir).map_err(|e| e.to_string())? {
@@ -155,7 +185,10 @@ fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMo
         if path.is_dir() {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 let mode_type = get_execution_mode(name);
-                modes.push(ExecutionMode { name: name.to_string(), mode_type });
+                modes.push(ExecutionMode {
+                    name: name.to_string(),
+                    mode_type,
+                });
             }
         }
     }
@@ -163,7 +196,11 @@ fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMo
 }
 
 #[tauri::command]
-fn create_execution_mode(app: AppHandle, mode_name: String, description: String) -> Result<(), String> {
+fn create_execution_mode(
+    app: AppHandle,
+    mode_name: String,
+    description: String,
+) -> Result<(), String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let visugps_dir = app_data_dir.join("VisuGPS");
 
@@ -172,11 +209,15 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let current_app_state = state_mutex.lock().unwrap();
     let old_settings_path = current_app_state.app_env_path.join("settings.json");
     let old_settings_content = fs::read_to_string(old_settings_path).map_err(|e| e.to_string())?;
-    let old_settings: Value = serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
-    let mapbox_token = get_setting_value(&old_settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "".to_string());
+    let old_settings: Value =
+        serde_json::from_str(&old_settings_content).map_err(|e| e.to_string())?;
+    let mapbox_token = get_setting_value(
+        &old_settings,
+        "data.groupes.Système.groupes.Tokens.parametres.mapbox",
+    )
+    .and_then(|v| v.as_str())
+    .map(|s| s.to_string())
+    .unwrap_or_else(|| "".to_string());
 
     let new_app_env_path = visugps_dir.join(&mode_name);
 
@@ -197,14 +238,26 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
             obj.insert("context".to_string(), Value::String(mode_name.clone()));
             obj.insert("description".to_string(), Value::String(description));
             let now = Utc::now();
-            obj.insert("date_creation".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()));
+            obj.insert(
+                "date_creation".to_string(),
+                Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()),
+            );
         }
     }
 
     // Set the mapbox token in the new settings
-    if let Some(system) = settings["data"]["groupes"].as_array_mut().and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Système")) {
-        if let Some(tokens) = system["groupes"].as_array_mut().and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Tokens")) {
-            if let Some(mapbox) = tokens["parametres"].as_array_mut().and_then(|p| p.iter_mut().find(|p| p["identifiant"] == "mapbox")) {
+    if let Some(system) = settings["data"]["groupes"]
+        .as_array_mut()
+        .and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Système"))
+    {
+        if let Some(tokens) = system["groupes"]
+            .as_array_mut()
+            .and_then(|g| g.iter_mut().find(|g| g["libelle"] == "Tokens"))
+        {
+            if let Some(mapbox) = tokens["parametres"]
+                .as_array_mut()
+                .and_then(|p| p.iter_mut().find(|p| p["identifiant"] == "mapbox"))
+            {
                 mapbox["surcharge"] = Value::String(mapbox_token);
             }
         }
@@ -214,14 +267,12 @@ fn create_execution_mode(app: AppHandle, mode_name: String, description: String)
     let settings_path = new_app_env_path.join("settings.json");
     let new_settings_content = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-    
+
     fs::write(settings_path, new_settings_content)
         .map_err(|e| format!("Failed to write settings file: {}", e))?;
 
-
     Ok(())
 }
-
 
 #[tauri::command]
 fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String> {
@@ -242,10 +293,14 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
     let new_app_env_line = format!("{0}={1}", env_var_to_update, mode_name);
 
     if app_env_re.is_match(&current_main_env_content) {
-        current_main_env_content = app_env_re.replace(&current_main_env_content, new_app_env_line).to_string();
+        current_main_env_content = app_env_re
+            .replace(&current_main_env_content, new_app_env_line)
+            .to_string();
     } else {
-        current_main_env_content.push_str("
-");
+        current_main_env_content.push_str(
+            "
+",
+        );
         current_main_env_content.push_str(&new_app_env_line);
     }
 
@@ -255,7 +310,11 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
 }
 
 #[tauri::command]
-fn delete_execution_mode(app: AppHandle, state: State<Mutex<AppState>>, mode_name: String) -> Result<(), String> {
+fn delete_execution_mode(
+    app: AppHandle,
+    state: State<Mutex<AppState>>,
+    mode_name: String,
+) -> Result<(), String> {
     let state = state.lock().unwrap();
     if mode_name == "OPE" {
         return Err("Cannot delete OPE mode.".to_string());
@@ -352,8 +411,6 @@ pub struct Editor {
     pub nom: String,
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Traceur {
     pub id: String,
@@ -391,10 +448,13 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
     let tracking_points_path = data_dir.join("tracking.json");
 
     let line_string_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
-    let tracking_points_content = fs::read_to_string(tracking_points_path).map_err(|e| e.to_string())?;
+    let tracking_points_content =
+        fs::read_to_string(tracking_points_path).map_err(|e| e.to_string())?;
 
-    let line_string: Value = serde_json::from_str(&line_string_content).map_err(|e| e.to_string())?;
-    let tracking_points: Value = serde_json::from_str(&tracking_points_content).map_err(|e| e.to_string())?;
+    let line_string: Value =
+        serde_json::from_str(&line_string_content).map_err(|e| e.to_string())?;
+    let tracking_points: Value =
+        serde_json::from_str(&tracking_points_content).map_err(|e| e.to_string())?;
 
     Ok(DebugData {
         line_string,
@@ -403,7 +463,10 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
 }
 
 #[tauri::command]
-fn read_line_string_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Value, String> {
+fn read_line_string_file(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<Value, String> {
     let state = state.lock().unwrap();
     let data_dir = state.app_env_path.join("data").join(circuit_id);
     let line_string_path = data_dir.join("lineString.json");
@@ -423,7 +486,10 @@ fn read_tracking_file(state: State<Mutex<AppState>>, circuit_id: String) -> Resu
 }
 
 #[tauri::command]
-fn read_errors_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Vec<error_logger::ErrorEntry>, String> {
+fn read_errors_file(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<Vec<error_logger::ErrorEntry>, String> {
     let state = state.lock().unwrap();
     let data_dir = state.app_env_path.join("data").join(circuit_id);
     let errors_path = data_dir.join("errors.json");
@@ -433,12 +499,13 @@ fn read_errors_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result
     }
 
     let file_content = fs::read_to_string(errors_path).map_err(|e| e.to_string())?;
-    
+
     if file_content.trim().is_empty() {
         return Ok(Vec::new()); // Empty file, return empty vec
     }
 
-    let errors: Vec<error_logger::ErrorEntry> = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    let errors: Vec<error_logger::ErrorEntry> =
+        serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
     Ok(errors)
 }
 
@@ -464,12 +531,15 @@ fn update_camera_position(
     let tracking_path = data_dir.join("tracking.json");
 
     let file_content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
-    let mut tracking_data: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    let mut tracking_data: Value =
+        serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
 
     if let Some(points) = tracking_data.as_array_mut() {
         if let Some(first_point) = points.get_mut(0) {
-            first_point["coordonneeCamera"] = serde_json::to_value(vec![longitude, latitude]).map_err(|e| e.to_string())?;
-            first_point["altitudeCamera"] = serde_json::to_value(altitude).map_err(|e| e.to_string())?;
+            first_point["coordonneeCamera"] =
+                serde_json::to_value(vec![longitude, latitude]).map_err(|e| e.to_string())?;
+            first_point["altitudeCamera"] =
+                serde_json::to_value(altitude).map_err(|e| e.to_string())?;
             first_point["zoom"] = serde_json::to_value(zoom).map_err(|e| e.to_string())?;
             first_point["pitch"] = serde_json::to_value(pitch).map_err(|e| e.to_string())?;
             first_point["cap"] = serde_json::to_value(bearing).map_err(|e| e.to_string())?;
@@ -486,8 +556,6 @@ fn update_camera_position(
     Ok(())
 }
 
-
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CircuitForDisplay {
@@ -501,6 +569,7 @@ pub struct CircuitForDisplay {
     traceur: String,
     traceur_id: String,
     editeur: String,
+    url: String,
     tracking_km: f64,
     iso_date_time: DateTime<Utc>,
     avancement_communes: i32,
@@ -508,52 +577,66 @@ pub struct CircuitForDisplay {
 }
 
 #[tauri::command]
-fn get_circuits_for_display(state: State<Mutex<AppState>>) -> Result<Vec<CircuitForDisplay>, String> {
+fn get_circuits_for_display(
+    state: State<Mutex<AppState>>,
+) -> Result<Vec<CircuitForDisplay>, String> {
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
 
-    let circuits_for_display: Vec<CircuitForDisplay> = circuits_file.circuits.iter().map(|circuit| {
-        let ville_depart = circuits_file.villes
-            .iter()
-            .find(|v| v.id == circuit.ville_depart_id)
-            .map_or("Inconnue".to_string(), |v| v.nom.clone());
-        
-        let traceur = circuits_file.traceurs
-            .iter()
-            .find(|t| t.id == circuit.traceur_id)
-            .map_or("Inconnu".to_string(), |t| t.nom.clone());
+    let circuits_for_display: Vec<CircuitForDisplay> = circuits_file
+        .circuits
+        .iter()
+        .map(|circuit| {
+            let ville_depart = circuits_file
+                .villes
+                .iter()
+                .find(|v| v.id == circuit.ville_depart_id)
+                .map_or("Inconnue".to_string(), |v| v.nom.clone());
 
-        let editeur = circuits_file.editeurs
-            .iter()
-            .find(|e| e.id == circuit.editeur_id)
-            .map_or("Inconnu".to_string(), |e| e.nom.clone());
+            let traceur = circuits_file
+                .traceurs
+                .iter()
+                .find(|t| t.id == circuit.traceur_id)
+                .map_or("Inconnu".to_string(), |t| t.nom.clone());
 
-        let errors_path = state.app_env_path.join("data").join(&circuit.circuit_id).join("errors.json");
-        let has_errors = if errors_path.exists() {
-            let content = fs::read_to_string(errors_path).unwrap_or_else(|_| "[]".to_string());
-            let errors: Vec<Value> = serde_json::from_str(&content).unwrap_or_else(|_| vec![]);
-            !errors.is_empty()
-        } else {
-            false
-        };
+            let editeur = circuits_file
+                .editeurs
+                .iter()
+                .find(|e| e.id == circuit.editeur_id)
+                .map_or("Inconnu".to_string(), |e| e.nom.clone());
 
-        CircuitForDisplay {
-            circuit_id: circuit.circuit_id.clone(),
-            nom: circuit.nom.clone(),
-            distance_km: circuit.distance_km,
-            denivele_m: circuit.denivele_m,
-            ville_depart,
-            ville_depart_id: circuit.ville_depart_id.clone(),
-            sommet: Some(circuit.sommet.clone()),
-            traceur,
-            traceur_id: circuit.traceur_id.clone(),
-            editeur,
-            tracking_km: circuit.tracking_km,
-            iso_date_time: circuit.iso_date_time,
-            avancement_communes: circuit.avancement_communes,
-            has_errors,
-        }
-    }).collect();
+            let errors_path = state
+                .app_env_path
+                .join("data")
+                .join(&circuit.circuit_id)
+                .join("errors.json");
+            let has_errors = if errors_path.exists() {
+                let content = fs::read_to_string(errors_path).unwrap_or_else(|_| "[]".to_string());
+                let errors: Vec<Value> = serde_json::from_str(&content).unwrap_or_else(|_| vec![]);
+                !errors.is_empty()
+            } else {
+                false
+            };
+
+            CircuitForDisplay {
+                circuit_id: circuit.circuit_id.clone(),
+                nom: circuit.nom.clone(),
+                distance_km: circuit.distance_km,
+                denivele_m: circuit.denivele_m,
+                ville_depart,
+                ville_depart_id: circuit.ville_depart_id.clone(),
+                sommet: Some(circuit.sommet.clone()),
+                traceur,
+                traceur_id: circuit.traceur_id.clone(),
+                editeur,
+                url: circuit.url.clone(),
+                tracking_km: circuit.tracking_km,
+                iso_date_time: circuit.iso_date_time,
+                avancement_communes: circuit.avancement_communes,
+                has_errors,
+            }
+        })
+        .collect();
 
     Ok(circuits_for_display)
 }
@@ -563,11 +646,13 @@ pub fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String
     let circuits_path = app_env_path.join("circuits.json");
     let file_content = fs::read_to_string(&circuits_path)
         .map_err(|e| format!("Failed to read circuits.json: {}", e))?;
-    serde_json::from_str(&file_content)
-        .map_err(|e| format!("Failed to parse circuits.json: {}", e))
+    serde_json::from_str(&file_content).map_err(|e| format!("Failed to parse circuits.json: {}", e))
 }
 
-pub fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile) -> Result<(), String> {
+pub fn write_circuits_file(
+    app_env_path: &PathBuf,
+    circuits_data: &CircuitsFile,
+) -> Result<(), String> {
     let circuits_path = app_env_path.join("circuits.json");
     let new_content = serde_json::to_string_pretty(circuits_data)
         .map_err(|e| format!("Failed to serialize circuits.json: {}", e))?;
@@ -576,21 +661,35 @@ pub fn write_circuits_file(app_env_path: &PathBuf, circuits_data: &CircuitsFile)
 }
 
 #[tauri::command]
-fn get_circuit_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<gpx_processor::Circuit, String> {
+fn get_circuit_data(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<gpx_processor::Circuit, String> {
     let state = state.lock().unwrap();
     let circuits_file = read_circuits_file(&state.app_env_path)?;
-    circuits_file.circuits.into_iter().find(|c| c.circuit_id == circuit_id)
+    circuits_file
+        .circuits
+        .into_iter()
+        .find(|c| c.circuit_id == circuit_id)
         .ok_or_else(|| format!("Circuit with ID {} not found.", circuit_id))
 }
 
 #[tauri::command]
-fn update_circuit_zoom_settings(state: State<Mutex<AppState>>, circuit_id: String, zoom_settings: gpx_processor::CircuitZoom) -> Result<(), String> {
+fn update_circuit_zoom_settings(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    zoom_settings: gpx_processor::CircuitZoom,
+) -> Result<(), String> {
     let state = state.lock().unwrap();
     let app_env_path = &state.app_env_path;
 
     let mut circuits_file = read_circuits_file(app_env_path)?;
 
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
         circuit.zoom = zoom_settings;
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
@@ -614,7 +713,11 @@ fn update_circuit_traceur(
     let mut circuits_file = read_circuits_file(app_env_path)?;
 
     // Update circuit's traceur
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
         circuit.traceur_id = new_traceur_id.clone();
         circuit.traceur_id = new_traceur_id.clone();
     } else {
@@ -622,7 +725,11 @@ fn update_circuit_traceur(
     }
 
     // Add new traceur to the list if it doesn't exist
-    if !circuits_file.traceurs.iter().any(|t| t.id == new_traceur_id) {
+    if !circuits_file
+        .traceurs
+        .iter()
+        .any(|t| t.id == new_traceur_id)
+    {
         circuits_file.traceurs.push(Traceur {
             id: new_traceur_id.clone(),
             nom: new_traceur.clone(),
@@ -633,7 +740,6 @@ fn update_circuit_traceur(
 
     Ok(())
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CircuitsJson {
@@ -649,7 +755,6 @@ pub struct CircuitsJson {
     pub circuits: Vec<serde_json::Value>, // Placeholder for now
 }
 
-
 pub fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Value> {
     let parts: Vec<&str> = path.split('.').collect();
     let mut current = settings;
@@ -664,7 +769,9 @@ pub fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Valu
                     current = val;
                     found = true;
                     break;
-                } else if item.get("libelle").and_then(|v| v.as_str()) == Some(part) || item.get("identifiant").and_then(|v| v.as_str()) == Some(part) {
+                } else if item.get("libelle").and_then(|v| v.as_str()) == Some(part)
+                    || item.get("identifiant").and_then(|v| v.as_str()) == Some(part)
+                {
                     current = item;
                     found = true;
                     break;
@@ -690,10 +797,9 @@ pub fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Valu
             }
         }
     }
-    
+
     current.get("defaut")
 }
-
 
 #[tauri::command]
 fn list_traceurs(state: State<Mutex<AppState>>) -> Result<Vec<Traceur>, String> {
@@ -708,7 +814,11 @@ fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, St
     let mut circuits_file = read_circuits_file(&state.app_env_path)?;
 
     // Vérifier si le traceur existe déjà (insensible à la casse)
-    if circuits_file.traceurs.iter().any(|t| t.nom.eq_ignore_ascii_case(&nom)) {
+    if circuits_file
+        .traceurs
+        .iter()
+        .any(|t| t.nom.eq_ignore_ascii_case(&nom))
+    {
         return Err(format!("Le traceur '{}' existe déjà.", nom));
     }
 
@@ -743,13 +853,19 @@ pub struct Message {
 // Helper to generate ID
 fn generate_message_id(text: &str, color: &str) -> String {
     // Replace spaces with underscores and remove characters that are not file-system friendly
-    let safe_text = text.replace(" ", "_").chars().filter(|c| c.is_alphanumeric() || *c == '_').collect::<String>();
+    let safe_text = text
+        .replace(" ", "_")
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_')
+        .collect::<String>();
     format!("{}_{}", safe_text, color)
 }
 
-
 #[tauri::command]
-fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<Vec<Message>, String> {
+fn get_message_library(
+    _app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+) -> Result<Vec<Message>, String> {
     let state_lock = state.lock().unwrap();
 
     // 1. Read default messages
@@ -766,7 +882,8 @@ fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) ->
         #[cfg(not(debug_assertions))]
         {
             // In PROD mode, use the version embedded at compile time
-            const EMBEDDED_DEFAULT_MESSAGES: &str = include_str!("../../public/messages_default.json");
+            const EMBEDDED_DEFAULT_MESSAGES: &str =
+                include_str!("../../public/messages_default.json");
             serde_json::from_str(EMBEDDED_DEFAULT_MESSAGES)
                 .map_err(|e| format!("Failed to parse embedded messages_default.json: {}", e))?
         }
@@ -797,7 +914,8 @@ fn get_message_library(_app_handle: AppHandle, state: State<Mutex<AppState>>) ->
 
     // 3. Merge lists (user messages have priority)
     let mut final_messages = user_messages;
-    let user_ids: std::collections::HashSet<String> = final_messages.iter().map(|m| m.id.clone()).collect();
+    let user_ids: std::collections::HashSet<String> =
+        final_messages.iter().map(|m| m.id.clone()).collect();
 
     for msg in default_messages {
         if !user_ids.contains(&msg.id) {
@@ -818,7 +936,12 @@ pub struct NewMessage {
 }
 
 #[tauri::command]
-fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_message: NewMessage, target: String) -> Result<(), String> {
+fn save_message(
+    _app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    new_message: NewMessage,
+    target: String,
+) -> Result<(), String> {
     // Generate the ID for the new or updated message based on its content
     let new_id = generate_message_id(&new_message.text, &new_message.style.background_color);
 
@@ -826,7 +949,7 @@ fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_messa
         "user" => {
             let state = state.lock().unwrap();
             state.app_env_path.join("messages_user.json")
-        },
+        }
         "default" => {
             #[cfg(not(debug_assertions))]
             {
@@ -834,12 +957,13 @@ fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_messa
             }
             #[cfg(debug_assertions)]
             {
-                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+                let manifest_dir =
+                    std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
                 let mut path = std::path::PathBuf::from(manifest_dir);
                 path.push("../public/messages_default.json");
                 path
             }
-        },
+        }
         _ => return Err("Invalid target specified.".to_string()),
     };
 
@@ -856,7 +980,8 @@ fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_messa
 
     // If an original ID was passed (i.e., it's an edit), remove the original message.
     if let Some(original_id) = new_message.id {
-        if original_id != new_id { // Only delete if the ID has actually changed
+        if original_id != new_id {
+            // Only delete if the ID has actually changed
             messages.retain(|m| m.id != original_id);
         }
     }
@@ -880,12 +1005,17 @@ fn save_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, new_messa
 }
 
 #[tauri::command]
-fn delete_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, id: String, target: String) -> Result<(), String> {
+fn delete_message(
+    _app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    id: String,
+    target: String,
+) -> Result<(), String> {
     let path = match target.as_str() {
         "user" => {
             let state = state.lock().unwrap();
             state.app_env_path.join("messages_user.json")
-        },
+        }
         "default" => {
             #[cfg(not(debug_assertions))]
             {
@@ -893,12 +1023,13 @@ fn delete_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, id: Str
             }
             #[cfg(debug_assertions)]
             {
-                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+                let manifest_dir =
+                    std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
                 let mut path = std::path::PathBuf::from(manifest_dir);
                 path.push("../public/messages_default.json");
                 path
             }
-        },
+        }
         _ => return Err("Invalid target specified.".to_string()),
     };
 
@@ -910,7 +1041,7 @@ fn delete_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, id: Str
     if content.trim().is_empty() {
         return Ok(());
     }
-    
+
     let mut messages: Vec<Message> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
     messages.retain(|m| m.id != id);
@@ -922,7 +1053,12 @@ fn delete_message(_app_handle: AppHandle, state: State<Mutex<AppState>>, id: Str
 }
 
 #[tauri::command]
-fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: String, new_value: Value) -> Result<(), String> {
+fn update_setting(
+    state: State<Mutex<AppState>>,
+    group_path: String,
+    param_id: String,
+    new_value: Value,
+) -> Result<(), String> {
     let mut state = state.lock().unwrap();
     let settings_path = state.app_env_path.join("settings.json");
     let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
@@ -932,7 +1068,10 @@ fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: S
     if let Some(reference) = settings.get_mut("référence") {
         if let Some(obj) = reference.as_object_mut() {
             let now = Utc::now();
-            obj.insert("date_revision".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()));
+            obj.insert(
+                "date_revision".to_string(),
+                Value::String(now.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()),
+            );
         }
     }
 
@@ -953,8 +1092,14 @@ fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: S
     }
 
     // Find and update the parameter in the target group
-    if let Some(params) = target_group.get_mut("parametres").and_then(|p| p.as_array_mut()) {
-        if let Some(param) = params.iter_mut().find(|p| p.get("identifiant").and_then(|i| i.as_str()) == Some(&param_id)) {
+    if let Some(params) = target_group
+        .get_mut("parametres")
+        .and_then(|p| p.as_array_mut())
+    {
+        if let Some(param) = params
+            .iter_mut()
+            .find(|p| p.get("identifiant").and_then(|i| i.as_str()) == Some(&param_id))
+        {
             param["surcharge"] = new_value.clone(); // Clone new_value to use it later
         } else {
             return Err(format!("Parameter '{}' not found", param_id));
@@ -964,7 +1109,8 @@ fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: S
     }
 
     // Write back the updated settings
-    let new_settings_content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    let new_settings_content =
+        serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, new_settings_content).map_err(|e| e.to_string())?;
 
     // If the mapbox token was updated, also update the in-memory state
@@ -977,14 +1123,13 @@ fn update_setting(state: State<Mutex<AppState>>, group_path: String, param_id: S
     Ok(())
 }
 
-
-
 #[tauri::command]
-async fn analyze_gpx_file(app_handle: tauri::AppHandle, filename: String) -> Result<DraftCircuit, String> {
+async fn analyze_gpx_file(
+    app_handle: tauri::AppHandle,
+    filename: String,
+) -> Result<DraftCircuit, String> {
     gpx_processor::analyze_gpx_file(&app_handle, &filename).await
 }
-
-
 
 #[tauri::command]
 fn commit_new_circuit(
@@ -1004,7 +1149,9 @@ fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(
     let mut circuits_file = read_circuits_file(app_env_path)?;
 
     let initial_len = circuits_file.circuits.len();
-    circuits_file.circuits.retain(|c| c.circuit_id != circuit_id);
+    circuits_file
+        .circuits
+        .retain(|c| c.circuit_id != circuit_id);
 
     if circuits_file.circuits.len() == initial_len {
         return Err(format!("Circuit with ID '{}' not found.", circuit_id));
@@ -1018,23 +1165,33 @@ fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(
         fs::remove_dir_all(&circuit_data_dir)
             .map_err(|e| format!("Failed to delete circuit directory: {}", e))?;
     } else {
-        println!("Circuit directory not found: {}", circuit_data_dir.display());
+        println!(
+            "Circuit directory not found: {}",
+            circuit_data_dir.display()
+        );
     }
 
     Ok(())
 }
 
 #[tauri::command]
-fn get_thumbnail_as_base64(state: State<Mutex<AppState>>, circuit_id: String) -> Result<String, String> {
+fn get_thumbnail_as_base64(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<String, String> {
     let state = state.lock().unwrap();
-    let thumbnail_path = state.app_env_path.join("data").join(circuit_id).join("vignette.png");
+    let thumbnail_path = state
+        .app_env_path
+        .join("data")
+        .join(circuit_id)
+        .join("vignette.png");
 
     if !thumbnail_path.exists() {
         return Err("Thumbnail not found.".to_string());
     }
 
-    let image_bytes = fs::read(&thumbnail_path)
-        .map_err(|e| format!("Failed to read thumbnail file: {}", e))?;
+    let image_bytes =
+        fs::read(&thumbnail_path).map_err(|e| format!("Failed to read thumbnail file: {}", e))?;
 
     let base64_str = general_purpose::STANDARD.encode(&image_bytes);
 
@@ -1042,16 +1199,23 @@ fn get_thumbnail_as_base64(state: State<Mutex<AppState>>, circuit_id: String) ->
 }
 
 #[tauri::command]
-fn get_qrcode_as_base64(state: State<Mutex<AppState>>, circuit_id: String) -> Result<String, String> {
+fn get_qrcode_as_base64(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<String, String> {
     let state = state.lock().unwrap();
-    let qrcode_path = state.app_env_path.join("data").join(circuit_id).join("urlQrcode.png");
+    let qrcode_path = state
+        .app_env_path
+        .join("data")
+        .join(circuit_id)
+        .join("urlQrcode.png");
 
     if !qrcode_path.exists() {
         return Err("QR Code not found.".to_string());
     }
 
-    let image_bytes = fs::read(&qrcode_path)
-        .map_err(|e| format!("Failed to read QR Code file: {}", e))?;
+    let image_bytes =
+        fs::read(&qrcode_path).map_err(|e| format!("Failed to read QR Code file: {}", e))?;
 
     let base64_str = general_purpose::STANDARD.encode(&image_bytes);
 
@@ -1059,9 +1223,17 @@ fn get_qrcode_as_base64(state: State<Mutex<AppState>>, circuit_id: String) -> Re
 }
 
 #[tauri::command]
-fn save_tracking_file(state: State<Mutex<AppState>>, circuit_id: String, tracking_data: Value) -> Result<(), String> {
+fn save_tracking_file(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    tracking_data: Value,
+) -> Result<(), String> {
     let state = state.lock().unwrap();
-    let tracking_path = state.app_env_path.join("data").join(circuit_id).join("tracking.json");
+    let tracking_path = state
+        .app_env_path
+        .join("data")
+        .join(circuit_id)
+        .join("tracking.json");
 
     let new_content = serde_json::to_string_pretty(&tracking_data)
         .map_err(|e| format!("Failed to serialize tracking data: {}", e))?;
@@ -1098,17 +1270,14 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
             if let Ok((key, val)) = item {
                 if key == env_var_to_read {
                     app_env = val;
-                    break; 
+                    break;
                 }
             }
         }
     }
 
-    
-    
-
     let execution_mode = get_execution_mode(&app_env);
-    
+
     // Create the environment-specific directory
     let app_env_path = visugps_dir.join(&app_env);
     if !app_env_path.exists() {
@@ -1129,14 +1298,17 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
             if let Some(obj) = reference.as_object_mut() {
                 obj.insert("context".to_string(), Value::String(app_env.clone())); // Use app_env for context
                 let now = Utc::now();
-                obj.insert("date_creation".to_string(), Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()));
+                obj.insert(
+                    "date_creation".to_string(),
+                    Value::String(now.format("%Y-%m-%dT%H:%M:%S:00Z").to_string()),
+                );
             }
         }
 
         // Write the modified settings to the new environment's settings.json
         let new_settings_content = serde_json::to_string_pretty(&settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-        
+
         fs::write(&settings_path, new_settings_content)
             .map_err(|e| format!("Failed to write settings file: {}", e))?;
     } else {
@@ -1149,11 +1321,12 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         let default_settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
             .map_err(|e| format!("Default settings corrupted: {}", e))?;
 
-        let (merged_settings, report) = settings_migration::compare_and_merge(&existing_settings, &default_settings);
+        let (merged_settings, report) =
+            settings_migration::compare_and_merge(&existing_settings, &default_settings);
 
         if let Some(rep) = report {
             migration_report_content = Some(rep);
-            
+
             // Write merged settings
             let new_content = serde_json::to_string_pretty(&merged_settings)
                 .map_err(|e| format!("Failed to serialize merged settings: {}", e))?;
@@ -1173,14 +1346,16 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     let settings_content = fs::read_to_string(&settings_path)?;
     let settings: Value = serde_json::from_str(&settings_content)?;
 
-    let mapbox_token = get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "".to_string());
+    let mapbox_token = get_setting_value(
+        &settings,
+        "data.groupes.Système.groupes.Tokens.parametres.mapbox",
+    )
+    .and_then(|v| v.as_str())
+    .map(|s| s.to_string())
+    .unwrap_or_else(|| "".to_string());
 
     // Initialize remote control server
     remote_setup::init_remote_control(app, &app_env_path, &settings)?;
-
 
     Ok(AppState {
         app_env,
@@ -1196,7 +1371,6 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         migration_report: Mutex::new(migration_report_content),
     })
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1253,13 +1427,21 @@ fn get_filter_data(state: State<Mutex<AppState>>) -> Result<FilterData, String> 
 }
 
 #[tauri::command]
-fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, tracking_km: f64) -> Result<(), String> {
+fn update_tracking_km(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    tracking_km: f64,
+) -> Result<(), String> {
     let state = state.lock().unwrap();
     let app_env_path = &state.app_env_path;
 
     let mut circuits_file = read_circuits_file(app_env_path)?;
 
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
         circuit.tracking_km = (tracking_km * 10.0).round() / 10.0;
     } else {
         return Err(format!("Circuit with ID '{}' not found.", circuit_id));
@@ -1270,38 +1452,36 @@ fn update_tracking_km(state: State<Mutex<AppState>>, circuit_id: String, trackin
     Ok(())
 }
 
-
 #[tauri::command]
-fn update_current_view(app_handle: AppHandle, state: State<Mutex<AppState>>, new_view: String) -> Result<(), String> {
+fn update_current_view(
+    app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    new_view: String,
+) -> Result<(), String> {
     let mut app_state = state.lock().unwrap();
     app_state.current_view = new_view.clone();
-    
+
     // Notifier toutes les télécommandes connectées du changement de vue
     use crate::remote_control::send_app_state_update;
     send_app_state_update(&app_handle, &new_view);
-    
+
     Ok(())
 }
-
-
-
-
-
 
 #[tauri::command]
-fn update_animation_state(app_handle: AppHandle, state: State<Mutex<AppState>>, new_state: String) -> Result<(), String> {
+fn update_animation_state(
+    app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    new_state: String,
+) -> Result<(), String> {
     let app_state = state.lock().unwrap();
     *app_state.animation_state.lock().unwrap() = new_state.clone();
-    
+
     // Notifier la télécommande
     remote_control::send_animation_state_update(&app_handle, &new_state);
-    
+
     Ok(())
 }
-
-
-
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -1331,20 +1511,19 @@ pub fn run() {
                             let app_handle = app.handle().clone();
                             let circuit_id = file.circuit_id.clone();
                             tauri::async_runtime::spawn(async move {
-                                let _ = communes_updater::start_communes_update(app_handle, circuit_id).await;
+                                let _ =
+                                    communes_updater::start_communes_update(app_handle, circuit_id)
+                                        .await;
                             });
                         }
                     }
-                },
+                }
                 Err(e) => {
                     if cfg!(debug_assertions) {
                         // Formatted message for the dev console with ANSI colors
                         let red = "\x1b[31m";
                         let reset = "\x1b[0m";
-                        eprintln!(
-                            "\n{red}Erreur à l'initialisation :{reset}\n{}\n",
-                            e
-                        );
+                        eprintln!("\n{red}Erreur à l'initialisation :{reset}\n{}\n", e);
                     } else {
                         // Log the error in production mode
                         let error_message = format!(
@@ -1360,15 +1539,42 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_app_state, check_mapbox_status, check_internet_connectivity, read_settings, list_execution_modes, 
-            create_execution_mode, delete_execution_mode, select_execution_mode, update_setting, list_gpx_files, 
-            analyze_gpx_file, commit_new_circuit, list_traceurs, add_traceur, thumbnail_generator::generate_gpx_thumbnail, 
-            get_circuits_for_display, get_debug_data, delete_circuit, get_thumbnail_as_base64, get_qrcode_as_base64,
-            read_line_string_file, read_tracking_file, read_errors_file, save_tracking_file, convert_vuetify_color, update_camera_position, 
-            geo_processor::process_tracking_data, get_filter_data, update_tracking_km, 
-            communes_updater::start_communes_update, communes_updater::interrupt_communes_update, 
-            communes_updater::get_current_commune_task_info, communes_updater::toggle_ign_api, 
-            communes_updater::toggle_mapbox_api, communes_updater::get_ign_status, communes_updater::get_mapbox_status, 
+            get_app_state,
+            check_mapbox_status,
+            check_internet_connectivity,
+            read_settings,
+            list_execution_modes,
+            create_execution_mode,
+            delete_execution_mode,
+            select_execution_mode,
+            update_setting,
+            list_gpx_files,
+            analyze_gpx_file,
+            commit_new_circuit,
+            list_traceurs,
+            add_traceur,
+            thumbnail_generator::generate_gpx_thumbnail,
+            get_circuits_for_display,
+            get_debug_data,
+            delete_circuit,
+            get_thumbnail_as_base64,
+            get_qrcode_as_base64,
+            read_line_string_file,
+            read_tracking_file,
+            read_errors_file,
+            save_tracking_file,
+            convert_vuetify_color,
+            update_camera_position,
+            geo_processor::process_tracking_data,
+            get_filter_data,
+            update_tracking_km,
+            communes_updater::start_communes_update,
+            communes_updater::interrupt_communes_update,
+            communes_updater::get_current_commune_task_info,
+            communes_updater::toggle_ign_api,
+            communes_updater::toggle_mapbox_api,
+            communes_updater::get_ign_status,
+            communes_updater::get_mapbox_status,
             communes_updater::get_commune_update_progress,
             // Event commands
             event::get_events,

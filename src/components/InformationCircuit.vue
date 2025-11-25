@@ -1,7 +1,10 @@
 <template>
   <v-card>
     <v-card-title class="headline d-flex justify-space-between align-center">
-      <span>{{ circuit.nom }}</span>  <!-- circuit.nom as first element -->
+      <div class="d-flex flex-column">
+        <span>{{ circuit.nom }}</span>  <!-- circuit.nom as first element -->
+        <a v-if="circuit.url" :href="circuit.url" target="_blank" class="circuit-url">{{ circuit.url }}</a>
+      </div>
       <div class="d-flex align-center"> <!-- Group the alert and close buttons -->
         <v-btn icon
           v-if="props.circuit.hasErrors"
@@ -105,11 +108,6 @@
                   <v-list-item>
                     <v-list-item-title>
                       <strong>Éditeur :</strong> {{ circuit.editeur }}
-                    </v-list-item-title>
-                  </v-list-item>
-                  <v-list-item v-if="circuit.url">
-                    <v-list-item-title>
-                      <strong>URL :</strong> <a :href="circuit.url" target="_blank">{{ circuit.url }}</a>
                     </v-list-item-title>
                   </v-list-item>
                 </v-list>
@@ -292,6 +290,18 @@ watch(appEnvPath, () => {
 .v-card-title {
   background-color: rgb(var(--v-theme-primary));
   color: white;
+}
+
+.circuit-url {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  margin-top: 2px;
+}
+
+.circuit-url:hover {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: underline;
 }
 
 .blinking-button {
