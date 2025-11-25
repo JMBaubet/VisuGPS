@@ -27,6 +27,18 @@
       </div>
     </transition>
     <transition name="fade">
+      <v-btn v-if="!isInitializing && isPaused && !isControlsCardVisible"
+             color="warning"
+             @click="isPaused = false"
+             class="bottom-controls"
+             size="x-large"
+             rounded
+             title="Reprendre l'animation (P)"
+      >
+        Reprise
+      </v-btn>
+    </transition>
+    <transition name="fade">
       <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
         <v-card variant="elevated" class="controls-card">
             <div class="d-flex align-center pa-1">
@@ -43,7 +55,6 @@
                                 hide-details
                                 class="align-center speed-slider"
                                 :disabled="isAnimationFinished"
-                                @dblclick="sliderPosition = 20"
                             >
                                 <template v-slot:append>
                                     <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
@@ -223,7 +234,7 @@ async function executeFlytoSequence(flytoData) {
         pitch: map.getPitch(),
         bearing: map.getBearing(),
     };
-    showSnackbar('Début du survol programmé...', 'info');
+    //showSnackbar('Début du survol programmé...', 'info');
     
     // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
     const durationToTarget = Math.max(200, flytoData.duree / currentSpeed.value);
@@ -238,7 +249,7 @@ async function executeFlytoSequence(flytoData) {
 
     // --- Phase 2: En pause sur la cible ---
     animationState.value = 'En_Pause';
-    showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
+    //showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
 
     // Attendre que l'utilisateur appuie sur "Play"
     await new Promise(resolve => {
@@ -252,7 +263,7 @@ async function executeFlytoSequence(flytoData) {
 
     // --- Phase 3: Vol de retour vers la trace ---
     animationState.value = 'Survol_Evenementiel';
-    showSnackbar('Retour à la trace...', 'info');
+    //showSnackbar('Retour à la trace...', 'info');
 
     // Ajuster également la durée du vol de retour.
     const durationBackToTrace = Math.max(200, flytoData.duree / currentSpeed.value);
@@ -408,7 +419,7 @@ async function executeFlytoSequence(flytoData) {
           if (triggeredPauseIncrement.value !== currentIncrement) {
               isPaused.value = true;
               triggeredPauseIncrement.value = currentIncrement;
-              showSnackbar('Pause programmée atteinte.', 'info');
+              //showSnackbar('Pause programmée atteinte.', 'info');
           }
       }
   }
@@ -783,7 +794,7 @@ watch(isPaused, (paused) => {
         if (!isFlytoActive.value) {
             if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
                 isResuming.value = true; // Block animation
-                showSnackbar('Reprise de la position initiale...', 'info');
+                //showSnackbar('Reprise de la position initiale...', 'info');
                 map.flyTo({
                     ...pausedCameraOptions.value,
                     duration: timerReprisePause.value,
