@@ -1,0 +1,63 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open Git Terminal (Yellow)",
+            "type": "shell",
+            "command": "/bin/zsh",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "startup-terminals"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "options": {
+                "terminal": {
+                    "profile": "Git"
+                }
+            }
+        },
+        {
+            "label": "Open Gemini Terminal (Magenta)",
+            "type": "shell",
+            "command": "/bin/zsh",
+            "args": [
+                "-i",
+                "-c",
+                "gemini; exec /bin/zsh"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "group": "startup-terminals"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "options": {
+                "terminal": {
+                    "profile": "Gemini"
+                }
+            }
+        },
+        {
+            "label": "Test Gemini PATH",
+            "type": "shell",
+            "command": "/bin/zsh",
+            "args": [
+                "-l",
+                "-c",
+                "echo PATH=$PATH; which gemini; sleep 5"
+            ],
+            "presentation": {
+                "panel": "new",
+                "reveal": "always"
+            },
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        }
+    ]
+}
