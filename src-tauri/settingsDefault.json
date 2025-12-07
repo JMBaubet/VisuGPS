@@ -811,12 +811,12 @@
             "libelle": "Distance",
             "parametres": [
               {
-                "identifiant": "afficher",
-                "libelle": "Afficher les distances",
-                "description": "Active ou désactive l'affichage automatique des bornes kilométriques le long de la trace.",
+                "identifiant": "ajouter",
+                "libelle": "Ajouter les distances",
+                "description": "Si activé, les bornes kilométriques sont automatiquement ajoutées pour chaque nouvelle importation de trace.",
                 "type": "booleen",
                 "defaut": true,
-                "doc": "docs/DocParametrage/Edition/Distance/afficher.md"
+                "doc": "docs/DocParametrage/Edition/Distance/ajouter.md"
               },
               {
                 "identifiant": "intervalle",

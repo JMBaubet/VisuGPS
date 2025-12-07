@@ -170,10 +170,10 @@ pub fn generate_distance_marker_events(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DistanceMarkersDefaults {
-    intervalle: u32,
-    pre_affichage: u32,
-    post_affichage: u32,
-    orientation: String,
+    pub intervalle: u32,
+    pub pre_affichage: u32,
+    pub post_affichage: u32,
+    pub orientation: String,
 }
 
 #[tauri::command]

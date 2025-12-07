@@ -17,6 +17,8 @@ use local_ip_address::local_ip;
 
 use crate::tracking_processor;
 use super::{AppState, CircuitsFile, Editor, Ville, get_setting_value};
+use crate::distance_markers;
+use crate::event;
 
 #[tauri::command]
 pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
@@ -399,6 +401,55 @@ pub fn commit_new_circuit(
 
     tracking_processor::generate_tracking_file(&app_env_path, &new_circuit_id, &draft.track_points, &settings)?;
 
+    // Auto-add distance markers if setting is true
+    let auto_add_distance_markers = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.ajouter")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false); // Default to false if setting is missing
+
+    if auto_add_distance_markers {
+        let dm_defaults = distance_markers::get_distance_markers_defaults(app_handle.clone())?;
+        
+        // Create DistanceMarkersConfig for event generation
+        let dm_config_for_events = distance_markers::DistanceMarkersConfig {
+            intervalle: dm_defaults.intervalle,
+            pre_affichage: dm_defaults.pre_affichage,
+            post_affichage: dm_defaults.post_affichage,
+            orientation: dm_defaults.orientation.clone(),
+        };
+
+        // Get couleur from settings (same logic as in generate_distance_markers command)
+        let dm_couleur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.couleur")
+            .and_then(|v| v.as_str())
+            .unwrap_or("red")
+            .to_string();
+
+        // Generate events
+        let generated_dm_events = distance_markers::generate_distance_marker_events(
+            app_handle,
+            &new_circuit_id,
+            &dm_config_for_events,
+            new_circuit.distance_km, // total_distance_km
+            &dm_couleur,
+        )?;
+
+        // Update circuit's distance_markers_config in circuits_file (which is mutable)
+        if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == new_circuit_id) {
+            circuit.distance_markers_config = Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
+                intervalle: dm_config_for_events.intervalle,
+                pre_affichage: dm_config_for_events.pre_affichage,
+                post_affichage: dm_config_for_events.post_affichage,
+                orientation: dm_config_for_events.orientation,
+            });
+        }
+        // Write circuits_file again to persist the distance_markers_config
+        super::write_circuits_file(&app_env_path, &circuits_file)?;
+
+        // Read current events file, extend with generated events, and write back
+        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+        events_file.range_events.extend(generated_dm_events);
+        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+    }
+    
     Ok(new_circuit_id)
 }
 
