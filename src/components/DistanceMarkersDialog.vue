@@ -69,30 +69,6 @@
           </v-row>
 
           <v-row>
-            <v-col cols="12">
-              <v-select
-                v-model="config.couleur"
-                :disabled="!config.afficher"
-                :items="colorOptions"
-                label="Couleur des messages"
-                hide-details
-              >
-                <template v-slot:selection="{ item }">
-                  <v-chip :color="item.value" size="small" class="mr-2"></v-chip>
-                  {{ item.title }}
-                </template>
-                <template v-slot:item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <template v-slot:prepend>
-                      <v-chip :color="item.value" size="small"></v-chip>
-                    </template>
-                  </v-list-item>
-                </template>
-              </v-select>
-            </v-col>
-          </v-row>
-
-          <v-row>
             <v-col cols="12" class="d-flex align-center">
               <span class="mr-4">Orientation :</span>
               <v-btn-toggle
@@ -155,25 +131,10 @@ const config = ref({
   intervalle: 10,
   preAffichage: 10,
   postAffichage: 10,
-  couleur: 'red',
   orientation: 'Droite',
 });
 
 const loading = ref(false);
-
-// Color options for Material Design colors
-const colorOptions = [
-  { title: 'Rouge', value: 'red' },
-  { title: 'Bleu', value: 'blue' },
-  { title: 'Vert', value: 'green' },
-  { title: 'Orange', value: 'orange' },
-  { title: 'Violet', value: 'purple' },
-  { title: 'Jaune', value: 'yellow' },
-  { title: 'Rose', value: 'pink' },
-  { title: 'Cyan', value: 'cyan' },
-  { title: 'Indigo', value: 'indigo' },
-  { title: 'Teal', value: 'teal' },
-];
 
 // Orientation toggle (converts between boolean and string)
 const orientationToggle = computed({
@@ -215,11 +176,6 @@ const loadDefaultSettings = async () => {
       ?.find(g => g.libelle === 'Distance')?.parametres
       ?.find(p => p.identifiant === 'postAffichage')?.defaut ?? 10;
 
-    config.value.couleur = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'couleur')?.defaut ?? 'red';
-
     const orientationDefault = settings?.data?.groupes
       ?.find(g => g.libelle === 'Edition')?.groupes
       ?.find(g => g.libelle === 'Distance')?.parametres
@@ -245,7 +201,6 @@ const apply = async () => {
           intervalle: config.value.intervalle,
           preAffichage: config.value.preAffichage,
           postAffichage: config.value.postAffichage,
-          couleur: config.value.couleur,
           orientation: config.value.orientation,
         },
         totalDistanceKm: props.totalDistanceKm,

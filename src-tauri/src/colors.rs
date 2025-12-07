@@ -38,3 +38,23 @@ pub fn convert_vuetify_color_to_hex(color_name: &str) -> String {
         hex.to_string() // Otherwise, return the hex code as is
     }
 }
+
+pub fn get_contrasting_text_color(hex_color: &str) -> String {
+    let hex_color = hex_color.trim_start_matches('#');
+    if hex_color.len() != 6 {
+        return "#000000".to_string(); // Default to black for invalid hex
+    }
+
+    let r = u8::from_str_radix(&hex_color[0..2], 16).unwrap_or(0);
+    let g = u8::from_str_radix(&hex_color[2..4], 16).unwrap_or(0);
+    let b = u8::from_str_radix(&hex_color[4..6], 16).unwrap_or(0);
+
+    // Calculate luminance using the standard formula
+    let luminance = (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32) / 255.0;
+
+    if luminance > 0.6 {
+        "#000000".to_string() // Bright background, use black text
+    } else {
+        "#FFFFFF".to_string() // Dark background, use white text
+    }
+}

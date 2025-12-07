@@ -1,5 +1,5 @@
 use crate::event::{EventsFile, RangeEventData};
-use crate::AppState;
+use crate::{AppState, Message, MessageStyle};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Mutex;
@@ -15,7 +15,6 @@ pub struct DistanceMarkersConfig {
     pub intervalle: u32,
     pub pre_affichage: u32,
     pub post_affichage: u32,
-    pub couleur: String,
     pub orientation: String,
 }
 
@@ -84,9 +83,23 @@ pub fn calculate_marker_positions(
 
 /// Removes all distance markers from the events file
 pub fn remove_distance_markers_from_events(events_file: &mut EventsFile) {
-    events_file
-        .range_events
-        .retain(|event| !is_distance_marker(&event.message_id));
+    events_file.range_events.retain(|event| {
+        // Check new format (embedded message)
+        if let Some(msg) = &event.message {
+            if let Some(source) = &msg.source {
+                if source == "distance_markers" {
+                    return false; // Remove it
+                }
+            }
+        }
+        // Check old format (message_id)
+        if let Some(id) = &event.message_id {
+            if is_distance_marker(id) {
+                return false; // Remove it
+            }
+        }
+        true // Keep it
+    });
 }
 
 /// Generates distance marker events based on configuration
@@ -95,6 +108,7 @@ pub fn generate_distance_marker_events(
     circuit_id: &str,
     config: &DistanceMarkersConfig,
     total_distance_km: f64,
+    couleur: &str,
 ) -> Result<Vec<RangeEventData>, String> {
     if !config.afficher {
         return Ok(Vec::new());
@@ -124,22 +138,30 @@ pub fn generate_distance_marker_events(
         let start_increment = anchor_increment.saturating_sub(config.pre_affichage);
         let end_increment = anchor_increment.saturating_add(config.post_affichage);
 
-        // Create metadata with color
-        let mut metadata = serde_json::Map::new();
-        metadata.insert(
-            "color".to_string(),
-            serde_json::Value::String(config.couleur.clone()),
-        );
+        let bg_color_name = couleur;
+        let bg_hex = crate::colors::convert_vuetify_color_to_hex(bg_color_name);
+        let text_hex = crate::colors::get_contrasting_text_color(&bg_hex);
+
+        let message = crate::Message {
+            id: format!("km_{}", distance_km),
+            text: format!("{} km", distance_km),
+            style: crate::MessageStyle {
+                background_color: format!("#{}", bg_hex),
+                text_color: text_hex,
+            },
+            source: Some("distance_markers".to_string()),
+        };
 
         let event = RangeEventData {
             event_id: Uuid::new_v4().to_string(),
-            message_id: create_distance_message_id(distance_km),
+            message_id: None,
+            message: Some(message),
             anchor_increment,
             start_increment,
             end_increment,
             coord: coords,
             orientation: config.orientation.clone(),
-            metadata: Some(serde_json::Value::Object(metadata)),
+            metadata: None,
         };
 
         events.push(event);
@@ -157,6 +179,17 @@ pub fn generate_distance_markers(
     config: DistanceMarkersConfig,
     total_distance_km: f64,
 ) -> Result<crate::event::HydratedEventsFile, String> {
+    let state: tauri::State<Mutex<AppState>> = app_handle.state();
+    let settings = crate::read_settings(state)?;
+
+    let couleur = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.couleur",
+    )
+    .and_then(|v| v.as_str())
+    .unwrap_or("red")
+    .to_string();
+
     // Read current events
     let mut events_file = crate::event::read_events(&app_handle, &circuit_id)?;
 
@@ -164,8 +197,13 @@ pub fn generate_distance_markers(
     remove_distance_markers_from_events(&mut events_file);
 
     // Generate new distance markers
-    let new_markers =
-        generate_distance_marker_events(&app_handle, &circuit_id, &config, total_distance_km)?;
+    let new_markers = generate_distance_marker_events(
+        &app_handle,
+        &circuit_id,
+        &config,
+        total_distance_km,
+        &couleur,
+    )?;
 
     // Add new markers to events
     events_file.range_events.extend(new_markers);

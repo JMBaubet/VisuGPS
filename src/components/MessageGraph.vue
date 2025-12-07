@@ -193,9 +193,7 @@ const processedRangeEvents = computed(() => {
 
   const trackingMap = new Map(props.trackingPoints.map(p => [p.increment, p.distance]));
 
-  const lanes = []; // Defined here, outside the map loop
-  let maxLanes = 0; // Initialize maxLanes here
-
+  // --- Initial processing to add coordinates to events ---
   const validEventsWithCoords = props.rangeEvents.map(event => {
     const startIncrement = event.startIncrement;
     const endIncrement = event.endIncrement;
@@ -206,60 +204,86 @@ const processedRangeEvents = computed(() => {
       return null;
     }
 
+    let message = null;
+    if (event.message) {
+      message = event.message;
+    } else {
+      message = props.messageLibrary.find(msg => msg.id === event.messageId);
+    }
+    
+    // If no message data can be found, skip the event
+    if (!message) {
+        console.warn(`[MessageGraph] No message data found for event. Skipping:`, event);
+        return null;
+    }
+
     const startDistance = trackingMap.get(startIncrement);
     const endDistance = trackingMap.get(endIncrement);
     const anchorDistance = trackingMap.get(anchorIncrement);
 
     return {
       ...event,
+      message, // Embed the resolved message
       startX: (startDistance * kmToPx) + startOffsetPx,
       endX: (endDistance * kmToPx) + startOffsetPx,
       anchorX: (anchorDistance * kmToPx) + startOffsetPx,
     };
   }).filter(Boolean);
-
-  // Sort events by startX to process them in order
+  
   validEventsWithCoords.sort((a, b) => a.startX - b.startX);
 
-  const mappedEvents = validEventsWithCoords.map(event => {
-    let assignedLane = -1;
+  // --- Partition events into KM and Standard ---
+  const kmEvents = validEventsWithCoords.filter(e => e.message?.source?.startsWith('distance_markers'));
+  const standardEvents = validEventsWithCoords.filter(e => !e.message?.source?.startsWith('distance_markers'));
 
-    for (let i = 0; i < lanes.length; i++) {
-      if (event.startX >= lanes[i]) {
-        assignedLane = i;
-        lanes[i] = event.endX;
-        break;
+  // --- Lane assignment function ---
+  const assignLanes = (events) => {
+    const lanes = []; // Stores the end coordinate of the last event in a lane
+    const processed = events.map(event => {
+      let assignedLane = -1;
+      for (let i = 0; i < lanes.length; i++) {
+        if (event.startX >= lanes[i]) {
+          assignedLane = i;
+          lanes[i] = event.endX;
+          break;
+        }
       }
-    }
+      if (assignedLane === -1) {
+        assignedLane = lanes.length;
+        lanes.push(event.endX);
+      }
+      return { ...event, lane: assignedLane };
+    });
+    return { processed, laneCount: lanes.length };
+  };
+  
+  // --- Process each group to get lanes ---
+  const { processed: processedKms, laneCount: kmLaneCount } = assignLanes(kmEvents);
+  const { processed: processedStandards, laneCount: standardLaneCount } = assignLanes(standardEvents);
 
-    if (assignedLane === -1) {
-      assignedLane = lanes.length;
-      lanes.push(event.endX);
-    }
+  currentMaxLanes.value = kmLaneCount + standardLaneCount;
 
-    maxLanes = Math.max(maxLanes, assignedLane + 1); // Update maxLanes here
+  // --- Combine and calculate final positions ---
+  const finalStandardEvents = processedStandards.map(e => ({ ...e, lane: e.lane + kmLaneCount }));
+  const combinedEvents = [...processedKms, ...finalStandardEvents];
 
-    const message = props.messageLibrary.find(msg => msg.id === event.messageId);
+  return combinedEvents.map(event => {
+    const fillColor = event.message?.style ? toHex(event.message.style.backgroundColor) : 'grey';
+    const strokeColor = event.message?.style ? event.message.style.textColor : (theme.global.current.value.dark ? '#FFFFFF' : '#000000');
     
-    const fillColor = message && message.style ? toHex(message.style.backgroundColor) : 'grey';
-    const strokeColor = theme.global.current.value.dark ? '#FFFFFF' : '#000000'; // White for dark mode, black for light mode
-
-    const finalY = xAxisY.value - ((assignedLane + 1) * props.messageGraphHeight) - (assignedLane * verticalGap) - 3; // Corrected Y calculation
+    const finalY = xAxisY.value - ((event.lane + 1) * props.messageGraphHeight) - (event.lane * verticalGap) - 3;
 
     return {
       ...event,
-      messageText: message ? message.text : '', // Expose message text for tooltip
+      messageText: event.message ? event.message.text : (event.messageId || ''),
       x: event.startX,
       y: finalY,
-      width: event.endX - event.startX,
+      width: Math.max(1, event.endX - event.startX), // Ensure width is at least 1px
       height: props.messageGraphHeight,
       fillColor: fillColor,
       strokeColor: strokeColor,
     };
   });
-
-  currentMaxLanes.value = maxLanes; // Side effect: update currentMaxLanes ref
-  return mappedEvents;
 });
 </script>
 

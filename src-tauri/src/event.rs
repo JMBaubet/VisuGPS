@@ -33,7 +33,10 @@ pub enum PointEvent {
 #[serde(rename_all = "camelCase")]
 pub struct RangeEventData {
     pub event_id: String,
-    pub message_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<Message>,
     pub anchor_increment: u32,
     pub start_increment: u32,
     pub end_increment: u32,
@@ -168,54 +171,52 @@ pub fn hydrate_events(
     let mut missing_message_errors = Vec::new(); // Nouvelle liste d'erreurs
 
     for event_data in events_file.range_events {
-        // Check if this is a distance marker (km_X) or a regular message
-        let message_opt: Option<Message> =
-            if crate::distance_markers::is_distance_marker(&event_data.message_id) {
-                // Generate distance message dynamically
-                let distance_text = event_data.message_id.strip_prefix("km_").unwrap_or("0");
+        let mut final_message: Option<Message> = None;
+        let mut final_message_id: Option<String> = None;
 
-                // Get the color from metadata or use default
-                let color = event_data
-                    .metadata
-                    .as_ref()
-                    .and_then(|m| m.get("color"))
-                    .and_then(|c| c.as_str())
-                    .unwrap_or("red");
+        if let Some(embedded_message) = event_data.message {
+            // Case 1: Message is already embedded (new format for KM markers)
+            final_message = Some(embedded_message.clone());
+            final_message_id = Some(embedded_message.id);
+        } else if let Some(ref message_id) = event_data.message_id {
+             final_message_id = Some(message_id.clone());
+            // Case 2: message_id is present, check if it's a legacy distance marker or a library message
+            if crate::distance_markers::is_distance_marker(message_id) {
+                // Legacy distance marker handling (for backward compatibility)
+                let distance_text = message_id.strip_prefix("km_").unwrap_or("0");
+                let color = event_data.metadata.as_ref()
+                    .and_then(|m| m.get("color")).and_then(|c| c.as_str()).unwrap_or("red");
+                let bg_hex = colors::convert_vuetify_color_to_hex(color);
+                let text_color = colors::get_contrasting_text_color(&bg_hex);
 
-                let background_color = format!("#{}", colors::convert_vuetify_color_to_hex(color));
-
-                Some(Message {
-                    id: event_data.message_id.clone(),
-                    text: format!("km {}", distance_text),
+                final_message = Some(Message {
+                    id: message_id.clone(),
+                    text: format!("{} km", distance_text),
                     style: crate::MessageStyle {
-                        background_color,
-                        text_color: "#FFFFFF".to_string(),
+                        background_color: format!("#{}", bg_hex),
+                        text_color,
                     },
-                    source: Some("distance_markers".to_string()),
-                })
-            } else if let Some(message) = message_map.get(&event_data.message_id) {
-                let mut hydrated_message = message.clone();
+                    source: Some("distance_markers_legacy".to_string()),
+                });
 
+            } else if let Some(message_from_lib) = message_map.get(message_id) {
+                // Standard library message
+                let mut hydrated_message = message_from_lib.clone();
                 if !hydrated_message.style.background_color.starts_with('#') {
                     hydrated_message.style.background_color = format!(
                         "#{}",
-                        colors::convert_vuetify_color_to_hex(
-                            &hydrated_message.style.background_color
-                        )
+                        colors::convert_vuetify_color_to_hex(&hydrated_message.style.background_color)
                     );
                 }
+                final_message = Some(hydrated_message);
+            }
+        }
 
-                Some(hydrated_message)
-            } else {
-                None
-            };
-
-        // Handle the message
-        if let Some(message) = message_opt {
-            // Add the hydrated event to the result
-            hydrated_range_events.push(HydratedRangeEvent {
+        if let Some(message) = final_message {
+             let message_id_for_event = final_message_id.unwrap_or_else(|| event_data.event_id.clone());
+             hydrated_range_events.push(HydratedRangeEvent {
                 event_id: event_data.event_id,
-                message_id: event_data.message_id,
+                message_id: message_id_for_event,
                 anchor_increment: event_data.anchor_increment,
                 start_increment: event_data.start_increment,
                 end_increment: event_data.end_increment,
@@ -224,18 +225,15 @@ pub fn hydrate_events(
                 message,
             });
         } else {
-            // Collecter l'erreur
-            let message_id_clone = event_data.message_id.clone();
-            missing_message_errors.push(MissingMessageError {
-                event_id: event_data.event_id,
-                message_id: event_data.message_id,
-                anchor_increment: event_data.anchor_increment,
-                circuit_id: circuit_id.to_string(),
-                description: format!(
-                    "Le message '{}' n'a pas été trouvé dans la bibliothèque.",
-                    message_id_clone
-                ),
-            });
+             if let Some(message_id) = event_data.message_id {
+                missing_message_errors.push(MissingMessageError {
+                    event_id: event_data.event_id,
+                    message_id: message_id.clone(),
+                    anchor_increment: event_data.anchor_increment,
+                    circuit_id: circuit_id.to_string(),
+                    description: format!("Le message '{}' n'a pas été trouvé.", message_id),
+                });
+            }
         }
     }
 
@@ -272,7 +270,8 @@ pub fn add_message_event(
 
     let new_event = RangeEventData {
         event_id: Uuid::new_v4().to_string(),
-        message_id: payload.message_id,
+        message_id: Some(payload.message_id),
+        message: None,
         anchor_increment: payload.anchor_increment,
         start_increment,
         end_increment,
