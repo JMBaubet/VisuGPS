@@ -148,6 +148,16 @@ pub struct CircuitEvt {
     pub compteurs: CircuitCompteurs,
     pub affichage: CircuitAffichage,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CircuitDistanceMarkersConfig {
+    pub intervalle: u32,
+    pub pre_affichage: u32,
+    pub post_affichage: u32,
+    pub orientation: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Circuit {
     #[serde(rename = "circuitId")]
@@ -176,6 +186,8 @@ pub struct Circuit {
     pub avancement_communes: i32,
     pub evt: CircuitEvt,
     pub zoom: CircuitZoom,
+    #[serde(rename = "distanceMarkersConfig", default, skip_serializing_if = "Option::is_none")]
+    pub distance_markers_config: Option<CircuitDistanceMarkersConfig>,
 }
 
 struct GpxMetadata {
@@ -345,6 +357,7 @@ pub fn commit_new_circuit(
                 distance: zoom_arrivee_distance,
             },
         },
+        distance_markers_config: None,
     };
 
     circuits_file.circuits.push(new_circuit.clone()); // Clone new_circuit here

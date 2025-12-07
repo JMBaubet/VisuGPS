@@ -353,21 +353,35 @@
 
           <v-row dense>
             <v-col cols="12" class="d-flex justify-space-around align-center">
-              <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
-                <span class="mr-2">Supprimer</span>
-                <v-icon icon="mdi-delete"></v-icon>
-              </v-btn>
               <v-btn :disabled="!messageToDisplay" color="primary" variant="text" @click="onAddMessage">
                 <span class="mr-2">{{ isMessageEvent ? 'Mettre à jour' : 'Ajouter Message' }}</span>
                 <v-icon>{{ isMessageEvent ? 'mdi-check' : 'mdi-plus' }}</v-icon>
+              </v-btn>
+              <v-btn v-if="isMessageEvent" color="error" variant="text" @click="onDeleteMessage">
+                <span class="mr-2">Supprimer</span>
+                <v-icon icon="mdi-delete"></v-icon>
               </v-btn>
             </v-col>
           </v-row>
 
           <v-divider class="my-2"></v-divider>
 
-          <v-row dense>
+          <v-row v-if="!isKmConfigured" dense>
             <v-col cols="12">
+              <v-btn 
+                block 
+                color="info" 
+                variant="outlined"
+                @click="emit('open-distance-markers-dialog')"
+              >
+                <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
+                Ajouter les distances
+              </v-btn>
+            </v-col>
+          </v-row>
+
+          <v-row v-else dense>
+            <v-col cols="6">
               <v-btn 
                 block 
                 color="secondary" 
@@ -375,7 +389,18 @@
                 @click="emit('open-distance-markers-dialog')"
               >
                 <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
-                Configurer les distances
+                Modifier km
+              </v-btn>
+            </v-col>
+            <v-col cols="6">
+              <v-btn 
+                block 
+                color="error" 
+                variant="outlined"
+                @click="emit('delete-distance-markers')"
+              >
+                <v-icon class="mr-2">mdi-delete</v-icon>
+                Supprimer km
               </v-btn>
             </v-col>
           </v-row>
@@ -429,6 +454,7 @@ const props = defineProps({
   messagePreAffichageSetting: Number,
   messagePostAffichageSetting: Number,
   messageOrientation: String, // New prop: 'Gauche' or 'Droite'
+  distanceMarkersConfig: { type: Object, default: null },
   // Toolbar props
   isCurrentPointControlPoint: Boolean,
   cameraSyncMode: String,
@@ -461,6 +487,7 @@ const emit = defineEmits([
   'delete-message',
   'open-message-library',
   'open-distance-markers-dialog',
+  'delete-distance-markers',
   'update:messagePreAffichageSetting',
   'update:messagePostAffichageSetting',
   'update:messageOrientation', // New emit
@@ -482,6 +509,8 @@ const emit = defineEmits([
   'update-zoom-depart',
   'update-zoom-arrivee',
 ]);
+
+const isKmConfigured = computed(() => !!props.distanceMarkersConfig);
   
 watch(mainTab, (newTab) => {
   emit('tab-changed', newTab);

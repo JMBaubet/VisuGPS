@@ -1592,6 +1592,7 @@ pub fn run() {
             // Distance markers commands
             distance_markers::generate_distance_markers,
             distance_markers::remove_distance_markers,
+            distance_markers::get_distance_markers_defaults,
             // Other commands
             trace_style::get_slope_color_expression,
             get_circuit_data,

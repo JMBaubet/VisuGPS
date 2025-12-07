@@ -8,26 +8,12 @@
 
       <v-card-text>
         <v-container>
-          <!-- Afficher les distances -->
-          <v-row>
-            <v-col cols="12">
-              <v-switch
-                v-model="config.afficher"
-                label="Afficher les bornes kilométriques"
-                color="primary"
-                hide-details
-              ></v-switch>
-            </v-col>
-          </v-row>
-
-          <v-divider class="my-4"></v-divider>
-
-          <!-- Configuration (disabled if afficher is false) -->
+          <!-- Configuration -->
           <v-row>
             <v-col cols="12">
               <v-slider
                 v-model="config.intervalle"
-                :disabled="!config.afficher"
+                
                 :label="`Intervalle : ${config.intervalle} km`"
                 :min="1"
                 :max="20"
@@ -42,7 +28,7 @@
             <v-col cols="12">
               <v-slider
                 v-model="config.preAffichage"
-                :disabled="!config.afficher"
+                
                 :label="`Pré-affichage : ${config.preAffichage} incréments`"
                 :min="0"
                 :max="20"
@@ -57,7 +43,7 @@
             <v-col cols="12">
               <v-slider
                 v-model="config.postAffichage"
-                :disabled="!config.afficher"
+                
                 :label="`Post-affichage : ${config.postAffichage} incréments`"
                 :min="0"
                 :max="20"
@@ -73,7 +59,7 @@
               <span class="mr-4">Orientation :</span>
               <v-btn-toggle
                 v-model="orientationToggle"
-                :disabled="!config.afficher"
+                
                 color="primary"
                 mandatory
               >
@@ -119,6 +105,10 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  initialConfig: {
+    type: Object,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['update:modelValue', 'updated']);
@@ -127,7 +117,6 @@ const { showSnackbar } = useSnackbar();
 
 // Configuration state
 const config = ref({
-  afficher: true,
   intervalle: 10,
   preAffichage: 10,
   postAffichage: 10,
@@ -144,47 +133,33 @@ const orientationToggle = computed({
   },
 });
 
-// Load default settings when dialog opens
+// Load settings when dialog opens
 watch(() => props.modelValue, async (isOpen) => {
   if (isOpen) {
-    await loadDefaultSettings();
+    await loadSettings();
   }
 });
 
-// Load default settings from backend
-const loadDefaultSettings = async () => {
+// Load settings from backend or initial config
+const loadSettings = async () => {
   try {
-    const settings = await invoke('read_settings');
-    
-    config.value.afficher = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'afficher')?.defaut ?? true;
-
-    config.value.intervalle = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'intervalle')?.defaut ?? 10;
-
-    config.value.preAffichage = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'preAffichage')?.defaut ?? 10;
-
-    config.value.postAffichage = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'postAffichage')?.defaut ?? 10;
-
-    const orientationDefault = settings?.data?.groupes
-      ?.find(g => g.libelle === 'Edition')?.groupes
-      ?.find(g => g.libelle === 'Distance')?.parametres
-      ?.find(p => p.identifiant === 'orientation')?.defaut ?? true;
-    
-    config.value.orientation = orientationDefault ? 'Droite' : 'Gauche';
+    if (props.initialConfig) {
+      // Use existing config if provided
+      config.value.intervalle = props.initialConfig.intervalle;
+      config.value.preAffichage = props.initialConfig.preAffichage;
+      config.value.postAffichage = props.initialConfig.postAffichage;
+      config.value.orientation = props.initialConfig.orientation;
+    } else {
+      // Load default settings from backend using the dedicated command
+      const defaults = await invoke('get_distance_markers_defaults');
+      config.value.intervalle = defaults.intervalle;
+      config.value.preAffichage = defaults.preAffichage;
+      config.value.postAffichage = defaults.postAffichage;
+      config.value.orientation = defaults.orientation;
+    }
   } catch (error) {
-    console.error('Failed to load default settings:', error);
-    showSnackbar('Erreur lors du chargement des paramètres par défaut', 'error');
+    console.error('Failed to load settings:', error);
+    showSnackbar('Erreur lors du chargement des paramètres', 'error');
   }
 };
 
@@ -192,33 +167,24 @@ const loadDefaultSettings = async () => {
 const apply = async () => {
   loading.value = true;
   try {
-    if (config.value.afficher) {
-      // Generate distance markers
-      await invoke('generate_distance_markers', {
-        circuitId: props.circuitId,
-        config: {
-          afficher: config.value.afficher,
-          intervalle: config.value.intervalle,
-          preAffichage: config.value.preAffichage,
-          postAffichage: config.value.postAffichage,
-          orientation: config.value.orientation,
-        },
-        totalDistanceKm: props.totalDistanceKm,
-      });
-      showSnackbar('Bornes kilométriques générées avec succès', 'success');
-    } else {
-      // Remove distance markers
-      await invoke('remove_distance_markers', {
-        circuitId: props.circuitId,
-      });
-      showSnackbar('Bornes kilométriques supprimées', 'info');
-    }
-
+    // Generate distance markers (no more 'afficher' switch in dialog)
+    await invoke('generate_distance_markers', {
+      circuitId: props.circuitId,
+      config: {
+        intervalle: config.value.intervalle,
+        preAffichage: config.value.preAffichage,
+        postAffichage: config.value.postAffichage,
+        orientation: config.value.orientation,
+      },
+      totalDistanceKm: props.totalDistanceKm,
+    });
+    showSnackbar('Bornes kilométriques configurées avec succès', 'success');
+    
     emit('updated');
     emit('update:modelValue', false);
   } catch (error) {
     console.error('Failed to apply distance markers configuration:', error);
-    showSnackbar(`Erreur : ${error}`, 'error');
+    showSnackbar(`Erreur lors de l\'application de la configuration : ${error}`, 'error');
   } finally {
     loading.value = false;
   }

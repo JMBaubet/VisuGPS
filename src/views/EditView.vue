@@ -120,6 +120,8 @@
         @update-zoom-depart="handleUpdateZoomDepart"
         @update-zoom-arrivee="handleUpdateZoomArrivee"
         @open-distance-markers-dialog="showDistanceMarkersDialog = true"
+        :distance-markers-config="distanceMarkersConfig"
+        @delete-distance-markers="handleDeleteDistanceMarkers"
       />
     </div>
 
@@ -139,6 +141,7 @@
       v-model="showDistanceMarkersDialog"
       :circuit-id="circuitId"
       :total-distance-km="totalLineLength"
+      :initial-config="distanceMarkersConfig"
       @updated="handleDistanceMarkersUpdated"
     />
     <ConfirmationDialog
@@ -612,6 +615,24 @@ const handleDeleteMessageEvent = async () => {
   }
 };
 
+const handleDeleteDistanceMarkers = async () => {
+  const confirmed = await askForConfirmation(
+    'Supprimer les bornes kilométriques',
+    'Voulez-vous vraiment supprimer toutes les bornes kilométriques pour ce circuit ?'
+  );
+  if (confirmed) {
+    try {
+      const updatedEventsFile = await invoke('remove_distance_markers', { circuitId: circuitId });
+      eventsFile.value = updatedEventsFile;
+      distanceMarkersConfig.value = null; // Update local state
+      showSnackbar('Bornes kilométriques supprimées avec succès', 'info');
+    } catch (error) {
+      console.error("Failed to delete distance markers:", error);
+      showSnackbar(`Erreur lors de la suppression : ${error}`, 'error');
+    }
+  }
+};
+
 const flytoDurationSetting = ref(2000);
 
 watch(trackProgress, (newProgress) => {
@@ -856,12 +877,17 @@ const handleUpdateZoomArrivee = async () => {
 };
 
 const handleDistanceMarkersUpdated = async () => {
-  // Reload events file to reflect the updated distance markers
   try {
-    const updatedEventsFile = await invoke('get_events', { circuitId });
+    // Reload both events and circuit data to reflect all changes
+    const [updatedEventsFile, updatedCircuitData] = await Promise.all([
+      invoke('get_events', { circuitId }),
+      invoke('get_circuit_data', { circuitId })
+    ]);
     eventsFile.value = updatedEventsFile;
+    distanceMarkersConfig.value = updatedCircuitData.distanceMarkersConfig || null;
   } catch (error) {
-    console.error('Failed to reload events after distance markers update:', error);
+    console.error('Failed to reload data after distance markers update:', error);
+    showSnackbar(`Erreur lors du rafraîchissement des données : ${error}`, 'error');
   }
 };
 
@@ -1318,6 +1344,8 @@ const handleKeydown = (event) => {
   }
 };
 
+const distanceMarkersConfig = ref(null);
+
 onMounted(async () => {
   if (!circuitId) {
     showSnackbar('ID du circuit manquant pour l\'édition.', 'error');
@@ -1486,6 +1514,7 @@ onMounted(async () => {
     pitchTransitionDuration.value = await getSettingValue('Edition/Evenements/Message/transitionDuree');
 
     const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
+    distanceMarkersConfig.value = circuitData.distanceMarkersConfig || null;
     zoomDepart.value = circuitData.zoom.depart.enabled;
     zoomDepartValeur.value = circuitData.zoom.depart.valeur;
     zoomDepartDistance.value = circuitData.zoom.depart.distance;

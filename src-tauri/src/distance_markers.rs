@@ -1,5 +1,5 @@
 use crate::event::{EventsFile, RangeEventData};
-use crate::{AppState, Message, MessageStyle};
+use crate::AppState;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Mutex;
@@ -11,7 +11,6 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DistanceMarkersConfig {
-    pub afficher: bool,
     pub intervalle: u32,
     pub pre_affichage: u32,
     pub post_affichage: u32,
@@ -110,10 +109,6 @@ pub fn generate_distance_marker_events(
     total_distance_km: f64,
     couleur: &str,
 ) -> Result<Vec<RangeEventData>, String> {
-    if !config.afficher {
-        return Ok(Vec::new());
-    }
-
     // Read tracking data
     let state_mutex = app_handle.state::<Mutex<AppState>>();
     let app_state = state_mutex.lock().unwrap();
@@ -172,15 +167,50 @@ pub fn generate_distance_marker_events(
 
 // --- Tauri Commands ---
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DistanceMarkersDefaults {
+    intervalle: u32,
+    pre_affichage: u32,
+    post_affichage: u32,
+    orientation: String,
+}
+
+#[tauri::command]
+pub fn get_distance_markers_defaults(app_handle: AppHandle) -> Result<DistanceMarkersDefaults, String> {
+    let state: tauri::State<Mutex<AppState>> = app_handle.state();
+    let settings = crate::read_settings(state)?;
+
+    let intervalle = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.intervalle")
+        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
+    
+    let pre_affichage = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.preAffichage")
+        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
+
+    let post_affichage = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.postAffichage")
+        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
+
+    let orientation_bool = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.orientation")
+        .and_then(|v| v.as_bool()).unwrap_or(true);
+    let orientation = if orientation_bool { "Droite".to_string() } else { "Gauche".to_string() };
+
+    Ok(DistanceMarkersDefaults {
+        intervalle,
+        pre_affichage,
+        post_affichage,
+        orientation,
+    })
+}
+
 #[tauri::command]
 pub fn generate_distance_markers(
     app_handle: AppHandle,
     circuit_id: String,
-    config: DistanceMarkersConfig,
+    config: DistanceMarkersConfig, // This config no longer has 'afficher'
     total_distance_km: f64,
 ) -> Result<crate::event::HydratedEventsFile, String> {
     let state: tauri::State<Mutex<AppState>> = app_handle.state();
-    let settings = crate::read_settings(state)?;
+    let settings = crate::read_settings(state.clone())?; // clone state for second read_settings
 
     let couleur = crate::get_setting_value(
         &settings,
@@ -189,6 +219,20 @@ pub fn generate_distance_markers(
     .and_then(|v| v.as_str())
     .unwrap_or("red")
     .to_string();
+
+    // Save config to circuits.json
+    let mut circuits_file = crate::read_circuits_file(&state.lock().unwrap().app_env_path)?;
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.distance_markers_config = Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
+            intervalle: config.intervalle,
+            pre_affichage: config.pre_affichage,
+            post_affichage: config.post_affichage,
+            orientation: config.orientation.clone(),
+        });
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+    crate::write_circuits_file(&state.lock().unwrap().app_env_path, &circuits_file)?;
 
     // Read current events
     let mut events_file = crate::event::read_events(&app_handle, &circuit_id)?;
@@ -200,7 +244,7 @@ pub fn generate_distance_markers(
     let new_markers = generate_distance_marker_events(
         &app_handle,
         &circuit_id,
-        &config,
+        &config, // Pass config as is (without 'afficher')
         total_distance_km,
         &couleur,
     )?;
@@ -220,6 +264,17 @@ pub fn remove_distance_markers(
     app_handle: AppHandle,
     circuit_id: String,
 ) -> Result<crate::event::HydratedEventsFile, String> {
+    let state: tauri::State<Mutex<AppState>> = app_handle.state();
+
+    // Remove config from circuits.json
+    let mut circuits_file = crate::read_circuits_file(&state.lock().unwrap().app_env_path)?;
+    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+        circuit.distance_markers_config = None;
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+    crate::write_circuits_file(&state.lock().unwrap().app_env_path, &circuits_file)?;
+
     // Read current events
     let mut events_file = crate::event::read_events(&app_handle, &circuit_id)?;
 
