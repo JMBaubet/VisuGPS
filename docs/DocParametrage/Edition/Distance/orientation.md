@@ -6,12 +6,12 @@ Détermine le côté de la trace où les messages de distance sont affichés.
 
 ## Valeur par défaut
 
-`true` (Droite)
+`true` (Gauche)
 
 ## Valeurs possibles
 
-- **true** : Les messages s'affichent à droite de la trace
-- **false** : Les messages s'affichent à gauche de la trace
+- **true** : Les messages s'affichent à gauche de la trace
+- **false** : Les messages s'affichent à droite de la trace
 
 ## Utilisation
 

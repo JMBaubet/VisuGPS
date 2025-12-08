@@ -862,8 +862,8 @@
               },
               {
                 "identifiant": "orientation",
-                "libelle": "Orientation à droite",
-                "description": "Si activé, les messages s'affichent à droite, sinon à gauche.",
+                "libelle": "Orientation à gauche",
+                "description": "Si activé, les messages s'affichent à gauche, sinon à droite.",
                 "type": "booleen",
                 "defaut": true,
                 "doc": "docs/DocParametrage/Edition/Distance/orientation.md"

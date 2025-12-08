@@ -177,22 +177,44 @@ pub struct DistanceMarkersDefaults {
 }
 
 #[tauri::command]
-pub fn get_distance_markers_defaults(app_handle: AppHandle) -> Result<DistanceMarkersDefaults, String> {
+pub fn get_distance_markers_defaults(
+    app_handle: AppHandle,
+) -> Result<DistanceMarkersDefaults, String> {
     let state: tauri::State<Mutex<AppState>> = app_handle.state();
     let settings = crate::read_settings(state)?;
 
-    let intervalle = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.intervalle")
-        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
-    
-    let pre_affichage = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.preAffichage")
-        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
+    let intervalle = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.intervalle",
+    )
+    .and_then(|v| v.as_u64())
+    .unwrap_or(10) as u32;
 
-    let post_affichage = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.postAffichage")
-        .and_then(|v| v.as_u64()).unwrap_or(10) as u32;
+    let pre_affichage = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.preAffichage",
+    )
+    .and_then(|v| v.as_u64())
+    .unwrap_or(10) as u32;
 
-    let orientation_bool = crate::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.orientation")
-        .and_then(|v| v.as_bool()).unwrap_or(true);
-    let orientation = if orientation_bool { "Droite".to_string() } else { "Gauche".to_string() };
+    let post_affichage = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.postAffichage",
+    )
+    .and_then(|v| v.as_u64())
+    .unwrap_or(10) as u32;
+
+    let orientation_bool = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.orientation",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(true);
+    let orientation = if orientation_bool {
+        "Gauche".to_string()
+    } else {
+        "Droite".to_string()
+    };
 
     Ok(DistanceMarkersDefaults {
         intervalle,
@@ -222,13 +244,18 @@ pub fn generate_distance_markers(
 
     // Save config to circuits.json
     let mut circuits_file = crate::read_circuits_file(&state.lock().unwrap().app_env_path)?;
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
-        circuit.distance_markers_config = Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
-            intervalle: config.intervalle,
-            pre_affichage: config.pre_affichage,
-            post_affichage: config.post_affichage,
-            orientation: config.orientation.clone(),
-        });
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
+        circuit.distance_markers_config =
+            Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
+                intervalle: config.intervalle,
+                pre_affichage: config.pre_affichage,
+                post_affichage: config.post_affichage,
+                orientation: config.orientation.clone(),
+            });
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
     }
@@ -268,7 +295,11 @@ pub fn remove_distance_markers(
 
     // Remove config from circuits.json
     let mut circuits_file = crate::read_circuits_file(&state.lock().unwrap().app_env_path)?;
-    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
         circuit.distance_markers_config = None;
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
