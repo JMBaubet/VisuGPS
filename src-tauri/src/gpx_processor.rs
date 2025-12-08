@@ -1,32 +1,35 @@
-use serde::{Deserialize, Serialize};
-use regex::Regex;
-use std::fs;
-use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Utc};
+use geo::{prelude::*, LineString as GeoLineString, Point};
+use image::ImageFormat;
+use local_ip_address::local_ip;
+use qrcode::QrCode;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
-use chrono::{DateTime, Utc};
-use geo::{LineString as GeoLineString, Point, prelude::*};
-use uuid::Uuid;
-use std::sync::Mutex;
-use qrcode::QrCode;
-use image::ImageFormat;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::io::Cursor;
-use base64::{Engine as _, engine::general_purpose};
-use local_ip_address::local_ip;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use tauri::{AppHandle, Manager};
+use uuid::Uuid;
 
-use crate::tracking_processor;
-use super::{AppState, CircuitsFile, Editor, Ville, get_setting_value};
+use super::{get_setting_value, AppState, CircuitsFile, Editor, Ville};
 use crate::distance_markers;
 use crate::event;
+use crate::tracking_processor;
 
 #[tauri::command]
 pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
-    let code = QrCode::new(url.as_bytes()).map_err(|e| format!("Erreur lors de la création du QR code: {}", e))?;
+    let code = QrCode::new(url.as_bytes())
+        .map_err(|e| format!("Erreur lors de la création du QR code: {}", e))?;
     let image = code.render::<image::Luma<u8>>().build();
 
     let mut buf = Cursor::new(Vec::new());
-    image.write_to(&mut buf, ImageFormat::Png).map_err(|e| format!("Erreur lors de l'écriture du PNG: {}", e))?;
+    image
+        .write_to(&mut buf, ImageFormat::Png)
+        .map_err(|e| format!("Erreur lors de l'écriture du PNG: {}", e))?;
     let png_data = buf.into_inner();
 
     let base64_string = general_purpose::STANDARD.encode(&png_data);
@@ -48,16 +51,19 @@ pub fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
 
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value =
+        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    let remote_port = get_setting_value(&settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
-        .and_then(|v| v.as_i64())
-        .map(|p| p as u16)
-        .unwrap_or(9001);
+    let remote_port = get_setting_value(
+        &settings,
+        "data.groupes.Système.groupes.Télécommande.parametres.Port",
+    )
+    .and_then(|v| v.as_i64())
+    .map(|p| p as u16)
+    .unwrap_or(9001);
 
     Ok(format!("http://{}:{}/remote", my_local_ip, remote_port))
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -158,6 +164,8 @@ pub struct CircuitDistanceMarkersConfig {
     pub pre_affichage: u32,
     pub post_affichage: u32,
     pub orientation: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub couleur: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -188,7 +196,11 @@ pub struct Circuit {
     pub avancement_communes: i32,
     pub evt: CircuitEvt,
     pub zoom: CircuitZoom,
-    #[serde(rename = "distanceMarkersConfig", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "distanceMarkersConfig",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub distance_markers_config: Option<CircuitDistanceMarkersConfig>,
 }
 
@@ -201,47 +213,66 @@ struct GpxMetadata {
     link: Option<String>,
 }
 
-pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<DraftCircuit, String> {
+pub async fn analyze_gpx_file(
+    app_handle: &AppHandle,
+    filename: &str,
+) -> Result<DraftCircuit, String> {
     let app_env_path = {
         let state_mutex = app_handle.state::<Mutex<AppState>>();
         let app_state = state_mutex.lock().unwrap();
         app_state.app_env_path.clone()
     };
-    
+
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value =
+        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    let mapbox_token = super::get_setting_value(&settings, "data.groupes.Système.groupes.Tokens.parametres.mapbox")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "Token Mapbox non trouvé".to_string())?;
+    let mapbox_token = super::get_setting_value(
+        &settings,
+        "data.groupes.Système.groupes.Tokens.parametres.mapbox",
+    )
+    .and_then(|v| v.as_str())
+    .map(|s| s.to_string())
+    .ok_or_else(|| "Token Mapbox non trouvé".to_string())?;
 
     let gpx_dir_path = get_gpx_directory(&settings)?;
     let file_path = gpx_dir_path.join(filename);
 
     if !file_path.exists() {
-        return Err(format!("Le fichier GPX '{}' n\'a pas été trouvé.", filename));
+        return Err(format!(
+            "Le fichier GPX '{}' n\'a pas été trouvé.",
+            filename
+        ));
     }
 
     let (metadata, track_points) = extract_gpx_data(&file_path)?;
 
     // --- Start of new code for duplicate check ---
     let circuits_file = super::read_circuits_file(&app_env_path)?;
-    let gpx_name = metadata.name.clone().unwrap_or_else(|| filename.to_string());
+    let gpx_name = metadata
+        .name
+        .clone()
+        .unwrap_or_else(|| filename.to_string());
 
     if circuits_file.circuits.iter().any(|c| c.nom == gpx_name) {
-        return Err(format!("Un circuit avec le nom '{}' existe déjà.", gpx_name));
+        return Err(format!(
+            "Un circuit avec le nom '{}' existe déjà.",
+            gpx_name
+        ));
     }
     // --- End of new code for duplicate check ---
 
-    let rounded_track_points: Vec<Vec<f64>> = track_points.iter().map(|point| {
-        vec![
-            (point[0] * 100_000.0).round() / 100_000.0,
-            (point[1] * 100_000.0).round() / 100_000.0, 
-            (point[2] * 10.0).round() / 10.0,         
-        ]
-    }).collect();
+    let rounded_track_points: Vec<Vec<f64>> = track_points
+        .iter()
+        .map(|point| {
+            vec![
+                (point[0] * 100_000.0).round() / 100_000.0,
+                (point[1] * 100_000.0).round() / 100_000.0,
+                (point[2] * 10.0).round() / 10.0,
+            ]
+        })
+        .collect();
 
     let editor_name = identify_editor_from_creator(metadata.creator.as_deref().unwrap_or_default());
 
@@ -250,7 +281,10 @@ pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
         let re = Regex::new(r"COURSE_(\d+)").unwrap();
         if let Some(caps) = re.captures(filename) {
             if let Some(course_id) = caps.get(1) {
-                url = format!("https://connect.garmin.com/modern/course/{}", course_id.as_str());
+                url = format!(
+                    "https://connect.garmin.com/modern/course/{}",
+                    course_id.as_str()
+                );
             }
         }
     }
@@ -258,11 +292,16 @@ pub async fn analyze_gpx_file(app_handle: &AppHandle, filename: &str) -> Result<
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
-    let ville_nom = get_city_name_from_coords(lon_depart, lat_depart, &mapbox_token).await.unwrap_or_else(|_| "Inconnue".to_string());
+    let ville_nom = get_city_name_from_coords(lon_depart, lat_depart, &mapbox_token)
+        .await
+        .unwrap_or_else(|_| "Inconnue".to_string());
 
-    let smoothing_distance = super::get_setting_value(&settings, "data.groupes.Importation.parametres.denivele_lissage_distance")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(10) as f64;
+    let smoothing_distance = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.parametres.denivele_lissage_distance",
+    )
+    .and_then(|v| v.as_i64())
+    .unwrap_or(10) as f64;
 
     let stats = calculate_track_stats(&rounded_track_points, smoothing_distance);
 
@@ -306,27 +345,46 @@ pub fn commit_new_circuit(
     let new_circuit_id = format!("circ-{:04}", circuits_file.index_circuits + 1);
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value =
+        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    let zoom_depart_enabled = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepart")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-    let zoom_depart_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartValeur")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(18.0);
-    let zoom_depart_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartDistance")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(20) as i32;
+    let zoom_depart_enabled = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepart",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(true);
+    let zoom_depart_valeur = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartValeur",
+    )
+    .and_then(|v| v.as_f64())
+    .unwrap_or(18.0);
+    let zoom_depart_distance = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartDistance",
+    )
+    .and_then(|v| v.as_i64())
+    .unwrap_or(20) as i32;
 
-    let zoom_arrivee_enabled = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomArrivee")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-    let zoom_arrivee_valeur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.zoomArriveeValeur")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(18.0);
-    let zoom_arrivee_distance = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Caméra.parametres.distanceZoomArrivee")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(20) as i32;
+    let zoom_arrivee_enabled = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.zoomArrivee",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(true);
+    let zoom_arrivee_valeur = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.zoomArriveeValeur",
+    )
+    .and_then(|v| v.as_f64())
+    .unwrap_or(18.0);
+    let zoom_arrivee_distance = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Caméra.parametres.distanceZoomArrivee",
+    )
+    .and_then(|v| v.as_i64())
+    .unwrap_or(20) as i32;
 
     let new_circuit = Circuit {
         circuit_id: new_circuit_id.clone(),
@@ -340,12 +398,20 @@ pub fn commit_new_circuit(
         depart: draft.depart,
         sommet: draft.sommet,
         iso_date_time: draft.iso_date_time,
-        tracking_km: 0.0, // Initialized to 0.0
+        tracking_km: 0.0,    // Initialized to 0.0
         nom_communes: false, // Initialized to false
         avancement_communes: 0,
         evt: CircuitEvt {
-            compteurs: CircuitCompteurs { zoom: 0, pause: 0, info: 0 },
-            affichage: CircuitAffichage { depart: true, arrivee: true, marqueurs_10km: true },
+            compteurs: CircuitCompteurs {
+                zoom: 0,
+                pause: 0,
+                info: 0,
+            },
+            affichage: CircuitAffichage {
+                depart: true,
+                arrivee: true,
+                marqueurs_10km: true,
+            },
         },
         zoom: CircuitZoom {
             depart: CircuitZoomParam {
@@ -371,25 +437,35 @@ pub fn commit_new_circuit(
     if !new_circuit.url.is_empty() {
         let settings_path = app_env_path.join("settings.json");
         let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-        let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+        let settings: serde_json::Value =
+            serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-        let qrcode_size = super::get_setting_value(&settings, "data.groupes.Importation.groupes.QRCode.parametres.taille")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(512) as u32; // Default to 512 if not found or invalid
+        let qrcode_size = super::get_setting_value(
+            &settings,
+            "data.groupes.Importation.groupes.QRCode.parametres.taille",
+        )
+        .and_then(|v| v.as_u64())
+        .unwrap_or(512) as u32; // Default to 512 if not found or invalid
 
-        let code = QrCode::new(&new_circuit.url).map_err(|e| format!("Failed to create QR code: {}", e))?;
+        let code = QrCode::new(&new_circuit.url)
+            .map_err(|e| format!("Failed to create QR code: {}", e))?;
         let luma_buf = code
-          .render::<image::Luma<u8>>()
-         .module_dimensions(qrcode_size / code.width() as u32, qrcode_size / code.width() as u32) // Calculate module size
-          .build();
+            .render::<image::Luma<u8>>()
+            .module_dimensions(
+                qrcode_size / code.width() as u32,
+                qrcode_size / code.width() as u32,
+            ) // Calculate module size
+            .build();
 
         let image = image::DynamicImage::ImageLuma8(luma_buf).to_rgba8();
 
-
         let circuit_data_dir = app_env_path.join("data").join(&new_circuit_id);
-        fs::create_dir_all(&circuit_data_dir).map_err(|e| format!("Failed to create circuit data directory: {}", e))?;
+        fs::create_dir_all(&circuit_data_dir)
+            .map_err(|e| format!("Failed to create circuit data directory: {}", e))?;
         let qrcode_path = circuit_data_dir.join("urlQrcode.png");
-        image.save(&qrcode_path).map_err(|e| format!("Failed to save QR code image: {}", e))?;
+        image
+            .save(&qrcode_path)
+            .map_err(|e| format!("Failed to save QR code image: {}", e))?;
     }
     // --- End of new code for QR code generation ---
 
@@ -397,31 +473,44 @@ pub fn commit_new_circuit(
 
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value =
+        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    tracking_processor::generate_tracking_file(&app_env_path, &new_circuit_id, &draft.track_points, &settings)?;
+    tracking_processor::generate_tracking_file(
+        &app_env_path,
+        &new_circuit_id,
+        &draft.track_points,
+        &settings,
+    )?;
 
     // Auto-add distance markers if setting is true
-    let auto_add_distance_markers = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.ajouter")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false); // Default to false if setting is missing
+    let auto_add_distance_markers = super::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.ajouter",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(false); // Default to false if setting is missing
 
     if auto_add_distance_markers {
         let dm_defaults = distance_markers::get_distance_markers_defaults(app_handle.clone())?;
-        
+
         // Create DistanceMarkersConfig for event generation
         let dm_config_for_events = distance_markers::DistanceMarkersConfig {
             intervalle: dm_defaults.intervalle,
             pre_affichage: dm_defaults.pre_affichage,
             post_affichage: dm_defaults.post_affichage,
             orientation: dm_defaults.orientation.clone(),
+            couleur: dm_defaults.couleur.clone(),
         };
 
         // Get couleur from settings (same logic as in generate_distance_markers command)
-        let dm_couleur = super::get_setting_value(&settings, "data.groupes.Edition.groupes.Distance.parametres.couleur")
-            .and_then(|v| v.as_str())
-            .unwrap_or("red")
-            .to_string();
+        let dm_couleur = super::get_setting_value(
+            &settings,
+            "data.groupes.Edition.groupes.Distance.parametres.couleur",
+        )
+        .and_then(|v| v.as_str())
+        .unwrap_or("red")
+        .to_string();
 
         // Generate events
         let generated_dm_events = distance_markers::generate_distance_marker_events(
@@ -433,13 +522,19 @@ pub fn commit_new_circuit(
         )?;
 
         // Update circuit's distance_markers_config in circuits_file (which is mutable)
-        if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == new_circuit_id) {
-            circuit.distance_markers_config = Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
-                intervalle: dm_config_for_events.intervalle,
-                pre_affichage: dm_config_for_events.pre_affichage,
-                post_affichage: dm_config_for_events.post_affichage,
-                orientation: dm_config_for_events.orientation,
-            });
+        if let Some(circuit) = circuits_file
+            .circuits
+            .iter_mut()
+            .find(|c| c.circuit_id == new_circuit_id)
+        {
+            circuit.distance_markers_config =
+                Some(crate::gpx_processor::CircuitDistanceMarkersConfig {
+                    intervalle: dm_config_for_events.intervalle,
+                    pre_affichage: dm_config_for_events.pre_affichage,
+                    post_affichage: dm_config_for_events.post_affichage,
+                    orientation: dm_config_for_events.orientation,
+                    couleur: Some(dm_couleur),
+                });
         }
         // Write circuits_file again to persist the distance_markers_config
         super::write_circuits_file(&app_env_path, &circuits_file)?;
@@ -449,24 +544,33 @@ pub fn commit_new_circuit(
         events_file.range_events.extend(generated_dm_events);
         event::write_events(app_handle, &new_circuit_id, &events_file)?;
     }
-    
+
     Ok(new_circuit_id)
 }
 
-fn resolve_editor_id(circuits_file: &mut CircuitsFile, editor_name: &str) -> Result<String, String> {
-    if let Some(editor) = circuits_file.editeurs.iter().find(|e| e.nom.eq_ignore_ascii_case(editor_name)) {
+fn resolve_editor_id(
+    circuits_file: &mut CircuitsFile,
+    editor_name: &str,
+) -> Result<String, String> {
+    if let Some(editor) = circuits_file
+        .editeurs
+        .iter()
+        .find(|e| e.nom.eq_ignore_ascii_case(editor_name))
+    {
         Ok(editor.id.clone())
     } else {
         if editor_name.is_empty() || editor_name == "Inconnu" {
             return Ok("ed-0000".to_string()); // Specific ID for "Inconnu"
         }
-        let max_id = circuits_file.editeurs.iter()
+        let max_id = circuits_file
+            .editeurs
+            .iter()
             .filter_map(|e| e.id.strip_prefix("ed-").and_then(|s| s.parse::<i32>().ok()))
             .max()
             .unwrap_or(0);
-        
+
         let new_id = format!("ed-{:04}", max_id + 1);
-        
+
         let new_editor = Editor {
             id: new_id.clone(),
             nom: editor_name.to_string(),
@@ -490,15 +594,16 @@ fn resolve_ville_id(circuits_file: &mut CircuitsFile, ville_nom: &str) -> Result
     }
 }
 
-
 fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
-    let gpx_dir_setting = super::get_setting_value(settings, "data.groupes.Importation.parametres.GPXFile")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "Configuration du dossier GPX introuvable.".to_string())?;
+    let gpx_dir_setting =
+        super::get_setting_value(settings, "data.groupes.Importation.parametres.GPXFile")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Configuration du dossier GPX introuvable.".to_string())?;
 
     if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
-        dirs::download_dir().ok_or_else(|| "Impossible de trouver le dossier de téléchargement.".to_string())
+        dirs::download_dir()
+            .ok_or_else(|| "Impossible de trouver le dossier de téléchargement.".to_string())
     } else {
         Ok(PathBuf::from(gpx_dir_setting))
     }
@@ -535,20 +640,26 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
                 path.push(e.name().as_ref().to_vec());
-                let current_path_str = path.iter().map(|p| std::str::from_utf8(p).unwrap_or("")).collect::<Vec<&str>>().join("/");
+                let current_path_str = path
+                    .iter()
+                    .map(|p| std::str::from_utf8(p).unwrap_or(""))
+                    .collect::<Vec<&str>>()
+                    .join("/");
 
                 match current_path_str.as_str() {
                     "gpx" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 if attr.key.as_ref() == b"creator" {
-                                    if let Ok(val) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    if let Ok(val) =
+                                        attr.decode_and_unescape_value(reader.decoder())
+                                    {
                                         metadata.creator = Some(val.into_owned());
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/metadata/name" | "gpx/trk/name" => {
                         if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
                             if let Ok(name) = t.unescape() {
@@ -557,38 +668,42 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/metadata/copyright/license" => {
                         if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
                             if let Ok(license) = t.unescape() {
                                 link_from_license = Some(license.to_string());
                             }
                         }
-                    },
+                    }
                     "gpx/metadata/link" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 if attr.key.as_ref() == b"href" {
-                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    if let Ok(link) =
+                                        attr.decode_and_unescape_value(reader.decoder())
+                                    {
                                         link_from_meta = Some(link.into_owned());
                                         break;
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/trk/link" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 if attr.key.as_ref() == b"href" {
-                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    if let Ok(link) =
+                                        attr.decode_and_unescape_value(reader.decoder())
+                                    {
                                         link_from_trk = Some(link.into_owned());
                                         break;
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/metadata/time" => {
                         if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
                             if let Ok(time_str) = t.unescape() {
@@ -597,14 +712,24 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/trk/trkseg/trkpt" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 match attr.key.as_ref() {
-                                    b"lat" => current_lat = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
-                                    b"lon" => current_lon = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
-                                    _ => {},
+                                    b"lat" => {
+                                        current_lat = attr
+                                            .decode_and_unescape_value(reader.decoder())
+                                            .ok()
+                                            .and_then(|v| v.parse().ok())
+                                    }
+                                    b"lon" => {
+                                        current_lon = attr
+                                            .decode_and_unescape_value(reader.decoder())
+                                            .ok()
+                                            .and_then(|v| v.parse().ok())
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -612,7 +737,7 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                             metadata.first_point_lat = current_lat;
                             metadata.first_point_lon = current_lon;
                         }
-                    },
+                    }
                     "gpx/trk/trkseg/trkpt/ele" => {
                         if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
                             if let (Some(lat), Some(lon)) = (current_lat, current_lon) {
@@ -625,45 +750,63 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                                 }
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
-            },
+            }
             Ok(Event::Empty(e)) => {
                 path.push(e.name().as_ref().to_vec());
-                let current_path_str = path.iter().map(|p| std::str::from_utf8(p).unwrap_or("")).collect::<Vec<&str>>().join("/");
+                let current_path_str = path
+                    .iter()
+                    .map(|p| std::str::from_utf8(p).unwrap_or(""))
+                    .collect::<Vec<&str>>()
+                    .join("/");
                 match current_path_str.as_str() {
                     "gpx/metadata/link" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 if attr.key.as_ref() == b"href" {
-                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    if let Ok(link) =
+                                        attr.decode_and_unescape_value(reader.decoder())
+                                    {
                                         link_from_meta = Some(link.into_owned());
                                         break;
                                     }
                                 }
                             }
                         }
-                    },
+                    }
                     "gpx/trk/link" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 if attr.key.as_ref() == b"href" {
-                                    if let Ok(link) = attr.decode_and_unescape_value(reader.decoder()) {
+                                    if let Ok(link) =
+                                        attr.decode_and_unescape_value(reader.decoder())
+                                    {
                                         link_from_trk = Some(link.into_owned());
                                         break;
                                     }
                                 }
                             }
                         }
-                    },
-                     "gpx/trk/trkseg/trkpt" => {
+                    }
+                    "gpx/trk/trkseg/trkpt" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 match attr.key.as_ref() {
-                                    b"lat" => current_lat = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
-                                    b"lon" => current_lon = attr.decode_and_unescape_value(reader.decoder()).ok().and_then(|v| v.parse().ok()),
-                                    _ => {},
+                                    b"lat" => {
+                                        current_lat = attr
+                                            .decode_and_unescape_value(reader.decoder())
+                                            .ok()
+                                            .and_then(|v| v.parse().ok())
+                                    }
+                                    b"lon" => {
+                                        current_lon = attr
+                                            .decode_and_unescape_value(reader.decoder())
+                                            .ok()
+                                            .and_then(|v| v.parse().ok())
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
@@ -673,19 +816,19 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                         }
                         // This is a self-closing trkpt, it won't have an ele child, so we might need to handle that if ele is an attribute.
                         // Assuming ele is always a separate tag for now.
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
                 path.pop(); // Pop immediately for empty tags
-            },
+            }
             Ok(Event::End(e)) => {
                 if !path.is_empty() && path.last().unwrap() == e.name().as_ref() {
                     path.pop();
                 }
-            },
+            }
             Ok(Event::Eof) => break,
             Err(e) => return Err(format!("Erreur de parsing XML: {}", e)),
-            _ => {},
+            _ => {}
         }
         buf.clear();
     }
@@ -708,7 +851,7 @@ fn get_url_from_metadata(metadata: &GpxMetadata, editor_name: &str) -> String {
                         return format!("https://www.openrunner.com/route-details/{}", number);
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -733,11 +876,20 @@ fn identify_editor_from_creator(creator: &str) -> String {
     }
 }
 
-fn create_line_string_file(app_env_path: &Path, circuit_id: &str, track_points: &Vec<Vec<f64>>) -> Result<(), String> {
+fn create_line_string_file(
+    app_env_path: &Path,
+    circuit_id: &str,
+    track_points: &Vec<Vec<f64>>,
+) -> Result<(), String> {
     let data_dir = app_env_path.join("data");
     let circuit_data_dir = data_dir.join(circuit_id);
 
-    fs::create_dir_all(&circuit_data_dir).map_err(|e| format!("Impossible de créer le dossier de données du circuit: {}", e))?;
+    fs::create_dir_all(&circuit_data_dir).map_err(|e| {
+        format!(
+            "Impossible de créer le dossier de données du circuit: {}",
+            e
+        )
+    })?;
 
     let linestring_path = circuit_data_dir.join("lineString.json");
 
@@ -746,7 +898,8 @@ fn create_line_string_file(app_env_path: &Path, circuit_id: &str, track_points: 
         coordinates: track_points.clone(),
     };
 
-    let linestring_content = serde_json::to_string_pretty(&linestring_data).map_err(|e| e.to_string())?;
+    let linestring_content =
+        serde_json::to_string_pretty(&linestring_data).map_err(|e| e.to_string())?;
     fs::write(&linestring_path, linestring_content).map_err(|e| e.to_string())
 }
 
@@ -780,7 +933,7 @@ fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64
     }
 
     for i in 1..track_points.len() {
-        let p1 = track_points[i-1].as_slice();
+        let p1 = track_points[i - 1].as_slice();
         let p2 = track_points[i].as_slice();
 
         let point1_geo = Point::new(p1[0], p1[1]);
@@ -812,12 +965,19 @@ fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64
     }
 }
 
-async fn get_city_name_from_coords(lon: f64, lat: f64, mapbox_token: &str) -> Result<String, String> {
+async fn get_city_name_from_coords(
+    lon: f64,
+    lat: f64,
+    mapbox_token: &str,
+) -> Result<String, String> {
     let client = reqwest::Client::new();
     let mut city_name: Option<String> = None;
 
     // 1. Try geo.api.gouv.fr API
-    let url = format!("https://geo.api.gouv.fr/communes?lat={}&lon={}&fields=nom", lat, lon);
+    let url = format!(
+        "https://geo.api.gouv.fr/communes?lat={}&lon={}&fields=nom",
+        lat, lon
+    );
     if let Ok(response) = client.get(&url).send().await {
         if response.status().is_success() {
             if let Ok(data) = response.json::<Vec<Commune>>().await {
@@ -851,14 +1011,11 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     let d_lon = (lon2 - lon1).to_radians();
 
     let a = (d_lat / 2.0).sin() * (d_lat / 2.0).sin()
-        + lat1.to_radians().cos() * lat2.to_radians().cos()
-        * (d_lon / 2.0).sin() * (d_lon / 2.0).sin();
+        + lat1.to_radians().cos()
+            * lat2.to_radians().cos()
+            * (d_lon / 2.0).sin()
+            * (d_lon / 2.0).sin();
     let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
 
     r * c
 }
-
-
-
-
-

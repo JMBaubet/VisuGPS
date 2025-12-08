@@ -15,6 +15,8 @@ pub struct DistanceMarkersConfig {
     pub pre_affichage: u32,
     pub post_affichage: u32,
     pub orientation: String,
+    // Add couleur field, optional to maintain backward compatibility or allow default
+    pub couleur: Option<String>,
 }
 
 // --- Utility Functions ---
@@ -174,6 +176,7 @@ pub struct DistanceMarkersDefaults {
     pub pre_affichage: u32,
     pub post_affichage: u32,
     pub orientation: String,
+    pub couleur: Option<String>,
 }
 
 #[tauri::command]
@@ -216,11 +219,19 @@ pub fn get_distance_markers_defaults(
         "Droite".to_string()
     };
 
+    let couleur = crate::get_setting_value(
+        &settings,
+        "data.groupes.Edition.groupes.Distance.parametres.couleur",
+    )
+    .and_then(|v| v.as_str())
+    .map(|s| s.to_string());
+
     Ok(DistanceMarkersDefaults {
         intervalle,
         pre_affichage,
         post_affichage,
         orientation,
+        couleur,
     })
 }
 
@@ -242,6 +253,9 @@ pub fn generate_distance_markers(
     .unwrap_or("red")
     .to_string();
 
+    // Use color from config if available, otherwise use default from settings
+    let final_couleur = config.couleur.clone().unwrap_or(couleur);
+
     // Save config to circuits.json
     let mut circuits_file = crate::read_circuits_file(&state.lock().unwrap().app_env_path)?;
     if let Some(circuit) = circuits_file
@@ -255,6 +269,7 @@ pub fn generate_distance_markers(
                 pre_affichage: config.pre_affichage,
                 post_affichage: config.post_affichage,
                 orientation: config.orientation.clone(),
+                couleur: config.couleur.clone(),
             });
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
@@ -273,7 +288,7 @@ pub fn generate_distance_markers(
         &circuit_id,
         &config, // Pass config as is (without 'afficher')
         total_distance_km,
-        &couleur,
+        &final_couleur,
     )?;
 
     // Add new markers to events

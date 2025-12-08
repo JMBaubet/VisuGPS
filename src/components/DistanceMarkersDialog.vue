@@ -74,6 +74,25 @@
               </v-btn-toggle>
             </v-col>
           </v-row>
+
+          <v-row>
+            <v-col cols="12">
+               <v-label class="text-caption font-weight-light mb-1">Couleur des messages :</v-label>
+               <v-color-picker
+                v-model="selectedColorHex"
+                mode="hex"
+                :swatches="materialSwatches"
+                hide-alpha
+                hide-eye-dropper
+                show-swatches
+                hide-inputs
+                class="mx-auto"
+              ></v-color-picker>
+              <div v-if="selectedColorName" class="mt-2 text-center text-caption">
+                Couleur sélectionnée : {{ selectedColorName }}
+              </div>
+            </v-col>
+          </v-row>
         </v-container>
       </v-card-text>
 
@@ -94,6 +113,7 @@
 import { ref, computed, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -114,6 +134,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'updated']);
 
 const { showSnackbar } = useSnackbar();
+const { toHex, toName, swatches: materialSwatches } = useVuetifyColors();
 
 // Configuration state
 const config = ref({
@@ -121,6 +142,13 @@ const config = ref({
   preAffichage: 10,
   postAffichage: 10,
   orientation: 'Droite',
+});
+
+// Color state
+const selectedColorHex = ref('#F44336'); // Default red
+
+const selectedColorName = computed(() => {
+  return toName(selectedColorHex.value);
 });
 
 const loading = ref(false);
@@ -149,6 +177,11 @@ const loadSettings = async () => {
       config.value.preAffichage = props.initialConfig.preAffichage;
       config.value.postAffichage = props.initialConfig.postAffichage;
       config.value.orientation = props.initialConfig.orientation;
+      // Try to load color if available, default to red (or fetch default if we want to be precise)
+      // Since initialConfig comes from backend which stores "couleur" string name
+       if (props.initialConfig.couleur) {
+          selectedColorHex.value = toHex(props.initialConfig.couleur);
+       }
     } else {
       // Load default settings from backend using the dedicated command
       const defaults = await invoke('get_distance_markers_defaults');
@@ -156,6 +189,9 @@ const loadSettings = async () => {
       config.value.preAffichage = defaults.preAffichage;
       config.value.postAffichage = defaults.postAffichage;
       config.value.orientation = defaults.orientation;
+      if (defaults.couleur) {
+        selectedColorHex.value = toHex(defaults.couleur);
+      }
     }
   } catch (error) {
     console.error('Failed to load settings:', error);
@@ -175,6 +211,7 @@ const apply = async () => {
         preAffichage: config.value.preAffichage,
         postAffichage: config.value.postAffichage,
         orientation: config.value.orientation,
+        couleur: selectedColorName.value, // Pass the color name
       },
       totalDistanceKm: props.totalDistanceKm,
     });
@@ -184,7 +221,7 @@ const apply = async () => {
     emit('update:modelValue', false);
   } catch (error) {
     console.error('Failed to apply distance markers configuration:', error);
-    showSnackbar(`Erreur lors de l\'application de la configuration : ${error}`, 'error');
+    showSnackbar(`Erreur lors de l'application de la configuration : ${error}`, 'error');
   } finally {
     loading.value = false;
   }
