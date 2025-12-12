@@ -215,7 +215,7 @@ const apply = async () => {
       },
       totalDistanceKm: props.totalDistanceKm,
     });
-    showSnackbar('Bornes kilométriques configurées avec succès', 'success');
+    // showSnackbar('Bornes kilométriques configurées avec succès', 'success');
     
     emit('updated');
     emit('update:modelValue', false);

@@ -625,7 +625,7 @@ const handleDeleteDistanceMarkers = async () => {
       const updatedEventsFile = await invoke('remove_distance_markers', { circuitId: circuitId });
       eventsFile.value = updatedEventsFile;
       distanceMarkersConfig.value = null; // Update local state
-      showSnackbar('Bornes kilométriques supprimées avec succès', 'info');
+      // showSnackbar('Bornes kilométriques supprimées avec succès', 'info');
     } catch (error) {
       console.error("Failed to delete distance markers:", error);
       showSnackbar(`Erreur lors de la suppression : ${error}`, 'error');
