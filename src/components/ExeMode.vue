@@ -192,7 +192,14 @@ const createMode = async () => {
     });
 
     if (shouldRestart) {
-      await relaunch();
+      if (import.meta.env.DEV) {
+        showSnackbar('Redémarrage requis. En mode DEV, veuillez relancer la commande "npm run tauri dev".', 'error', 30000);
+        setTimeout(async () => {
+             await exit(0);
+        }, 30000);
+      } else {
+        await relaunch();
+      }
     }
 
   } catch (error) {
@@ -231,7 +238,14 @@ const selectMode = async (modeName) => {
     });
 
     if (shouldRestart) {
-      await relaunch();
+      if (import.meta.env.DEV) {
+        showSnackbar('Redémarrage requis. En mode DEV, veuillez relancer la commande "npm run tauri dev".', 'error', 30000);
+        setTimeout(async () => {
+             await exit(0);
+        }, 30000);
+      } else {
+        await relaunch();
+      }
     }
 
   } catch (error) {
