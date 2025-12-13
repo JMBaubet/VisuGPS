@@ -54,6 +54,14 @@ fn merge_recursive(
                     if let Some(exist_groups_arr) = exist_groups {
                         let merged_groups = merge_arrays(def_groups, exist_groups_arr, path.clone(), report, "groupes");
                         new_map.insert("groupes".to_string(), Value::Array(merged_groups));
+                    } else {
+                        // All groups are new
+                         for item in def_groups {
+                            let key = get_item_key(item);
+                            let item_path = if path.is_empty() { key.clone() } else { format!("{}/{}", path, key) };
+                            report.added.push(item_path);
+                         }
+                         // new_map already has the default groups
                     }
                 }
                 
@@ -65,6 +73,14 @@ fn merge_recursive(
                      if let Some(exist_params_arr) = exist_params {
                          let merged_params = merge_arrays(def_params, exist_params_arr, path.clone(), report, "parametres");
                          new_map.insert("parametres".to_string(), Value::Array(merged_params));
+                     } else {
+                        // All parameters are new
+                        for item in def_params {
+                            let key = get_item_key(item);
+                            let item_path = if path.is_empty() { key.clone() } else { format!("{}/{}", path, key) };
+                            report.added.push(item_path);
+                         }
+                         // new_map already has the default params
                      }
                 }
 

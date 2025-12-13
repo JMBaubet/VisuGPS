@@ -31,7 +31,7 @@
         <v-list-item-subtitle>{{ param.description }}</v-list-item-subtitle>
         <template v-slot:append>
             <v-avatar v-if="param.type === 'couleur'" :color="param.surcharge || param.defaut" size="24"></v-avatar>
-            <v-chip v-else-if="param.type === 'entier' || param.type === 'reel'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
+            <v-chip v-else-if="param.type === 'entier' || param.type === 'reel' || param.type === 'list' || param.type === 'monitor'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
             <v-chip v-else-if="param.type === 'secret'" size="small">******</v-chip>
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
@@ -102,6 +102,24 @@
       :group-path="fullPath"
       @update:show="isSecretDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les listes -->
+    <EditListDialog
+      v-if="selectedParameter && selectedParameter.type === 'list'"
+      :show="isListDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isListDialogVisible = $event"
+    />
+
+    <!-- Composant de dialogue pour les moniteurs -->
+    <EditMonitorDialog
+      v-if="selectedParameter && selectedParameter.type === 'monitor'"
+      :show="isMonitorDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isMonitorDialogVisible = $event"
+    />
   </div>
 </template>
 
@@ -114,6 +132,8 @@ import EditColorDialog from './EditColorDialog.vue';
 import EditFloatDialog from './EditFloatDialog.vue';
 import EditCoordDialog from './EditCoordDialog.vue';
 import EditSecretDialog from './EditSecretDialog.vue';
+import EditListDialog from './EditListDialog.vue';
+import EditMonitorDialog from './EditMonitorDialog.vue';
 
 const props = defineProps({
   node: {
@@ -133,6 +153,8 @@ const isColorDialogVisible = ref(false);
 const isFloatDialogVisible = ref(false);
 const isCoordDialogVisible = ref(false);
 const isSecretDialogVisible = ref(false);
+const isListDialogVisible = ref(false);
+const isMonitorDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = (param) => {
@@ -151,6 +173,10 @@ const openEditDialog = (param) => {
     isCoordDialogVisible.value = true;
   } else if (param.type === 'secret') {
     isSecretDialogVisible.value = true;
+  } else if (param.type === 'list') {
+    isListDialogVisible.value = true;
+  } else if (param.type === 'monitor') {
+    isMonitorDialogVisible.value = true;
   }
 };
 

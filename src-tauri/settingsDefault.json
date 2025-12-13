@@ -1642,6 +1642,41 @@
       },
       {
         "libelle": "Système",
+        "parametres": [
+          {
+            "identifiant": "tailleFenetre",
+            "libelle": "Taille fenêtre",
+            "description": "Dimensions de la fenêtre au démarrage.",
+            "type": "list",
+            "defaut": "1920x1080",
+            "valeurs": [
+              "1024x768",
+              "1280x720",
+              "1280x800",
+              "1280x960",
+              "1366x768",
+              "1440x900",
+              "1600x900",
+              "1600x1200",
+              "1680x1050",
+              "1920x1080",
+              "1920x1200",
+              "2560x1440",
+              "2560x1600",
+              "3840x2160",
+              "5120x2880"
+            ],
+            "doc": "docs/DocParametrage/Systeme/tailleFenetre.md"
+          },
+          {
+            "identifiant": "ecran",
+            "libelle": "Ecran",
+            "description": "Ecran sur lequel l'application doit s'ouvrir.",
+            "type": "monitor",
+            "defaut": 1,
+            "doc": "docs/DocParametrage/Systeme/ecran.md"
+          }
+        ],
         "groupes": [
           {
             "libelle": "Timers",

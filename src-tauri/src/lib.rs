@@ -1484,6 +1484,45 @@ fn update_animation_state(
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorInfo {
+    index: usize,
+    name: String,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+}
+
+#[tauri::command]
+fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
+    let mut monitors_info = Vec::new();
+    let window = app_handle.get_webview_window("main").ok_or("Main window not found")?;
+    
+    // We access available monitors through the window instance
+    if let Ok(monitors) = window.available_monitors() {
+        for (index, monitor) in monitors.into_iter().enumerate() {
+            let size = monitor.size();
+            let position = monitor.position();
+            let name = monitor.name().map(|n| n.to_string()).unwrap_or_else(|| format!("Monitor {}", index));
+            
+            monitors_info.push(MonitorInfo {
+                index,
+                name: name.to_string(),
+                x: position.x,
+                y: position.y,
+                width: size.width,
+                height: size.height,
+                scale_factor: monitor.scale_factor(),
+            });
+        }
+    }
+    
+    Ok(monitors_info)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1504,6 +1543,38 @@ pub fn run() {
             match setup_environment(app) {
                 Ok(state) => {
                     app.manage(Mutex::new(state.clone()));
+
+                    // Apply window size and position from settings
+                    let settings_path = state.app_env_path.join("settings.json");
+                    if let Ok(content) = std::fs::read_to_string(&settings_path) {
+                        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
+                            if let Some(window) = app.get_webview_window("main") {
+                                // 1. Handle Monitor Selection
+                                if let Some(monitor_index) = get_setting_value(&settings, "data.groupes.Système.parametres.ecran").and_then(|v| v.as_u64()) {
+                                     let index = monitor_index as usize;
+                                     if let Ok(monitors) = window.available_monitors() {
+                                         if index < monitors.len() {
+                                             let monitor = &monitors[index];
+                                             let pos = monitor.position();
+                                             // Move window to the top-left of the selected monitor
+                                             let _ = window.set_position(tauri::Position::Physical(pos.clone()));
+                                         }
+                                     }
+                                }
+
+                                // 2. Handle Window Size (with LogicalSize for Retina fix)
+                                if let Some(size_str) = get_setting_value(&settings, "data.groupes.Système.parametres.tailleFenetre").and_then(|v| v.as_str()) {
+                                    let parts: Vec<&str> = size_str.split('x').collect();
+                                    if parts.len() == 2 {
+                                        if let (Ok(width), Ok(height)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
+                                            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+                                            let _ = window.center();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Check if a commune update was running
                     let circuits_file = read_circuits_file(&state.app_env_path);
@@ -1598,6 +1669,7 @@ pub fn run() {
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
+            get_available_monitors,
             update_current_view,
             remote_control::update_visualize_view_state,
             remote_control::remote_command_increase_speed,

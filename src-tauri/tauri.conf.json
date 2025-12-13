@@ -14,7 +14,7 @@
       {
         "title": "visugps",
         "minWidth": 1024,
-        "maximized": true,
+        "maximized": false,
         "resizable": true,
         "fullscreen": false
       }
@@ -22,9 +22,7 @@
     "security": {
       "csp": null
     }
-    
   },
-  
   "plugins": {
     "process": {
       "allowlist": [
