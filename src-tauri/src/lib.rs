@@ -1556,8 +1556,11 @@ pub fn run() {
                                          if index < monitors.len() {
                                              let monitor = &monitors[index];
                                              let pos = monitor.position();
-                                             // Move window to the top-left of the selected monitor
-                                             let _ = window.set_position(tauri::Position::Physical(pos.clone()));
+                                             
+                                             // Fix: Convert to Logical Position to avoid scaling issues on macOS
+                                             // We assume monitor position is effectively the logical coordinate in the global space
+                                             let logical_pos = tauri::LogicalPosition { x: pos.x as f64, y: pos.y as f64 };
+                                             let _ = window.set_position(tauri::Position::Logical(logical_pos));
                                          }
                                      }
                                 }
