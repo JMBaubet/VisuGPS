@@ -12,9 +12,7 @@ const copyDocs = () => {
       const destDir = path.resolve(__dirname, 'dist/docs')
 
       if (fs.existsSync(srcDir)) {
-        // Crée le dossier de destination s'il n'existe pas (nécessite Node.js 16.7+)
         fs.cpSync(srcDir, destDir, { recursive: true, force: true })
-        console.log(`[copy-docs] Documents copiés vers ${destDir}`)
       }
     }
   }

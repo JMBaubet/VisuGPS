@@ -1,14 +1,40 @@
-# Coefficient réducteur message
+# 📏 Paramètre : Coefficient réducteur message
 
-## Rôle
-Ce paramètre permet de réduire progressivement la largeur moyenne des caractères au fur et à mesure que le message s'allonge. Il divise le coefficient de base par un facteur dépendant de la longueur du texte.
+Ce document détaille le paramètre `coefReducteurMessage`, qui permet de réduire progressivement la largeur estimée des messages au fur et à mesure que leur contenu s'allonge.
 
-## Justification
-Les messages courts nécessitent souvent une largeur de caractère moyenne plus élevée pour inclure les overheads (marges, polices larges). À l'inverse, pour les messages très longs, l'estimation linéaire peut devenir excessive. Ce coefficient "amortit" la largeur totale pour les textes longs.
+---
 
-## Fonctionnement
-- Formule approximative : `Largeur = (NbCaractères * CoefLargeur) / (1 + NbCaractères * CoefRéducteur)`.
-- **0** : Aucune réduction (linéaire).
-- **Valeur faible (ex: 0.005)** : Réduction légère pour les très longs textes.
-- **Valeur élevée** : Réduction forte, le cadre grandit moins vite que le texte.
-- Valeur par défaut recommandée : **0**.
+## 🎯 Rôle du Paramètre
+
+Le paramètre `coefReducteurMessage` sert à amortir la croissance de la largeur du cadre pour les messages longs. Il divise le coefficient de largeur de base par un facteur dépendant de la longueur du texte.
+
+-   **Libellé**: Coefficient réducteur message
+-   **Type**: Réel
+-   **Valeur par défaut**: 0.025
+-   **Minimum**: 0.0
+-   **Maximum**: 0.1
+
+## ⚖️ Justification : Pourquoi utiliser un coefficient réducteur ?
+
+Une estimation purement linéaire de la largeur (NbCaractères * LargeurMoyenne) tend à surestimer la place nécessaire pour les textes longs, car l'œil humain tolère (et l'affichage gère) une densité de caractère légèrement plus élevée sur les longs blocs.
+
+### 1. 🤏 Optimisation de l'espace
+
+-   Pour les messages courts, une largeur "confortable" est nécessaire pour inclure les marges.
+-   Pour les messages longs, conserver cette même proportion créerait des cadres immenses et disgracieux couvrant trop de carte.
+
+### 2. 🧮 Formule mathématique
+
+La formule utilisée est :
+`Largeur = (NbCaractères * CoefLargeur) / (1 + NbCaractères * CoefRéducteur)`
+
+-   Si `CoefRéducteur` est 0, la largeur est proportionnelle à la longueur.
+-   Plus `CoefRéducteur` augmente, plus la courbe de largeur "s'aplatit" pour les longs textes.
+
+---
+
+## ⚠️ Recommandations
+
+-   **Valeur par défaut (0.025)** : Offre un compromis idéal, gardant les messages courts lisibles tout en empêchant les messages longs de devenir démesurés.
+-   **Désactivation** : Mettez ce paramètre à **0** pour revenir à un comportement parfaitement linéaire (largeur proportionnelle au nombre de caractères).
+
