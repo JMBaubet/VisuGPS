@@ -1055,6 +1055,7 @@ fn delete_message(
 
 #[tauri::command]
 fn update_setting(
+    app_handle: AppHandle,
     state: State<Mutex<AppState>>,
     group_path: String,
     param_id: String,
@@ -1119,6 +1120,11 @@ fn update_setting(
         if let Some(token_str) = new_value.as_str() {
             state.mapbox_token = token_str.to_string();
         }
+    }
+
+    // Apply window settings if the changed parameter affects them
+    if param_id == "tailleFenetre" || param_id == "ecran" {
+        apply_window_settings(app_handle, &settings);
     }
 
     Ok(())
@@ -1484,6 +1490,98 @@ fn update_animation_state(
     Ok(())
 }
 
+// Helper function to apply window settings (size and position)
+fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Value) {
+    
+    // Clone data needed for the closure
+    let settings_clone = settings.clone();
+    let app_handle_clone = app_handle.clone();
+    
+    // Dispatch to main thread to ensure window operations work on macOS
+    let _ = app_handle.run_on_main_thread(move || {
+        let window = match app_handle_clone.get_webview_window("main") {
+            Some(w) => w,
+            None => {
+                return;
+            }
+        };
+
+        // Ensure window is not maximized
+        if let Err(e) = window.unmaximize() {
+             eprintln!("Failed to unmaximize: {}", e);
+        }
+
+        let size_setting = get_setting_value(&settings_clone, "data.groupes.Système.parametres.tailleFenetre").and_then(|v| v.as_str());
+        let monitor_setting = get_setting_value(&settings_clone, "data.groupes.Système.parametres.ecran").and_then(|v| v.as_u64());
+
+        // Parse target size
+        let target_size: Option<(f64, f64)> = size_setting.and_then(|s| {
+            let parts: Vec<&str> = s.split('x').collect();
+            if parts.len() == 2 {
+                match (parts[0].parse(), parts[1].parse()) {
+                     (Ok(w), Ok(h)) => Some((w, h)),
+                     _ => None
+                }
+            } else { None }
+        });
+
+        // 1. Handle Monitor Selection (Move & Center Manually)
+        if let Some(monitor_index) = monitor_setting {
+            let index = monitor_index as usize;
+            if let Ok(monitors) = window.available_monitors() {
+                 if index < monitors.len() {
+                     let monitor = &monitors[index];
+                     
+                     // Determine dimensions for centering
+                     let (width, height) = if let Some((w, h)) = target_size {
+                         (w, h)
+                     } else {
+                         if let Ok(factor) = window.scale_factor() {
+                             let logical = window.inner_size().unwrap_or_default().to_logical::<f64>(factor);
+                             (logical.width, logical.height)
+                         } else {
+                             (1024.0, 768.0) 
+                         }
+                     };
+
+                     // Calculate Center Manually
+                     let m_pos = monitor.position(); 
+                     let m_size = monitor.size();
+                     let m_scale = monitor.scale_factor();
+                     
+                     let m_logical_width = m_size.width as f64 / m_scale;
+                     let m_logical_height = m_size.height as f64 / m_scale;
+                     let m_logical_x = m_pos.x as f64;
+                     let m_logical_y = m_pos.y as f64;
+
+                     let center_x = m_logical_x + (m_logical_width - width) / 2.0;
+                     let center_y = m_logical_y + (m_logical_height - height) / 2.0;
+                     
+                     // Apply Size
+                     if let Some((w, h)) = target_size {
+                          let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }));
+                     }
+                     
+                     // Apply Position
+                     if let Err(e) = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: center_x, y: center_y })) {
+                         eprintln!("Set Window Position Error: {}", e);
+                     }
+                     
+                     // Force focus?
+                     let _ = window.set_focus();
+                     return;
+                 }
+            }
+        }
+
+        // 2. Fallback: No monitor change
+        if let Some((w, h)) = target_size {
+             let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }));
+             let _ = window.center();
+        }
+    });
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorInfo {
@@ -1523,6 +1621,8 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
     Ok(monitors_info)
 }
 
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1548,38 +1648,9 @@ pub fn run() {
                     let settings_path = state.app_env_path.join("settings.json");
                     if let Ok(content) = std::fs::read_to_string(&settings_path) {
                         if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
-                            if let Some(window) = app.get_webview_window("main") {
-                                // 1. Handle Monitor Selection
-                                if let Some(monitor_index) = get_setting_value(&settings, "data.groupes.Système.parametres.ecran").and_then(|v| v.as_u64()) {
-                                     let index = monitor_index as usize;
-                                     if let Ok(monitors) = window.available_monitors() {
-                                         if index < monitors.len() {
-                                             let monitor = &monitors[index];
-                                             let pos = monitor.position();
-                                             
-                                             // Fix: Convert to Logical Position to avoid scaling issues on macOS
-                                             // We assume monitor position is effectively the logical coordinate in the global space
-                                             let logical_pos = tauri::LogicalPosition { x: pos.x as f64, y: pos.y as f64 };
-                                             let _ = window.set_position(tauri::Position::Logical(logical_pos));
-                                         }
-                                     }
-                                }
-
-                                // 2. Handle Window Size (with LogicalSize for Retina fix)
-                                if let Some(size_str) = get_setting_value(&settings, "data.groupes.Système.parametres.tailleFenetre").and_then(|v| v.as_str()) {
-                                    let parts: Vec<&str> = size_str.split('x').collect();
-                                    if parts.len() == 2 {
-                                        if let (Ok(width), Ok(height)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
-                                            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
-                                            let _ = window.center();
-                                        }
-                                    }
-                                }
-                            }
+                            apply_window_settings(app.handle().clone(), &settings);
                         }
-                    }
-
-                    // Check if a commune update was running
+                    } // Check if a commune update was running
                     let circuits_file = read_circuits_file(&state.app_env_path);
                     if let Ok(file) = circuits_file {
                         if file.maj_communes && !file.circuit_id.is_empty() {
@@ -1622,7 +1693,7 @@ pub fn run() {
             create_execution_mode,
             delete_execution_mode,
             select_execution_mode,
-            update_setting,
+            update_setting, // This now takes app_handle
             list_gpx_files,
             analyze_gpx_file,
             commit_new_circuit,
@@ -1687,10 +1758,10 @@ pub fn run() {
             gpx_processor::get_remote_control_url,
             update_animation_state,
             error_logger::save_error_event,
-            error_logger::save_error_event,
             error_logger::delete_error_entry,
             get_migration_report
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
