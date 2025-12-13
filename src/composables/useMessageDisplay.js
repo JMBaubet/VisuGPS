@@ -6,6 +6,7 @@ export function useMessageDisplay() {
 
     const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Messages/baseFontSize'));
     const coefLargeurMessage = computed(() => getSettingValue('Visualisation/Messages/coefLargeurMessage'));
+    const coefReducteurMessage = computed(() => getSettingValue('Visualisation/Messages/coefReducteurMessage'));
 
     const createMessageSVG = (message) => {
         const text = message.message.text;
@@ -21,7 +22,10 @@ export function useMessageDisplay() {
         const minRectWidth = 300 * fontScaleFactor;
         const padding = 50 * fontScaleFactor;
 
-        const averageCharWidth = fontSize * (coefLargeurMessage.value || 0.6);
+        // Formule avec réduction pour les longs messages :
+        // Coef effectif = coefLargeur / (1 + (longueur * coefReducteur))
+        const effectiveCoef = (coefLargeurMessage.value || 0.6) / (1 + (text.length * (coefReducteurMessage.value || 0.0)));
+        const averageCharWidth = fontSize * effectiveCoef;
         const estimatedTextWidth = text.length * averageCharWidth;
         const rectWidth = Math.max(minRectWidth, estimatedTextWidth + padding);
 

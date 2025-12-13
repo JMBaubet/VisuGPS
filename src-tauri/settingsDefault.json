@@ -1402,10 +1402,11 @@
                 "libelle": "Taille de police de base des messages (px)",
                 "description": "Taille de police de base utilisée pour les messages affichés sur la carte. Les autres dimensions du message s'adapteront proportionnellement.",
                 "type": "entier",
-                "defaut": 40,
+                "defaut": 30,
                 "min": 10,
                 "max": 100,
                 "unite": "px",
+                "critique": true,
                 "doc": "docs/DocParametrage/Visualisation/Messages/baseFontSize.md"
               },
               {
@@ -1413,12 +1414,26 @@
                 "libelle": "Coefficient largeur message",
                 "description": "Coefficient multiplicateur appliqué à la taille de police pour estimer la largeur du texte du message. Ajuster si le cadre est trop large ou trop étroit.",
                 "type": "reel",
-                "defaut": 0.6,
+                "defaut": 0.7,
                 "surcharge": null,
                 "min": 0.3,
                 "max": 1.5,
                 "step": 0.05,
+                "critique": true,
                 "doc": "docs/DocParametrage/Visualisation/Messages/coefLargeurMessage.md"
+              },
+              {
+                "identifiant": "coefReducteurMessage",
+                "libelle": "Coefficient réducteur message",
+                "description": "Réduit le coefficient largeur pour les messages longs. Formule : Coef / (1 + Longueur * Reducteur).",
+                "type": "reel",
+                "defaut": 0.025,
+                "surcharge": null,
+                "min": 0.0,
+                "max": 0.1,
+                "step": 0.001,
+                "critique": true,
+                "doc": "docs/DocParametrage/Visualisation/Messages/coefReducteurMessage.md"
               }
             ]
           },
