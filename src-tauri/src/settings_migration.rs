@@ -27,8 +27,18 @@ pub struct MigrationReport {
 pub fn compare_and_merge(old_settings: &Value, new_default: &Value) -> (Value, Option<String>) {
     let mut report = MigrationReport::default();
     let merged = merge_recursive(new_default, old_settings, "".to_string(), &mut report);
-    
-    let report_string = generate_markdown_report(&report);
+
+    // Extract versions
+    let existing_version = old_settings.get("référence").and_then(|r| r.get("version")).and_then(|v| v.as_str());
+    let default_version = new_default.get("référence").and_then(|r| r.get("version")).and_then(|v| v.as_str());
+
+    let version_info = if existing_version != default_version {
+        Some((existing_version.unwrap_or("N/A"), default_version.unwrap_or("N/A")))
+    } else {
+        None
+    };
+
+    let report_string = generate_markdown_report(&report, version_info);
     
     (merged, report_string)
 }
@@ -246,14 +256,28 @@ fn format_value(v: Option<&Value>, is_secret: bool) -> String {
     }
 }
 
-fn generate_markdown_report(report: &MigrationReport) -> Option<String> {
-    if report.added.is_empty() && report.removed.is_empty() && report.modified.is_empty() {
+fn generate_markdown_report(report: &MigrationReport, version_info: Option<(&str, &str)>) -> Option<String> {
+    let content_changed = !report.added.is_empty() || !report.removed.is_empty() || !report.modified.is_empty();
+
+    if !content_changed && version_info.is_none() {
         return None;
     }
 
     let mut md = String::new();
     md.push_str("# Rapport de mise à jour des paramètres\n\n");
-    md.push_str("Des modifications ont été détectées dans la configuration par défaut. Votre fichier de configuration a été mis à jour.\n\n");
+
+    if let Some((old_v, new_v)) = version_info {
+        md.push_str(&format!(
+            "**Mise à jour de la version de configuration de `{}` à `{}`.**\n\n",
+            old_v, new_v
+        ));
+    }
+
+    if content_changed {
+        md.push_str("Des modifications de paramètres ont été détectées et votre configuration a été mise à jour pour refléter ces changements.\n\n");
+    } else if version_info.is_some() {
+        md.push_str("Aucun changement de paramètre n'a été détecté, mais la configuration a été synchronisée en raison du changement de version.\n\n");
+    }
 
     if !report.modified.is_empty() {
         md.push_str("## Paramètres Modifiés\n");
