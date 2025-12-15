@@ -6,10 +6,10 @@ Ce document détaille le paramètre `styleVisualisation`, qui définit le style 
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `styleVisualisation` spécifie l'URL du style de carte Mapbox à charger. Cela permet de personnaliser l'apparence visuelle du fond de carte affiché pendant l'animation de la trace.
+Le paramètre `styleVisualisation` permet de choisir un style de carte Mapbox parmi une liste prédéfinie. Cela permet de personnaliser l'apparence visuelle du fond de carte affiché pendant l'animation de la trace.
 
 -   **Libellé**: Style de la carte
--   **Type**: Chaîne de caractères (String)
+-   **Type**: Liste de sélection
 -   **Valeur par défaut**: "mapbox://styles/mapbox/satellite-v9"
 
 ## ⚖️ Justification : Pourquoi personnaliser le style de la carte ?
@@ -25,10 +25,22 @@ La personnalisation du style de la carte permet d'adapter l'environnement visuel
 
 -   Permet de choisir un style de carte qui met en valeur les éléments géographiques pertinents pour la visualisation (par exemple, un style satellite pour le relief, un style routier pour les itinéraires).
 
+### 3. 🌐 Styles Disponibles
+
+Les styles suivants sont disponibles :
+- `mapbox://styles/mapbox/standard`
+- `mapbox://styles/mapbox/streets-v12`
+- `mapbox://styles/mapbox/outdoors-v12`
+- `mapbox://styles/mapbox/light-v11`
+- `mapbox://styles/mapbox/dark-v11`
+- `mapbox://styles/mapbox/satellite-v9`
+- `mapbox://styles/mapbox/satellite-streets-v12`
+- `mapbox://styles/mapbox/navigation-day-v1`
+- `mapbox://styles/mapbox/navigation-night-v1`
+
 ---
 
 ## ⚠️ Recommandations
 
 -   **Valeur par défaut ("mapbox://styles/mapbox/satellite-v9")** : C'est un style satellite qui offre une bonne base pour la visualisation des traces, car il met en évidence le relief et les détails du terrain.
--   **Utiliser les styles Mapbox** : Le paramètre accepte les URLs de styles hébergés par Mapbox ou de styles personnalisés.
--   **Choisir un style pertinent** : Sélectionnez un style qui correspond à l'ambiance ou au type de visualisation que vous souhaitez créer.
+-   **Choisir un style pertinent** : Sélectionnez un style de la liste qui correspond à l'ambiance ou au type de visualisation que vous souhaitez créer.

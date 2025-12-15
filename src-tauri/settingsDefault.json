@@ -102,10 +102,21 @@
             "parametres": [
               {
                 "defaut": "mapbox://styles/mapbox/streets-v12",
-                "description": "Style de carte poour la création des vignettes",
+                "description": "Style de carte pour la création des vignettes",
                 "identifiant": "styleVignette",
                 "libelle": "Style de la vignette",
-                "type": "string",
+                "type": "list",
+                "valeurs": [
+                  "mapbox://styles/mapbox/standard",
+                  "mapbox://styles/mapbox/streets-v12",
+                  "mapbox://styles/mapbox/outdoors-v12",
+                  "mapbox://styles/mapbox/light-v11",
+                  "mapbox://styles/mapbox/dark-v11",
+                  "mapbox://styles/mapbox/satellite-v9",
+                  "mapbox://styles/mapbox/satellite-streets-v12",
+                  "mapbox://styles/mapbox/navigation-day-v1",
+                  "mapbox://styles/mapbox/navigation-night-v1"
+                ],
                 "doc": "docs/DocParametrage/Importation/Vignette/styleVignette.md"
               }
             ],
@@ -1006,7 +1017,18 @@
                 "description": "Style de carte lors de l'édition",
                 "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
-                "type": "string",
+                "type": "list",
+                "valeurs": [
+                  "mapbox://styles/mapbox/standard",
+                  "mapbox://styles/mapbox/streets-v12",
+                  "mapbox://styles/mapbox/outdoors-v12",
+                  "mapbox://styles/mapbox/light-v11",
+                  "mapbox://styles/mapbox/dark-v11",
+                  "mapbox://styles/mapbox/satellite-v9",
+                  "mapbox://styles/mapbox/satellite-streets-v12",
+                  "mapbox://styles/mapbox/navigation-day-v1",
+                  "mapbox://styles/mapbox/navigation-night-v1"
+                ],
                 "doc": "docs/DocParametrage/Edition/Mapbox/styleVisualisation.md"
               }
             ],
@@ -1095,7 +1117,18 @@
                 "description": "Style de carte lors de la visualisation",
                 "identifiant": "styleVisualisation",
                 "libelle": "Style de la carte.",
-                "type": "string",
+                "type": "list",
+                "valeurs": [
+                  "mapbox://styles/mapbox/standard",
+                  "mapbox://styles/mapbox/streets-v12",
+                  "mapbox://styles/mapbox/outdoors-v12",
+                  "mapbox://styles/mapbox/light-v11",
+                  "mapbox://styles/mapbox/dark-v11",
+                  "mapbox://styles/mapbox/satellite-v9",
+                  "mapbox://styles/mapbox/satellite-streets-v12",
+                  "mapbox://styles/mapbox/navigation-day-v1",
+                  "mapbox://styles/mapbox/navigation-night-v1"
+                ],
                 "doc": "docs/DocParametrage/Visualisation/Mapbox/styleVisualisation.md"
               }
             ],
