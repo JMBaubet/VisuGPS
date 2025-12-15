@@ -545,6 +545,27 @@ pub fn commit_new_circuit(
         event::write_events(app_handle, &new_circuit_id, &events_file)?;
     }
 
+    // --- Start of new code for auto-deleting GPX file ---
+    let auto_delete = get_setting_value(
+        &settings,
+        "data.groupes.Importation.parametres.autoDelete",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(false);
+
+    if auto_delete {
+        let gpx_dir_path = get_gpx_directory(&settings)?;
+        let file_path = gpx_dir_path.join(&draft.gpx_filename);
+        if file_path.exists() {
+            if let Err(e) = fs::remove_file(&file_path) {
+                // Log the error but don't fail the whole operation
+                // as the main import was successful.
+                eprintln!("Failed to delete GPX file '{}': {}", file_path.display(), e);
+            }
+        }
+    }
+    // --- End of new code for auto-deleting GPX file ---
+
     Ok(new_circuit_id)
 }
 
