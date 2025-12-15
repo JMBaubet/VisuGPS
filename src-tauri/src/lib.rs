@@ -1623,6 +1623,23 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
 
 
 
+#[tauri::command]
+fn get_doc_content(app_handle: AppHandle, path: String) -> Result<String, String> {
+    let final_path = if cfg!(debug_assertions) {
+        // In DEV, resolve relative to the project root.
+        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
+        let project_root = std::path::Path::new(&manifest_dir).parent().ok_or("Could not get project root")?;
+        project_root.join(&path)
+    } else {
+        // In PROD, resolve relative to the resource directory bundled with the app.
+        app_handle.path().resolve(&path, tauri::path::BaseDirectory::Resource)
+            .map_err(|e| e.to_string())?
+    };
+
+    fs::read_to_string(&final_path)
+        .map_err(|e| format!("Failed to read doc file at '{}': {}", final_path.display(), e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1685,6 +1702,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_doc_content,
             get_app_state,
             check_mapbox_status,
             check_internet_connectivity,

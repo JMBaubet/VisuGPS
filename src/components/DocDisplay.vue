@@ -83,6 +83,8 @@ const markdownContent = ref('');
 const loading = ref(false);
 const error = ref(null);
 
+import { invoke } from '@tauri-apps/api/core';
+
 const md = new MarkdownIt({
   html: true,
   breaks: true,
@@ -110,11 +112,10 @@ async function fetchDocumentation(path) {
   error.value = null;
   markdownContent.value = '';
   try {
-    const response = await fetch(path);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    markdownContent.value = await response.text();
+    const relativePath = path.startsWith('/') ? path.substring(1) : path;
+    markdownContent.value = await invoke('get_doc_content', { path: relativePath });
   } catch (e) {
-    error.value = e.message;
+    error.value = e;
   } finally {
     loading.value = false;
   }

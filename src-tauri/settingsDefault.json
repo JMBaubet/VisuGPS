@@ -1020,7 +1020,7 @@
                     "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
                     "type": "booleen",
                     "defaut": true,
-                    "doc": "public/docs/DocParametrage/Edition/Mapbox/Trace/colorerSelonPente.md"
+                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/colorerSelonPente.md"
                   },
                   {
                     "defaut": "orange-darken-4",
@@ -1029,7 +1029,7 @@
                     "libelle": "Couleur de la trace",
                     "type": "couleur",
                     "materialDesign": true,
-                    "doc": "public/docs/DocParametrage/Edition/Mapbox/Trace/couleur.md"
+                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/couleur.md"
                   },
                   {
                     "defaut": 3,
