@@ -180,7 +180,7 @@ fn process_parameter(
     let mut changes = Vec::new();
 
     // Compare attributes
-    let attributes_to_check = vec!["min", "max", "defaut", "libelle", "description", "type"];
+    let attributes_to_check = vec!["min", "max", "defaut", "libelle", "description", "type", "doc"];
     for attr in attributes_to_check {
         let def_val = def_obj.get(attr);
         let exist_val = exist_obj.get(attr);

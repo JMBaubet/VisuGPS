@@ -113,7 +113,8 @@ async function fetchDocumentation(path) {
   markdownContent.value = '';
   try {
     const relativePath = path.startsWith('/') ? path.substring(1) : path;
-    markdownContent.value = await invoke('get_doc_content', { path: relativePath });
+    const response = await invoke('get_doc_content', { path: relativePath });
+    markdownContent.value = response.content;
   } catch (e) {
     error.value = e;
   } finally {

@@ -1623,8 +1623,14 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
 
 
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocResponse {
+    path: String,
+    content: String,
+}
+
 #[tauri::command]
-fn get_doc_content(app_handle: AppHandle, path: String) -> Result<String, String> {
+fn get_doc_content(app_handle: AppHandle, path: String) -> Result<DocResponse, String> {
     let final_path = if cfg!(debug_assertions) {
         // In DEV, resolve relative to the project root.
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
@@ -1636,8 +1642,13 @@ fn get_doc_content(app_handle: AppHandle, path: String) -> Result<String, String
             .map_err(|e| e.to_string())?
     };
 
-    fs::read_to_string(&final_path)
-        .map_err(|e| format!("Failed to read doc file at '{}': {}", final_path.display(), e))
+    let content = fs::read_to_string(&final_path)
+        .map_err(|e| format!("Failed to read doc file at '{}': {}", final_path.display(), e))?;
+
+    Ok(DocResponse {
+        path: final_path.to_string_lossy().into_owned(),
+        content,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
