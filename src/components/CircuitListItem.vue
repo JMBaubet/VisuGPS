@@ -61,7 +61,7 @@
               <v-img
                 :src="vignetteUrl"
                 :key="vignetteUrl"
-                width="400"
+                :width="vignetteWidth"
                 aspect-ratio="16/9"
                 cover
               >
@@ -76,7 +76,7 @@
               </v-img>
             </template>
             <template v-else>
-              <div class="d-flex align-center justify-center fill-height" style="width: 400px; height: 225px; background-color: #f0f0f0;">
+              <div class="d-flex align-center justify-center fill-height" :style="vignettePlaceholderStyle">
                 <v-progress-circular
                   color="grey-lighten-4"
                   indeterminate
@@ -163,6 +163,16 @@ const { serviceStatus } = useServiceStatus();
 const showConfirmDialog = ref(false);
 const showInfoDialog = ref(false);
 const vignetteUrl = ref('');
+
+const vignetteWidth = computed(() => {
+  return getSettingValue('Accueil/TailleVignette') || 400;
+});
+
+const vignettePlaceholderStyle = computed(() => {
+  const width = vignetteWidth.value;
+  const height = Math.round(width * 9 / 16);
+  return `width: ${width}px; height: ${height}px; background-color: #f0f0f0;`;
+});
 
 const isView3dDisabled = computed(() => {
   return serviceStatus.value !== 'connected';
