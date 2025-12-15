@@ -1,26 +1,33 @@
-# Intervalle des bornes kilométriques
+# 🔎 Paramètre : Intervalle des bornes kilométriques
 
-## Description
+Ce document détaille le paramètre `intervalle`, qui définit la distance en kilomètres entre chaque borne kilométrique affichée le long de la trace GPX.
 
-Définit l'intervalle en kilomètres entre chaque borne kilométrique affichée le long de la trace.
+---
 
-## Valeur par défaut
+## 🎯 Rôle du Paramètre
 
-`10` km
+Le paramètre `intervalle` contrôle la fréquence à laquelle les bornes kilométriques sont positionnées sur la trace. Cela permet d'adapter la granularité des repères en fonction de la longueur et du type de parcours.
 
-## Plage de valeurs
+-   **Libellé**: Intervalle (km)
+-   **Type**: Entier
+-   **Valeur par défaut**: 10 km
+-   **Minimum**: 1 km
+-   **Maximum**: 20 km
 
-- **Minimum** : 1 km
-- **Maximum** : 20 km
+## ⚖️ Justification : Pourquoi ajuster l'intervalle ?
 
-## Utilisation
+L'ajustement de l'intervalle des bornes kilométriques est important pour optimiser la lisibilité de la trace et la pertinence des informations affichées, sans surcharger visuellement la carte.
 
-Ce paramètre détermine la fréquence d'affichage des bornes kilométriques. Par exemple :
-- Avec un intervalle de 5 km : km 5, km 10, km 15, km 20...
-- Avec un intervalle de 10 km : km 10, km 20, km 30, km 40...
+### 1. 📏 Lisibilité
 
-## Recommandations
+Un intervalle approprié évite que les bornes ne se chevauchent ou ne soient trop espacées, améliorant ainsi la clarté visuelle.
 
-- **Traces courtes (< 30 km)** : Intervalle de 5 km
-- **Traces moyennes (30-100 km)** : Intervalle de 10 km
-- **Traces longues (> 100 km)** : Intervalle de 15-20 km
+### 2. 🗺️ Contexte du parcours
+
+Pour les parcours courts, un intervalle plus petit peut être pertinent, tandis que pour les longs parcours, un intervalle plus grand réduit le nombre de repères affichés.
+
+## ⚠️ Recommandations
+
+-   **Traces courtes (< 30 km)** : Un intervalle de 5 km peut être envisagé.
+-   **Traces moyennes (30-100 km)** : L'intervalle par défaut de 10 km est généralement un bon choix.
+-   **Traces longues (> 100 km)** : Un intervalle de 15 ou 20 km peut être préférable pour une meilleure vue d'ensemble.

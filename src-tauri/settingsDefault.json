@@ -359,7 +359,7 @@
               {
                 "defaut": 16,
                 "description": "Niveau de zoom de la caméra par défaut.",
-                "doc": "docs/DocAnnexe/parametre_zoom.md",
+                "doc": "docs/DocParametrage/Edition/Camera/Zoom.md",
                 "identifiant": "Zoom",
                 "libelle": "Zoom",
                 "min": 0,
@@ -654,7 +654,7 @@
                         "type": "couleur",
                         "defaut": "purple",
                         "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/couleurPause.md"
+                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/couleurPause.md"
                       },
                       {
                         "identifiant": "couleurFlyTo",
@@ -663,7 +663,7 @@
                         "type": "couleur",
                         "defaut": "orange-darken-1",
                         "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/couleurFlyTo.md"
+                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/couleurFlyTo.md"
                       },
                       {
                         "identifiant": "longueur",
@@ -674,7 +674,7 @@
                         "min": 5,
                         "max": 50,
                         "unite": "px",
-                        "doc": "docs/DocParametrage/Edition/Graphe/PauseZoom/longueur.md"
+                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/longueur.md"
                       }
                     ]
                   }

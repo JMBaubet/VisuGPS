@@ -1,32 +1,31 @@
-# Couleur des messages de distance
+# 🔎 Paramètre : Couleur des messages de distance
 
-## Description
+Ce document détaille le paramètre `couleur`, qui définit la couleur Material Design des messages de bornes kilométriques affichés le long de la trace.
 
-Couleur Material Design utilisée pour l'affichage des messages de bornes kilométriques.
+---
 
-## Valeur par défaut
+## 🎯 Rôle du Paramètre
 
-`red`
+Le paramètre `couleur` permet de personnaliser l'apparence visuelle des bornes kilométriques, afin d'assurer une bonne lisibilité et de les intégrer harmonieusement à l'interface.
 
-## Type
+-   **Libellé**: Couleur des messages
+-   **Type**: Couleur Material Design
+-   **Valeur par défaut**: `red`
 
-Couleur Material Design
+## ⚖️ Justification : Importance de la couleur des messages
 
-## Utilisation
+La couleur est un élément crucial pour la lisibilité et l'expérience utilisateur. Un bon choix de couleur garantit que les bornes kilométriques sont facilement repérables et compréhensibles sans distraire l'utilisateur.
 
-Cette couleur sera appliquée comme couleur de fond des messages de distance affichés le long de la trace.
+### 1. 👀 Visibilité
 
-## Exemples de couleurs
+Une couleur contrastante améliore la visibilité des messages sur différents fonds de carte.
 
-- `red` : Rouge vif
-- `blue` : Bleu
-- `green` : Vert
-- `orange` : Orange
-- `purple` : Violet
-- `yellow` : Jaune
+### 2. 🎨 Cohérence visuelle
 
-Vous pouvez également utiliser des variantes comme `red-darken-2`, `blue-lighten-1`, etc.
+L'utilisation d'une couleur Material Design assure une intégration esthétique avec le reste de l'application.
 
-## Recommandations
+## ⚠️ Recommandations
 
-Choisissez une couleur qui contraste bien avec le fond de carte et qui est facilement visible pendant l'animation.
+-   **Contraste** : Choisissez une couleur qui contraste suffisamment avec le fond de carte pour une lisibilité optimale.
+-   **Harmonie** : Préférez des couleurs qui s'accordent avec la palette générale de l'application ou qui servent un objectif informatif spécifique (par exemple, des couleurs différentes pour des types d'événements différents).
+-   **Éviter la saturation excessive** : Les couleurs trop vives peuvent être fatigantes pour les yeux ou nuire à la perception des détails de la carte.

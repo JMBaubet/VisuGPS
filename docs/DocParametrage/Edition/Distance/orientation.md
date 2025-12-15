@@ -1,23 +1,30 @@
-# Orientation des messages de distance
+# 🔎 Paramètre : Orientation des messages de distance
 
-## Description
+Ce document détaille le paramètre `orientation`, qui permet de choisir le côté (gauche ou droite) de la trace où les messages de bornes kilométriques sont affichés.
 
-Détermine le côté de la trace où les messages de distance sont affichés.
+---
 
-## Valeur par défaut
+## 🎯 Rôle du Paramètre
 
-`true` (Gauche)
+Le paramètre `orientation` offre la flexibilité de positionner les bornes kilométriques par rapport à la trace. Ceci est utile pour optimiser la lisibilité en évitant les superpositions avec d'autres éléments visuels ou en s'adaptant à la disposition de la carte.
 
-## Valeurs possibles
+-   **Libellé**: Orientation à gauche
+-   **Type**: Booléen
+-   **Valeur par défaut**: `true` (Messages affichés à gauche)
 
-- **true** : Les messages s'affichent à gauche de la trace
-- **false** : Les messages s'affichent à droite de la trace
+## ⚖️ Justification : Importance de l'orientation des messages
 
-## Utilisation
+Le positionnement des messages de distance peut grandement influencer la clarté de la visualisation et l'expérience utilisateur, surtout sur des traces complexes ou des fonds de carte chargés.
 
-Ce paramètre permet de choisir le positionnement des bornes kilométriques par rapport à la trace pour éviter qu'elles ne masquent d'autres éléments importants ou pour améliorer la lisibilité.
+### 1. 📏 Prévention des chevauchements
 
-## Recommandations
+Permet d'éviter que les messages de bornes kilométriques ne masquent des détails importants de la trace ou d'autres marqueurs.
 
-- Choisissez le côté qui offre le meilleur contraste avec le fond de carte
-- Alternez le côté si vous avez d'autres messages affichés pour éviter les chevauchements
+### 2. 👁️ Amélioration de la lisibilité
+
+En choisissant le côté le plus dégagé, on assure que les messages sont toujours facilement lisibles.
+
+## ⚠️ Recommandations
+
+-   **Dynamique** : Si d'autres informations sont affichées à un endroit précis, il peut être judicieux de changer l'orientation pour éviter les conflits visuels.
+-   **Tester** : Il est recommandé de tester les deux options pour déterminer celle qui offre la meilleure clarté pour un parcours et un fond de carte donnés.
