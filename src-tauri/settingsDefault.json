@@ -736,7 +736,7 @@
                     "min": 3,
                     "max": 20,
                     "unite": "px",
-                    "doc": "docs/DocParametrage/Edition/Graphe/Message/hauteurGraphique.md"
+                    "doc": "docs/DocParametrage/Edition/Evenements/Message/hauteurGraphique.md"
                   }
                 ]
               }
