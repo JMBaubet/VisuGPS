@@ -1638,8 +1638,30 @@ fn get_doc_content(app_handle: AppHandle, path: String) -> Result<DocResponse, S
         project_root.join(&path)
     } else {
         // In PROD, resolve relative to the resource directory bundled with the app.
-        app_handle.path().resolve(&path, tauri::path::BaseDirectory::Resource)
-            .map_err(|e| e.to_string())?
+        // We handle the case where "docs" might be stripped or flattened.
+        let mut resource_path = app_handle.path().resolve(&path, tauri::path::BaseDirectory::Resource)
+            .map_err(|e| e.to_string())?;
+        
+        if !resource_path.exists() {
+             // Fallback 1: Check for _up_ prefix (common when bundling parent dirs)
+             let up_path_str = format!("_up_/{}", path);
+             if let Ok(up_path) = app_handle.path().resolve(&up_path_str, tauri::path::BaseDirectory::Resource) {
+                 if up_path.exists() {
+                     resource_path = up_path;
+                 }
+             }
+
+             // Fallback 2: Check for stripped "docs/" prefix (if flattened)
+             if !resource_path.exists() && path.starts_with("docs/") {
+                 let stripped_path = path.strip_prefix("docs/").unwrap_or(&path);
+                 if let Ok(p) = app_handle.path().resolve(stripped_path, tauri::path::BaseDirectory::Resource) {
+                     if p.exists() {
+                         resource_path = p;
+                     }
+                 }
+            }
+        }
+        resource_path
     };
 
     let content = fs::read_to_string(&final_path)
