@@ -628,29 +628,7 @@
           },
           {
             "libelle": "Evenements",
-            "parametres": [
-              {
-                "identifiant": "couleurPause",
-                "libelle": "Couleur des pauses",
-                "description": "Couleur des marqueurs de pause sur le graphe.",
-                "type": "couleur",
-                "materialDesign": true,
-                "defaut": "purple",
-                "surcharge": null,
-                "doc": "docs/DocParametrage/Edition/Evenements/couleurPause.md"
-              },
-              {
-                "identifiant": "longueurPause",
-                "libelle": "Longueur des pauses (px)",
-                "description": "Longueur des marqueurs de pause sur le graphe.",
-                "type": "entier",
-                "defaut": 12,
-                "surcharge": null,
-                "min": 5,
-                "max": 50,
-                "doc": "docs/DocParametrage/Edition/Evenements/longueurPause.md"
-              }
-            ],
+            "parametres": [],
             "groupes": [
               {
                 "libelle": "Graphe",
@@ -712,60 +690,6 @@
               {
                 "libelle": "Message",
                 "parametres": [
-                  {
-                    "identifiant": "couleurMarqueur",
-                    "libelle": "Couleur du marqueur",
-                    "description": "Couleur du marqueur de message sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "purple",
-                    "materialDesign": true,
-                    "surcharge": null,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/couleurMarqueur.md"
-                  },
-                  {
-                    "identifiant": "longueurMarqueur",
-                    "libelle": "Longueur du marqueur (px)",
-                    "description": "Longueur du marqueur de message sur le graphe.",
-                    "type": "entier",
-                    "defaut": 12,
-                    "surcharge": null,
-                    "min": 5,
-                    "max": 50,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/longueurMarqueur.md"
-                  },
-                  {
-                    "identifiant": "couleurFond",
-                    "libelle": "Couleur de fond",
-                    "description": "Couleur de fond du message (Material Design).",
-                    "type": "couleur",
-                    "materialDesign": true,
-                    "defaut": "indigo",
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/couleurFond.md"
-                  },
-                  {
-                    "identifiant": "couleurBordure",
-                    "libelle": "Couleur de bordure",
-                    "description": "Couleur de bordure du message (Material Design).",
-                    "type": "couleur",
-                    "materialDesign": true,
-                    "defaut": "white",
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/couleurBordure.md"
-                  },
-                  {
-                    "identifiant": "tailleBordure",
-                    "libelle": "Taille de la bordure",
-                    "description": "Épaisseur de la bordure du message en pixels.",
-                    "type": "entier",
-                    "defaut": 4,
-                    "min": 0,
-                    "max": 10,
-                    "step": 1,
-                    "unite": "px",
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/tailleBordure.md"
-                  },
                   {
                     "identifiant": "preAffichage",
                     "libelle": "Pré-affichage (incréments)",
@@ -1577,17 +1501,6 @@
                 "max": 10,
                 "critique": false,
                 "doc": "docs/DocParametrage/Altitude/Visualisation/Ordonnee.md"
-              },
-              {
-                "identifiant": "AvancementCouleur",
-                "libelle": "Couleur du curseur d'avancement",
-                "description": "Couleur de la ligne verticale indiquant la progression sur le profil.",
-                "type": "couleur",
-                "defaut": "white",
-                "surcharge": null,
-                "materialDesing": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/AvancementCouleur.md"
               },
               {
                 "identifiant": "RepereDistance",
