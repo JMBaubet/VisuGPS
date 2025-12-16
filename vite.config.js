@@ -22,7 +22,17 @@ const copyDocs = () => {
 export default defineConfig({
   plugins: [
     vue(),
-    copyDocs()
+    copyDocs(),
+    {
+      name: 'serve-docs',
+      configureServer(server) {
+        server.middlewares.use('/docs', (req, res, next) => {
+          const serve = fs.createReadStream(path.join(__dirname, 'docs', req.url));
+          serve.on('error', () => next());
+          serve.pipe(res);
+        });
+      }
+    }
   ],
   resolve: {
     alias: {

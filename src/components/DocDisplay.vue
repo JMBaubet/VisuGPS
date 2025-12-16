@@ -9,13 +9,13 @@
     <v-card-text>
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
-      <div v-else v-html="compiledMarkdown" class="markdown-body" ref="markdownBodyRef"></div>
+      <div v-else v-html="compiledMarkdown" class="markdown-body" @click="handleLinkClick"></div>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup>
-import { ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
@@ -35,39 +35,9 @@ async function loadHighlightTheme(name) {
   }
 }
 
-const markdownBodyRef = ref(null); // Référence au div markdown-body
-
-const handleLinkClick = (event) => {
-  const target = event.target;
-  if (target.tagName === 'A' && target.href) {
-    const url = new URL(target.href);
-    if (url.protocol.startsWith('http') && url.host !== window.location.host) {
-      event.preventDefault();
-      if (window.__TAURI__ && window.__TAURI__.shell) {
-        window.__TAURI__.shell.open(target.href);
-      } else {
-        window.open(target.href, '_blank');
-      }
-    }
-  }
-};
-
-onMounted(() => {
-  loadHighlightTheme(theme.global.name.value);
-  if (markdownBodyRef.value) {
-    markdownBodyRef.value.addEventListener('click', handleLinkClick);
-  }
-});
-
-onBeforeUnmount(() => {
-  if (markdownBodyRef.value) {
-    markdownBodyRef.value.removeEventListener('click', handleLinkClick);
-  }
-});
-
 watch(() => theme.global.name.value, (newTheme) => {
   loadHighlightTheme(newTheme);
-});
+}, { immediate: true });
 
 // Register languages
 hljs.registerLanguage('javascript', javascript);
@@ -82,8 +52,30 @@ defineEmits(['close']);
 const markdownContent = ref('');
 const loading = ref(false);
 const error = ref(null);
+const currentDocPath = ref(''); 
 
 import { invoke } from '@tauri-apps/api/core';
+
+// Fonction pour résoudre les chemins relatifs
+function resolvePath(basePath, relativePath) {
+  if (relativePath.startsWith('/')) return relativePath; // Chemin absolu
+  if (relativePath.startsWith('http')) return relativePath; // URL externe
+
+  const stack = basePath.split('/');
+  // Retirer le nom du fichier actuel pour avoir le dossier parent
+  stack.pop();
+
+  const parts = relativePath.split('/');
+  for (const part of parts) {
+    if (part === '.') continue;
+    if (part === '..') {
+      if (stack.length > 0) stack.pop();
+    } else {
+      stack.push(part);
+    }
+  }
+  return stack.join('/');
+}
 
 const md = new MarkdownIt({
   html: true,
@@ -98,9 +90,48 @@ const md = new MarkdownIt({
   }
 });
 
+// Custom renderer pour les images pour réécrire les src
+const defaultImageRender = md.renderer.rules.image || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options);
+};
+
+md.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const srcIndex = token.attrIndex('src');
+  if (srcIndex >= 0) {
+    const src = token.attrs[srcIndex][1];
+    // Si c'est un chemin relatif (ne commence pas par / ou http), on le résout
+    if (!src.startsWith('/') && !src.startsWith('http')) {
+        // En dev, on assume que les images sont servies depuis /docs/ si elles sont référencées dans la doc
+        // Mais attention, "resolvePath" donne un chemin absolu par rapport à la racine "docs" du backend
+        // Pour l'affichage frontend (<img>), il faut un chemin accessible par le navigateur.
+        // Si on est en dev, `npm run tauri dev` sert le dossier `public` à la racine.
+        // Mes docs sont dans /docs/...
+        
+        let resolved = resolvePath(currentDocPath.value, src);
+        
+        // Si le path résolu ne commence pas par /, on l'ajoute.
+        // On suppose que resolvePath retourne un chemin basé sur la racine du serveur de dev
+        // Ex: current = /docs/DocUtilisateur/index.md, src = ../images/logo.png
+        // resolved = /docs/images/logo.png
+        // Cela devrait fonctionner directement en dev car /docs est servi.
+        
+        token.attrs[srcIndex][1] = resolved;
+    }
+  }
+  return defaultImageRender(tokens, idx, options, env, self);
+};
+
+// Remplacer aussi les balises <img> HTML brutes si nécessaire
 function normalizePaths(markdown) {
-  // Remplace les chemins relatifs "." par "docs/" pour les images
-  return markdown.replace(/src="\.\//g, 'src="/docs/');
+  // Regex pour attraper les src="..." dans les balises img
+  return markdown.replace(/<img\s+[^>]*src="([^"]+)"[^>]*>/g, (match, src) => {
+    if (!src.startsWith('/') && !src.startsWith('http')) {
+         const resolved = resolvePath(currentDocPath.value, src);
+         return match.replace(src, resolved);
+    }
+    return match;
+  });
 }
 
 const compiledMarkdown = computed(() =>
@@ -111,16 +142,58 @@ async function fetchDocumentation(path) {
   loading.value = true;
   error.value = null;
   markdownContent.value = '';
+  // S'assurer que le chemin commence par / pour la cohérence
+  const cleanPath = path.startsWith('/') ? path : '/' + path;
+  currentDocPath.value = cleanPath;
+  
   try {
-    const relativePath = path.startsWith('/') ? path.substring(1) : path;
+    // Le backend attend un chemin relatif sans le slash de début pour l'instant (voir lib.rs logic debug vs prod)
+    // Mais attendons, lib.rs : project_root.join(&path). Si path commence par /, join peut revenir à la racine du disque.
+    // Il faut probablement envoyer un chemin relatif pur.
+    
+    const relativePath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     const response = await invoke('get_doc_content', { path: relativePath });
     markdownContent.value = response.content;
+    // Mise à jour du basePath si nécessaire
   } catch (e) {
     error.value = e;
   } finally {
     loading.value = false;
   }
 }
+
+  const handleLinkClick = (event) => {
+    const target = event.target.closest('a');
+    if (!target || !target.href) return;
+
+    const hrefAttribute = target.getAttribute('href'); 
+    console.log('Link clicked:', { href: target.href, attribute: hrefAttribute });
+
+    // Handle external links
+    if (hrefAttribute.startsWith('http')) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (window.__TAURI__ && window.__TAURI__.shell) {
+        window.__TAURI__.shell.open(hrefAttribute);
+      } else {
+        window.open(hrefAttribute, '_blank');
+      }
+      return;
+    }
+
+    // Handle internal markdown links
+    if (hrefAttribute.endsWith('.md')) {
+      console.log('Intercepting markdown link:', hrefAttribute);
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      
+      const resolved = resolvePath(currentDocPath.value, hrefAttribute);
+      console.log(`Navigating to doc: ${resolved}`);
+      fetchDocumentation(resolved);
+      return;
+    }
+  };
 
 watch(() => props.docPath, (newPath) => {
   if (newPath) fetchDocumentation(newPath);

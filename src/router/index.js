@@ -41,7 +41,7 @@ const router = createRouter({
 
 router.afterEach(async (to) => {
   try {
-    await invoke('update_current_view', { newView: to.name });
+    await invoke('update_current_view', { new_view: to.name });
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la vue courante dans le backend:", error);
   }
