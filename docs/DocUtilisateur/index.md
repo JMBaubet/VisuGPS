@@ -16,10 +16,10 @@ L'écran d'accueil se décompose de haut en bas. Cliquez sur chaque section pour
 
 ### A. La Barre d'Outils
 Voir la documentation sur **[La Barre d'Outils](./toolbar.md)**.
-Zone supérieure contenant les indicateurs techniques (connexion, télécommande, mise à jour des communes) et les boutons d'actions globales (importation, paramètres, aide).
+Zone supérieure contenant les indicateurs techniques (connexion, télécommande, mise à jour des communes), du mode de fonctionnement,   et les boutons d'actions globales (importation, paramètres, documentation).
 
-### B. Barre de Filtres et Tris
-Voir la documentation sur la **[Barre de Filtres et Tris](./filtres_tris.md)**.
+### B. La Barre de Filtres et Tris
+Voir la documentation sur **[La Barre de Filtres et Tris](./filtres_tris.md)**.
 Zone intermédiaire permettant de rechercher, filtrer (par distance, ville, traceur) et trier vos circuits pour les retrouver facilement.
 
 ### C. Les Circuits (Liste)
@@ -34,12 +34,14 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 *   Édition et mise en scène (Caméras, Évènements).
 *   Visualisation et Animation.
 *   Contrôle à distance.
+*   **[Mise à jour des Communes](./maj_communes.md)**.
 
 ## 3. Gestion des Paramètres
 
 Accédez à la configuration complète de l'application :
 
 *   **[Paramètres Globaux](./parametres.md)** : Tokens Mapbox, Unités, Thèmes, Dossiers de stockage.
+*   **[Modes de Fonctionnement](./modes_fonctionnement.md)** : Gestion des environnements (Production, Évaluation, Test).
 
 ## 4. Foire Aux Questions
 

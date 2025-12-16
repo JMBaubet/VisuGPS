@@ -21,6 +21,15 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
     *   Les vignettes générées.
     *   Les caches de données.
 
+### 5. Mise à jour des Communes
+*   **APIs** : Activation/Désactivation des services IGN et Mapbox.
+*   **Timers** : Réglage des délais entre les requêtes pour respecter les quotas des APIs.
+    *   *En savoir plus sur la **[Mise à jour des Communes](./maj_communes.md)**.*
+
+### 4. Gestion des Modes
+*   **Environnements** : Création et bascule entre les modes Production (OPE), Évaluation (EVAL) et Test (TEST).
+    *   *En savoir plus sur les **[Modes de Fonctionnement](./modes_fonctionnement.md)**.*
+
 ## Paramètres de la Télécommande
 
 *   **Port Serveur** : Le port réseau utilisé pour communiquer avec le smartphone (par défaut 9001).

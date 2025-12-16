@@ -342,4 +342,9 @@ watch(() => props.docPath, (newPath) => {
   color: #58a6ff; /* bleu GitHub dark */
 }
 
+/* Inversion des icônes noires en mode sombre */
+.theme-dark .markdown-body img[src*="api.iconify.design"]:not([src*="color="]) {
+  filter: invert(1);
+}
+
 </style>
