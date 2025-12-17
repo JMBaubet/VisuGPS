@@ -9,7 +9,9 @@ Cette section explique comment importer vos fichiers GPX dans VisuGPS et gérer 
 Pour ajouter un nouveau circuit à votre bibliothèque :
 
 1.  Sur l'écran d'accueil, cliquez sur le bouton **Importer** ![import](https://api.iconify.design/mdi/file-import-outline.svg?width=28) situé en haut à droite de la barre de l'application.
-2.  Une fenêtre de sélection de fichier s'ouvre. Naviguez jusqu'à votre fichier `.gpx` et validez.
+2.  Une fenêtre de sélection de fichier s'ouvre. Elle filtre automatiquement les fichiers `.gpx`. Par défaut c'est le dossier Téléchargements qui est sélectionné. 
+Vous pouvez filtrer les noms de fichiers avec la barre de recherche en haut de la fenêtre. 
+Naviguez jusqu'à votre fichier `.gpx` et validez.
 3.  **Choix du Traceur** : Une boîte de dialogue s'ouvre pour attribuer un auteur à la trace.
     *   Sélectionnez un traceur existant dans la liste.
     *   Ou créez-en un nouveau en saisissant son nom.
@@ -18,13 +20,17 @@ Pour ajouter un nouveau circuit à votre bibliothèque :
 
 ### Analyse Automatique
 Lors de l'importation, VisuGPS effectue les calculs suivants :
-4.  L'application finalise l'importation.
+*   **Distance totale** : Vérifiée et recalculée par projection.
+*   **Dénivelé positif** : Cumul des gains d'altitude.
+*   **Point culminant** : Identification de l'altitude maximale et de sa position.
+*   **Ville de départ** : Identification automatique de la commune de départ.
+*   **Code QR** : Génération d'un Code QR avec le lien source du fichier GPX.
+*   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [Configuration des Vignettes](./vignette_config.md))
 
-### Analyse Automatique
-Lors de l'importation, VisuGPS effectue les calculs suivants :
-*   **Distance totale** : Calculée en projetant la trace sur la carte.
-*   **Dénivelé** : Cumul des gains d'altitude positifs.
-*   **Vignette** : Une image miniature du parcours est générée pour la liste.
+## Accès au Circuit
+
+Une fois ces étapes terminées, votre nouvelle trace apparaît immédiatement dans la liste principale sur l'écran d'accueil.
+Vous pouvez cliquer dessus pour consulter ses détails. (voir [Détails du Circuit](./circuit_details.md))
 
 ## Paramètres Liés
 
@@ -32,7 +38,8 @@ Les fonctionnalités d'importation dépendent de certains paramètres globaux (a
 
 *   **Suppression après importation** : Si activé, le fichier GPX original est supprimé de votre ordinateur une fois importé avec succès.
 *   **Dossier de stockage** : L'emplacement où VisuGPS enregistre les fichiers de configuration (JSON) et les vignettes.
-*   **Clé Mapbox** : Nécessaire pour générer les fonds de carte des vignettes et récupérer les altitudes si elles manquent dans le GPX.
+*   **Clé Mapbox** : Nécessaire pour générer les fonds de carte des vignettes.
+*   **Configuration des Vignettes** : Personnalisez le style, les couleurs et les marqueurs de vos miniatures. (voir [Configuration des Vignettes](./vignette_config.md))
 
 ---
 [< Retour à l'accueil](./index.md) | [Suivant : Gestion des Traces >](./gestion_traces.md)

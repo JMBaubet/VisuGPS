@@ -21,12 +21,16 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
     *   Les vignettes générées.
     *   Les caches de données.
 
-### 5. Mise à jour des Communes
+### 4. Mise à jour des Communes
 *   **APIs** : Activation/Désactivation des services IGN et Mapbox.
 *   **Timers** : Réglage des délais entre les requêtes pour respecter les quotas des APIs.
     *   *En savoir plus sur la **[Mise à jour des Communes](./maj_communes.md)**.*
 
-### 4. Gestion des Modes
+### 5. Importation et Vignettes
+*   **Vignettes** : Configuration du style, des dimensions et des couleurs des miniatures générées.
+    *   *Voir le détail dans **[Configuration des Vignettes](./vignette_config.md)**.*
+
+### 6. Gestion des Modes
 *   **Environnements** : Création et bascule entre les modes Production (OPE), Évaluation (EVAL) et Test (TEST).
     *   *En savoir plus sur les **[Modes de Fonctionnement](./modes_fonctionnement.md)**.*
 
@@ -37,7 +41,7 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
 
 ## Sauvegarde
 
-Les paramètres sont enregistrés automatiquement dans un fichier `settings.json` ou via le stockage local de l'application.
+Les paramètres sont enregistrés automatiquement dans un fichier `settings.json` via le stockage local de l'application.
 
 ---
 [< Retour à l'accueil](./index.md) | [Suivant : Télécommande >](./telecommande.md)

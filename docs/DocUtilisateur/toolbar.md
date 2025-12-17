@@ -27,7 +27,7 @@ Au centre de la barre d'outils, un badge peut s'afficher pour indiquer l'environ
 *   **<span style="color: #2979FF">EVAL</span>** (Bleu) : Mode **Évaluation**. Utilisé pour tester de nouvelles fonctionnalités sans affecter les données principales. **Un cadre bleu entoure l'application.**
 *   **<span style="color: #FF9100">TEST</span>** (Orange) : Mode **Test**. Environnement de développement ou de test technique. **Un cadre orange entoure l'application.**
 
-Pour en savoir plus sur la gestion de ces environnements, consultez la page dédiée : **[Modes de Fonctionnement](./modes_fonctionnement.md)**.
+Pour en savoir plus sur la gestion de ces environnements, consultez la page dédiée. *(Voir [Modes de Fonctionnement](./modes_fonctionnement.md))*
 
 ## 3. Actions Globales (Droite)
 
