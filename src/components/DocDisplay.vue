@@ -289,6 +289,22 @@ watch(() => props.docPath, (newPath) => {
   margin: 0.5em 0;
 }
 
+/* Citations / Notes */
+.markdown-body blockquote {
+  margin: 16px 0;
+  padding: 0.5em 1em;
+  border-left: 0.25em solid #dfe2e5;
+  color: #6a737d;
+  background-color: rgba(208, 215, 222, 0.2);
+  border-radius: 0 3px 3px 0;
+}
+
+.theme-dark .markdown-body blockquote {
+  border-left-color: #30363d;
+  color: #8b949e;
+  background-color: rgba(110, 118, 129, 0.2);
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
   .markdown-body pre code {

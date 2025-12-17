@@ -1,14 +1,16 @@
 # Mise à jour des Communes
 
-VisuGPS peut enrichir vos traces GPX en récupérant le nom des communes traversées. Cette fonctionnalité permet d'avoir lors de la visualisation 3D l'affichage des communes traversées.
+VisuGPS peut enrichir vos traces GPX en récupérant le nom des communes traversées. Cette fonctionnalité permet d'avoir lors de la visualisation 3D, l'affichage des communes traversées.
 
 [< Retour à l'accueil](./index.md)
 
 ## 1. Principe de Fonctionnement
 
-Lorsqu'un nouveau fichier GPX est importé en cliquant sur l'icône ![city](https://api.iconify.design/mdi/city-variant.svg?color=red&width=30) du circuit, l'application analyse chaque point de la trace pour déterminer la commune correspondante. Cette opération est appelée **Géocodage Inverse**.
+Lorsque vous avez importé un fichier GPX, vous pouvez cliquer sur l'icône ![city](https://api.iconify.design/mdi/city-variant.svg?color=red&width=30) du circuit. À partir de ce moment, l'application analyse chaque point de la trace pour déterminer la commune correspondante. 
 
 Le processus se déroule en plusieurs passes pour optimiser la performance et respecter les limites des API externes. On commence par mettre à jour le nom de communes, tous les 1600m, puis tous les 800m, puis tous les 400m, etc.
+
+> **Note** : Ce processus peut prendre plusieurs dizaines de minutes en fonction de la longueur de la trace. Il s'exécute intégralement en **tâche de fond**, ce qui signifie que vous pouvez continuer à utiliser l'application normalement sans interférence.
 
 ### Indicateur d'Avancement
 L'icône ![city](https://api.iconify.design/mdi/city-variant.svg?width=30) change de couleur pour indiquer le taux de complétion :
@@ -26,15 +28,20 @@ Une fois à 100%, l'icône disparaît de la ligne du circuit et le bouton n'est 
 
 ## 2. Contrôle en Temps Réel
 
-Lorsqu'une mise à jour est lancée, une barre d'état apparaît dans la barre d'outils. Si une mise à jour des communes est en cours pour un circuit, il n'est pas possible de relancer une mise à jour pour un autre circuit. 
+Lorsqu'une mise à jour est lancée, une barre d'état apparaît dans la barre d'outils. 
+Si une mise à jour des communes est en cours pour un circuit, il n'est pas possible de relancer une mise à jour pour un autre circuit. 
 Si vous avez un circuit plus prioritaire, vous pouvez arrêter la mise à jour en cours en cliquant sur le bouton ![stop](https://api.iconify.design/mdi/stop-circle-outline.svg?width=30&color=red).
-Si l'applicationest arrêtée alors qu'une mise à jour des communes est en cours, elle sera automatiquement relancée au démarrage de l'application.
+
+Si l'application est arrêtée alors qu'une mise à jour des communes est en cours, au démarrage de l'application, la mise à jour des communes sera automatiquement relancée.
 
 ### Switches (Interrupteurs)
 Cette barre contient deux interrupteurs permettant d'activer ou désactiver les APIs **pendant** le processus :
 
-*   **Switch IGN** : Permet de couper l'interrogation de l'IGN si vous constatez des erreurs ou des lenteurs.
-*   **Switch Mapbox** : Idem pour Mapbox.
+*   **Switch IGN** : Permet de couper l'interrogation de l'IGN si :
+    * votre trace n'est pas en France,
+    * Vous observez des lenteurs
+*   **Switch Mapbox** : Permet de couper l'interrogation de Mapbox si :
+    * Vous observez des lenteurs.
 
 > **Note** : Si vous coupez les deux sources, la mise à jour s'appuiera uniquement sur les données OpenStreetMap (plus lentes et moins précises).
 
