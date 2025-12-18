@@ -24,26 +24,47 @@ Lorsque l'onglet **Caméra** est actif, vous disposez de contrôles précis pour
 
 ---
 
+## Modes de Synchronisation
+
+En haut de l'onglet, vous pouvez choisir comment la caméra se comporte pendant que vous naviguez sur la trace :
+
+*   **Fixe** : La caméra reste à la position (Zoom, Pitch, Cap) que vous avez définie manuellement. Elle ne suit pas l'animation. C'est idéal pour préparer un nouveau point clé sans être "emporté" par le mouvement existant.
+*   **Animée** : C'est le mode par défaut. La caméra suit fidèlement la trajectoire et les angles que vous avez programmés. Cela permet de vérifier immédiatement le rendu de vos transitions.
+
+---
+
 ## Principe des Points Clés (Keyframes)
 
 L'animation repose sur l'enregistrement de positions à des endroits précis de la trace :
 
 1.  **Positionnement** : Déplacez-vous sur la trace (clavier ou graphes) jusqu'au kilomètre souhaité.
 2.  **Cadrage** : Ajustez le zoom, le cap et le pitch pour obtenir la vue idéale.
-3.  **Enregistrement** : Cliquez sur le bouton **Enregistrer la vue** ![camera](https://api.iconify.design/mdi/camera-plus-outline.svg?width=20) dans l'onglet Caméra.
-4.  **Transition** : L'application calcule automatiquement le mouvement fluide entre ce point et le point clé suivant.
+3.  **Enregistrement** : Cliquez sur le bouton **Ajouter Point** ![plus](https://api.iconify.design/mdi/plus.svg?width=20) en bas de l'onglet.
+4.  **Transition** : L'application calcule automatiquement le mouvement fluide entre ce point et le point clé précédent.
 
-### Synchronisation Animée
-Par défaut, l'éditeur est en mode **Synchronisation Animée**. Cela signifie que lorsque vous vous déplacez sur la trace, la caméra suit fidèlement la trajectoire que vous avez programmée. Cela permet de vérifier immédiatement le rendu de vos transitions.
+Pour retirer une caméra, positionnez-vous exactement sur son emplacement (elle apparaît en vert sur le graphe) et cliquez sur **Supprimer Point** ![delete](https://api.iconify.design/mdi/delete.svg?width=20).
+
+---
+
+## Zoom Départ et Arrivée
+
+En bas de l'onglet, deux sous-onglets permettent de configurer des effets de transition automatiques :
+
+*   **Zoom Départ** : Si activé, la caméra effectue une transition fluide entre le niveau de zoom choisi et le premier point clé de la trace, sur la distance (en mètres) définie par le curseur.
+*   **Zoom Arrivée** : Similaire au départ, mais s'applique à la fin du parcours, entre le dernier point clé et le niveau de zoom final souhaité.
 
 ---
 
 ## Affichage des Courbes
 
-Dans l'onglet Caméra, un panneau repliable **"Affichage des courbes"** vous permet de superposer des informations sur les graphes :
+Le panneau repliable **"Affichage des courbes"** permet de superposer des informations sur les graphes pour vous aider dans vos réglages :
 
-*   **Courbe Éditée** : Affiche les variations de Zoom, Pitch ou Cap que vous avez programmées via vos points clés.
-*   **Courbe Calculée** (pour le Cap) : Indique le cap "brut" de la trace, utile pour aligner votre caméra sur la direction réelle du chemin.
+*   **Colonne "Calculée"** :
+    *   **Cap** : Affiche le cap "brut" de la trace GPX (sa direction réelle). Utile pour aligner votre caméra sur le chemin.
+*   **Colonne "Éditée"** (en couleur) :
+    *   **Δ Cap** : Affiche les variations de rotation (changements de direction) que vous avez programmées.
+    *   **Cap** : Affiche l'orientation absolue de la caméra.
+    *   **Zoom / Pitch** : Visualise les courbes de progression de ces paramètres.
 
 ---
 
