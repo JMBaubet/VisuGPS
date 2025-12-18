@@ -17,6 +17,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import { useTheme } from 'vuetify';
+import { open as openUrl } from '@tauri-apps/plugin-shell';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -173,11 +174,7 @@ async function fetchDocumentation(path) {
     if (hrefAttribute.startsWith('http')) {
       event.preventDefault();
       event.stopPropagation();
-      if (window.__TAURI__ && window.__TAURI__.shell) {
-        window.__TAURI__.shell.open(hrefAttribute);
-      } else {
-        window.open(hrefAttribute, '_blank');
-      }
+      openUrl(hrefAttribute);
       return;
     }
 

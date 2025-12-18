@@ -9,47 +9,52 @@ Ces réglages sont accessibles dans le menu **Paramètres > Importation > Vignet
 
 > **Note** : Les modifications de ces paramètres s'appliqueront uniquement aux **nouvelles importations** de circuits. Pour modifier la vignette d'un circuit existant, vous devez le supprimer et le réimporter.
 
-## 1. Style et Dimensions
+## Vignette
 
-### Fond de Carte
-*   **Style de la vignette** : Choix du fond de plan Mapbox (Rues, Satellite, Outdoor, Sombre, etc.).
+Ce groupe principal contient les réglages de base de la carte.
+
+*   **<span style="color: #2196F3">Style de la vignette</span>** : Choix du fond de plan via une liste prédéfinie (Rues, Satellite, Outdoor, Sombre, etc.). Les différents styles peuvent être visualisés directement sur le site de Mapbox. (voir [Documentation Mapbox Styles](https://docs.mapbox.com/api/maps/styles/#classic-mapbox-styles))
     *   *Défaut : mapbox://styles/mapbox/streets-v12*
 
 ### Dimensions
-*   **Largeur de la vignette** : Largeur en pixels de l'image générée.
+
+*   **<span style="color: #2196F3">Largeur de la vignette</span>** : Largeur en pixels de l'image générée.
     *   *Minimum : 400px / Maximum : 1280px*
-*   **Format de la vignette** : Ratio d'aspect de l'image.
+*   **<span style="color: #2196F3">Format de la vignette</span>** : Ratio d'aspect de l'image.
     *   *Options : 1/1 (Carré), 4/3, 16/9 (Panoramique)*
 
-## 2. Apparence de la Trace
+### Trace
 
 Ces options modifient le dessin du parcours sur la carte :
 
-*   **Couleur de la trace** : Couleur de la ligne du parcours.
+*   **<span style="color: #2196F3">Couleur de la trace sur la vignette</span>** : Couleur de la ligne du parcours.
     *   *Défaut : Orange foncé*
-*   **Largeur de la trace** : Épaisseur du trait en pixels.
+*   **<span style="color: #2196F3">Largeur de la trace</span>** : Épaisseur du trait en pixels.
     *   *Défaut : 3px*
 
-## 3. Marqueurs de Distance
+### MarqueurDistance
 
-Vous pouvez afficher des indicateurs kilométriques sur la vignette :
+Ces indicateurs permettent de visualiser le sens de parcours, ce qui est particulièrement utile pour les circuits en boucle (fermés).
 
-*   **Afficher la distance** : Active ou désactive l'affichage des bornes kilométriques.
-*   **Intervalle distance** : Distance en km entre deux marqueurs.
+*   **<span style="color: #2196F3">Afficher la distance</span>** : Active ou désactive l'affichage des bornes kilométriques.
+*   **<span style="color: #2196F3">Intervalle distance</span>** : Distance en km entre deux marqueurs.
     *   *Exemple : Tous les 10 km.*
-*   **Couleur des marqueurs** : Couleur des pastilles indiquant les kilomètres.
+*   **<span style="color: #2196F3">Couleur des marqueurs de distance</span>** : Couleur de base des pastilles.
 
-## 4. Marqueurs Départ / Arrivée
+> **Note - Limitations techniques** :
+> * Sur la vignette, chaque marqueur est limité à **un seul caractère** (ex: 1, 2, ... 9, 0). Pour les parcours de plus de 100 km (par défaut), la saturation de la couleur change tous les 10 marqueurs (du plus clair au plus foncé) pour permettre de différencier les dizaines.
 
-Pour visualiser le sens du parcours :
+### DepartArrivee
 
-*   **Afficher les marqueurs** : Active ou désactive les icônes de Départ (D) et d'Arrivée (A).
-*   **Couleur du Départ** : Couleur du marqueur de début.
-    *   *Défaut : Vert*
-*   **Couleur de l'Arrivée** : Couleur du marqueur de fin.
+Ces marqueurs permettent de visualiser le sens du parcours pour les circuits "ouverts" (point-à-point) et d'identifier clairement les points de départ et d'arrivée pour les circuits en boucle.
+
+*   **<span style="color: #2196F3">Afficher les marqueurs</span>** : Active ou désactive les icônes de Départ et d'Arrivée.
+*   **<span style="color: #2196F3">Distance max départ/arrivée (m)</span>** : Seuil en mètres pour considérer le parcours comme une boucle. Si la distance entre le départ et l'arrivée est inférieure à ce seuil, un marqueur unique est affiché.
+*   **<span style="color: #2196F3">Couleur du marqueur de départ</span>** : Couleur du marqueur de début.
+    1. *Défaut : Vert*
+*   **<span style="color: #2196F3">Couleur du marqueur d'arrivée</span>** : Couleur du marqueur de fin.
     *   *Défaut : Rouge*
-*   **Distance max départ/arrivée** : Seuil en mètres pour considérer le parcours comme une boucle. Si la distance entre le départ et l'arrivée est inférieure à ce seuil, un marqueur unique (D/A) est affiché.
-*   **Couleur Départ/Arrivée (Boucle)** : Couleur du marqueur unique pour les boucles.
+*   **<span style="color: #2196F3">Couleur du marqueur départ/arrivée (proches)</span>** : Couleur du marqueur unique pour les boucles.
     *   *Défaut : Bleu*
 
 ---
