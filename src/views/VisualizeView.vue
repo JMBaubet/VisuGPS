@@ -114,9 +114,9 @@ const { toHex } = useVuetifyColors();
 const { createMessageSVG } = useMessageDisplay();
 
 // --- Center Marker Logic ---
-const afficherCroixCentrale = computed(() => getSettingValue('Visualisation/Animation/afficherCroixCentrale'));
-const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Animation/couleurCroixCentrale'));
-const zoomMinimum = computed(() => (getSettingValue('Visualisation/Animation/zoomMinimum') ?? 100) / 10);
+const afficherCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale'));
+const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
+const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
 const isCenterMarkerVisible = computed(() => {
   return afficherCroixCentrale.value && animationState.value === 'En_Pause';
 });
@@ -202,11 +202,11 @@ watch(visualizeViewState, () => {
     sendVisualizeViewStateUpdate();
 }, { deep: true });
 
-const centerEurope = computed(() => getSettingValue('Visualisation/Initialisation/centerEurope'));
-const zoomEurope = computed(() => getSettingValue('Visualisation/Initialisation/zoomEurope'));
-const durationEuropeToTrace = computed(() => getSettingValue('Visualisation/Initialisation/durationEuropeToTrace'));
-const pauseBeforeStart = computed(() => getSettingValue('Visualisation/Initialisation/pauseBeforeStart'));
-const durationTraceToStart = computed(() => getSettingValue('Visualisation/Initialisation/durationTraceToStart'));
+const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
+const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
+const durationEuropeToTrace = computed(() => getSettingValue('Visualisation/Lancement/durationEuropeToTrace'));
+const pauseBeforeStart = computed(() => getSettingValue('Visualisation/Lancement/pauseBeforeStart'));
+const durationTraceToStart = computed(() => getSettingValue('Visualisation/Lancement/durationTraceToStart'));
 
 // Helper function to promisify map.flyTo
 function flyToPromise(mapInstance, options) {
@@ -564,10 +564,10 @@ const isRewinding = ref(false);
 const isAnimationFinished = ref(false);
 const distanceDisplay = ref('0.00 km');
 
-const minSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/min_value'));
-const maxSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/max_value'));
-const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Animation/Vitesse/default_value'));
-const sliderStep = computed(() => getSettingValue('Visualisation/Animation/Vitesse/slider_step'));
+const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value'));
+const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value'));
+const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value'));
+const sliderStep = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/slider_step'));
 
 function mapSliderToSpeed(sliderValue) {
     const min = minSpeedValue.value;
@@ -616,7 +616,7 @@ function mapSpeedToSlider(speed) {
     }
 }
 
-const sliderPosition = ref(mapSpeedToSlider(getSettingValue('Visualisation/Animation/Vitesse/default_value')));
+const sliderPosition = ref(mapSpeedToSlider(getSettingValue('Visualisation/Lecture/Vitesse/default_value')));
 
 const currentSpeed = computed({
   get: () => mapSliderToSpeed(sliderPosition.value),
@@ -625,7 +625,7 @@ const currentSpeed = computed({
   }
 });
 
-const intensiteZoomDynamique = computed(() => getSettingValue('Visualisation/Animation/ZoomDynamique/intensite_zoom_dynamique'));
+const intensiteZoomDynamique = computed(() => getSettingValue('Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique'));
 
 const dynamicZoomCoefficient = computed(() => {
     const speed = currentSpeed.value;
@@ -674,26 +674,26 @@ const handleMapZoom = () => {
 
 // --- Computed settings ---
 const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
-const mapStyle = computed(() => getSettingValue('Visualisation/Mapbox/styleVisualisation'));
-const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration'));
-const traceColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurTrace'));
-const traceWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurTrace'));
-const traceOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteTrace'));
-const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Mapbox/Traces/colorerSelonPente'));
+const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styleVisualisation'));
+const terrainExaggeration = computed(() => getSettingValue('Edition/Mapbox/Relief/exaggeration'));
+const traceColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'));
+const traceWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurTrace'));
+const traceOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteTrace'));
+const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/colorerSelonPente'));
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment'));
-const cometColor = computed(() => getSettingValue('Visualisation/Mapbox/Traces/couleurComete'));
-const cometWidth = computed(() => getSettingValue('Visualisation/Mapbox/Traces/epaisseurComete'));
-const cometOpacity = computed(() => getSettingValue('Visualisation/Mapbox/Traces/opaciteComete'));
-const cometLength = computed(() => getSettingValue('Visualisation/Mapbox/Traces/longueurComete'));
-const animationSpeed = computed(() => getSettingValue('Visualisation/Animation/vitesse'));
-const timerReprisePause = computed(() => getSettingValue('Visualisation/Animation/timerReprisePause'));
-const masquerCurseurDelai = computed(() => getSettingValue('Visualisation/Animation/masquerCurseurDelai'));
+const cometColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurComete'));
+const cometWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurComete'));
+const cometOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete'));
+const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/longueurComete'));
+const animationSpeed = computed(() => getSettingValue('Visualisation/Lecture/vitesse'));
+const timerReprisePause = computed(() => getSettingValue('Visualisation/Lecture/timerReprisePause'));
+const masquerCurseurDelai = computed(() => getSettingValue('Visualisation/Lecture/masquerCurseurDelai'));
 const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd') * 1000); // Convert to ms
 const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
 const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
-const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Initialisation/pauseAuKm0'));
+const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Lancement/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
-const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Messages/baseFontSize'));
+const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Taille des Messages/baseFontSize'));
 
 const sensibilityCap = computed(() => getSettingValue('Système/Télécommande/sensibiliteCap') ?? 100);
 const sensibilityPointDeVueX = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 100);
@@ -702,7 +702,7 @@ const sensibilityZoom = computed(() => getSettingValue('Système/Télécommande/
 const sensibilityTilt = computed(() => getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50);
 
 const showAltitudeProfileSetting = computed(() => {
-    const value = getSettingValue('Altitude/Visualisation/Affichage');
+    const value = getSettingValue('Visualisation/Profil Altitude/Graphe/Affichage');
     return value;
 });
 
@@ -1091,12 +1091,12 @@ const initializeMap = async () => {
     if (colorTraceBySlope.value) {
         try {
             const slopeColors = {
-                TrancheNegative: toHex(getSettingValue('Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(getSettingValue('Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(getSettingValue('Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(getSettingValue('Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(getSettingValue('Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(getSettingValue('Altitude/Couleurs/Tranche5')),
+                TrancheNegative: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+                Tranche1: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+                Tranche2: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+                Tranche3: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+                Tranche4: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+                Tranche5: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
 
             const colorExpression = await invoke('get_slope_color_expression', {

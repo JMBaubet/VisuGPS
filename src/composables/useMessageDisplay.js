@@ -4,9 +4,9 @@ import { useSettings } from '@/composables/useSettings';
 export function useMessageDisplay() {
     const { getSettingValue } = useSettings();
 
-    const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Messages/baseFontSize'));
-    const coefLargeurMessage = computed(() => getSettingValue('Visualisation/Messages/coefLargeurMessage'));
-    const coefReducteurMessage = computed(() => getSettingValue('Visualisation/Messages/coefReducteurMessage'));
+    const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Taille des Messages/baseFontSize'));
+    const coefLargeurMessage = computed(() => getSettingValue('Visualisation/Taille des Messages/coefLargeurMessage'));
+    const coefReducteurMessage = computed(() => getSettingValue('Visualisation/Taille des Messages/coefReducteurMessage'));
 
     const createMessageSVG = (message) => {
         const text = message.message.text;

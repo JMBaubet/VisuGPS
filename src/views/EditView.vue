@@ -1371,12 +1371,12 @@ onMounted(async () => {
     if (colorTraceBySlope) {
         try {
             const slopeColors = {
-                TrancheNegative: toHex(await getSettingValue('Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(await getSettingValue('Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(await getSettingValue('Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(await getSettingValue('Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(await getSettingValue('Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(await getSettingValue('Altitude/Couleurs/Tranche5')),
+                TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+                Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+                Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+                Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+                Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+                Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
             const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment');
 

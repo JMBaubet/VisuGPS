@@ -130,14 +130,14 @@ async function processData() {
         minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
         maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
         
-        const altitudeTickInterval = getSettingValue('Altitude/Visualisation/RepereAltitude') || 200;
+        const altitudeTickInterval = getSettingValue('Visualisation/Profil Altitude/Graphe/RepereAltitude') || 200;
         const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
         const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
         
         const effectiveMinAltitude = graphMinY;
         const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
         
-        const pixelsFor10Meters = getSettingValue('Altitude/Visualisation/Ordonnee') || 10; // Default to 10 pixels for 10 meters
+        const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10; // Default to 10 pixels for 10 meters
         const pixelsPerMeter = pixelsFor10Meters / 10;
         const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
         svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
@@ -155,7 +155,7 @@ async function processData() {
         
         totalDistance.value = dataPoints[dataPoints.length - 1].distance;
         dataPointsForTooltip.value = dataPoints;
-        const scaleX = getSettingValue('Altitude/Visualisation/Abscisse') || 2;
+        const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
         viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
         
         const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
@@ -163,12 +163,12 @@ async function processData() {
         zeroAltitudeY.value = yScale(0);
         
         const getSlopeColor = (slope) => {
-            if (slope <= 0) return toHex(getSettingValue('Altitude/Couleurs/TrancheNegative') || 'light-blue');
-            if (slope < 3) return toHex(getSettingValue('Altitude/Couleurs/Tranche1') || 'green');
-            if (slope < 6) return toHex(getSettingValue('Altitude/Couleurs/Tranche2') || 'yellow');
-            if (slope < 9) return toHex(getSettingValue('Altitude/Couleurs/Tranche3') || 'orange');
-            if (slope < 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche4') || 'red');
-            return toHex(getSettingValue('Altitude/Couleurs/Tranche5') || 'purple');
+            if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
+            if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
+            if (slope < 6) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2') || 'yellow');
+            if (slope < 9) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3') || 'orange');
+            if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
+            return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
         };
         
         const segments = [];
@@ -196,7 +196,7 @@ async function processData() {
         }
 
         const distanceTicks = [];
-        const tickInterval = (getSettingValue('Altitude/Visualisation/RepereDistance') || 10) * 1000;
+        const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000;
         for (let d = 0; d <= totalDistance.value; d += tickInterval) {
             distanceTicks.push({ value: d, position: (d / totalDistance.value) * viewBoxWidth.value, label: `${d / 1000}km` });
         }
@@ -276,7 +276,7 @@ watch(() => props.currentDistance, (newDistance) => {
     progressX.value = (newDistance / totalDistance.value) * viewBoxWidth.value;
 
     const containerWidth = containerRef.value.clientWidth;
-    const stuckPositionKm = getSettingValue('Altitude/Visualisation/CurseurPositionKm') || 10;
+    const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
     const stuckPositionMeters = stuckPositionKm * 1000;
     const stuckPositionPx = (stuckPositionMeters / totalDistance.value) * viewBoxWidth.value;
 

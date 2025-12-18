@@ -59,19 +59,19 @@ function initChart() {
 
     totalDistance.value = dataWithSlope[dataWithSlope.length - 1][0];
 
-    const negativeSlopeFactor = getSettingValue('Altitude/Couleurs/NegativeSlopeFactor');
-    const tranche1ColorName = getSettingValue('Altitude/Couleurs/Tranche1');
+    const negativeSlopeFactor = getSettingValue('Visualisation/Profil Altitude/Couleurs/NegativeSlopeFactor');
+    const tranche1ColorName = getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1');
     const negativeSlopeColorName = `${tranche1ColorName}-${negativeSlopeFactor}`;
 
     const getSlopeColor = (slope) => {
         if (slope <= 0) return toHex(negativeSlopeColorName);
-        if (slope <= 2) return toHex(getSettingValue('Altitude/Couleurs/Tranche2'));
-        if (slope <= 4) return toHex(getSettingValue('Altitude/Couleurs/Tranche3'));
-        if (slope <= 7) return toHex(getSettingValue('Altitude/Couleurs/Tranche4'));
-        if (slope <= 10) return toHex(getSettingValue('Altitude/Couleurs/Tranche5'));
-        if (slope <= 12) return toHex(getSettingValue('Altitude/Couleurs/Tranche6'));
-        if (slope <= 15) return toHex(getSettingValue('Altitude/Couleurs/Tranche7'));
-        return toHex(getSettingValue('Altitude/Couleurs/Tranche8'));
+        if (slope <= 2) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2'));
+        if (slope <= 4) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3'));
+        if (slope <= 7) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4'));
+        if (slope <= 10) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5'));
+        if (slope <= 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche6'));
+        if (slope <= 15) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche7'));
+        return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche8'));
     };
 
     const series = [];
@@ -98,7 +98,7 @@ function initChart() {
         });
     }
 
-    const zoomWindowKm = getSettingValue('Altitude/Visualisation/FenetreZoomKm') || 50;
+    const zoomWindowKm = getSettingValue('Visualisation/Profil Altitude/Graphe/FenetreZoomKm') || 50;
     const zoomWindowMeters = zoomWindowKm * 1000;
     const endPercentage = Math.min(100, (zoomWindowMeters / totalDistance.value) * 100);
 
@@ -134,8 +134,8 @@ function initChart() {
                     color: '#444'
                 }
             },
-            minInterval: (getSettingValue('Altitude/Visualisation/RepereDistance') || 10) * 1000, // Force interval
-            interval: (getSettingValue('Altitude/Visualisation/RepereDistance') || 10) * 1000,
+            minInterval: (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000, // Force interval
+            interval: (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000,
         },
         yAxis: {
             type: 'value',
@@ -149,7 +149,7 @@ function initChart() {
                     color: '#444'
                 }
             },
-            interval: getSettingValue('Altitude/Visualisation/RepereAltitude') || 500,
+            interval: getSettingValue('Visualisation/Profil Altitude/Graphe/RepereAltitude') || 500,
         },
         tooltip: {
             trigger: 'axis',
@@ -176,7 +176,7 @@ watch(() => props.currentDistance, (newDistance) => {
 
     if (!option.value.dataZoom || totalDistance.value === 0) return;
 
-    const zoomWindowKm = getSettingValue('Altitude/Visualisation/FenetreZoomKm') || 50;
+    const zoomWindowKm = getSettingValue('Visualisation/Profil Altitude/Graphe/FenetreZoomKm') || 50;
     const zoomWindowMeters = zoomWindowKm * 1000;
     const windowPercentage = (zoomWindowMeters / totalDistance.value) * 100;
     const currentPercentage = (newDistance / totalDistance.value) * 100;

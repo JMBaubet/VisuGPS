@@ -1046,31 +1046,34 @@
         "libelle": "Visualisation",
         "groupes": [
           {
-            "libelle": "Mapbox",
-            "parametres": [
-              {
-                "defaut": "mapbox://styles/mapbox/satellite-v9",
-                "description": "Style de carte lors de la visualisation",
-                "identifiant": "styleVisualisation",
-                "libelle": "Style de la carte.",
-                "type": "list",
-                "valeurs": [
-                  "mapbox://styles/mapbox/standard",
-                  "mapbox://styles/mapbox/streets-v12",
-                  "mapbox://styles/mapbox/outdoors-v12",
-                  "mapbox://styles/mapbox/light-v11",
-                  "mapbox://styles/mapbox/dark-v11",
-                  "mapbox://styles/mapbox/satellite-v9",
-                  "mapbox://styles/mapbox/satellite-streets-v12",
-                  "mapbox://styles/mapbox/navigation-day-v1",
-                  "mapbox://styles/mapbox/navigation-night-v1"
-                ],
-                "doc": "docs/DocParametrage/Visualisation/Mapbox/styleVisualisation.md"
-              }
-            ],
+            "libelle": "Vue 3D",
             "groupes": [
               {
-                "libelle": "Traces",
+                "libelle": "Carte",
+                "parametres": [
+                  {
+                    "defaut": "mapbox://styles/mapbox/satellite-v9",
+                    "description": "Style de carte lors de la visualisation",
+                    "identifiant": "styleVisualisation",
+                    "libelle": "Style de la carte.",
+                    "type": "list",
+                    "valeurs": [
+                      "mapbox://styles/mapbox/standard",
+                      "mapbox://styles/mapbox/streets-v12",
+                      "mapbox://styles/mapbox/outdoors-v12",
+                      "mapbox://styles/mapbox/light-v11",
+                      "mapbox://styles/mapbox/dark-v11",
+                      "mapbox://styles/mapbox/satellite-v9",
+                      "mapbox://styles/mapbox/satellite-streets-v12",
+                      "mapbox://styles/mapbox/navigation-day-v1",
+                      "mapbox://styles/mapbox/navigation-night-v1"
+                    ],
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Carte/styleVisualisation.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "Trace",
                 "parametres": [
                   {
                     "identifiant": "colorerSelonPente",
@@ -1079,7 +1082,7 @@
                     "type": "booleen",
                     "defaut": true,
                     "surcharge": null,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/colorerSelonPente.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/colorerSelonPente.md"
                   },
                   {
                     "defaut": "orange",
@@ -1088,7 +1091,7 @@
                     "libelle": "Couleur de la trace",
                     "type": "couleur",
                     "materialDesign": true,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/couleurTrace.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/couleurTrace.md"
                   },
                   {
                     "defaut": 8,
@@ -1098,7 +1101,7 @@
                     "type": "entier",
                     "min": 1,
                     "max": 20,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/epaisseurTrace.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/epaisseurTrace.md"
                   },
                   {
                     "defaut": 0.8,
@@ -1109,7 +1112,7 @@
                     "min": 0,
                     "max": 1,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/opaciteTrace.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/opaciteTrace.md"
                   },
                   {
                     "defaut": "white",
@@ -1118,7 +1121,7 @@
                     "libelle": "Couleur de la comète",
                     "type": "couleur",
                     "materialDesign": true,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/couleurComete.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/couleurComete.md"
                   },
                   {
                     "defaut": 8,
@@ -1128,7 +1131,7 @@
                     "type": "entier",
                     "min": 1,
                     "max": 20,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/epaisseurComete.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/epaisseurComete.md"
                   },
                   {
                     "defaut": 1,
@@ -1139,7 +1142,7 @@
                     "min": 0,
                     "max": 1,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/opaciteComete.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/opaciteComete.md"
                   },
                   {
                     "defaut": 50,
@@ -1149,14 +1152,87 @@
                     "type": "entier",
                     "min": 10,
                     "max": 5000,
-                    "doc": "docs/DocParametrage/Visualisation/Mapbox/Traces/longueurComete.md"
+                    "doc": "docs/DocParametrage/Visualisation/Vue 3D/Trace/longueurComete.md"
                   }
                 ]
               }
             ]
           },
           {
-            "libelle": "Animation",
+            "libelle": "Lancement",
+            "parametres": [
+              {
+                "doc": "docs/DocParametrage/Visualisation/Lancement/centerEurope.md",
+                "defaut": [
+                  2.3522,
+                  48.8566
+                ],
+                "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
+                "identifiant": "centerEurope",
+                "libelle": "Centre initial",
+                "type": "coord"
+              },
+              {
+                "defaut": 5,
+                "description": "Niveau de zoom initial pour la vue de l'Europe.",
+                "identifiant": "zoomEurope",
+                "libelle": "Zoom initial",
+                "type": "entier",
+                "min": 0,
+                "max": 22,
+                "doc": "docs/DocParametrage/Visualisation/Lancement/zoomEurope.md"
+              },
+              {
+                "defaut": 5000,
+                "description": "Durée en millisecondes de l'animation 'flyTo' de l'Europe vers la vue globale de la trace.",
+                "identifiant": "durationEuropeToTrace",
+                "libelle": "Durée de l'animation vers la trace au départ",
+                "type": "entier",
+                "min": 1000,
+                "max": 10000,
+                "unite": "ms",
+                "doc": "docs/DocParametrage/Visualisation/Lancement/durationEuropeToTrace.md"
+              },
+              {
+                "defaut": 1000,
+                "description": "Durée en millisecondes de la pause entre la vue globale de la trace et le début de l'animation.",
+                "identifiant": "pauseBeforeStart",
+                "libelle": "Durée de la pause sur la trace",
+                "type": "entier",
+                "min": 500,
+                "max": 5000,
+                "unite": "ms",
+                "doc": "docs/DocParametrage/Visualisation/Lancement/pauseBeforeStart.md"
+              },
+              {
+                "defaut": 2000,
+                "description": "Durée en millisecondes de l'animation 'flyTo' de la vue globale de la trace vers le point de départ (km 0).",
+                "identifiant": "durationTraceToStart",
+                "libelle": "Durée de l'animation vers le départ",
+                "type": "entier",
+                "min": 1000,
+                "max": 5000,
+                "unite": "ms",
+                "doc": "docs/DocParametrage/Visualisation/Lancement/durationTraceToStart.md"
+              },
+              {
+                "identifiant": "pauseAuKm0",
+                "libelle": "Durée de la pause au Km 0",
+                "description": "Durée de la pause au point de départ (Km 0) avant le démarrage automatique de l'animation. S'applique à l'initialisation et à la réinitialisation.",
+                "type": "reel",
+                "defaut": 0.5,
+                "surcharge": null,
+                "min": 0,
+                "max": 60,
+                "step": 0.5,
+                "critique": false,
+                "doc": "docs/DocParametrage/Visualisation/Lancement/pauseAuKm0.md",
+                "unite": "sec"
+              }
+            ]
+          },
+          {
+            "libelle": "Lecture",
             "groupes": [
               {
                 "libelle": "Vitesse",
@@ -1171,7 +1247,7 @@
                     "min": 0.05,
                     "max": 1,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Animation/Vitesse/min_value.md"
+                    "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/min_value.md"
                   },
                   {
                     "identifiant": "max_value",
@@ -1182,7 +1258,7 @@
                     "min": 1,
                     "max": 100,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Animation/Vitesse/max_value.md"
+                    "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/max_value.md"
                   },
                   {
                     "identifiant": "default_value",
@@ -1193,7 +1269,7 @@
                     "min": 0.1,
                     "max": 20,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Animation/Vitesse/default_value.md"
+                    "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/default_value.md"
                   },
                   {
                     "identifiant": "slider_step",
@@ -1204,7 +1280,7 @@
                     "min": 0.01,
                     "max": 1,
                     "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Animation/Vitesse/slider_step.md"
+                    "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/slider_step.md"
                   }
                 ]
               },
@@ -1221,7 +1297,7 @@
                     "min": 2,
                     "max": 50,
                     "step": 1,
-                    "doc": "docs/DocParametrage/Visualisation/Animation/ZoomDynamique/intensite_zoom_dynamique.md"
+                    "doc": "docs/DocParametrage/Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique.md"
                   }
                 ]
               }
@@ -1235,7 +1311,7 @@
                 "type": "entier",
                 "min": 100,
                 "max": 60000,
-                "doc": "docs/DocParametrage/Visualisation/Animation/vitesse.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/vitesse.md"
               },
               {
                 "defaut": 1000,
@@ -1246,7 +1322,7 @@
                 "min": 0,
                 "max": 5000,
                 "unite": "ms",
-                "doc": "docs/DocParametrage/Visualisation/Animation/timerReprisePause.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/timerReprisePause.md"
               },
               {
                 "identifiant": "masquerCurseurDelai",
@@ -1258,7 +1334,7 @@
                 "max": 10000,
                 "step": 500,
                 "unite": "ms",
-                "doc": "docs/DocParametrage/Visualisation/Animation/masquerCurseurDelai.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/masquerCurseurDelai.md"
               },
               {
                 "identifiant": "afficherCroixCentrale",
@@ -1266,7 +1342,7 @@
                 "description": "Affiche une croix au centre de l'écran lorsque l'animation est en pause.",
                 "type": "booleen",
                 "defaut": true,
-                "doc": "docs/DocParametrage/Visualisation/Animation/afficherCroixCentrale.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/afficherCroixCentrale.md"
               },
               {
                 "identifiant": "couleurCroixCentrale",
@@ -1275,7 +1351,7 @@
                 "type": "couleur",
                 "defaut": "white",
                 "materialDesign": true,
-                "doc": "docs/DocParametrage/Visualisation/Animation/couleurCroixCentrale.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/couleurCroixCentrale.md"
               },
               {
                 "identifiant": "zoomMinimum",
@@ -1286,123 +1362,7 @@
                 "step": 1,
                 "min": 80,
                 "max": 125,
-                "doc": "docs/DocParametrage/Visualisation/Animation/zoomMinimum.md"
-              }
-            ]
-          },
-          {
-            "libelle": "Initialisation",
-            "parametres": [
-              {
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/centerEurope.md",
-                "defaut": [
-                  2.3522,
-                  48.8566
-                ],
-                "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
-                "identifiant": "centerEurope",
-                "libelle": "Centre de l'Europe",
-                "type": "coord"
-              },
-              {
-                "defaut": 5,
-                "description": "Niveau de zoom initial pour la vue de l'Europe.",
-                "identifiant": "zoomEurope",
-                "libelle": "Zoom Europe",
-                "type": "entier",
-                "min": 0,
-                "max": 22,
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/zoomEurope.md"
-              },
-              {
-                "defaut": 5000,
-                "description": "Durée en millisecondes de l'animation 'flyTo' de l'Europe vers la vue globale de la trace.",
-                "identifiant": "durationEuropeToTrace",
-                "libelle": "Durée Europe vers Trace (ms)",
-                "type": "entier",
-                "min": 1000,
-                "max": 10000,
-                "unite": "ms",
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/durationEuropeToTrace.md"
-              },
-              {
-                "defaut": 1000,
-                "description": "Durée en millisecondes de la pause entre la vue globale de la trace et le début de l'animation.",
-                "identifiant": "pauseBeforeStart",
-                "libelle": "Pause avant début (ms)",
-                "type": "entier",
-                "min": 500,
-                "max": 5000,
-                "unite": "ms",
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/pauseBeforeStart.md"
-              },
-              {
-                "defaut": 2000,
-                "description": "Durée en millisecondes de l'animation 'flyTo' de la vue globale de la trace vers le point de départ (km 0).",
-                "identifiant": "durationTraceToStart",
-                "libelle": "Durée Trace vers Départ (ms)",
-                "type": "entier",
-                "min": 1000,
-                "max": 5000,
-                "unite": "ms",
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/durationTraceToStart.md"
-              },
-              {
-                "identifiant": "pauseAuKm0",
-                "libelle": "Pause au Km 0 (sec)",
-                "description": "Durée de la pause au point de départ (Km 0) avant le démarrage automatique de l'animation. S'applique à l'initialisation et à la réinitialisation.",
-                "type": "reel",
-                "defaut": 0.5,
-                "surcharge": null,
-                "min": 0,
-                "max": 60,
-                "step": 0.5,
-                "critique": false,
-                "doc": "docs/DocParametrage/Visualisation/Initialisation/pauseAuKm0.md",
-                "unite": "sec"
-              }
-            ]
-          },
-          {
-            "libelle": "Messages",
-            "parametres": [
-              {
-                "identifiant": "baseFontSize",
-                "libelle": "Taille de police de base des messages (px)",
-                "description": "Taille de police de base utilisée pour les messages affichés sur la carte. Les autres dimensions du message s'adapteront proportionnellement.",
-                "type": "entier",
-                "defaut": 30,
-                "min": 10,
-                "max": 100,
-                "unite": "px",
-                "critique": true,
-                "doc": "docs/DocParametrage/Visualisation/Messages/baseFontSize.md"
-              },
-              {
-                "identifiant": "coefLargeurMessage",
-                "libelle": "Coefficient largeur message",
-                "description": "Coefficient multiplicateur appliqué à la taille de police pour estimer la largeur du texte du message. Ajuster si le cadre est trop large ou trop étroit.",
-                "type": "reel",
-                "defaut": 0.7,
-                "surcharge": null,
-                "min": 0.3,
-                "max": 1.5,
-                "step": 0.05,
-                "critique": true,
-                "doc": "docs/DocParametrage/Visualisation/Messages/coefLargeurMessage.md"
-              },
-              {
-                "identifiant": "coefReducteurMessage",
-                "libelle": "Coefficient réducteur message",
-                "description": "Réduit le coefficient largeur pour les messages longs. Formule : Coef / (1 + Longueur * Reducteur).",
-                "type": "reel",
-                "defaut": 0.025,
-                "surcharge": null,
-                "min": 0.0,
-                "max": 0.1,
-                "step": 0.001,
-                "critique": true,
-                "doc": "docs/DocParametrage/Visualisation/Messages/coefReducteurMessage.md"
+                "doc": "docs/DocParametrage/Visualisation/Lecture/zoomMinimum.md"
               }
             ]
           },
@@ -1411,7 +1371,7 @@
             "parametres": [
               {
                 "identifiant": "delayAfterAnimationEnd",
-                "nom": "Délai après fin d'animation (s)",
+                "libelle": "Durée de la pause à l'arrivée",
                 "description": "Délai en secondes avant de lancer la séquence de finalisation après la fin de l'animation.",
                 "type": "entier",
                 "defaut": 3,
@@ -1422,7 +1382,7 @@
               },
               {
                 "identifiant": "flyToGlobalDuration",
-                "nom": "Durée du survol global (ms)",
+                "libelle": "Durée de l'animation vers la trace à l'arrivée",
                 "description": "Durée en millisecondes de l'animation de survol vers la vue globale de la trace.",
                 "type": "entier",
                 "defaut": 2000,
@@ -1433,7 +1393,7 @@
               },
               {
                 "identifiant": "flyToKm0Duration",
-                "nom": "Durée du survol vers Km 0 (ms)",
+                "libelle": "Durée de l'animation vers le départ",
                 "description": "Durée en millisecondes de l'animation de survol vers le point de départ (Km 0).",
                 "type": "entier",
                 "defaut": 1000,
@@ -1444,7 +1404,7 @@
               },
               {
                 "identifiant": "repriseAutomatique",
-                "libelle": "Reprise automatique de l'animation",
+                "libelle": "Reprise automatique",
                 "description": "Si activé, l'animation redémarre automatiquement après la séquence de finalisation (vue globale).",
                 "type": "booleen",
                 "defaut": false,
@@ -1454,7 +1414,7 @@
               },
               {
                 "identifiant": "pauseAvantReprise",
-                "libelle": "Pause avant reprise auto. (sec)",
+                "libelle": "Durée de la pause avant reprise auto",
                 "description": "En mode de reprise automatique, durée de la pause sur la vue globale avant de relancer l'animation.",
                 "type": "reel",
                 "defaut": 1,
@@ -1467,159 +1427,202 @@
                 "doc": "docs/DocParametrage/Visualisation/Finalisation/pauseAvantReprise.md"
               }
             ]
-          }
-        ]
-      },
-      {
-        "libelle": "Altitude",
-        "description": "Paramètres pour le profil altimétrique.",
-        "type": "groupe",
-        "groupes": [
+          },
           {
-            "libelle": "Visualisation",
-            "description": "Paramètres d'affichage du profil altimétrique.",
+            "libelle": "Profil Altitude",
+            "description": "Paramètres pour le profil altimétrique.",
             "type": "groupe",
-            "parametres": [
+            "groupes": [
               {
-                "identifiant": "Affichage",
-                "libelle": "Afficher le profil",
-                "description": "Affiche ou masque le profil altimétrique dans la vue de visualisation.",
-                "type": "booleen",
-                "defaut": true,
-                "surcharge": null,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/Affichage.md"
+                "libelle": "Graphe",
+                "description": "Paramètres d'affichage du profil altimétrique.",
+                "type": "groupe",
+                "parametres": [
+                  {
+                    "identifiant": "Affichage",
+                    "libelle": "Afficher le profil",
+                    "description": "Affiche ou masque le profil altimétrique dans la vue de visualisation.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "surcharge": null,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/Affichage.md"
+                  },
+                  {
+                    "identifiant": "Abscisse",
+                    "libelle": "Echelle des abscisses",
+                    "description": "Définit l'échelle de l'axe des abscisses (distance). Nombre de pixels pour 100 mètres.",
+                    "type": "entier",
+                    "defaut": 2,
+                    "surcharge": null,
+                    "min": 1,
+                    "max": 10,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/Abscisse.md"
+                  },
+                  {
+                    "identifiant": "Ordonnee",
+                    "libelle": "Echelle des ordonnées",
+                    "description": "Définit l'échelle de l'axe des ordonnées (altitude). Nombre de pixels pour 10 mètres de dénivelé.",
+                    "type": "entier",
+                    "defaut": 1,
+                    "surcharge": null,
+                    "min": 1,
+                    "max": 10,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/Ordonnee.md"
+                  },
+                  {
+                    "identifiant": "RepereDistance",
+                    "libelle": "Intervalle des repères distances",
+                    "description": "Intervalle en kilomètres pour les repères sur l'axe des distances.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "surcharge": null,
+                    "min": 1,
+                    "max": 100,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/RepereDistance.md"
+                  },
+                  {
+                    "identifiant": "RepereAltitude",
+                    "libelle": "Intervalle des repères altitude",
+                    "description": "Intervalle en mètres pour les repères sur l'axe des altitudes.",
+                    "type": "entier",
+                    "defaut": 500,
+                    "surcharge": null,
+                    "min": 50,
+                    "max": 2000,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/RepereAltitude.md"
+                  },
+                  {
+                    "identifiant": "CurseurPositionKm",
+                    "libelle": "Position du curseur.",
+                    "description": "Définit la position en km où le curseur se bloque lorsque le graphique défile.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 1,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/CurseurPositionKm.md"
+                  }
+                ]
               },
               {
-                "identifiant": "Abscisse",
-                "libelle": "Échelle Abscisse (px/100m)",
-                "description": "Définit l'échelle de l'axe des abscisses (distance). Nombre de pixels pour 100 mètres.",
-                "type": "entier",
-                "defaut": 2,
-                "surcharge": null,
-                "min": 1,
-                "max": 10,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/Abscisse.md"
-              },
-              {
-                "identifiant": "Ordonnee",
-                "libelle": "Échelle Ordonnée (px/10m)",
-                "description": "Définit l'échelle de l'axe des ordonnées (altitude). Nombre de pixels pour 10 mètres de dénivelé.",
-                "type": "entier",
-                "defaut": 1,
-                "surcharge": null,
-                "min": 1,
-                "max": 10,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/Ordonnee.md"
-              },
-              {
-                "identifiant": "RepereDistance",
-                "libelle": "Intervalle repère distance (km)",
-                "description": "Intervalle en kilomètres pour les repères sur l'axe des distances.",
-                "type": "entier",
-                "defaut": 10,
-                "surcharge": null,
-                "min": 1,
-                "max": 100,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/RepereDistance.md"
-              },
-              {
-                "identifiant": "RepereAltitude",
-                "libelle": "Intervalle repère altitude (m)",
-                "description": "Intervalle en mètres pour les repères sur l'axe des altitudes.",
-                "type": "entier",
-                "defaut": 500,
-                "surcharge": null,
-                "min": 50,
-                "max": 2000,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/RepereAltitude.md"
-              },
-              {
-                "identifiant": "CurseurPositionKm",
-                "libelle": "Position du curseur (km)",
-                "description": "Définit la position en km où le curseur se bloque lorsque le graphique défile.",
-                "type": "entier",
-                "defaut": 10,
-                "min": 1,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Visualisation/CurseurPositionKm.md"
+                "libelle": "Couleurs",
+                "description": "Définit les couleurs utilisées pour représenter les différentes pentes.",
+                "type": "groupe",
+                "parametres": [
+                  {
+                    "identifiant": "TrancheNegative",
+                    "libelle": "Pente <= 0%",
+                    "description": "Couleur pour les pentes négatives ou nulles.",
+                    "type": "couleur",
+                    "defaut": "light-blue",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/TrancheNegative.md"
+                  },
+                  {
+                    "identifiant": "Tranche1",
+                    "libelle": "0% < Pente < 3%",
+                    "description": "Couleur pour les pentes de 0% à 3%.",
+                    "type": "couleur",
+                    "defaut": "green",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/Tranche1.md"
+                  },
+                  {
+                    "identifiant": "Tranche2",
+                    "libelle": "3% <= Pente < 6%",
+                    "description": "Couleur pour les pentes de 3% à 6%.",
+                    "type": "couleur",
+                    "defaut": "yellow",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/Tranche2.md"
+                  },
+                  {
+                    "identifiant": "Tranche3",
+                    "libelle": "6% <= Pente < 9%",
+                    "description": "Couleur pour les pentes de 6% à 9%.",
+                    "type": "couleur",
+                    "defaut": "orange",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/Tranche3.md"
+                  },
+                  {
+                    "identifiant": "Tranche4",
+                    "libelle": "9% <= Pente < 12%",
+                    "description": "Couleur pour les pentes de 9% à 12%.",
+                    "type": "couleur",
+                    "defaut": "red",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/Tranche4.md"
+                  },
+                  {
+                    "identifiant": "Tranche5",
+                    "libelle": "Pente >= 12%",
+                    "description": "Couleur pour les pentes supérieures à 12%.",
+                    "type": "couleur",
+                    "defaut": "purple",
+                    "surcharge": null,
+                    "materialDesign": true,
+                    "critique": false,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Couleurs/Tranche5.md"
+                  }
+                ]
               }
             ]
           },
           {
-            "libelle": "Couleurs",
-            "description": "Définit les couleurs utilisées pour représenter les différentes pentes.",
-            "type": "groupe",
+            "libelle": "Taille des Messages",
             "parametres": [
               {
-                "identifiant": "TrancheNegative",
-                "libelle": "Pente <= 0%",
-                "description": "Couleur pour les pentes négatives ou nulles.",
-                "type": "couleur",
-                "defaut": "light-blue",
-                "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/TrancheNegative.md"
+                "identifiant": "baseFontSize",
+                "libelle": "Taille de police de base des messages (px)",
+                "description": "Taille de police de base utilisée pour les messages affichés sur la carte. Les autres dimensions du message s'adapteront proportionnellement.",
+                "type": "entier",
+                "defaut": 30,
+                "min": 10,
+                "max": 100,
+                "unite": "px",
+                "critique": true,
+                "doc": "docs/DocParametrage/Visualisation/Taille des Messages/baseFontSize.md"
               },
               {
-                "identifiant": "Tranche1",
-                "libelle": "0% < Pente < 3%",
-                "description": "Couleur pour les pentes de 0% à 3%.",
-                "type": "couleur",
-                "defaut": "green",
+                "identifiant": "coefLargeurMessage",
+                "libelle": "Coefficient largeur message",
+                "description": "Coefficient multiplicateur appliqué à la taille de police pour estimer la largeur du texte du message. Ajuster si le cadre est trop large ou trop étroit.",
+                "type": "reel",
+                "defaut": 0.7,
                 "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/Tranche1.md"
+                "min": 0.3,
+                "max": 1.5,
+                "step": 0.05,
+                "critique": true,
+                "doc": "docs/DocParametrage/Visualisation/Taille des Messages/coefLargeurMessage.md"
               },
               {
-                "identifiant": "Tranche2",
-                "libelle": "3% <= Pente < 6%",
-                "description": "Couleur pour les pentes de 3% à 6%.",
-                "type": "couleur",
-                "defaut": "yellow",
+                "identifiant": "coefReducteurMessage",
+                "libelle": "Coefficient réducteur message",
+                "description": "Réduit le coefficient largeur pour les messages longs. Formule : Coef / (1 + Longueur * Reducteur).",
+                "type": "reel",
+                "defaut": 0.025,
                 "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/Tranche2.md"
-              },
-              {
-                "identifiant": "Tranche3",
-                "libelle": "6% <= Pente < 9%",
-                "description": "Couleur pour les pentes de 6% à 9%.",
-                "type": "couleur",
-                "defaut": "orange",
-                "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/Tranche3.md"
-              },
-              {
-                "identifiant": "Tranche4",
-                "libelle": "9% <= Pente < 12%",
-                "description": "Couleur pour les pentes de 9% à 12%.",
-                "type": "couleur",
-                "defaut": "red",
-                "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/Tranche4.md"
-              },
-              {
-                "identifiant": "Tranche5",
-                "libelle": "Pente >= 12%",
-                "description": "Couleur pour les pentes supérieures à 12%.",
-                "type": "couleur",
-                "defaut": "purple",
-                "surcharge": null,
-                "materialDesign": true,
-                "critique": false,
-                "doc": "docs/DocParametrage/Altitude/Couleurs/Tranche5.md"
+                "min": 0.0,
+                "max": 0.1,
+                "step": 0.001,
+                "critique": true,
+                "doc": "docs/DocParametrage/Visualisation/Taille des Messages/coefReducteurMessage.md"
               }
             ]
           }
