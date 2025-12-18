@@ -20,6 +20,8 @@ Le bouton de tri permet de réorganiser l'affichage des cartes :
 
 *   **Date d'ajout** : (Par défaut) Les circuits les plus récemment importés apparaissent en premier.
 *   **Nom** : Ordre alphabétique.
+*   **Ville** : Tri par commune de départ.
+*   **Traceur** : Tri par auteur du circuit.
 *   **Distance** : Tri par longueur du parcours.
 *   **Dénivelé** : Tri par difficulté (D+).
 *   **Date de réalisation** : Basé sur la date temporelle contenue dans le fichier GPX (si présente).
