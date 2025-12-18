@@ -1,40 +1,62 @@
 # Mode Édition : Vue d'ensemble
 
-Le mode Édition est l'espace de travail où vous préparez votre animation.
+Le mode Édition est l'espace de travail où vous configurez votre trace et préparez votre visalisation 3D. Cet espace est organisé autour de trois modes de travail complémentaires accessibles via des onglets.
 
 [< Retour à l'accueil](./index.md) | [< Précédent : Importation](./upload.md)
 
 ## Interface du Mode Édition
 
-L'écran est divisé en deux parties principales :
-1.  **La Vue 3D** (gauche/centre) : Affiche votre trace sur le relief.
-2.  **Le Panneau Latéral** (droite) : Contient tous les outils de configuration.
+L'écran est optimisé pour la manipulation visuelle :
 
-## Navigation dans la Vue 3D
-
-Pour explorer votre trace et choisir les meilleurs angles de vue, utilisez la souris et le clavier :
-*   **Clic Gauche + Glisser** : Déplacer la carte (Pan).
-*   **Clic Droit + Glisser** : Pivoter et incliner la vue (Rotation/Pitch).
-*   **Molette** : Zoomer / Dézoomer.
-*   **Maj (Shift) + Glisser** : Sélection de zone (selon configuration).
-
-## Contrôle de l'Animation (Previsualisation)
-
-En bas de l'écran, une barre de timeline permet de parcourir la trace :
-*   Le curseur indique la position actuelle sur le parcours (en kilomètres).
-*   Les boutons Play/Pause permettent de lancer un aperçu rapide.
-
-## Modes de Synchronisation
-
-Il existe deux philosophies pour animer la caméra ("Camera Sync") :
-
-1.  **Mode Calculée** : La caméra suit automatiquement la trace avec des paramètres fixes (hauteur, distance). C'est le plus simple pour commencer.
-2.  **Mode Animée / Éditée** : Vous définissez manuellement des points clés (Keyframes) pour dire à la caméra où se placer à des moments précis. Entre deux points, l'application crée une transition fluide. C'est le mode par défaut pour des résultats cinématographiques.
+1.  **La Vue 3D** (En fond) : Affiche votre trace sur le relief Mapbox. C'est votre zone de travail principale.
+2.  **Indicateur de Progression** (Haut au centre) : Affiche la distance parcourue (km) et la progression globale sur la trace.
+3.  **Paramètres de Caméra** (Haut à droite) : Affiche en temps réel le **Cap** (angle), le **Zoom** et le **Pitch** (inclinaison).
+4.  **Panneau de Contrôle** (Bas) : Regroupe les Graphes de données et les Onglets de réglage.
 
 ---
-[Menu Principal Édition](./edition_intro.md)
-*   [Configuration de la Caméra >](./edition_camera.md)
-*   [Évènements (FlyTo & Pauses) >](./edition_flyto_pause.md)
-*   [Messages >](./edition_messages.md)
 
+## Navigation Globale
+
+Avant de configurer les détails, voici comment vous déplacer le long de votre trace :
+
+### Au Clavier
+*   **Flèches Gauche / Droite** : Avancer ou reculer sur la trace (Incrémentation de 1 point).
+*   **Maj (Shift) + Flèches** : Déplacement rapide (Incrément de 10 points).
+
+> [!NOTE]
+> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md).
+
+### Via les Graphes
+*   **Clic ou Glisser** sur le graphe présent pour vous positionner instantanément au kilomètre correspondant.
+
+---
+
+## Les Trois Modes d'Édition
+
+### 1. Mode Caméra
+C'est le mode par défaut pour définir le "vol" de la caméra. Vous placez des **points clés** pour dicter à la caméra où se situer à ces endroits.
+
+(voir [Configuration de la Caméra](./edition_camera.md))
+
+### 2. Mode Pause / FlyTo
+Ce mode permet d'ajouter des événements ponctuels pour dynamiser l'animation.
+
+(voir [Événements : Pauses et FlyTo](./edition_flyto_pause.md))
+
+### 3. Mode Message
+Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours.
+
+(voir [Gestion des Messages](./edition_messages.md))
+
+---
+
+## Paramètres Liés
+
+Certaines commandes de l'éditeur peuvent être personnalisées dans le menu [<span style="color: #FFC107">Paramètres</span>](./parametres.md) :
+
+*   **Touches d'avancement** : Redéfinissez les touches clavier utilisées pour avancer ou reculer sur la trace (flèches par défaut).
+*   **Incréments de déplacement** : Réglez la finesse du déplacement (nombre de points de tracking par appui touche).
+*   **Commandes de Pitch** : Changez les touches ou l'incrément de l'inclinaison de la caméra.
+
+---
 [< Retour à l'accueil](./index.md)

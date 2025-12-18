@@ -4,41 +4,57 @@ Pour rendre votre animation plus captivante, vous pouvez interrompre le suivi li
 
 [< Retour aux généralités Édition](./edition_intro.md)
 
+## Navigation et Commandes (Onglet Pause/FlyTo)
+
+Cet onglet réactive le déplacement libre sur la carte pour vous permettre de cibler des points d'intérêt.
+
+### À la Souris
+*   **Clic Gauche + Glisser** : Déplacer la carte (Pan). Utile pour positionner le centre de la vue sur une cible de FlyTo ou pour observer les alentours d'une pause.
+*   **Clic Droit + Glisser** : Ajuster l'angle de vue (Cap et Pitch).
+*   **Molette** : Zoomer / Dézoomer.
+
+### Au Clavier
+*   **Flèches** : Les commandes d'avancement et de pitch restent actives pour synchroniser précisément l'événement sur la trace.
+
+---
+
 ## 1. Les Pauses
 
-Une pause arrête le mouvement du marqueur sur la trace pendant une durée définie, permettant au spectateur d'admirer le paysage.
+Une pause arrête le mouvement du marqueur sur la trace pendant une durée définie, permettant au spectateur d'admirer le paysage ou de lire un message long.
 
 ### Ajouter une Pause :
-1.  Positionnez le curseur timeline à l'endroit voulu.
-2.  Dans l'onglet "Évènements", sélectionnez **"Pause"**.
-3.  Définissez la **Durée** (en secondes).
+1.  Positionnez-vous au kilomètre voulu via le clavier ou le graphe.
+2.  Dans l'onglet **Pause/FlyTo**, cliquez sur **"Ajouter une pause"**.
+3.  Réglez la **Durée** (en secondes).
 
-**Note** : Pendant une pause, la caméra peut continuer de bouger si vous avez défini des clés de caméra différentes au début et à la fin de celle-ci (par exemple pour faire un panoramique lent).
+> [!TIP]
+> Si vous enregistrez une vue caméra différente au début et à la fin d'une pause, l'application créera un mouvement de caméra lent (panoramique) pendant que le marqueur est arrêté.
+
+---
 
 ## 2. Les FlyTo (Survols)
 
-Un "FlyTo" est un détour spectaculaire. La caméra quitte la trace pour aller survoler un point d'intérêt distant (sommet, lac, village), puis revient reprendre le cours de la trace.
+Un "FlyTo" est un détour spectaculaire : la caméra quitte la trace pour aller survoler un point d'intérêt (sommet, village, lac), puis revient reprendre le cours de la trace.
 
 ### Ajouter un FlyTo :
-1.  Positionnez le curseur timeline à l'endroit du déclenchement.
-2.  Dans l'onglet "Évènements", sélectionnez **"FlyTo"**.
-3.  Cliquez sur la carte 3D pour définir la **Cible** (le point que vous voulez montrer).
-4.  Configurez les paramètres du vol.
+1.  Positionnez-vous à l'endroit du déclenchement sur la trace.
+2.  Cliquez sur **"Ajouter un FlyTo"**.
+3.  **Cible** : Utilisez le **clic gauche** pour déplacer la carte et cliquez sur l'icône de visée (ou directement sur la carte selon la version) pour définir le point à survoler.
+4.  Configurez les paramètres du vol (Cap, Pitch, Zoom, Durée).
 
 ### Paramètres du FlyTo :
-*   **Cible (Coordonnées)** : Latitude/Longitude du point d'intérêt.
-*   **Heading (Cap)** : Orientation de la caméra à l'arrivée sur la cible.
-*   **Pitch** : Inclinaison de la caméra à l'arrivée.
-*   **Range (Distance)** : Distance de recul par rapport à la cible.
+*   **Heading (Cap)** : Orientation de la caméra sur la cible.
+*   **Pitch** : Inclinaison sur la cible.
+*   **Range (Distance)** : Distance de recul par rapport au point visé.
 *   **Durée** : Temps total de l'aller-retour.
+
+---
 
 ## Visualisation des Graphiques
 
-Lors d'un évènement, vous pouvez afficher des graphiques de données (altitude, vitesse) à l'écran.
-*   **Couleur du tracé** : Personnalisable pour chaque type d'évènement.
-*   **Longueur** : Portion du graphique affichée.
-
-Ces paramètres se règlent dans la section "Graphe" de l'évènement.
+Pour chaque événement, vous pouvez personnaliser l'affichage de sa portion sur le graphe :
+*   **Couleur** : Identifiez visuellement les zones de pause ou de FlyTo.
+*   **Longueur** : Définit la portion de trace "couverte" graphiquement par l'évènement.
 
 ---
 [< Retour aux généralités Édition](./edition_intro.md) | [Suivant : Messages >](./edition_messages.md)

@@ -1,39 +1,59 @@
 # Configuration de la Caméra
 
-Ce document détaille comment contrôler les mouvements de la caméra pour créer des effets dynamiques.
+Ce document détaille comment contrôler les mouvements de la caméra pour créer des effets dynamiques et des transitions fluides.
 
 [< Retour aux généralités Édition](./edition_intro.md)
 
-## Principe des Clés d'Animation (Keyframes)
+## Navigation et Commandes (Onglet Caméra)
 
-L'animation de la caméra repose sur des "clés". Une clé est un enregistrement de la position de la caméra à un kilomètre précis de la trace.
+Lorsque l'onglet **Caméra** est actif, vous disposez de contrôles précis pour ajuster votre vue :
 
-*   Si vous placez la caméra en vue de dessus au km 0 et en vue rasante au km 5, l'application fera transiter la caméra progressivement de l'un à l'autre entre le km 0 et le km 5.
+### À la Souris
+*   **Clic Droit + Glisser Horizontalement** : Pivoter la vue (Cap / Bearing).
+*   **Molette** : Zoomer / Dézoomer d'un pas fin (0.1).
+*   **Maj (Shift) + Molette** : Zoomer / Dézoomer rapidement (pas de 1.0).
+*   **Survol du Panneau** : Si votre souris est au-dessus du panneau de configuration, la **Molette** seule permet de faire pivoter la vue (Cap) avec précision.
 
-## Outils de Caméra
+> [!NOTE]
+> Le **clic gauche** est volontairement désactivé dans cet onglet pour éviter de perdre le centrage de la caméra sur la trace pendant vos réglages.
 
-Dans l'onglet "Caméra" du panneau latéral, vous disposez de plusieurs curseurs :
+### Au Clavier
+*   **Flèches Gauche / Droite** : Avancer ou reculer sur la trace (1 point).
+*   **Flèches Haut / Bas** : Modifier l'inclinaison (Pitch) de 1°.
+*   **Maj (Shift) + Flèches** : Mouvements rapides (10 points pour la distance, 5° pour le Pitch).
 
-1.  **Zoom** : Rapproche ou éloigne la caméra du sol.
-2.  **Pitch (Inclinaison)** : Incline la caméra vers l'horizon (0° = vue de dessus, 60°+ = vue rasante).
-3.  **Bearing (Cap)** : Oriente la caméra (Nord, Sud, etc.) ou la fait tourner autour du sujet.
+---
 
-## Comment créer une clé ?
+## Principe des Points Clés (Keyframes)
 
-1.  Déplacez le curseur de la timeline (en bas) à l'endroit désiré sur la trace.
-2.  Ajustez la vue 3D avec la souris ou les curseurs du panneau latéral pour obtenir le cadrage parfait.
-3.  Cliquez sur le bouton **"Enregistrer la vue"** (souvent une icône de caméra ou de disquette).
-4.  Un repère visuel apparaît sur la timeline pour indiquer qu'une clé existe à cet endroit.
+L'animation repose sur l'enregistrement de positions à des endroits précis de la trace :
 
-Pour supprimer une clé, placez-vous dessus et cliquez sur l'icône de suppression (poubelle).
+1.  **Positionnement** : Déplacez-vous sur la trace (clavier ou graphes) jusqu'au kilomètre souhaité.
+2.  **Cadrage** : Ajustez le zoom, le cap et le pitch pour obtenir la vue idéale.
+3.  **Enregistrement** : Cliquez sur le bouton **Enregistrer la vue** ![camera](https://api.iconify.design/mdi/camera-plus-outline.svg?width=20) dans l'onglet Caméra.
+4.  **Transition** : L'application calcule automatiquement le mouvement fluide entre ce point et le point clé suivant.
+
+### Synchronisation Animée
+Par défaut, l'éditeur est en mode **Synchronisation Animée**. Cela signifie que lorsque vous vous déplacez sur la trace, la caméra suit fidèlement la trajectoire que vous avez programmée. Cela permet de vérifier immédiatement le rendu de vos transitions.
+
+---
+
+## Affichage des Courbes
+
+Dans l'onglet Caméra, un panneau repliable **"Affichage des courbes"** vous permet de superposer des informations sur les graphes :
+
+*   **Courbe Éditée** : Affiche les variations de Zoom, Pitch ou Cap que vous avez programmées via vos points clés.
+*   **Courbe Calculée** (pour le Cap) : Indique le cap "brut" de la trace, utile pour aligner votre caméra sur la direction réelle du chemin.
+
+---
 
 ## Paramètres Techniques
 
-Les valeurs suivantes sont stockées pour chaque clé dans le fichier de configuration :
-*   `camera.zoom` : Niveau de zoom (ex: 12 à 16).
-*   `camera.pitch` : Angle en degrés (0 à 85).
-*   `camera.bearing` : Angle en degrés (0 à 360).
-*   `camera.target` : Point central visé par la caméra.
+Chaque point clé enregistre les valeurs suivantes :
+*   `zoom` : Niveau de rapprochement (ex: 14.5).
+*   `pitch` : Inclinaison (0° vertical à 85° rasante).
+*   `bearing` : Orientation (en degrés, 0 à 360).
+*   `target` : Coordonnées du point visé sur la trace.
 
 ---
 [< Retour aux généralités Édition](./edition_intro.md) | [Suivant : FlyTo & Pauses >](./edition_flyto_pause.md)
