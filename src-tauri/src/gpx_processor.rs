@@ -486,7 +486,7 @@ pub fn commit_new_circuit(
     // Auto-add distance markers if setting is true
     let auto_add_distance_markers = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.ajouter",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.ajouter",
     )
     .and_then(|v| v.as_bool())
     .unwrap_or(false); // Default to false if setting is missing
@@ -506,7 +506,7 @@ pub fn commit_new_circuit(
         // Get couleur from settings (same logic as in generate_distance_markers command)
         let dm_couleur = super::get_setting_value(
             &settings,
-            "data.groupes.Edition.groupes.Distance.parametres.couleur",
+            "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.couleur",
         )
         .and_then(|v| v.as_str())
         .unwrap_or("red")

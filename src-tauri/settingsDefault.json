@@ -365,7 +365,125 @@
         "libelle": "Edition",
         "groupes": [
           {
-            "libelle": "Caméra",
+            "libelle": "Vue 3D",
+            "groupes": [
+              {
+                "libelle": "Trace",
+                "parametres": [
+                  {
+                    "defaut": 5,
+                    "description": "Épaisseur de la ligne d'avancement de la caméra en pixels.",
+                    "identifiant": "epaisseurAvancement",
+                    "libelle": "Épaisseur de l'avancement",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Trace/epaisseurAvancement.md"
+                  },
+                  {
+                    "defaut": "yellow",
+                    "description": "Couleur de la ligne d'avancement de la caméra.",
+                    "identifiant": "couleurAvancement",
+                    "libelle": "Couleur de l'avancement",
+                    "type": "couleur",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Trace/couleurAvancement.md"
+                  },
+                  {
+                    "defaut": 3,
+                    "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
+                    "identifiant": "epaisseur",
+                    "libelle": "Épaisseur de la trace",
+                    "type": "entier",
+                    "min": 1,
+                    "max": 20,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Trace/epaisseur.md"
+                  },
+                  {
+                    "defaut": "orange-darken-4",
+                    "description": "Couleur de la trace GPX pour l'édition (si coloration par pente désactivée).",
+                    "identifiant": "couleur",
+                    "libelle": "Couleur de la trace",
+                    "type": "couleur",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Trace/couleur.md"
+                  },
+                  {
+                    "identifiant": "colorerSelonPente",
+                    "libelle": "Colorer la trace selon la pente",
+                    "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Trace/colorerSelonPente.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "Carte",
+                "parametres": [
+                  {
+                    "defaut": "mapbox://styles/mapbox/satellite-v9",
+                    "description": "Style de carte lors de l'édition",
+                    "identifiant": "styleVisualisation",
+                    "libelle": "Style de la carte",
+                    "type": "list",
+                    "valeurs": [
+                      "mapbox://styles/mapbox/standard",
+                      "mapbox://styles/mapbox/streets-v12",
+                      "mapbox://styles/mapbox/outdoors-v12",
+                      "mapbox://styles/mapbox/light-v11",
+                      "mapbox://styles/mapbox/dark-v11",
+                      "mapbox://styles/mapbox/satellite-v9",
+                      "mapbox://styles/mapbox/satellite-streets-v12",
+                      "mapbox://styles/mapbox/navigation-day-v1",
+                      "mapbox://styles/mapbox/navigation-night-v1"
+                    ],
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Carte/styleVisualisation.md"
+                  },
+                  {
+                    "defaut": 1,
+                    "description": "Facteur d'exagération du relief 3D. 1.0 pour un relief réel, >1.0 pour l'exagérer.",
+                    "identifiant": "exaggeration",
+                    "libelle": "Coefficient de relief",
+                    "type": "reel",
+                    "min": 0,
+                    "max": 2,
+                    "decimales": 2,
+                    "doc": "docs/DocParametrage/Edition/Vue 3D/Carte/exaggeration.md"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Avancement dans les graphes",
+            "parametres": [
+              {
+                "identifiant": "couleurAvancementZone",
+                "libelle": "Couleur de la zone d'avancement",
+                "description": "Couleur de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe.",
+                "type": "couleur",
+                "defaut": "yellow",
+                "materialDesign": true,
+                "doc": "docs/DocParametrage/Edition/Avancement dans les graphes/couleurAvancementZone.md"
+              },
+              {
+                "identifiant": "opaciteAvancementZone",
+                "libelle": "Opacité de la zone d'avancement",
+                "description": "Opacité de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe (0.0 à 1.0).",
+                "type": "reel",
+                "defaut": 0.1,
+                "min": 0,
+                "max": 1,
+                "decimales": 2,
+                "doc": "docs/DocParametrage/Edition/Avancement dans les graphes/opaciteAvancementZone.md"
+              }
+            ]
+          },
+          {
+            "libelle": "Camera",
             "parametres": [
               {
                 "defaut": 16,
@@ -377,431 +495,420 @@
                 "max": 22,
                 "type": "reel",
                 "decimales": 2
-              },
-              {
-                "identifiant": "zoomDepart",
-                "libelle": "Activer le zoom au départ",
-                "description": "Active un dézoom automatique au début du parcours.",
-                "type": "booleen",
-                "defaut": true,
-                "doc": "docs/DocParametrage/Edition/Camera/zoomDepart.md"
-              },
-              {
-                "identifiant": "zoomDepartValeur",
-                "libelle": "Valeur du zoom au départ",
-                "description": "Niveau de zoom appliqué au point de départ (km 0).",
-                "type": "entier",
-                "defaut": 18,
-                "min": 10,
-                "max": 22,
-                "doc": "docs/DocParametrage/Edition/Camera/zoomDepartValeur.md"
-              },
-              {
-                "identifiant": "zoomDepartDistance",
-                "libelle": "Distance du zoom au départ (x100m)",
-                "description": "Distance sur laquelle le dézoom s'applique, en segments de 100m.",
-                "type": "entier",
-                "defaut": 20,
-                "min": 1,
-                "max": 100,
-                "doc": "docs/DocParametrage/Edition/Camera/zoomDepartDistance.md"
-              },
-              {
-                "identifiant": "zoomArrivee",
-                "libelle": "Activer le zoom à l'arrivée",
-                "description": "Active un zoom automatique à l'approche de l'arrivée.",
-                "type": "booleen",
-                "defaut": false,
-                "doc": "docs/DocParametrage/Edition/Camera/zoomArrivee.md"
-              },
-              {
-                "identifiant": "zoomArriveeValeur",
-                "libelle": "Valeur du zoom à l'arrivée",
-                "description": "Niveau de zoom appliqué au point d'arrivée.",
-                "type": "entier",
-                "defaut": 18,
-                "min": 10,
-                "max": 22,
-                "doc": "docs/DocParametrage/Edition/Camera/zoomArriveeValeur.md"
-              },
-              {
-                "identifiant": "distanceZoomArrivee",
-                "libelle": "Distance du zoom à l'arrivée (x100m)",
-                "description": "Distance avant l'arrivée sur laquelle le zoom s'applique, en segments de 100m.",
-                "type": "entier",
-                "defaut": 20,
-                "min": 1,
-                "max": 100,
-                "doc": "docs/DocParametrage/Edition/Camera/distanceZoomArrivee.md"
-              }
-            ]
-          },
-          {
-            "libelle": "Graphe",
-            "groupes": [
-              {
-                "libelle": "Affichage courbes",
-                "parametres": [
-                  {
-                    "identifiant": "afficherBearingDeltaCalcule",
-                    "libelle": "Afficher Delta Bearing (Calculé)",
-                    "description": "Affiche la courbe du delta de cap calculé (valeurs originales).",
-                    "type": "booleen",
-                    "defaut": false,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherBearingDeltaCalcule.md"
-                  },
-                  {
-                    "identifiant": "afficherBearingDeltaEdite",
-                    "libelle": "Afficher Delta Bearing (Édité)",
-                    "description": "Affiche la courbe du delta de cap édité.",
-                    "type": "booleen",
-                    "defaut": false,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherBearingDeltaEdite.md"
-                  },
-                  {
-                    "identifiant": "afficherBearingTotalDeltaCalcule",
-                    "libelle": "Afficher Somme Delta Bearing (Calculé)",
-                    "description": "Affiche la courbe de la somme des deltas de cap calculés.",
-                    "type": "booleen",
-                    "defaut": false,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherBearingTotalDeltaCalcule.md"
-                  },
-                  {
-                    "identifiant": "afficherBearingTotalDeltaEdite",
-                    "libelle": "Afficher Somme Delta Bearing (Édité)",
-                    "description": "Affiche la courbe de la somme des deltas de cap édités.",
-                    "type": "booleen",
-                    "defaut": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherBearingTotalDeltaEdite.md"
-                  },
-                  {
-                    "identifiant": "afficherZoomEdite",
-                    "libelle": "Afficher Zoom (Édité)",
-                    "description": "Affiche la courbe du zoom édité.",
-                    "type": "booleen",
-                    "defaut": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherZoomEdite.md"
-                  },
-                  {
-                    "identifiant": "afficherPitchEdite",
-                    "libelle": "Afficher Pitch (Édité)",
-                    "description": "Affiche la courbe du pitch édité.",
-                    "type": "booleen",
-                    "defaut": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/AffichageCourbes/afficherPitchEdite.md"
-                  }
-                ]
-              },
-              {
-                "libelle": "Couleur courbes",
-                "parametres": [
-                  {
-                    "identifiant": "couleurZoom",
-                    "libelle": "Couleur du Zoom",
-                    "description": "Couleur de la courbe de zoom sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "green",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurZoom.md"
-                  },
-                  {
-                    "libelle": "Couleur Zoom Edité",
-                    "identifiant": "couleurEditedZoom",
-                    "description": "Couleur de la courbe du zoom édité sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "green-darken-4",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurEditedZoom.md"
-                  },
-                  {
-                    "identifiant": "couleurPitch",
-                    "libelle": "Couleur du Pitch",
-                    "description": "Couleur de la courbe de pitch sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "light-blue",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurPitch.md"
-                  },
-                  {
-                    "libelle": "Couleur Pitch Edité",
-                    "identifiant": "couleurEditedPitch",
-                    "description": "Couleur de la courbe du pitch édité sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "light-blue-darken-4",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurEditedPitch.md"
-                  },
-                  {
-                    "identifiant": "couleurBearingDelta",
-                    "libelle": "Couleur du Delta Bearing",
-                    "description": "Couleur de la courbe du delta de cap sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "amber",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurBearingDelta.md"
-                  },
-                  {
-                    "libelle": "Couleur Delta Bearing Edité",
-                    "identifiant": "couleurEditedBearingDelta",
-                    "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "amber-darken-3",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurEditedBearingDelta.md"
-                  },
-                  {
-                    "identifiant": "couleurBearingTotalDelta",
-                    "libelle": "Couleur du Somme Delta Bearing",
-                    "description": "Couleur de la courbe du delta de cap total sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "red",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurBearingTotalDelta.md"
-                  },
-                  {
-                    "libelle": "Couleur Somme Delta Bearing Edité",
-                    "identifiant": "couleurEditedBearingTotalDelta",
-                    "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
-                    "type": "couleur",
-                    "defaut": "red-darken-4",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Graphe/CouleurCourbes/couleurEditedBearingTotalDelta.md"
-                  }
-                ]
               }
             ],
-            "parametres": [
-              {
-                "identifiant": "couleurAvancementZone",
-                "libelle": "Couleur de la zone d'avancement",
-                "description": "Couleur de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe.",
-                "type": "couleur",
-                "defaut": "yellow",
-                "materialDesign": true,
-                "doc": "docs/DocParametrage/Edition/Graphe/couleurAvancementZone.md"
-              },
-              {
-                "identifiant": "opaciteAvancementZone",
-                "libelle": "Opacité de la zone d'avancement",
-                "description": "Opacité de la zone rectangulaire indiquant l'avancement de la caméra sur le graphe (0.0 à 1.0).",
-                "type": "reel",
-                "defaut": 0.1,
-                "min": 0,
-                "max": 1,
-                "decimales": 2,
-                "doc": "docs/DocParametrage/Edition/Graphe/opaciteAvancementZone.md"
-              },
-              {
-                "libelle": "Couleur Point de Contrôle",
-                "identifiant": "couleurPointDeControle",
-                "description": "Couleur des indicateurs de points de contrôle sur le graphe.",
-                "type": "couleur",
-                "defaut": "purple",
-                "surcharge": null,
-                "critique": false,
-                "materialDesign": true,
-                "doc": "docs/DocParametrage/Edition/Graphe/couleurPointDeControle.md"
-              },
-              {
-                "libelle": "Epaisseur Point de Contrôle",
-                "identifiant": "epaisseurPointDeControle",
-                "description": "Epaisseur en pixels des indicateurs de points de contrôle.",
-                "type": "entier",
-                "defaut": 3,
-                "surcharge": null,
-                "min": 1,
-                "max": 10,
-                "doc": "docs/DocParametrage/Edition/Graphe/epaisseurPointDeControle.md"
-              },
-              {
-                "libelle": "Longueur Point de Contrôle",
-                "identifiant": "longueurPointDeControle",
-                "description": "Longueur en pixels des indicateurs de points de contrôle sur le graphe.",
-                "type": "entier",
-                "defaut": 20,
-                "min": 5,
-                "max": 50,
-                "unite": "px",
-                "doc": "docs/DocParametrage/Edition/Graphe/longueurPointDeControle.md"
-              }
-            ]
-          },
-          {
-            "libelle": "Evenements",
-            "parametres": [],
             "groupes": [
               {
-                "libelle": "Graphe",
+                "libelle": "ZoomDépart",
+                "parametres": [
+                  {
+                    "identifiant": "zoomDepart",
+                    "libelle": "Activer zoom départ",
+                    "description": "Active un dézoom automatique au début du parcours.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomDépart/zoomDepart.md"
+                  },
+                  {
+                    "identifiant": "zoomDepartValeur",
+                    "libelle": "Valeur du zoom départ",
+                    "description": "Niveau de zoom appliqué au point de départ (km 0).",
+                    "type": "entier",
+                    "defaut": 18,
+                    "min": 10,
+                    "max": 22,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomDépart/zoomDepartValeur.md"
+                  },
+                  {
+                    "identifiant": "zoomDepartDistance",
+                    "libelle": "Distance du zoom départ",
+                    "description": "Distance sur laquelle le dézoom s'applique, en segments de 100m.",
+                    "type": "entier",
+                    "defaut": 20,
+                    "min": 1,
+                    "max": 100,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomDépart/zoomDepartDistance.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "ZoomArrivée",
+                "parametres": [
+                  {
+                    "identifiant": "zoomArrivee",
+                    "libelle": "Activer zoom arrivée",
+                    "description": "Active un zoom automatique à l'approche de l'arrivée.",
+                    "type": "booleen",
+                    "defaut": false,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomArrivée/zoomArrivee.md"
+                  },
+                  {
+                    "identifiant": "zoomArriveeValeur",
+                    "libelle": "Valeur du zoom arrivée",
+                    "description": "Niveau de zoom appliqué au point d'arrivée.",
+                    "type": "entier",
+                    "defaut": 18,
+                    "min": 10,
+                    "max": 22,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomArrivée/zoomArriveeValeur.md"
+                  },
+                  {
+                    "identifiant": "distanceZoomArrivee",
+                    "libelle": "Distance du zoom arrivée",
+                    "description": "Distance avant l'arrivée sur laquelle le zoom s'applique, en segments de 100m.",
+                    "type": "entier",
+                    "defaut": 20,
+                    "min": 1,
+                    "max": 100,
+                    "doc": "docs/DocParametrage/Edition/Camera/ZoomArrivée/distanceZoomArrivee.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "Graphe caméra",
                 "groupes": [
                   {
-                    "libelle": "PauseZoom",
+                    "libelle": "Affichage courbes",
                     "parametres": [
                       {
-                        "identifiant": "couleurPause",
-                        "libelle": "Couleur Pause",
-                        "description": "Couleur des marqueurs de pause sur le graphe.",
-                        "type": "couleur",
-                        "defaut": "purple",
-                        "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/couleurPause.md"
+                        "identifiant": "afficherBearingDeltaCalcule",
+                        "libelle": "Afficher Delta Bearing (Calculé)",
+                        "description": "Affiche la courbe du delta de cap calculé (valeurs originales).",
+                        "type": "booleen",
+                        "defaut": false,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherBearingDeltaCalcule.md"
                       },
                       {
-                        "identifiant": "couleurFlyTo",
-                        "libelle": "Couleur FlyTo",
-                        "description": "Couleur des marqueurs de flyto sur le graphe.",
-                        "type": "couleur",
-                        "defaut": "orange-darken-1",
-                        "materialDesign": true,
-                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/couleurFlyTo.md"
+                        "identifiant": "afficherBearingDeltaEdite",
+                        "libelle": "Afficher Delta Bearing (Édité)",
+                        "description": "Affiche la courbe du delta de cap édité.",
+                        "type": "booleen",
+                        "defaut": false,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherBearingDeltaEdite.md"
                       },
                       {
-                        "identifiant": "longueur",
-                        "libelle": "Longueur (px)",
-                        "description": "Longueur des marqueurs de pause et flyto sur le graphe.",
-                        "type": "entier",
-                        "defaut": 12,
-                        "min": 5,
-                        "max": 50,
-                        "unite": "px",
-                        "doc": "docs/DocParametrage/Edition/Evenements/Graphe/PauseZoom/longueur.md"
+                        "identifiant": "afficherBearingTotalDeltaCalcule",
+                        "libelle": "Afficher Somme Delta Bearing (Calculé)",
+                        "description": "Affiche la courbe de la somme des deltas de cap calculés.",
+                        "type": "booleen",
+                        "defaut": false,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherBearingTotalDeltaCalcule.md"
+                      },
+                      {
+                        "identifiant": "afficherBearingTotalDeltaEdite",
+                        "libelle": "Afficher Somme Delta Bearing (Édité)",
+                        "description": "Affiche la courbe de la somme des deltas de cap édités.",
+                        "type": "booleen",
+                        "defaut": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherBearingTotalDeltaEdite.md"
+                      },
+                      {
+                        "identifiant": "afficherZoomEdite",
+                        "libelle": "Afficher Zoom (Édité)",
+                        "description": "Affiche la courbe du zoom édité.",
+                        "type": "booleen",
+                        "defaut": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherZoomEdite.md"
+                      },
+                      {
+                        "identifiant": "afficherPitchEdite",
+                        "libelle": "Afficher Pitch (Édité)",
+                        "description": "Affiche la courbe du pitch édité.",
+                        "type": "booleen",
+                        "defaut": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/AffichageCourbes/afficherPitchEdite.md"
+                      }
+                    ]
+                  },
+                  {
+                    "libelle": "Couleur courbes",
+                    "parametres": [
+                      {
+                        "identifiant": "couleurZoom",
+                        "libelle": "Couleur du Zoom",
+                        "description": "Couleur de la courbe de zoom sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "green",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurZoom.md"
+                      },
+                      {
+                        "libelle": "Couleur Zoom Edité",
+                        "identifiant": "couleurEditedZoom",
+                        "description": "Couleur de la courbe du zoom édité sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "green-darken-4",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedZoom.md"
+                      },
+                      {
+                        "identifiant": "couleurPitch",
+                        "libelle": "Couleur du Pitch",
+                        "description": "Couleur de la courbe de pitch sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "light-blue",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurPitch.md"
+                      },
+                      {
+                        "libelle": "Couleur Pitch Edité",
+                        "identifiant": "couleurEditedPitch",
+                        "description": "Couleur de la courbe du pitch édité sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "light-blue-darken-4",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedPitch.md"
+                      },
+                      {
+                        "identifiant": "couleurBearingDelta",
+                        "libelle": "Couleur du Delta Bearing",
+                        "description": "Couleur de la courbe du delta de cap sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "amber",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurBearingDelta.md"
+                      },
+                      {
+                        "libelle": "Couleur Delta Bearing Edité",
+                        "identifiant": "couleurEditedBearingDelta",
+                        "description": "Couleur de la courbe du delta de cap édité sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "amber-darken-3",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedBearingDelta.md"
+                      },
+                      {
+                        "identifiant": "couleurBearingTotalDelta",
+                        "libelle": "Couleur du Somme Delta Bearing",
+                        "description": "Couleur de la courbe du delta de cap total sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "red",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurBearingTotalDelta.md"
+                      },
+                      {
+                        "libelle": "Couleur Somme Delta Bearing Edité",
+                        "identifiant": "couleurEditedBearingTotalDelta",
+                        "description": "Couleur de la courbe du delta de cap total édité sur le graphe.",
+                        "type": "couleur",
+                        "defaut": "red-darken-4",
+                        "materialDesign": true,
+                        "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedBearingTotalDelta.md"
                       }
                     ]
                   }
-                ]
-              },
-              {
-                "libelle": "Flyto",
+                ],
                 "parametres": [
                   {
-                    "identifiant": "duree",
-                    "libelle": "Durée du survol (ms)",
-                    "description": "Durée par défaut de l'animation de survol (flyto) en millisecondes.",
-                    "type": "entier",
-                    "defaut": 2000,
-                    "min": 200,
-                    "max": 10000,
-                    "step": 100,
-                    "unite": "ms",
+                    "identifiant": "couleurPointDeControle",
+                    "description": "Couleur des indicateurs de points de contrôle sur le graphe.",
+                    "type": "couleur",
+                    "defaut": "purple",
+                    "surcharge": null,
                     "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Flyto/duree.md"
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/couleurPointDeControle.md"
+                  },
+                  {
+                    "libelle": "Epaisseur Point de Contrôle",
+                    "identifiant": "epaisseurPointDeControle",
+                    "description": "Epaisseur en pixels des indicateurs de points de contrôle.",
+                    "type": "entier",
+                    "defaut": 3,
+                    "surcharge": null,
+                    "min": 1,
+                    "max": 10,
+                    "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/epaisseurPointDeControle.md"
+                  },
+                  {
+                    "libelle": "Longueur Point de Contrôle",
+                    "identifiant": "longueurPointDeControle",
+                    "description": "Longueur en pixels des indicateurs de points de contrôle sur le graphe.",
+                    "type": "entier",
+                    "defaut": 20,
+                    "min": 5,
+                    "max": 50,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Edition/Camera/Graphe caméra/longueurPointDeControle.md"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Pause_Flyto",
+            "parametres": [
+              {
+                "identifiant": "duree",
+                "libelle": "Durée du survol (ms)",
+                "description": "Durée par défaut de l'animation de survol (flyto) en millisecondes.",
+                "type": "entier",
+                "defaut": 2000,
+                "min": 200,
+                "max": 10000,
+                "step": 100,
+                "unite": "ms",
+                "critique": false,
+                "doc": "docs/DocParametrage/Edition/Pause_Flyto/dureeSurvol.md"
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Graphe Pause_Flyto",
+                "parametres": [
+                  {
+                    "identifiant": "couleurPause",
+                    "libelle": "Couleur des pauses",
+                    "description": "Couleur des marqueurs de pause sur le graphe.",
+                    "type": "couleur",
+                    "defaut": "purple",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Edition/Pause_Flyto/Graphe Pause_Flyto/couleurPause.md"
+                  },
+                  {
+                    "identifiant": "couleurFlyTo",
+                    "libelle": "Couleur des flyto",
+                    "description": "Couleur des marqueurs de flyto sur le graphe.",
+                    "type": "couleur",
+                    "defaut": "orange-darken-1",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Edition/Pause_Flyto/Graphe Pause_Flyto/couleurFlyto.md"
+                  },
+                  {
+                    "identifiant": "longueur",
+                    "libelle": "Longueur",
+                    "description": "Longueur des marqueurs de pause et flyto sur le graphe.",
+                    "type": "entier",
+                    "defaut": 12,
+                    "min": 5,
+                    "max": 50,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Edition/Pause_Flyto/Graphe Pause_Flyto/longueur.md"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Messages",
+            "parametres": [
+              {
+                "identifiant": "preAffichage",
+                "libelle": "Pré-affichage",
+                "description": "Nombre d'incréments avant le point de contrôle où le message commence à s'afficher.",
+                "type": "entier",
+                "defaut": 10,
+                "min": 0,
+                "max": 50,
+                "step": 1,
+                "critique": false,
+                "doc": "docs/DocParametrage/Edition/Messages/preAffichage.md"
+              },
+              {
+                "identifiant": "postAffichage",
+                "libelle": "Post-affichage",
+                "description": "Nombre d'incréments après le point de contrôle où le message cesse de s'afficher.",
+                "type": "entier",
+                "defaut": 20,
+                "min": 0,
+                "max": 100,
+                "step": 1,
+                "critique": false,
+                "doc": "docs/DocParametrage/Edition/Messages/postAffichage.md"
+              },
+              {
+                "identifiant": "transitionDuree",
+                "libelle": "Durée de transition du Pitch",
+                "description": "Durée de la transition du pitch de la caméra lors du déplacement de la carte avec la souris.",
+                "type": "entier",
+                "defaut": 50,
+                "min": 10,
+                "max": 500,
+                "step": 10,
+                "unite": "ms",
+                "critique": false,
+                "doc": "docs/DocParametrage/Edition/Messages/transitionDuree.md"
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Distance",
+                "parametres": [
+                  {
+                    "identifiant": "ajouter",
+                    "libelle": "Afficher les distances",
+                    "description": "Si activé, les bornes kilométriques sont automatiquement ajoutées pour chaque nouvelle importation de trace.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/afficherDistances.md"
+                  },
+                  {
+                    "identifiant": "orientation",
+                    "libelle": "Orientation à gauche",
+                    "description": "Si activé, les messages s'affichent à gauche, sinon à droite.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/orientationAGauche.md"
+                  },
+                  {
+                    "identifiant": "couleur",
+                    "libelle": "Couleur des messages",
+                    "description": "Couleur Material Design des messages de distance.",
+                    "type": "couleur",
+                    "materialDesign": true,
+                    "defaut": "red",
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/couleurMessages.md"
+                  },
+                  {
+                    "identifiant": "intervalle",
+                    "libelle": "Intervalle",
+                    "description": "Intervalle en kilomètres entre chaque borne kilométrique affichée.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 1,
+                    "max": 20,
+                    "unite": "km",
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/intervalle.md"
+                  },
+                  {
+                    "identifiant": "preAffichage",
+                    "libelle": "Pre-affichage",
+                    "description": "Nombre d'incréments avant la borne où le message commence à s'afficher.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 0,
+                    "max": 20,
+                    "step": 1,
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/preAffichage.md"
+                  },
+                  {
+                    "identifiant": "postAffichage",
+                    "libelle": "Post-affichage",
+                    "description": "Nombre d'incréments après la borne où le message cesse de s'afficher.",
+                    "type": "entier",
+                    "defaut": 10,
+                    "min": 0,
+                    "max": 20,
+                    "step": 1,
+                    "doc": "docs/DocParametrage/Edition/Messages/Distance/postAffichage.md"
                   }
                 ]
               },
               {
-                "libelle": "Message",
+                "libelle": "Graphe messages",
                 "parametres": [
                   {
-                    "identifiant": "preAffichage",
-                    "libelle": "Pré-affichage (incréments)",
-                    "description": "Nombre d'incréments avant le point de contrôle où le message commence à s'afficher.",
-                    "type": "entier",
-                    "defaut": 10,
-                    "min": 0,
-                    "max": 50,
-                    "step": 1,
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/preAffichage.md"
-                  },
-                  {
-                    "identifiant": "postAffichage",
-                    "libelle": "Post-affichage (incréments)",
-                    "description": "Nombre d'incréments après le point de contrôle où le message cesse de s'afficher.",
-                    "type": "entier",
-                    "defaut": 20,
-                    "min": 0,
-                    "max": 100,
-                    "step": 1,
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/postAffichage.md"
-                  },
-                  {
-                    "identifiant": "transitionDuree",
-                    "libelle": "Durée de transition du pitch (ms)",
-                    "description": "Durée de la transition du pitch de la caméra lors du déplacement de la carte avec la souris.",
-                    "type": "entier",
-                    "defaut": 50,
-                    "min": 10,
-                    "max": 500,
-                    "step": 10,
-                    "unite": "ms",
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/transitionDuree.md"
-                  },
-                  {
                     "identifiant": "hauteurGraphique",
-                    "libelle": "Hauteur des messages sur le graphe (px)",
+                    "libelle": "Hauteur des messages",
                     "description": "Hauteur des rectangles représentant les messages sur le graphe des événements.",
                     "type": "entier",
                     "defaut": 10,
                     "min": 3,
                     "max": 20,
                     "unite": "px",
-                    "doc": "docs/DocParametrage/Edition/Evenements/Message/hauteurGraphique.md"
+                    "doc": "docs/DocParametrage/Edition/Messages/Graphe messages/HauteurMessages.md"
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "libelle": "Distance",
-            "parametres": [
-              {
-                "identifiant": "ajouter",
-                "libelle": "Ajouter les distances",
-                "description": "Si activé, les bornes kilométriques sont automatiquement ajoutées pour chaque nouvelle importation de trace.",
-                "type": "booleen",
-                "defaut": true,
-                "doc": "docs/DocParametrage/Edition/Distance/ajouter.md"
-              },
-              {
-                "identifiant": "intervalle",
-                "libelle": "Intervalle (km)",
-                "description": "Intervalle en kilomètres entre chaque borne kilométrique affichée.",
-                "type": "entier",
-                "defaut": 10,
-                "min": 1,
-                "max": 20,
-                "unite": "km",
-                "doc": "docs/DocParametrage/Edition/Distance/intervalle.md"
-              },
-              {
-                "identifiant": "preAffichage",
-                "libelle": "Pré-affichage (incréments)",
-                "description": "Nombre d'incréments avant la borne où le message commence à s'afficher.",
-                "type": "entier",
-                "defaut": 10,
-                "min": 0,
-                "max": 20,
-                "step": 1,
-                "doc": "docs/DocParametrage/Edition/Distance/preAffichage.md"
-              },
-              {
-                "identifiant": "postAffichage",
-                "libelle": "Post-affichage (incréments)",
-                "description": "Nombre d'incréments après la borne où le message cesse de s'afficher.",
-                "type": "entier",
-                "defaut": 10,
-                "min": 0,
-                "max": 20,
-                "step": 1,
-                "doc": "docs/DocParametrage/Edition/Distance/postAffichage.md"
-              },
-              {
-                "identifiant": "couleur",
-                "libelle": "Couleur des messages",
-                "description": "Couleur Material Design des messages de distance.",
-                "type": "couleur",
-                "materialDesign": true,
-                "defaut": "red",
-                "doc": "docs/DocParametrage/Edition/Distance/couleur.md"
-              },
-              {
-                "identifiant": "orientation",
-                "libelle": "Orientation à gauche",
-                "description": "Si activé, les messages s'affichent à gauche, sinon à droite.",
-                "type": "booleen",
-                "defaut": true,
-                "doc": "docs/DocParametrage/Edition/Distance/orientation.md"
               }
             ]
           },
@@ -930,101 +1037,6 @@
                 "max": 20,
                 "decimales": 1,
                 "doc": "docs/DocParametrage/Edition/CommandesSouris/incrementBearingShift.md"
-              }
-            ]
-          },
-          {
-            "libelle": "Mapbox",
-            "parametres": [
-              {
-                "defaut": "mapbox://styles/mapbox/satellite-v9",
-                "description": "Style de carte lors de l'édition",
-                "identifiant": "styleVisualisation",
-                "libelle": "Style de la carte.",
-                "type": "list",
-                "valeurs": [
-                  "mapbox://styles/mapbox/standard",
-                  "mapbox://styles/mapbox/streets-v12",
-                  "mapbox://styles/mapbox/outdoors-v12",
-                  "mapbox://styles/mapbox/light-v11",
-                  "mapbox://styles/mapbox/dark-v11",
-                  "mapbox://styles/mapbox/satellite-v9",
-                  "mapbox://styles/mapbox/satellite-streets-v12",
-                  "mapbox://styles/mapbox/navigation-day-v1",
-                  "mapbox://styles/mapbox/navigation-night-v1"
-                ],
-                "doc": "docs/DocParametrage/Edition/Mapbox/styleVisualisation.md"
-              }
-            ],
-            "groupes": [
-              {
-                "libelle": "Trace",
-                "parametres": [
-                  {
-                    "identifiant": "colorerSelonPente",
-                    "libelle": "Colorer la trace selon la pente",
-                    "description": "Si activé, la couleur de la trace représente la pente. Sinon, une couleur unique est utilisée.",
-                    "type": "booleen",
-                    "defaut": true,
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/colorerSelonPente.md"
-                  },
-                  {
-                    "defaut": "orange-darken-4",
-                    "description": "Couleur de la trace GPX pour l'édition (si coloration par pente désactivée).",
-                    "identifiant": "couleur",
-                    "libelle": "Couleur de la trace",
-                    "type": "couleur",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/couleur.md"
-                  },
-                  {
-                    "defaut": 3,
-                    "description": "Épaisseur de la trace GPX pour l'édition en pixels.",
-                    "identifiant": "epaisseur",
-                    "libelle": "Épaisseur de la trace",
-                    "type": "entier",
-                    "min": 1,
-                    "max": 20,
-                    "unite": "px",
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/epaisseur.md"
-                  },
-                  {
-                    "defaut": "yellow",
-                    "description": "Couleur de la ligne d'avancement de la caméra.",
-                    "identifiant": "couleurAvancement",
-                    "libelle": "Couleur de l'avancement",
-                    "type": "couleur",
-                    "materialDesign": true,
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/couleurAvancement.md"
-                  },
-                  {
-                    "defaut": 5,
-                    "description": "Épaisseur de la ligne d'avancement de la caméra en pixels.",
-                    "identifiant": "epaisseurAvancement",
-                    "libelle": "Épaisseur de l'avancement",
-                    "type": "entier",
-                    "min": 1,
-                    "max": 20,
-                    "unite": "px",
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Trace/epaisseurAvancement.md"
-                  }
-                ]
-              },
-              {
-                "libelle": "Relief",
-                "parametres": [
-                  {
-                    "defaut": 1,
-                    "description": "Facteur d'exagération du relief 3D. 1.0 pour un relief réel, >1.0 pour l'exagérer.",
-                    "identifiant": "exaggeration",
-                    "libelle": "Exagération du relief",
-                    "type": "reel",
-                    "min": 0,
-                    "max": 2,
-                    "decimales": 2,
-                    "doc": "docs/DocParametrage/Edition/Mapbox/Relief/exaggeration.md"
-                  }
-                ]
               }
             ]
           }

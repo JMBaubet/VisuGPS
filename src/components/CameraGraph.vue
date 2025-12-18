@@ -110,20 +110,20 @@ const bearingDeltaToPx = 3;
 const bearingTotalDeltaToPx = 1;
 
 onMounted(async () => {
-  zoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom'));
-  pitchColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurPitch'));
-  bearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingDelta'));
-  bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingTotalDelta'));
-  progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
-  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
-  controlPointColor.value = toHex(await getSettingValue('Edition/Graphe/couleurPointDeControle'));
-  controlPointThickness.value = await getSettingValue('Edition/Graphe/epaisseurPointDeControle');
-  controlPointLength.value = await getSettingValue('Edition/Graphe/longueurPointDeControle');
+  zoomColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurZoom'));
+  pitchColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurPitch'));
+  bearingDeltaColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurBearingDelta'));
+  bearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurBearingTotalDelta'));
+  progressZoneColor.value = toHex(await getSettingValue('Edition/Avancement dans les graphes/couleurAvancementZone'));
+  progressZoneOpacity.value = await getSettingValue('Edition/Avancement dans les graphes/opaciteAvancementZone');
+  controlPointColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/couleurPointDeControle'));
+  controlPointThickness.value = await getSettingValue('Edition/Camera/Graphe caméra/epaisseurPointDeControle');
+  controlPointLength.value = await getSettingValue('Edition/Camera/Graphe caméra/longueurPointDeControle');
 
-  editedZoomColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedZoom'));
-  editedPitchColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedPitch'));
-  editedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingDelta'));
-  editedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingTotalDelta'));
+  editedZoomColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedZoom'));
+  editedPitchColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedPitch'));
+  editedBearingDeltaColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedBearingDelta'));
+  editedBearingTotalDeltaColor.value = toHex(await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedBearingTotalDelta'));
 });
 
 const props = defineProps({

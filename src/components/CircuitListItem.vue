@@ -213,11 +213,11 @@ const trackingProgress = computed(() => {
 });
 
 const trackingBgColor = computed(() => {
-  return getSettingValue('Edition/Mapbox/Trace/couleur') || 'grey-lighten-2';
+  return getSettingValue('Edition/Vue 3D/Trace/couleur') || 'grey-lighten-2';
 });
 
 const trackingProgressColor = computed(() => {
-  return getSettingValue('Edition/Mapbox/Trace/couleurAvancement') || 'primary';
+  return getSettingValue('Edition/Vue 3D/Trace/couleurAvancement') || 'primary';
 });
 
 const editButtonColor = computed(() => {

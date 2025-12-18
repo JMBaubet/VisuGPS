@@ -88,8 +88,8 @@ const progressZoneColor = ref('');
 const progressZoneOpacity = ref(0.1);
 
 onMounted(async () => {
-  progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
-  progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
+  progressZoneColor.value = toHex(await getSettingValue('Edition/Avancement dans les graphes/couleurAvancementZone'));
+  progressZoneOpacity.value = await getSettingValue('Edition/Avancement dans les graphes/opaciteAvancementZone');
 });
 
 const props = defineProps({

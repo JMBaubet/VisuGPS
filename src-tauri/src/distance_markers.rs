@@ -188,28 +188,28 @@ pub fn get_distance_markers_defaults(
 
     let intervalle = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.intervalle",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.intervalle",
     )
     .and_then(|v| v.as_u64())
     .unwrap_or(10) as u32;
 
     let pre_affichage = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.preAffichage",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.preAffichage",
     )
     .and_then(|v| v.as_u64())
     .unwrap_or(10) as u32;
 
     let post_affichage = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.postAffichage",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.postAffichage",
     )
     .and_then(|v| v.as_u64())
     .unwrap_or(10) as u32;
 
     let orientation_bool = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.orientation",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.orientation",
     )
     .and_then(|v| v.as_bool())
     .unwrap_or(true);
@@ -221,7 +221,7 @@ pub fn get_distance_markers_defaults(
 
     let couleur = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.couleur",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.couleur",
     )
     .and_then(|v| v.as_str())
     .map(|s| s.to_string());
@@ -247,7 +247,7 @@ pub fn generate_distance_markers(
 
     let couleur = crate::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Distance.parametres.couleur",
+        "data.groupes.Edition.groupes.Messages.groupes.Distance.parametres.couleur",
     )
     .and_then(|v| v.as_str())
     .unwrap_or("red")

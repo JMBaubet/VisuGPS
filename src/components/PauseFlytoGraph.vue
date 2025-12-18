@@ -96,15 +96,15 @@ const hideCustomTooltip = () => {
 
 onMounted(async () => {
   try {
-    const pColor = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/couleurPause');
-    progressZoneColor.value = toHex(await getSettingValue('Edition/Graphe/couleurAvancementZone'));
-    progressZoneOpacity.value = await getSettingValue('Edition/Graphe/opaciteAvancementZone');
+    const pColor = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/couleurPause');
+    progressZoneColor.value = toHex(await getSettingValue('Edition/Avancement dans les graphes/couleurAvancementZone'));
+    progressZoneOpacity.value = await getSettingValue('Edition/Avancement dans les graphes/opaciteAvancementZone');
 
     pauseColor.value = toHex(pColor || 'purple');
-    pauseLength.value = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/longueur') || 12;
+    pauseLength.value = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/longueur') || 12;
 
-    flytoColor.value = toHex(await getSettingValue('Edition/Evenements/Graphe/PauseZoom/couleurFlyTo') || 'orange');
-    flytoLength.value = await getSettingValue('Edition/Evenements/Graphe/PauseZoom/longueur') || 20;
+    flytoColor.value = toHex(await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/couleurFlyTo') || 'orange');
+    flytoLength.value = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/longueur') || 20;
   } catch (e) {
     console.error('Error in PauseFlytoGraph onMounted:', e);
   }

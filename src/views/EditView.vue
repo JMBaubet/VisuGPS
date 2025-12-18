@@ -1362,10 +1362,9 @@ onMounted(async () => {
     }
     mapboxgl.accessToken = mapboxToken;
 
-    const styleVisualisation = await getSettingValue('Edition/Mapbox/styleVisualisation');
-
-    const colorTraceBySlope = await getSettingValue('Edition/Mapbox/Trace/colorerSelonPente');
-    const traceWidth = await getSettingValue('Edition/Mapbox/Trace/epaisseur');
+    const styleVisualisation = await getSettingValue('Edition/Vue 3D/Carte/styleVisualisation');
+    const colorTraceBySlope = await getSettingValue('Edition/Vue 3D/Trace/colorerSelonPente');
+    const traceWidth = await getSettingValue('Edition/Vue 3D/Trace/epaisseur');
     let paintProps = { 'line-width': traceWidth };
     let useGradient = false;
 
@@ -1400,7 +1399,7 @@ onMounted(async () => {
     }
 
     if (!useGradient) {
-        let rawTraceColor = await getSettingValue('Edition/Mapbox/Trace/couleur');
+        let rawTraceColor = await getSettingValue('Edition/Vue 3D/Trace/couleur');
         if (rawTraceColor && !rawTraceColor.startsWith('#')) {
             traceColor.value = await invoke('convert_vuetify_color', { colorName: rawTraceColor });
         } else {
@@ -1408,8 +1407,8 @@ onMounted(async () => {
         }
         paintProps['line-color'] = traceColor.value;
     }
-    const exaggeration = await getSettingValue('Edition/Mapbox/Relief/exaggeration');
-    let rawCouleurAvancement = await getSettingValue('Edition/Mapbox/Trace/couleurAvancement');
+    const exaggeration = await getSettingValue('Edition/Vue 3D/Carte/exaggeration');
+    let rawCouleurAvancement = await getSettingValue('Edition/Vue 3D/Trace/couleurAvancement');
     if (rawCouleurAvancement) {
       const parts = rawCouleurAvancement.split('-');
       couleurAvancement.value = parts[0];
@@ -1418,16 +1417,20 @@ onMounted(async () => {
       couleurAvancement.value = 'primary';
       mapboxAvancementColorHex.value = toHex('primary');
     }
-    const epaisseurAvancement = await getSettingValue('Edition/Mapbox/Trace/epaisseurAvancement');
+    const epaisseurAvancement = await getSettingValue('Edition/Vue 3D/Trace/epaisseurAvancement');
 
-    const rawGraphZoomColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurZoom');
-    const rawGraphPitchColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurPitch');
-    const rawGraphBearingDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingDelta');
-    const rawGraphBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurBearingTotalDelta');
-    const rawGraphEditedZoomColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedZoom');
-    const rawGraphEditedPitchColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedPitch');
-    const rawGraphEditedBearingDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingDelta');
-    const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Graphe/Couleur courbes/couleurEditedBearingTotalDelta');
+    const rawGraphZoomColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurZoom');
+    const rawGraphPitchColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurPitch');
+    const rawGraphBearingDeltaColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurBearingDelta');
+    const rawGraphBearingTotalDeltaColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurBearingTotalDelta');
+    const rawGraphEditedZoomColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedZoom');
+    const rawGraphEditedPitchColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedPitch');
+    const rawGraphEditedBearingDeltaColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedBearingDelta');
+    const rawGraphEditedBearingTotalDeltaColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurEditedBearingTotalDelta');
+    
+    // Nouveaux chemins pour l'avancement dans les graphes
+    let rawCouleurAvancementZone = await getSettingValue('Edition/Avancement dans les graphes/couleurAvancementZone');
+    let opaciteAvancementZone = await getSettingValue('Edition/Avancement dans les graphes/opaciteAvancementZone');
 
     graphZoomColor.value = toHex(rawGraphZoomColor);
     graphPitchColor.value = toHex(rawGraphPitchColor);
@@ -1438,12 +1441,12 @@ onMounted(async () => {
     graphEditedBearingDeltaColor.value = toHex(rawGraphEditedBearingDeltaColor);
     graphEditedBearingTotalDeltaColor.value = toHex(rawGraphEditedBearingTotalDeltaColor);
 
-    showCalculeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaCalcule');
-    showEditeeBearingDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingDeltaEdite');
-    showCalculeeBearingTotalDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingTotalDeltaCalcule');
-    showEditeeBearingTotalDelta.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherBearingTotalDeltaEdite');
-    showEditeeZoom.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherZoomEdite');
-    showEditeePitch.value = await getSettingValue('Edition/Graphe/Affichage courbes/afficherPitchEdite');
+    showCalculeeBearingDelta.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherBearingDeltaCalcule');
+    showEditeeBearingDelta.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherBearingDeltaEdite');
+    showCalculeeBearingTotalDelta.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherBearingTotalDeltaCalcule');
+    showEditeeBearingTotalDelta.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherBearingTotalDeltaEdite');
+    showEditeeZoom.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherZoomEdite');
+    showEditeePitch.value = await getSettingValue('Edition/Camera/Graphe caméra/Affichage courbes/afficherPitchEdite');
 
     colorOrigineBearingDelta.value = toHex(rawGraphBearingDeltaColor);
     colorEditedBearingDelta.value = toHex(rawGraphEditedBearingDeltaColor);
@@ -1502,16 +1505,16 @@ onMounted(async () => {
       }
     }
 
-    flytoDurationSetting.value = await getSettingValue('Edition/Evenements/Flyto/duree');
+    flytoDurationSetting.value = await getSettingValue('Edition/Pause_Flyto/duree');
 
     // Load Message settings
-    defaultMessagePreAffichage.value = await getSettingValue('Edition/Evenements/Message/preAffichage');
-    defaultMessagePostAffichage.value = await getSettingValue('Edition/Evenements/Message/postAffichage');
-    messageGraphHeight.value = await getSettingValue('Edition/Evenements/Message/hauteurGraphique');
+    defaultMessagePreAffichage.value = await getSettingValue('Edition/Messages/preAffichage');
+    defaultMessagePostAffichage.value = await getSettingValue('Edition/Messages/postAffichage');
+    messageGraphHeight.value = await getSettingValue('Edition/Messages/Graphe messages/hauteurGraphique');
     messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
     messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
 
-    pitchTransitionDuration.value = await getSettingValue('Edition/Evenements/Message/transitionDuree');
+    pitchTransitionDuration.value = await getSettingValue('Edition/Messages/transitionDuree');
 
     const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
     distanceMarkersConfig.value = circuitData.distanceMarkersConfig || null;
