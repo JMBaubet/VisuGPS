@@ -1,8 +1,43 @@
 <template>
   <v-card :class="theme.global.current.value.dark ? 'theme-dark' : 'theme-light'">
     <v-card-title class="d-flex justify-space-between align-center">
-      <span>Documentation</span>
-      <v-btn icon @click="$emit('close')">
+      <div class="d-flex align-center">
+        <v-btn
+          icon
+          variant="text"
+          @click="goHome"
+          class="mr-1"
+          size="small"
+          title="Accueil"
+        >
+          <v-icon>mdi-home</v-icon>
+        </v-btn>
+        <v-divider vertical class="mx-2" style="height: 24px"></v-divider>
+        <v-btn
+          icon
+          variant="text"
+          :disabled="!canGoBack"
+          @click="goBack"
+          class="mr-1"
+          size="small"
+          title="Précédent"
+        >
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
+        <v-btn
+          icon
+          variant="text"
+          :disabled="!canGoForward"
+          @click="goForward"
+          class="mr-4"
+          size="small"
+          title="Suivant"
+        >
+          <v-icon>mdi-arrow-right</v-icon>
+        </v-btn>
+        <span>Documentation</span>
+      </div>
+      <v-btn icon variant="text" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-card-title>
@@ -54,6 +89,31 @@ const markdownContent = ref('');
 const loading = ref(false);
 const error = ref(null);
 const currentDocPath = ref(''); 
+
+// Gestion de l'historique de navigation
+const history = ref([]);
+const historyIndex = ref(-1);
+
+const canGoBack = computed(() => historyIndex.value > 0);
+const canGoForward = computed(() => historyIndex.value < history.value.length - 1);
+
+function goHome() {
+  fetchDocumentation('/docs/DocUtilisateur/index.md');
+}
+
+function goBack() {
+  if (canGoBack.value) {
+    historyIndex.value--;
+    fetchDocumentation(history.value[historyIndex.value], true);
+  }
+}
+
+function goForward() {
+  if (canGoForward.value) {
+    historyIndex.value++;
+    fetchDocumentation(history.value[historyIndex.value], true);
+  }
+}
 
 import { invoke } from '@tauri-apps/api/core';
 
@@ -139,23 +199,31 @@ const compiledMarkdown = computed(() =>
   md.render(normalizePaths(markdownContent.value))
 );
 
-async function fetchDocumentation(path) {
+async function fetchDocumentation(path, isHistoryAction = false) {
   loading.value = true;
   error.value = null;
   markdownContent.value = '';
   // S'assurer que le chemin commence par / pour la cohérence
   const cleanPath = path.startsWith('/') ? path : '/' + path;
   currentDocPath.value = cleanPath;
+
+  // Mise à jour de l'historique s'il ne s'agit pas d'une action de navigation
+  if (!isHistoryAction) {
+    // Si on navigue vers un nouveau lien, on tronque l'historique futur
+    if (historyIndex.value < history.value.length - 1) {
+      history.value = history.value.slice(0, historyIndex.value + 1);
+    }
+    // On n'ajoute à l'historique que si le chemin est différent du dernier
+    if (history.value[historyIndex.value] !== cleanPath) {
+      history.value.push(cleanPath);
+      historyIndex.value = history.value.length - 1;
+    }
+  }
   
   try {
-    // Le backend attend un chemin relatif sans le slash de début pour l'instant (voir lib.rs logic debug vs prod)
-    // Mais attendons, lib.rs : project_root.join(&path). Si path commence par /, join peut revenir à la racine du disque.
-    // Il faut probablement envoyer un chemin relatif pur.
-    
     const relativePath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     const response = await invoke('get_doc_content', { path: relativePath });
     markdownContent.value = response.content;
-    // Mise à jour du basePath si nécessaire
   } catch (e) {
     error.value = e;
   } finally {
