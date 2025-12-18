@@ -45,6 +45,20 @@ Une fois que vous avez trouvé l'angle de vue idéal pour un endroit précis :
 
 ---
 
+## Méthode de travail recommandée
+
+Pour travailler efficacement sur l'édition de votre caméra, voici la méthode pas à pas conseillée :
+
+1.  **Sélecteur de la Caméra** : Choisissez le mode **Fixe**. Cela vous permet de préparer vos points de vue sans que la caméra ne bouge toute seule.
+2.  **Affichage des Courbes** : Dans le panneau dédié, affichez principalement le **Cap** et le **Δ Cap** édités. Ce sont vos deux indicateurs de fluidité indispensables.
+3.  **Zooms de transition** : Ne configurez le **Zoom Départ** et le **Zoom Arrivée** qu'en toute fin de travail, une fois que toute votre trajectoire est déjà bien calée.
+4.  **Contrôle Combiné** : 
+    *   Gardez votre souris positionnée à l'intérieur de l'onglet **Caméra**.
+    *   Utilisez votre main gauche sur les **Flèches Gauche / Droite** du clavier pour vous déplacer le long de la trace.
+    *   Utilisez votre main droite pour actionner la **Molette de la souris** afin de modifier le **Cap** avec précision dès que vous voulez modifier le cap avant d'ajouter le point clé.
+
+---
+
 ## Le secret de la fluidité
 
 Pour obtenir une vidéo agréable à regarder :
