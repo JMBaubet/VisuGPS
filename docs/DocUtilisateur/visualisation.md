@@ -13,7 +13,7 @@ L'animation suit une séquence automatisée fluide :
 2.  **Introduction** : Zoom progressif vers le point de départ (km 0).
 3.  **Lecture** : Le marqueur (comète) parcourt la trace. La caméra suit fidèlement les mouvements définis en mode Édition.
 4.  **Événements** :
-    *   **Pauses** : L'animation s'arrête (voir [Contrôles](#contrôles-de-lecture) pour reprendre).
+    *   **Pauses** : L'animation s'arrête (voir [Panel de Contrôle](#panel-de-contrôle-bas-de-lécran) pour reprendre).
     *   **Survols** : La caméra s'échappe temporairement vers un point d'intérêt avant de revenir sur la trace.
     *   **Messages** : Apparition des bulles informatives et des marqueurs KM.
 5.  **Final** : Une fois l'arrivée atteinte, la caméra effectue un zoom arrière pour montrer l'intégralité du parcours.
