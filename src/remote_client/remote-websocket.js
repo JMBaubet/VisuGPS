@@ -4,6 +4,7 @@ function updateStatus(message, isError = false, isConnecting = false) {
     if (!statusDiv || !mainTitle) return;
 
     statusDiv.textContent = `Statut: ${message}`;
+    statusDiv.style.display = 'block'; // Ensure the status div is visible
     if (isError) {
         statusDiv.style.color = 'red';
         mainTitle.style.color = 'red';
@@ -34,7 +35,7 @@ function connectWebSocket() {
     if (isRetrying) {
         return;
     }
-    
+
     isRetrying = true;
     updateStatus(`Tentative de connexion... (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`, false, true);
     ws = new WebSocket(WS_URL);
@@ -43,7 +44,7 @@ function connectWebSocket() {
         // Connexion réussie, réinitialiser le compteur
         resetRetryCount();
         updateStatus("Connecté au serveur WebSocket.");
-        
+
         if (!clientId) {
             clientId = generateUUID();
             localStorage.setItem('visugps_remote_client_id', clientId);
@@ -79,7 +80,7 @@ function connectWebSocket() {
 
             } else if (message.status === "refused") {
                 updateStatus(`Couplage refusé : ${message.reason || "Raison inconnue"}`, true);
-                pairingCodeDiv.style.display = 'block';
+                pairingCodeDiv.style.display = 'none';
                 const pages = document.querySelectorAll('.page');
                 pages.forEach(page => page.style.display = 'none');
 
@@ -103,6 +104,8 @@ function connectWebSocket() {
         } else if (message.type === "server_shutdown") {
             manualDisconnect = true;
             updateStatus(message.reason || "Déconnexion demandée par le serveur", true);
+
+            pairingCodeDiv.style.display = 'none';
 
             // Masquer les pages immédiatement pour une UI réactive
             const pages = document.querySelectorAll('.page');
@@ -142,7 +145,7 @@ function connectWebSocket() {
         // Masquer toutes les pages
         const pages = document.querySelectorAll('.page');
         pages.forEach(page => page.style.display = 'none');
-        
+
         // Vérifier si on peut encore essayer de se reconnecter
         if (retryCount < MAX_RETRY_ATTEMPTS) {
             retryCount++;

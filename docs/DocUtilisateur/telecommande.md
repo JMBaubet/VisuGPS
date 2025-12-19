@@ -8,27 +8,50 @@ VisuGPS intègre une fonctionnalité innovante vous permettant de contrôler l'a
 
 1.  Assurez-vous que votre ordinateur et votre appareil mobile sont connectés au **même réseau Wi-Fi**.
 2.  Lancez VisuGPS sur votre ordinateur.
-3.  Dans la barre d'outils (en haut), repérez l'icône **Mobile/Télécommande** (souvent un téléphone ou une antenne).
-    *   Si l'icône est barrée ou grise, cliquez dessus pour démarrer le couplage.
+3.  Dans la barre d'outils (en haut), repérez l'icône  <img src="https://api.iconify.design/mdi/remote-off.svg?color=%232196F3&width=24" style="vertical-align: middle;" />. Cliquez dessus pour démarrer le couplage.
 
 ## Couplage
 
-Une fenêtre s'ouvre sur votre ordinateur affichant :
-1.  Un **QR Code**.
-2.  Une adresse URL directe (ex: `http://192.168.1.15:9001`).
+Le processus se déroule en deux étapes pour garantir la sécurité de la connexion.
 
-### Sur votre mobile :
-1.  Ouvrez l'appareil photo et scannez le QR Code.
-2.  Ou ouvrez un navigateur web et tapez l'adresse URL affichée.
+### Étape 1 : Connexion initiale
+Une fenêtre "Connecter une télécommande" s'ouvre sur votre ordinateur :
+1.  Un **QR Code** à scanner avec votre mobile.
+2.  Une adresse URL directe (ex: `http://192.168.1.15:9001/remote`) à saisir si le QR code ne fonctionne pas.
 
-Une fois la connexion établie, l'interface de télécommande apparaît sur votre mobile et l'icône sur l'ordinateur passe au vert.
+### Étape 2 : Confirmation
+Une fois la connexion initiée depuis le mobile :
+1.  Une nouvelle boîte de dialogue **"Demande de Couplage"** apparaît sur l'ordinateur.
+2.  Elle affiche un **Code de couplage** (ex: `A1B2C3D4`).
+3.  Vérifiez que ce code correspond exactement à celui affiché sur l'écran de votre mobile.
+4.  Cliquez sur **Accepter** pour finaliser la connexion.
+
+Une fois connecté, l'icône de télécommande <img src="https://api.iconify.design/mdi/remote.svg?color=%234CAF50&width=24" style="vertical-align: middle;" /> dans la barre d'outils passe au vert.
+
+> [!NOTE]
+> Ce couplage initial est mémorisé : vous n'aurez plus besoin de le refaire pour cet appareil lors des prochaines utilisations.
 
 ## Fonctionnalités
 
-La télécommande offre une interface simplifiée pour :
-*   **Contrôle de lecture** : Lecture, Pause, Stop, Reset de l'animation.
-*   **Navigation** : Passer au circuit suivant ou précédent.
-*   **Caméra** : Parfois permet de prendre la main sur la caméra (selon version).
+La télécommande transforme votre mobile en centre de contrôle complet :
+
+### Contrôle de Lecture
+*   **Play / Pause** : Lancez ou interrompez l'animation.
+*   **Rembobinage** : Revenez en arrière dans la trace.
+*   **Vitesse** : Ajustez la vitesse de lecture (slider) ou revenez à la normale (1x).
+*   **Reset** : Recommencez l'animation depuis le début.
+
+### Navigation et Interface
+*   **Circuits** : Passez au circuit suivant ou précédent de votre liste.
+*   **Widgets** : Affichez/Masquez à distance les widgets (Distance, Commune, Altitude, Contrôles).
+*   **Retour Accueil** : Revenez à la vue globale (si disponible).
+
+### Contrôle de Caméra (Mode Pause)
+Lorsque l'animation est en pause, prenez le contrôle total de la vue 3D :
+*   **Pan** : Déplacez la caméra latéralement.
+*   **Rotation** : Tournez autour du point d'intérêt.
+*   **Zoom** : Rapprochez ou éloignez la vue.
+*   **Inclinaison** : Modifiez l'angle de vue vertical (Tilt).
 
 ## Dépannage
 

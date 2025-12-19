@@ -501,7 +501,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                 match path {
                     "/remote" | "/remote/" | "/remote/index.html" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_INDEX_HTML.len(),
                             REMOTE_CLIENT_INDEX_HTML
                         );
@@ -511,7 +511,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/style.css" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/css\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_STYLE_CSS.len(),
                             REMOTE_CLIENT_STYLE_CSS
                         );
@@ -521,7 +521,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-utils.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_UTILS_JS.len(),
                             REMOTE_CLIENT_UTILS_JS
                         );
@@ -531,7 +531,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-ui.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_UI_JS.len(),
                             REMOTE_CLIENT_UI_JS
                         );
@@ -541,7 +541,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-websocket.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_WEBSOCKET_JS.len(),
                             REMOTE_CLIENT_WEBSOCKET_JS
                         );
@@ -552,7 +552,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
 
                     "/remote/remote-speed.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_SPEED_JS.len(),
                             REMOTE_CLIENT_SPEED_JS
                         );
@@ -562,7 +562,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-camera.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_CAMERA_JS.len(),
                             REMOTE_CLIENT_CAMERA_JS
                         );
@@ -573,7 +573,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     "/remote/main.js" => {
                         let dynamic_js = generate_main_js_with_ip(&my_local_ip_clone, port_clone);
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             dynamic_js.len(),
                             dynamic_js
                         );

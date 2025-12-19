@@ -2,20 +2,22 @@ const WS_SERVER_IP = "192.168.1.65"; // À remplacer par l'IP de votre machine d
 const WS_SERVER_PORT = 9001;
 const WS_URL = `ws://${WS_SERVER_IP}:${WS_SERVER_PORT}`;
 
-let ws = null;
-let clientId = localStorage.getItem('visugps_remote_client_id');
-let pairingCode = generateRandomCode(8);
-let manualDisconnect = false; // Flag to prevent reconnect on server-side disconnect
+// Variables globales explicitement attachées à window pour l'accès depuis d'autres scripts
+window.ws = null;
+window.clientId = localStorage.getItem('visugps_remote_client_id');
+window.pairingCode = generateRandomCode(8);
+window.manualDisconnect = false;
 
 // Variables pour la gestion des tentatives de reconnexion
-let retryCount = 0;
-const MAX_RETRY_ATTEMPTS = 3;
-let isRetrying = false;
-let retryTimeout = null;
+window.retryCount = 0;
+window.MAX_RETRY_ATTEMPTS = 3;
+window.isRetrying = false;
+window.retryTimeout = null;
 
-const statusDiv = document.getElementById('status');
-const pairingCodeDiv = document.getElementById('pairing-code');
-const controlsDiv = document.getElementById('controls');
+// Éléments UI globaux
+window.statusDiv = document.getElementById('status');
+window.pairingCodeDiv = document.getElementById('pairing-code');
+window.controlsDiv = document.getElementById('controls');
 
 // Initialisation
 window.onload = () => {
