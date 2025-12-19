@@ -32,6 +32,7 @@
         <template v-slot:append>
             <v-avatar v-if="param.type === 'couleur'" :color="param.surcharge || param.defaut" size="24"></v-avatar>
             <v-chip v-else-if="param.type === 'entier' || param.type === 'reel' || param.type === 'list' || param.type === 'monitor'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
+            <v-chip v-else-if="param.type === 'directory'" size="small" class="text-truncate" style="max-width: 200px;">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
             <v-chip v-else-if="param.type === 'secret'" size="small">******</v-chip>
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
@@ -125,6 +126,8 @@
 
 <script setup>
 import { defineProps, computed, ref } from 'vue';
+import { open } from '@tauri-apps/plugin-dialog';
+import { useSettings } from '@/composables/useSettings';
 import EditStringDialog from './EditStringDialog.vue';
 import EditIntDialog from './EditIntDialog.vue';
 import EditBoolDialog from './EditBoolDialog.vue';
@@ -134,6 +137,8 @@ import EditCoordDialog from './EditCoordDialog.vue';
 import EditSecretDialog from './EditSecretDialog.vue';
 import EditListDialog from './EditListDialog.vue';
 import EditMonitorDialog from './EditMonitorDialog.vue';
+
+const { updateSetting } = useSettings();
 
 const props = defineProps({
   node: {
@@ -157,7 +162,7 @@ const isListDialogVisible = ref(false);
 const isMonitorDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
-const openEditDialog = (param) => {
+const openEditDialog = async (param) => {
   selectedParameter.value = param;
   if (param.type === 'string') {
     isStringDialogVisible.value = true;
@@ -177,6 +182,20 @@ const openEditDialog = (param) => {
     isListDialogVisible.value = true;
   } else if (param.type === 'monitor') {
     isMonitorDialogVisible.value = true;
+  } else if (param.type === 'directory') {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        defaultPath: param.surcharge || param.defaut || undefined,
+      });
+      
+      if (selected) {
+        await updateSetting(fullPath.value, param.identifiant, selected);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sélection du dossier:", error);
+    }
   }
 };
 

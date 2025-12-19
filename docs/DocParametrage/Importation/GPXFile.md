@@ -6,10 +6,10 @@ Ce document détaille le paramètre `GPXFile`, qui définit le dossier par défa
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `GPXFile` est une chaîne de caractères qui spécifie le chemin du répertoire que l'application ouvrira par défaut lorsque vous souhaiterez importer un nouveau fichier GPX.
+Le paramètre `GPXFile` permet de sélectionner via une interface de sélection de dossier le répertoire que l'application ouvrira par défaut.
 
 -   **Libellé**: Dossier des fichiers GPX
--   **Type**: Chaîne de caractères (String)
+-   **Type**: Dossier (Directory)
 -   **Valeur par défaut**: "DEFAULT_DOWNLOADS"
 
 ## ⚖️ Justification : Pourquoi définir un dossier par défaut ?
@@ -35,4 +35,5 @@ Définir un dossier par défaut améliore l'ergonomie et la rapidité d'accès �
 
 -   **Valeur par défaut ("DEFAULT_DOWNLOADS")** : C'est un bon point de départ, car c'est souvent là que les fichiers téléchargés sont stockés.
 -   **Personnaliser si nécessaire** : Si vous avez un dossier spécifique pour vos traces GPX (par exemple, "Mes Traces GPS" sur un disque dur externe), il est recommandé de définir ce chemin ici pour un accès plus rapide.
--   **Chemin absolu** : Le chemin doit être un chemin absolu vers un dossier existant sur votre système.
+-   **Chemin absolu** : Le chemin est stocké de manière absolue.
+-   **Sélection** : Cliquez sur le paramètre pour ouvrir la fenêtre de sélection de dossier de votre système d'exploitation.

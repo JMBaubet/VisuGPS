@@ -345,7 +345,7 @@
             "description": "Dossier pour l'importation des fichiers GPX. 'DEFAULT_DOWNLOADS' utilise le dossier de téléchargement de l'utilisateur.",
             "identifiant": "GPXFile",
             "libelle": "Dossier des fichiers GPX",
-            "type": "string",
+            "type": "directory",
             "doc": "docs/DocParametrage/Importation/GPXFile.md"
           },
           {
