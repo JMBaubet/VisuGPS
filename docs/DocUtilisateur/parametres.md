@@ -39,6 +39,15 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
 *   **Environnements** : Création et bascule entre les modes Production (OPE), Évaluation (EVAL) et Test (TEST).
     *   *En savoir plus sur les **[Modes de Fonctionnement](./modes_fonctionnement.md)**.*
 
+### 8. Lecture et Visualisation
+Configurez finement l'expérience de vol 3D :
+*   **Vue 3D** : Couleur, épaisseur et opacité de la trace et de la "comète".
+*   **Séquence de Lancement** : Durées des transitions initiales (Zoom Europe > Trace > Départ).
+*   **Moteur de Lecture** : Vitesse par défaut, zoom dynamique, affichage de la croix de rotation.
+*   **Séquence de Fin** : Délai après l'arrivée et comportement de reprise automatique.
+*   **Profil d'Altitude** : Échelles du graphique (abscisses/ordonnées) et codes couleurs selon la pente.
+*   **Taille des Messages** : Dimensions et police des bulles d'information sur la carte.
+
 ## Paramètres de la Télécommande
 
 *   **Port Serveur** : Le port réseau utilisé pour communiquer avec le smartphone (par défaut 9001).
