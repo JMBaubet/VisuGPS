@@ -37,6 +37,7 @@
             </div>
             <template v-slot:append>
               <v-chip
+                v-if="isDevMode"
                 :color="message.source === 'user' ? 'primary' : 'warning'"
                 class="ml-2"
                 size="small"
@@ -44,25 +45,27 @@
                 {{ message.source === 'user' ? 'Utilisateur' : 'Production' }}
               </v-chip>
               <v-btn
+                v-if="isDevMode || message.source !== 'default'"
                 icon="mdi-pencil"
                 variant="text"
                 size="small"
-                @click="openEditMessageDialog(message)"
-                :disabled="!isDevMode && message.source === 'default'"
+                color="blue"
+                @click.stop="openEditMessageDialog(message)"
               ></v-btn>
               <v-btn
+                v-if="isDevMode || message.source !== 'default'"
                 icon="mdi-delete"
                 variant="text"
                 size="small"
-                @click="confirmDelete(message)"
-                :disabled="!isDevMode && message.source === 'default'"
+                color="red"
+                @click.stop="confirmDelete(message)"
               ></v-btn>
               <v-btn
                 color="primary"
                 variant="tonal"
                 size="small"
                 class="ml-4"
-                @click="$emit('select-message', message.id)"
+                @click.stop="$emit('select-message', message.id)"
               >
                 Sélectionner
               </v-btn>

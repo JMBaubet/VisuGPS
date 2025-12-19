@@ -10,6 +10,17 @@
           <v-row>
             <v-col cols="12">
               <v-text-field v-model="editableMessage.text" label="Texte du message"></v-text-field>
+              <div class="d-flex justify-end mt-n2">
+                <v-btn
+                  variant="text"
+                  prepend-icon="mdi-emoticon-outline"
+                  color="primary"
+                  size="small"
+                  @click="openEmojiCheatSheet"
+                >
+                  Aide Emojis
+                </v-btn>
+              </div>
             </v-col>
             <v-col cols="12">
               <v-select
@@ -56,6 +67,8 @@
 import { ref, watch, computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { useVuetifyColors } from '@/composables/useVuetifyColors'; // Import added
+import { useSettings } from '@/composables/useSettings';
+import { open } from '@tauri-apps/plugin-shell';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -76,6 +89,7 @@ const target = ref('Production'); // 'user' or 'default'
 
 const theme = useTheme();
 const { toHex, hexToRgb, getContrastColor } = useVuetifyColors(); // Initialize toHex, hexToRgb, and getContrastColor
+const { getSettingValue } = useSettings();
 
 const materialColors = [
   'red', 'pink', 'purple', 'deep-purple', 'indigo', 'blue', 'light-blue', 'cyan', 'teal', 'green', 'light-green', 'lime', 'yellow', 'amber', 'orange', 'deep-orange', 'brown', 'grey', 'blue-grey',
@@ -116,6 +130,15 @@ watch(dialog, (newVal) => {
 
 const close = () => {
   dialog.value = false;
+};
+
+const openEmojiCheatSheet = async () => {
+  try {
+    const url = getSettingValue('Edition/Messages/urlEmoticon') || 'https://github.com/ikatyang/emoji-cheat-sheet';
+    await open(url);
+  } catch (error) {
+    console.error("Erreur lors de l'ouverture du lien emoji:", error);
+  }
 };
 
 const save = () => {

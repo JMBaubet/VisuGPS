@@ -828,6 +828,14 @@
                 "unite": "ms",
                 "critique": false,
                 "doc": "docs/DocParametrage/Edition/Messages/transitionDuree.md"
+              },
+              {
+                "identifiant": "urlEmoticon",
+                "libelle": "URL Emoticon",
+                "description": "URL vers la page d'aide des emojis (ex: cheat sheet).",
+                "type": "string",
+                "defaut": "https://github.com/ikatyang/emoji-cheat-sheet",
+                "doc": "docs/DocParametrage/Edition/Messages/urlEmoticon.md"
               }
             ],
             "groupes": [
