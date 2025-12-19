@@ -1,6 +1,6 @@
 # Paramètres Globaux
 
-Le menu Paramètres (accessible via l'icône d'engrenage sur l'accueil) permet de configurer le comportement général de VisuGPS.
+Le menu Paramètres (accessible via l'icône d'engrenage <img src="https://api.iconify.design/mdi/cog.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> sur l'accueil) permet de configurer le comportement général de VisuGPS.
 
 [< Retour à l'accueil](./index.md)
 

@@ -34,7 +34,7 @@ Vous pouvez cliquer dessus pour consulter ses détails. (voir [Détails du Circu
 
 ## Paramètres Liés
 
-Les fonctionnalités d'importation dépendent de certains paramètres globaux (accessibles dans le menu [Paramètres](./parametres.md)) :
+Les fonctionnalités d'importation dépendent de certains paramètres globaux (accessibles dans le menu [<span style="color: #FFC107">Paramètres</span>](./parametres.md)) :
 
 *   **Suppression après importation** : Si activé, le fichier GPX original est supprimé de votre ordinateur une fois importé avec succès.
 *   **Dossier de stockage** : L'emplacement où VisuGPS enregistre les fichiers de configuration (JSON) et les vignettes.

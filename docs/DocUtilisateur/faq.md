@@ -15,7 +15,7 @@ R : VisuGPS est compatible avec Windows, macOS et Linux.
 ## Carte 3D et Mapbox
 
 **Q : La carte ne s'affiche pas ou reste noire.**
-R : Vérifiez votre connexion internet. Si vous êtes connecté, assurez-vous d'avoir saisi un **Token Mapbox** valide dans les [Paramètres](./parametres.md).
+R : Vérifiez votre connexion internet. Si vous êtes connecté, assurez-vous d'avoir saisi un **Token Mapbox** valide dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md).
 
 **Q : Pourquoi le relief semble plat ?**
 R : Le chargement du relief (terrain DEM) nécessite une connexion internet et un Token Mapbox valide. Vérifiez également que le facteur d'exagération du relief n'est pas à 0 dans les options (si disponible).

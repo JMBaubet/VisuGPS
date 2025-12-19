@@ -43,4 +43,4 @@ La vitesse globale de l'animation peut être influencée par :
 *   `vitesse_animation` : Un facteur multiplicateur définissant à quelle vitesse le marqueur parcourt la trace par rapport au temps réel.
 
 ---
-[< Retour à l'accueil](./index.md) | [Suivant : Paramètres >](./parametres.md)
+[< Retour à l'accueil](./index.md) | [Suivant : <span style="color: #FFC107">Paramètres</span> >](./parametres.md)

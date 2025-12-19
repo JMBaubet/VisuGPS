@@ -61,7 +61,7 @@ VisuGPS utilise plusieurs services en cascade pour garantir le meilleur résulta
 
 ## 3. Configuration
 
-Vous pouvez ajuster le comportement de la mise à jour via les **Paramètres > Accueil > MajCommunes**.
+Vous pouvez ajuster le comportement de la mise à jour via les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) (**Accueil > MajCommunes**).
 
 ### Timers (Délais)
 Pour éviter de saturer les services (et de se faire bloquer), des délais d'attente sont configurés entre chaque requête :
