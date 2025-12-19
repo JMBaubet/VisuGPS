@@ -318,8 +318,21 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                                                                                 client_id_for_this_connection = Some(pairing_req.client_id.clone());
                                                                                                 app_handle_clone.emit("remote_control_status_changed", "connected").unwrap();
                                         
-                                                                                                remote_clients::add_authorized_client(&app_env_path, pairing_req.client_id.clone(), format!("Mobile Client ({})", pairing_req.pairing_code))
-                                                                                                    .expect("Failed to add authorized client");
+                                                                                                if let Err(e) = remote_clients::add_authorized_client(&app_env_path, pairing_req.client_id.clone(), format!("Mobile Client ({})", pairing_req.pairing_code)) {
+                                                                                                    error!("Failed to add authorized client: {}", e);
+                                                                                                    // Send error response to client
+                                                                                                    let response = PairingResponse {
+                                                                                                        r#type: "pairing_response".to_string(),
+                                                                                                        status: "refused".to_string(),
+                                                                                                        reason: Some(format!("Erreur serveur lors de la sauvegarde: {}", e)),
+                                                                                                        appState: Some(current_app_view.clone()),
+                                                                                                        settings: None,
+                                                                                                    };
+                                                                                                    if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                                         let _ = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap()));
+                                                                                                    }
+                                                                                                    continue; // Stop processing this request
+                                                                                                }
 
                                                                                                 let speed_min = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value").and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
                                                                                                 let speed_max = get_setting_value(&settings_clone, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value").and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
@@ -364,10 +377,25 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                                                                                 error!("Erreur lors de l'attente de la décision du frontend pour {}: {}", pairing_req.client_id, e);
                                                                                             }
                                                                                         }
-                                                                                        pending_pairing_requests_clone.lock().unwrap().remove(&pairing_req.client_id);
+                                                                                        // CRITICAL FIX: Do NOT remove the entry here.
+                                                                                        // 1. If approved/denied via UI, reply_to_pairing_request ALREADY removed it to get the sender.
+                                                                                        // 2. If overwritten by a new connection (reload), removing it here would delete the NEW active request!
+                                                                                        // pending_pairing_requests_clone.lock().unwrap().remove(&pairing_req.client_id);
                                                                                     }
                                                                                 } else {
                                                                                     error!("Erreur lors de la vérification de l'autorisation du client {}", pairing_req.client_id);
+                                                                                    let response = PairingResponse {
+                                                                                        r#type: "pairing_response".to_string(),
+                                                                                        status: "refused".to_string(),
+                                                                                        reason: Some("Erreur interne du serveur lors de la vérification des autorisations.".to_string()),
+                                                                                        appState: Some(current_app_view.clone()),
+                                                                                        settings: None,
+                                                                                    };
+                                                                                    if let Some(sender) = CLIENT_SENDERS.lock().unwrap().get_mut(&peer_addr.to_string()) {
+                                                                                        if let Err(e) = sender.try_send(Message::Text(serde_json::to_string(&response).unwrap())) {
+                                                                                            error!("Erreur lors de l'envoi de la réponse d'erreur au client {}: {}", peer_addr, e);
+                                                                                        }
+                                                                                    }
                                                                                 }
                                                                             } else if let Ok(remote_command) = serde_json::from_str::<RemoteCommand>(msg_text) {
                                                                                 let is_authorized = remote_clients::is_client_authorized(&app_env_path, &remote_command.client_id).unwrap_or(false);

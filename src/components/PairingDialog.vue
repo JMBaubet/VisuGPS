@@ -28,10 +28,17 @@
   const pairingCode = ref('');
 
   onMounted(() => {
+    console.log("PairingDialog mounted, listening for events.");
     listen('ask_pairing_approval', (event) => {
-      clientId.value = event.payload.clientId;
-      pairingCode.value = event.payload.pairingCode;
-      dialog.value = true;
+      console.log('Received pairing request:', event);
+      if (event.payload) {
+          clientId.value = event.payload.clientId;
+          pairingCode.value = event.payload.pairingCode;
+          dialog.value = true;
+          console.log('Dialog set to true');
+      } else {
+          console.error('Payload missing in pairing request');
+      }
     });
   });
 

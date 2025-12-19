@@ -42,16 +42,29 @@ pub fn read_remote_clients(app_env_path: &PathBuf) -> Result<RemoteClientsFile, 
 
     let file_content = fs::read_to_string(&path)
         .map_err(|e| format!("Impossible de lire remote.json: {}", e))?;
-    serde_json::from_str(&file_content)
-        .map_err(|e| format!("Impossible de parser remote.json: {}", e))
+    
+    match serde_json::from_str::<RemoteClientsFile>(&file_content) {
+        Ok(data) => Ok(data),
+        Err(e) => {
+            log::error!("Fichier remote.json corrompu ({}). Sauvegarde en .bak et réinitialisation.", e);
+            let backup_path = path.with_extension("json.bak");
+            if let Err(err) = fs::copy(&path, &backup_path) {
+                log::error!("Echec de la sauvegarde de remote.json: {}", err);
+            }
+            Ok(RemoteClientsFile::default())
+        }
+    }
 }
 
 pub fn write_remote_clients(app_env_path: &PathBuf, clients_data: &RemoteClientsFile) -> Result<(), String> {
     let path = get_remote_clients_path(app_env_path);
+    info!("Writing remote clients to: {:?}", path);
     let new_content = serde_json::to_string_pretty(clients_data)
         .map_err(|e| format!("Impossible de sérialiser remote.json: {}", e))?;
     fs::write(&path, new_content)
-        .map_err(|e| format!("Impossible d'écrire remote.json: {}", e))
+        .map_err(|e| format!("Impossible d'écrire remote.json: {}", e))?;
+    info!("Successfully wrote remote.json");
+    Ok(())
 }
 
 pub fn is_client_authorized(app_env_path: &PathBuf, client_id: &str) -> Result<bool, String> {

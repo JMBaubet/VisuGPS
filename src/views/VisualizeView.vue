@@ -675,7 +675,7 @@ const handleMapZoom = () => {
 // --- Computed settings ---
 const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
 const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styleVisualisation'));
-const terrainExaggeration = computed(() => getSettingValue('Edition/Mapbox/Relief/exaggeration'));
+const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration'));
 const traceColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'));
 const traceWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurTrace'));
 const traceOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteTrace'));

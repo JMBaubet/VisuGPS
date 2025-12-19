@@ -26,4 +26,21 @@ window.onload = () => {
 
     // Ajout des écouteurs d'événements pour les boutons
     setupButtonListeners();
+
+    // Auto-reconnect when tab becomes visible (wake up from sleep)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+                console.log("App became visible, attempting to reconnect...");
+                // Remove manual disconnect flag to allow auto-reconnect logic to work
+                manualDisconnect = false;
+                // Remove retry button if it exists to avoid duplicates/confusion
+                const retryBtn = document.getElementById('retry-button');
+                if (retryBtn) retryBtn.remove();
+
+                resetRetryCount();
+                connectWebSocket();
+            }
+        }
+    });
 };
