@@ -285,12 +285,12 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                                                                                     } else {
                                     
                                                                                         
-                                                                                        if current_app_view != "Main" && current_app_view != "Settings" {
+                                                                                        if current_app_view != "Main" && current_app_view != "Settings" && current_app_view != "Visualize" {
                                 
                                                                                             let response = PairingResponse {
                                                                                                 r#type: "pairing_response".to_string(),
                                                                                                 status: "refused".to_string(),
-                                                                                                reason: Some("Le couplage est uniquement autorisé depuis l'accueil ou les paramètres.".to_string()),
+                                                                                                reason: Some("Le couplage est uniquement autorisé depuis l'accueil, les paramètres ou en visualisation.".to_string()),
                                                                                                 appState: Some(current_app_view.clone()),
                                                                                                 settings: None,
                                                                                             };

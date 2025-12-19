@@ -1,3 +1,5 @@
+let heartbeatInterval;
+
 function updateStatus(message, isError = false, isConnecting = false) {
     const statusDiv = document.getElementById('status');
     const mainTitle = document.getElementById('main-title');
@@ -57,6 +59,12 @@ function connectWebSocket() {
             clientId: clientId,
             pairingCode: pairingCode
         }));
+
+        // Démarrer le heartbeat (toutes les 30 secondes)
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => {
+            sendCommand('heartbeat');
+        }, 30000);
     };
 
     ws.onmessage = (event) => {
@@ -137,6 +145,7 @@ function connectWebSocket() {
     };
 
     ws.onclose = (event) => {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
         if (manualDisconnect) {
             return; // Important pour ne pas déclencher la logique de reconnexion auto
         }
@@ -163,6 +172,7 @@ function connectWebSocket() {
         isRetrying = false;
         updateStatus("Erreur de connexion WebSocket.", true);
         console.error("Erreur WebSocket :", error);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
         ws.close();
     };
 }
