@@ -33,7 +33,7 @@ Pour en savoir plus sur la gestion de ces environnements, consultez la page déd
 
 *   **Importer** <img src="https://api.iconify.design/mdi/file-import-outline.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> : Ouvre l'assistant d'importation de fichier GPX. *(Voir [Importation](./upload.md))*
 *   **Paramètres** <img src="https://api.iconify.design/mdi/cog.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> : Accède au menu de configuration de l'application. *(Voir [<span style="color: #FFC107">Paramètres</span>](./parametres.md))*
-*   **Documentation** <img src="https://api.iconify.design/mdi/book-open-outline.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Affiche ce manuel utilisateur directement dans l'application.
+*   **Documentation** <img src="https://api.iconify.design/mdi/book-open-page-variant-outline.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Affiche ce manuel utilisateur directement dans l'application.
 
 ---
 [< Retour à l'accueil](./index.md) | [Suivant : Filtres et Tris >](./filtres_tris.md)

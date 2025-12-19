@@ -40,7 +40,7 @@
 
         <!-- Help Button -->
         <v-btn icon @click="showHelpDialog = true">
-          <v-icon color="info">mdi-book-open-outline</v-icon>
+          <v-icon color="info">mdi-book-open-page-variant-outline</v-icon>
         </v-btn>
 
         <!-- Dark/Light Mode Switch -->

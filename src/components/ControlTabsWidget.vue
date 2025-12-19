@@ -11,8 +11,17 @@
       <v-window-item value="camera" class="fill-height">
         <div style="height: 100%; overflow-y: auto;" class="d-flex flex-column">
           <!-- Top Toolbar -->
-          <div class="pa-2">
+          <div class="pa-2 d-flex align-center justify-space-between">
             <CameraSyncModeSelector v-model="cameraSyncModeModel" />
+            <v-btn
+              icon
+              variant="text"
+              density="compact"
+              color="info"
+              @click="openDoc('/docs/DocUtilisateur/edition_camera.md')" 
+            >
+              <v-icon>mdi-book-open-page-variant-outline</v-icon>
+            </v-btn>
           </div>
           <v-divider></v-divider>
 
@@ -226,7 +235,18 @@
       <!-- Onglet Pause / Survol -->
       <v-window-item value="stop">
         <div class="pa-2 d-flex flex-column">
-          <CameraSyncModeSelector v-model="cameraSyncModeModel" class="mb-4"/>
+          <div class="d-flex align-center justify-space-between mb-4">
+            <CameraSyncModeSelector v-model="cameraSyncModeModel" />
+            <v-btn
+              icon
+              variant="text"
+              density="compact"
+              color="info"
+              @click="openDoc('/docs/DocUtilisateur/edition_flyto_pause.md')"
+            >
+              <v-icon>mdi-book-open-page-variant-outline</v-icon>
+            </v-btn>
+          </div>
           <v-divider class="mb-4"></v-divider>
           <!-- Flyto duration slider (always visible) -->
           <div class="d-flex align-center justify-center mb-2">
@@ -285,9 +305,20 @@
       <!-- Onglet Message -->
       <v-window-item value="message">
         <div class="pa-2 d-flex flex-column fill-height">
-          <v-btn block color="primary" variant="tonal" @click="emit('open-message-library')">
-            Sélectionner un message
-          </v-btn>
+          <div class="d-flex align-center mb-1">
+            <v-btn color="primary" variant="tonal" class="flex-grow-1 mr-2" @click="emit('open-message-library')">
+              Sélectionner un message
+            </v-btn>
+             <v-btn
+              icon
+              variant="text"
+              density="compact"
+              color="info"
+              @click="openDoc('/docs/DocUtilisateur/edition_messages.md')"
+            >
+              <v-icon>mdi-book-open-page-variant-outline</v-icon>
+            </v-btn>
+          </div>
 
           <v-divider class="my-1"></v-divider>
 
@@ -408,12 +439,18 @@
       </v-window-item>
 
     </v-window>
+
+    <!-- Documentation Dialog -->
+    <v-dialog v-model="showDocDialog" max-width="800px" height="80%">
+      <DocDisplay :doc-path="currentDocPath" @close="showDocDialog = false" />
+    </v-dialog>
   </v-sheet>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue';
 import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
+import DocDisplay from './DocDisplay.vue';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const { toHex, getContrastColor } = useVuetifyColors();
@@ -698,6 +735,15 @@ const isMarkerVisible = computed(() => {
 watch(isMarkerVisible, (newValue) => {
   emit('update:marker-visible', newValue);
 });
+
+// --- Documentation Logic ---
+const showDocDialog = ref(false);
+const currentDocPath = ref('');
+
+const openDoc = (path) => {
+  currentDocPath.value = path;
+  showDocDialog.value = true;
+};
 
 </script>
 
