@@ -226,6 +226,10 @@ const zoomArriveeValeur = ref(18);
 const distanceZoomArrivee = ref(20);
 const zoomArriveeIsActive = ref(false);
 
+// New: State to track previous distances for cleanup
+const lastAppliedZoomDepartDistance = ref(0);
+const lastAppliedZoomArriveeDistance = ref(0);
+
 // Commandes Clavier
 const incrementAvancement = ref(1);
 const incrementAvancementShift = ref(10);
@@ -701,6 +705,23 @@ const applyZoomDepart = async () => {
     return;
   }
 
+  // NEW: Clean up previous zoom curve if it was larger
+  if (lastAppliedZoomDepartDistance.value > 0) {
+      const prevEndIndex = lastAppliedZoomDepartDistance.value;
+      // Only clean up if the previous distance is valid
+      if (prevEndIndex < trackingPoints.value.length) {
+          for (let i = 0; i <= prevEndIndex; i++) {
+              if (trackingPoints.value[i]) {
+                trackingPoints.value[i].editedZoom = trackingPoints.value[i].zoom;
+              }
+          }
+          // Remove control point flag from the old end point
+          if (trackingPoints.value[prevEndIndex]) {
+               trackingPoints.value[prevEndIndex].pointDeControl = false;
+          }
+      }
+  }
+
   const point0 = trackingPoints.value[0];
   const pointEnd = trackingPoints.value[endIndex];
 
@@ -713,6 +734,9 @@ const applyZoomDepart = async () => {
   pointEnd.editedZoom = pointEnd.zoom;
 
   zoomDepartIsActive.value = true;
+  // Update the last applied distance to current
+  lastAppliedZoomDepartDistance.value = zoomDepartDistance.value;
+  
   updateInterpolation();
 
   const endIndexForRamp = zoomDepartDistance.value;
@@ -755,6 +779,7 @@ const removeZoomDepart = async () => {
   pointEnd.pointDeControl = false;
 
   zoomDepartIsActive.value = false;
+  lastAppliedZoomDepartDistance.value = 0; // Reset last applied distance
   updateInterpolation();
 
   try {
@@ -780,6 +805,22 @@ const applyZoomArrivee = async () => {
     return;
   }
 
+  // NEW: Clean up previous zoom curve if it existed
+  if (lastAppliedZoomArriveeDistance.value > 0) {
+      const prevStartIndex = lastIndex - lastAppliedZoomArriveeDistance.value;
+      if (prevStartIndex >= 0) {
+           for (let i = prevStartIndex; i <= lastIndex; i++) {
+               if (trackingPoints.value[i]) {
+                   trackingPoints.value[i].editedZoom = trackingPoints.value[i].zoom;
+               }
+           }
+            // Remove control point flag from the old start point
+           if (trackingPoints.value[prevStartIndex]) {
+              trackingPoints.value[prevStartIndex].pointDeControl = false;
+           }
+      }
+  }
+
   const pointStart = trackingPoints.value[startIndex];
   const pointEnd = trackingPoints.value[lastIndex];
 
@@ -792,6 +833,7 @@ const applyZoomArrivee = async () => {
   pointEnd.editedCap = pointEnd.cap;
 
   zoomArriveeIsActive.value = true;
+  lastAppliedZoomArriveeDistance.value = distanceZoomArrivee.value; // Update last applied distance
   updateInterpolation();
 
   const startZoom = pointStart.zoom;
@@ -834,6 +876,7 @@ const removeZoomArrivee = async () => {
   pointStart.pointDeControl = false;
 
   zoomArriveeIsActive.value = false;
+  lastAppliedZoomArriveeDistance.value = 0; // Reset last applied distance
   updateInterpolation();
 
   try {
@@ -1521,10 +1564,18 @@ onMounted(async () => {
     zoomDepart.value = circuitData.zoom.depart.enabled;
     zoomDepartValeur.value = circuitData.zoom.depart.valeur;
     zoomDepartDistance.value = circuitData.zoom.depart.distance;
+    // New: Initialize last applied distance if enabled
+    if (zoomDepart.value) {
+        lastAppliedZoomDepartDistance.value = zoomDepartDistance.value;
+    }
 
     zoomArrivee.value = circuitData.zoom.arrivee.enabled;
     zoomArriveeValeur.value = circuitData.zoom.arrivee.valeur;
     distanceZoomArrivee.value = circuitData.zoom.arrivee.distance;
+    // New: Initialize last applied distance if enabled
+     if (zoomArrivee.value) {
+        lastAppliedZoomArriveeDistance.value = distanceZoomArrivee.value;
+    }
 
     incrementAvancement.value = await getSettingValue('Edition/Commandes clavier/incrementAvancement');
     incrementAvancementShift.value = await getSettingValue('Edition/Commandes clavier/incrementAvancementShift');
