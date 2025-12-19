@@ -20,7 +20,7 @@ L'ajustement du zoom initial sur l'Europe permet de contrôler la portée de la 
 
 ### 1. 🗺️ Contexte Géographique
 
--   Un zoom approprié permet de bien visualiser l'ensemble du continent européen, offrant un contexte géographique clair avant le "flyTo" vers la trace.
+-   Un zoom approprié permet de bien visualiser l'ensemble du continent européen, offrant un contexte géographique clair avant le survol vers la trace.
 
 ### 2. 🎥 Effet Cinématique
 

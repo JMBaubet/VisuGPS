@@ -20,10 +20,9 @@ La bibliothèque peut contenir de nombreux messages. Pour vous y retrouver :
 
 ## Types de Messages
 
-Les messages sont classés en deux catégories :
-1.  **Messages Utilisateur** : Ceux que vous créez vous-même pour vos besoins spécifiques.
-2.  **Messages de Production** : Messages livrés avec l'application (ex: noms de sommets génériques). 
-    *   *Note : Les messages de production ne peuvent pas être modifiés ou supprimés en mode normal.*
+La bibliothèque contient deux types de messages :
+*   **Vos messages** : Les messages que vous avez créés manuellement. Ils sont entièrement modifiables et supprimables.
+*   **Messages par défaut** : Messages livrés avec VisuGPS (ex: noms de sommets, cols). Ces messages sont protégés : vous pouvez les utiliser librement, mais ils ne peuvent être ni modifiés ni supprimés. Ils sont reconnaissables par l'absence d'icônes d'action (**Modifier** / **Supprimer**).
 
 ---
 
@@ -35,12 +34,13 @@ Les messages sont classés en deux catégories :
 3.  Choisissez une **Couleur de fond** parmi la palette Material Design proposée.
     > [!TIP]
     > VisuGPS adapte automatiquement la couleur du texte (Noir ou Blanc) en fonction de la couleur de fond choisie pour garantir une lisibilité maximale (contraste).
-4.  Cliquez sur **Sauvegarder**.
+4.  **Emojis** : Vous pouvez intégrer des emojis dans vos textes (ex: `:mountain:`, `:bike:`). Cliquez sur le bouton <span style="color: #2196F3">Aide Emojis</span> <img src="https://api.iconify.design/mdi/emoticon-outline.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour ouvrir une page d'aide listant les codes disponibles.
+5.  Cliquez sur **Sauvegarder**.
 
 ### Modifier ou Supprimer
 Utilisez les icônes à droite de chaque ligne :
-*   <img src="https://api.iconify.design/mdi/pencil.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> **Modifier** : Pour corriger une faute ou changer la couleur.
-*   <img src="https://api.iconify.design/mdi/delete.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> **Supprimer** : Retire définitivement le message de votre bibliothèque. Une confirmation vous sera demandée.
+*   <img src="https://api.iconify.design/mdi/pencil.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> **Modifier** : Pour corriger une faute ou changer la couleur (icône bleue).
+*   <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> **Supprimer** : Retire définitivement le message de votre bibliothèque (icône rouge). Une confirmation vous sera demandée.
 
 ---
 

@@ -736,12 +736,12 @@
             ]
           },
           {
-            "libelle": "Pause_Flyto",
+            "libelle": "Pause et Survol",
             "parametres": [
               {
                 "identifiant": "duree",
                 "libelle": "Durée du survol (ms)",
-                "description": "Durée par défaut de l'animation de survol (flyto) en millisecondes.",
+                "description": "Durée par défaut de l'animation de survol en millisecondes.",
                 "type": "entier",
                 "defaut": 2000,
                 "min": 200,
@@ -754,7 +754,7 @@
             ],
             "groupes": [
               {
-                "libelle": "Graphe Pause_Flyto",
+                "libelle": "Graphe Pause et Survol",
                 "parametres": [
                   {
                     "identifiant": "couleurPause",
@@ -767,8 +767,8 @@
                   },
                   {
                     "identifiant": "couleurFlyTo",
-                    "libelle": "Couleur des flyto",
-                    "description": "Couleur des marqueurs de flyto sur le graphe.",
+                    "libelle": "Couleur des survols",
+                    "description": "Couleur des marqueurs de survol sur le graphe.",
                     "type": "couleur",
                     "defaut": "orange-darken-1",
                     "materialDesign": true,
@@ -777,7 +777,7 @@
                   {
                     "identifiant": "longueur",
                     "libelle": "Longueur",
-                    "description": "Longueur des marqueurs de pause et flyto sur le graphe.",
+                    "description": "Longueur des marqueurs de pause et survol sur le graphe.",
                     "type": "entier",
                     "defaut": 12,
                     "min": 5,
@@ -1192,7 +1192,7 @@
               },
               {
                 "defaut": 5000,
-                "description": "Durée en millisecondes de l'animation 'flyTo' de l'Europe vers la vue globale de la trace.",
+                "description": "Durée en millisecondes de l'animation de survol de l'Europe vers la vue globale de la trace.",
                 "identifiant": "durationEuropeToTrace",
                 "libelle": "Durée de l'animation vers la trace au départ",
                 "type": "entier",
@@ -1214,7 +1214,7 @@
               },
               {
                 "defaut": 2000,
-                "description": "Durée en millisecondes de l'animation 'flyTo' de la vue globale de la trace vers le point de départ (km 0).",
+                "description": "Durée en millisecondes de l'animation de survol de la vue globale de la trace vers le point de départ (km 0).",
                 "identifiant": "durationTraceToStart",
                 "libelle": "Durée de l'animation vers le départ",
                 "type": "entier",
@@ -1323,7 +1323,7 @@
               },
               {
                 "defaut": 1000,
-                "description": "Durée en millisecondes du 'flyTo' pour revenir à la position de la caméra après une pause.",
+                "description": "Durée en millisecondes du survol pour revenir à la position de la caméra après une pause.",
                 "identifiant": "timerReprisePause",
                 "libelle": "Durée de la reprise après pause (ms)",
                 "type": "entier",

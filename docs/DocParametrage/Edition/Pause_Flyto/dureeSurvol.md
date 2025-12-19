@@ -1,12 +1,12 @@
-# ⏱️ Paramètre : Durée du survol (Flyto)
+# ⏱️ Paramètre : Durée du survol
 
-Ce document détaille le paramètre `duree`, qui définit la durée par défaut de l'animation de survol (flyto) en millisecondes, utilisée pour les événements de type "Flyto" dans l'édition.
+Ce document détaille le paramètre `duree`, qui définit la durée par défaut de l'animation de survol en millisecondes, utilisée pour les événements de type "Survol" dans l'édition.
 
 ---
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `duree` contrôle la vitesse de l'animation de la caméra lorsqu'elle se déplace rapidement d'un point à un autre (un "flyto"). Une durée plus courte rend l'animation plus rapide, et vice-versa.
+Le paramètre `duree` contrôle la vitesse de l'animation de la caméra lorsqu'elle se déplace vers un point d'intérêt. Une durée plus courte rend l'animation plus rapide, et vice-versa.
 
 -   **Libellé**: Durée du survol (ms)
 -   **Type**: Entier
@@ -27,7 +27,7 @@ L'ajustement de la durée du survol permet de contrôler le rythme et la fluidit
 
 ### 2. ⏱️ Rythme de la Visualisation
 
--   Le choix de la durée peut influencer le rythme général de la visualisation, en particulier si de nombreux événements "Flyto" sont utilisés.
+-   Le choix de la durée peut influencer le rythme général de la visualisation, en particulier si de nombreux événements de survol sont utilisés.
 
 ---
 

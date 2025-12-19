@@ -1,12 +1,12 @@
-# 🔎 Paramètre : Longueur des marqueurs Pause/FlyTo
-
-Ce document détaille le paramètre `longueur`, qui définit la longueur en pixels des marqueurs verticaux pour les événements de type "Pause" et "FlyTo" sur le graphe d'édition.
+# 🔎 Paramètre : Longueur des marqueurs Pause/Survol
+ 
+Ce document détaille le paramètre `longueur`, qui définit la longueur en pixels des marqueurs verticaux pour les événements de type "Pause" et "Survol" sur le graphe d'édition.
 
 ---
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `longueur` permet d'ajuster la taille visuelle des indicateurs d'événements "Pause" et "FlyTo" sur le graphe. Une longueur appropriée assure que les marqueurs sont suffisamment visibles sans surcharger l'interface.
+Le paramètre `longueur` permet d'ajuster la taille visuelle des indicateurs d'événements "Pause" et "Survol" sur le graphe. Une longueur appropriée assure que les marqueurs sont suffisamment visibles sans surcharger l'interface.
 
 -   **Libellé**: Longueur (px)
 -   **Type**: Entier

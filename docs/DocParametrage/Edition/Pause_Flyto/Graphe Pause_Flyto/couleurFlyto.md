@@ -1,24 +1,24 @@
-# 🔎 Paramètre : Couleur des marqueurs de FlyTo
+# 🔎 Paramètre : Couleur des marqueurs de Survol
 
-Ce document détaille le paramètre `couleurFlyTo`, qui définit la couleur des marqueurs verticaux représentant les événements de type "FlyTo" sur le graphe d'édition.
+Ce document détaille le paramètre `couleurFlyTo`, qui définit la couleur des marqueurs verticaux représentant les événements de type "Survol" sur le graphe d'édition.
 
 ---
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `couleurFlyTo` permet de personnaliser l'apparence des indicateurs visuels des événements "FlyTo" sur le graphe. Une couleur distincte aide à repérer rapidement ces transitions importantes lors de l'analyse du parcours.
+Le paramètre `couleurFlyTo` permet de personnaliser l'apparence des indicateurs visuels des événements "Survol" sur le graphe. Une couleur distincte aide à repérer rapidement ces transitions importantes lors de l'analyse du parcours.
 
--   **Libellé**: Couleur FlyTo
+-   **Libellé**: Couleur Survol
 -   **Type**: Couleur Material Design
 -   **Valeur par défaut**: `orange-darken-1`
 
-## ⚖️ Justification : Importance de la signalisation des FlyTo
+## ⚖️ Justification : Importance de la signalisation des Survols
 
-La clarté visuelle des événements "FlyTo" est essentielle pour comprendre les mouvements de caméra planifiés dans l'animation. Une couleur bien choisie améliore l'expérience utilisateur en fournissant des repères visuels intuitifs.
+La clarté visuelle des événements "Survol" est essentielle pour comprendre les mouvements de caméra planifiés dans l'animation. Une couleur bien choisie améliore l'expérience utilisateur en fournissant des repères visuels intuitifs.
 
 ### 1. 👀 Identification rapide
 
-Une couleur unique permet de distinguer immédiatement les FlyTo des autres événements (Pauses, messages).
+Une couleur unique permet de distinguer immédiatement les Survols des autres événements (Pauses, messages).
 
 ### 2. 📊 Analyse aisée
 

@@ -30,7 +30,12 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
 *   **Vignettes** : Configuration du style, des dimensions et des couleurs des miniatures générées.
     *   *Voir le détail dans **[Configuration des Vignettes](./vignette_config.md)**.*
 
-### 6. Gestion des Modes
+### 6. Édition et Messages
+*   **Aide Emojis** : URL de la page web ouverte lors du clic sur le bouton d'aide dans l'édition de message.
+*   **Gestion des Marqueurs KM** : Configuration de la fréquence et du style des jalons de distance.
+*   **Incréments d'affichage** : Durées par défaut pour le pré/post affichage des messages.
+
+### 7. Gestion des Modes
 *   **Environnements** : Création et bascule entre les modes Production (OPE), Évaluation (EVAL) et Test (TEST).
     *   *En savoir plus sur les **[Modes de Fonctionnement](./modes_fonctionnement.md)**.*
 

@@ -1,6 +1,6 @@
 # ⏳ Paramètre : Durée Europe vers Trace (Initialisation Visualisation)
 
-Ce document détaille le paramètre `durationEuropeToTrace`, qui définit la durée en millisecondes de l'animation "flyTo" qui va de la vue générale de l'Europe vers la vue globale de la trace, au début de la visualisation.
+Ce document détaille le paramètre `durationEuropeToTrace`, qui définit la durée en millisecondes de l'animation de survol qui va de la vue générale de l'Europe vers la vue globale de la trace, au début de la visualisation.
 
 ---
 

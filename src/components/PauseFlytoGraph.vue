@@ -96,15 +96,15 @@ const hideCustomTooltip = () => {
 
 onMounted(async () => {
   try {
-    const pColor = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/couleurPause');
+    const pColor = await getSettingValue('Edition/Pause et Survol/Graphe Pause et Survol/couleurPause');
     progressZoneColor.value = toHex(await getSettingValue('Edition/Avancement dans les graphes/couleurAvancementZone'));
     progressZoneOpacity.value = await getSettingValue('Edition/Avancement dans les graphes/opaciteAvancementZone');
 
     pauseColor.value = toHex(pColor || 'purple');
-    pauseLength.value = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/longueur') || 12;
+    pauseLength.value = await getSettingValue('Edition/Pause et Survol/Graphe Pause et Survol/longueur') || 12;
 
-    flytoColor.value = toHex(await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/couleurFlyTo') || 'orange');
-    flytoLength.value = await getSettingValue('Edition/Pause_Flyto/Graphe Pause_Flyto/longueur') || 20;
+    flytoColor.value = toHex(await getSettingValue('Edition/Pause et Survol/Graphe Pause et Survol/couleurFlyTo') || 'orange');
+    flytoLength.value = await getSettingValue('Edition/Pause et Survol/Graphe Pause et Survol/longueur') || 20;
   } catch (e) {
     console.error('Error in PauseFlytoGraph onMounted:', e);
   }

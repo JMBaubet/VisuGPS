@@ -6,7 +6,7 @@ Ce document détaille le paramètre `centerEurope`, qui définit les coordonnée
 
 ## 🎯 Rôle du Paramètre
 
-Le paramètre `centerEurope` spécifie le point géographique sur lequel la carte sera centrée au tout début de la séquence d'initialisation de l'animation. C'est la première étape du "flyTo" initial avant de se diriger vers la trace.
+Le paramètre `centerEurope` spécifie le point géographique sur lequel la carte sera centrée au tout début de la séquence d'initialisation de l'animation. C'est la première étape du survol initial avant de se diriger vers la trace.
 
 -   **Libellé**: Centre de l'Europe
 -   **Type**: Coordonnées (Array de deux réels : [longitude, latitude])

@@ -1,6 +1,6 @@
 # ⏳ Paramètre : Durée du survol global (Finalisation Visualisation)
 
-Ce document détaille le paramètre `flyToGlobalDuration`, qui définit la durée en millisecondes de l'animation "flyTo" qui ramène la caméra à une vue globale de la trace après la fin de l'animation principale.
+Ce document détaille le paramètre `flyToGlobalDuration`, qui définit la durée en millisecondes de l'animation de survol qui ramène la caméra à une vue globale de la trace après la fin de l'animation principale.
 
 ---
 

@@ -1,6 +1,6 @@
 # ⏳ Paramètre : Durée du survol vers Km 0 (Finalisation Visualisation)
 
-Ce document détaille le paramètre `flyToKm0Duration`, qui définit la durée en millisecondes de l'animation "flyTo" qui ramène la caméra vers le point de départ (Km 0) de la trace, dans le cadre de la séquence de finalisation.
+Ce document détaille le paramètre `flyToKm0Duration`, qui définit la durée en millisecondes de l'animation de survol qui ramène la caméra vers le point de départ (Km 0) de la trace, dans le cadre de la séquence de finalisation.
 
 ---
 

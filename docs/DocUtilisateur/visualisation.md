@@ -17,7 +17,7 @@ La lecture suit un scénario précis :
 1.  **Intro** : Vue d'ensemble de la trace.
 2.  **Départ** : Zoom sur le point de départ (km 0).
 3.  **Progression** : Le marqueur avance, la caméra suit les mouvements programmés.
-4.  **Évènements** : Les pauses et FlyTo interrompent le flux normal pour montrer des détails.
+4.  **Évènements** : Les pauses et les survols interrompent le flux normal pour montrer des détails.
 5.  **Final** : Zoom arrière une fois l'arrivée atteinte.
 
 ## Contrôles de Lecture

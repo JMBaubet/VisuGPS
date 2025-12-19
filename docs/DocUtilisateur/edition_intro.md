@@ -3,7 +3,7 @@
 Le mode Édition est l'espace de travail où vous configurez votre trace et préparez votre visalisation 3D. 
 Cet espace est organisé autour de trois modes d'Édition complémentaires accessibles via des onglets : 
 * Caméra, (voir [Introduction à la Caméra](./introduction_camera.md))
-* Pause/FlyTo, (voir [Événements : Pauses et FlyTo](./edition_flyto_pause.md))
+* Pause/Survol, (voir [Événements : Pauses et Survols](./edition_flyto_pause.md))
 * Message. (voir [Gestion des Messages](./edition_messages.md))
 
 
@@ -41,8 +41,8 @@ Sur les graphes vous avez sur l'axe des abscisses des indicateurs de progression
 ### 1. Mode Caméra
 C'est le mode par défaut pour définir le "vol" de la caméra. Vous placez des **points clés** pour dicter à la caméra où se situer à ces endroits. (voir [Introduction à la Caméra](./introduction_camera.md))
 
-### 2. Mode Pause / FlyTo
-Ce mode permet d'ajouter des événements ponctuels pour dynamiser l'animation. (voir [Événements : Pauses et FlyTo](./edition_flyto_pause.md))
+### 2. Mode Pause / Survol
+Ce mode permet d'ajouter des événements ponctuels pour dynamiser l'animation. (voir [Événements : Pauses et Survols](./edition_flyto_pause.md))
 
 ### 3. Mode Message
 Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours. (voir [Gestion des Messages](./edition_messages.md))

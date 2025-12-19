@@ -1,6 +1,6 @@
 # ⏳ Paramètre : Durée de la reprise après pause (Visualisation)
 
-Ce document détaille le paramètre `timerReprisePause`, qui définit la durée en millisecondes de l'animation "flyTo" utilisée pour revenir à la position de la caméra après une pause dans l'animation principale.
+Ce document détaille le paramètre `timerReprisePause`, qui définit la durée en millisecondes de l'animation de survol utilisée pour revenir à la position de la caméra après une pause dans l'animation principale.
 
 ---
 

@@ -250,7 +250,7 @@ C'est ici que vous devenez le réalisateur de votre film. La vue d'édition vous
 <rect x="0" y="15" width="170" height="150" fill="#F5F5F5" stroke="#E0E0E0"/>
 <text x="85" y="90" text-anchor="middle" fill="#757575">Timeline des événements</text>
 <rect x="20" y="30" width="130" height="20" fill="#BBDEFB" rx="4"/>
-<text x="25" y="44">Fly-To: Sommet</text>
+<text x="25" y="44">Survol: Sommet</text>
 </g>
 
 <g transform="translate(610, 340)">
@@ -262,7 +262,7 @@ Les fonctionnalités clés incluent :
 
 -   **Visualisation 3D Interactive** : Explorez votre trace librement en 3D.
 -   **Positionnement de la Caméra** : À n'importe quel point du parcours, ajustez le tangage (pitch), le cap (bearing) et le zoom de la caméra.
--   **Création d'Événements** : Ajoutez des événements spéciaux comme des "Fly-To" vers des points d'intérêt ou des pauses.
+-   **Création d'Événements** : Ajoutez des événements spéciaux comme des "Survols" vers des points d'intérêt ou des pauses.
 -   **Sauvegarde des Paramètres** : Toutes vos modifications sont enregistrées dans un fichier `visu.json` et `evt.json`, prêtes à être utilisées par la vue de visualisation.
 
 ## 4. Vue de Visualisation : Le Spectacle Commence
@@ -286,12 +286,12 @@ La visualisation suit une séquence d'états prédéfinie pour offrir une expér
 2.  **Boucle Principale de l'Animation** :
     *   **En animation** : La caméra suit la trace, le marqueur avance.
     *   **En pause** : L'animation peut être mise en pause (touche `P`) ou par un événement programmé.
-    *   **Survol événementiel (Fly-To)** : L'animation principale est suspendue et la caméra effectue un vol dynamique vers un point d'intérêt.
+    *   **Survol événementiel** : L'animation principale est suspendue et la caméra effectue un vol dynamique vers un point d'intérêt.
 3.  **Séquence de Fin** :
     *   **Vol final** : Une fois la fin de la trace atteinte, la caméra effectue un dernier vol pour revenir à une vue d'ensemble.
     *   **Terminé** : L'animation est terminée. Vous pouvez la réinitialiser (touche `R`).
 
-### 4.3 Les Événements "Fly-To"
-
-Moments clés de l'animation, les "Fly-To" sont des vols de caméra vers un point d'intérêt spécifique, offrant une perspective différente avant de revenir au parcours. Chaque événement est défini par un cap, des coordonnées, une durée, un tangage et un zoom.
+### 4.3 Les Événements "Survol"
+ 
+Moments clés de l'animation, les "Survols" sont des vols de caméra vers un point d'intérêt spécifique, offrant une perspective différente avant de revenir au parcours. Chaque événement est défini par un cap, des coordonnées, une durée, un tangage et un zoom.
 

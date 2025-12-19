@@ -8,7 +8,7 @@ Les messages sont des bulles de texte informatives qui apparaissent dynamiquemen
 
 ## L'onglet Message
 
-Le panneau de contrôle des messages vous permet de choisir, positionner et régler la durée de vie de chaque annotation textuelle.
+Situé dans le panneau de contrôle inférieur, l'onglet **<span style="color: #FF9800">Message</span>** regroupe tout ce qui concerne la gestion des messages.
 
 ### 1. Sélection du Message
 Cliquez sur le bouton <span style="background-color: rgba(33, 150, 243, 0.1); color: #2196F3; padding: 2px 10px; border-radius: 4px; font-size: 0.85em;">SÉLECTIONNER UN MESSAGE</span> pour ouvrir votre bibliothèque. (voir [Bibliothèque de messages](./library_messages.md))
@@ -34,7 +34,7 @@ Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de
 1.  **Position temporelle** : Placez le marqueur au kilomètre souhaité sur la trace.
 2.  **Ciblage de l'ancrage** : Déplacez la carte (**clic gauche**) pour placer l'endroit exact où la flèche du message doit pointer (ex: un sommet, une auberge) au centre de votre écran.
     > [!TIP]
-    > Comme pour les FlyTo, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale.
+    > Comme pour les survols, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale.
 3.  Sélectionnez votre message dans la bibliothèque.
 4.  Réglez l'orientation (**G/D**) et la durée d'affichage.
 5.  Cliquez sur le bouton <span style="color: #2196F3">AJOUTER MESSAGE</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">.

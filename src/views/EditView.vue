@@ -1505,7 +1505,7 @@ onMounted(async () => {
       }
     }
 
-    flytoDurationSetting.value = await getSettingValue('Edition/Pause_Flyto/duree');
+    flytoDurationSetting.value = await getSettingValue('Edition/Pause et Survol/duree');
 
     // Load Message settings
     defaultMessagePreAffichage.value = await getSettingValue('Edition/Messages/preAffichage');

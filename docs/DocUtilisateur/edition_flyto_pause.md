@@ -1,4 +1,4 @@
-# Événements : Pauses et FlyTo
+# Événements : Pauses et Survols
 
 Pour rendre votre animation plus captivante et moins linéaire, VisuGPS vous permet d'intégrer des événements ponctuels. Ces outils sont essentiels pour rythmer le récit, marquer des temps d'arrêt sur des panoramas ou effectuer des détours cinématographiques vers des points d'intérêt (POI).
 Lors de la visualisation de votre parcours, les pauses et les survols interromperont l'avancement de la trace. Vous devrez alors appuyer sur la touche **P** pour reprendre l'animation ou utiliser la télécommande. (voir [Télécommande](./telecommande.md))
@@ -14,7 +14,7 @@ Situé dans le panneau de contrôle inférieur, cet onglet regroupe tout ce qui 
 ### 1. Mode de Synchronisation
 Comme pour la caméra, vous disposez du sélecteur <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">FIXE</span> / <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">ANIMÉE</span>. 
 > [!TIP]
-> Utilisez le mode **FIXE** pour préparer tranquillement la cible de votre FlyTo ou ajuster la vue d'une pause sans que le mouvement automatique ne vous déplace.
+> Utilisez le mode **FIXE** pour préparer tranquillement la cible de votre survol (POI) ou ajuster la vue d'une pause sans que le mouvement automatique ne vous déplace.
 
 ### 2. Durée du survol
 Un curseur global permet de régler la **Durée du survol** (de 0.2s à 10s). Ce réglage définit le temps total que durera l'aller cinématographique vers votre point d'intérêt, puis de son retour vers la trace.
@@ -36,11 +36,11 @@ Une pause interrompt le mouvement du marqueur sur la trace pendant une durée d�
 
 ---
 
-## Les FlyTo (Survols)
+## Les Survols
 
-Le FlyTo est un "décrochage" spectaculaire : la caméra quitte la trace pour aller survoler un point précis avant de revenir reprendre son cours normal.
+Le Survol est un "décrochage" spectaculaire : la caméra quitte la trace pour aller survoler un point précis avant de revenir reprendre son cours normal.
 
-### Créer un FlyTo
+### Créer un Survol
 1.  Positionnez-vous à l'emplacement de déclenchement sur la trace.
 2.  **Ciblage** : Déplacez la carte (**clic gauche**) pour placer le point d'intérêt (sommet, lac, village) précisément au centre de votre écran.
     > [!TIP]
@@ -63,7 +63,7 @@ Une fois les réglages effectués, cliquez sur le bouton <span style="color: #21
 
 Les événements sont représentés sur les graphes par des blocs de couleur situés dans la zone médiane.
 *   **Les blocs de Pauses** : de couleur **<span style="color: #9C27B0">mauve</span>** par défaut, ils affichent la zone où le temps "stagne" sur la trace.
-*   **Les blocs de FlyTo** : de couleur **<span style="color: #FF9800">orange</span>** par défaut, ils marquent l'endroit précis où le détour cinématographique va se déclencher.
+*   **Les blocs de Survols** : de couleur **<span style="color: #FF9800">orange</span>** par défaut, ils marquent l'endroit précis où le détour cinématographique va se déclencher.
 
 Vous pouvez ajuster la couleur et la longueur visuelle de ces blocs dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) (**Édition > Événements > Graphe**).
 

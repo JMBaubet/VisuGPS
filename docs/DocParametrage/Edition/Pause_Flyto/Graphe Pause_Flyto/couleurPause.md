@@ -18,7 +18,7 @@ La clarté visuelle des événements de pause est essentielle pour une compréhe
 
 ### 1. 👀 Identification rapide
 
-Une couleur unique permet de distinguer immédiatement les pauses des autres événements (FlyTo, messages).
+Une couleur unique permet de distinguer immédiatement les pauses des autres événements (Survol, messages).
 
 ### 2. 📊 Analyse aisée
 

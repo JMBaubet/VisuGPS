@@ -1,6 +1,6 @@
 # ⏳ Paramètre : Durée Trace vers Départ (Initialisation Visualisation)
 
-Ce document détaille le paramètre `durationTraceToStart`, qui définit la durée en millisecondes de l'animation "flyTo" qui va de la vue globale de la trace vers le point de départ (Km 0) de l'animation en mode visualisation.
+Ce document détaille le paramètre `durationTraceToStart`, qui définit la durée en millisecondes de l'animation de survol qui va de la vue globale de la trace vers le point de départ (Km 0) de l'animation en mode visualisation.
 
 ---
 
