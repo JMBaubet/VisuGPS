@@ -6,14 +6,14 @@ VisuGPS peut enrichir vos traces GPX en récupérant le nom des communes travers
 
 ## 1. Principe de Fonctionnement
 
-Lorsque vous avez importé un fichier GPX, vous pouvez cliquer sur l'icône ![city](https://api.iconify.design/mdi/city-variant.svg?color=red&width=30) du circuit. À partir de ce moment, l'application analyse chaque point de la trace pour déterminer la commune correspondante. 
+Lorsque vous avez importé un fichier GPX, vous pouvez cliquer sur l'icône <img src="https://api.iconify.design/mdi/city-variant.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> du circuit. À partir de ce moment, l'application analyse chaque point de la trace pour déterminer la commune correspondante. 
 
 Le processus se déroule en plusieurs passes pour optimiser la performance et respecter les limites des API externes. On commence par mettre à jour le nom de communes, tous les 1600m, puis tous les 800m, puis tous les 400m, etc.
 
 > **Note** : Ce processus peut prendre plusieurs dizaines de minutes en fonction de la longueur de la trace. Il s'exécute intégralement en **tâche de fond**, ce qui signifie que vous pouvez continuer à utiliser l'application normalement sans interférence.
 
 ### Indicateur d'Avancement
-L'icône ![city](https://api.iconify.design/mdi/city-variant.svg?width=30) change de couleur pour indiquer le taux de complétion :
+L'icône <img src="https://api.iconify.design/mdi/city-variant.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> change de couleur pour indiquer le taux de complétion :
 
 | Couleur | Avancement | Signification |
 | :--- | :--- | :--- |
@@ -30,7 +30,7 @@ Une fois à 100%, l'icône disparaît de la ligne du circuit et le bouton n'est 
 
 Lorsqu'une mise à jour est lancée, une barre d'état apparaît dans la barre d'outils. 
 Si une mise à jour des communes est en cours pour un circuit, il n'est pas possible de relancer une mise à jour pour un autre circuit. 
-Si vous avez un circuit plus prioritaire, vous pouvez arrêter la mise à jour en cours en cliquant sur le bouton ![stop](https://api.iconify.design/mdi/stop-circle-outline.svg?width=30&color=red).
+Si vous avez un circuit plus prioritaire, vous pouvez arrêter la mise à jour en cours en cliquant sur le bouton <img src="https://api.iconify.design/mdi/stop-circle-outline.svg?width=20&color=red" style="vertical-align: middle; margin-bottom: 3px;">.
 
 Si l'application est arrêtée alors qu'une mise à jour des communes est en cours, au démarrage de l'application, la mise à jour des communes sera automatiquement relancée.
 

@@ -9,7 +9,7 @@ Il est important de pouvoir gérer votre bibliothèque en supprimant les circuit
 L'action de suppression se fait directement depuis l'écran d'accueil (Bibliothèque) :
 
 1.  Repérez la carte du circuit que vous souhaitez supprimer.
-2.  Cliquez sur l'icône **Corbeille** ![delete](https://api.iconify.design/mdi/delete.svg?color=red&width=20) (généralement rouge) située dans les actions de la carte.
+2.  Cliquez sur l'icône **Corbeille** <img src="https://api.iconify.design/mdi/delete.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> (généralement rouge) située dans les actions de la carte.
 3.  Une boîte de dialogue de confirmation apparaît :
     *   **Confirmer** : Le circuit sera définitivement retiré de l'application.
     *   **Annuler** : L'action est abandonnée.

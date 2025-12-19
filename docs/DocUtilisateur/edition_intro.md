@@ -11,7 +11,7 @@ Cet espace est organisé autour de trois modes d'Édition complémentaires acces
 ## Interface du Mode Édition
 
 L'écran est optimisé pour la manipulation visuelle :
-1.  **le bouton flèche gauche** ![back](https://api.iconify.design/mdi/arrow-left.svg?width=20) (Haut à gauche)      : permet de revenir à la page d'accueil
+1.  **le bouton flèche gauche** <img src="https://api.iconify.design/mdi/arrow-left.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> (Haut à gauche)      : permet de revenir à la page d'accueil
 2.  **La Vue 3D** (En fond) : Affiche votre trace sur le relief Mapbox. C'est votre zone de travail principale.
 3.  **Indicateur de Progression** (Haut au centre) : Affiche la distance parcourue (km) et la progression globale sur la trace.
 4.  **Paramètres de Caméra** (Haut à droite) : Affiche en temps réel le **Cap** (angle), le **Zoom** et le **Pitch** (inclinaison verticale).

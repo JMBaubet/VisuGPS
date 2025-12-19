@@ -36,9 +36,9 @@ Pour vous déplacer le long du parcours tout en ajustant votre vue, utilisez les
 
 Une fois que vous avez trouvé l'angle de vue idéal pour un endroit précis :
 
-1.  **AJOUTER** : Cliquez sur le bouton <span style="color: #2196F3">AJOUTER POINT</span> ![plus](https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3). Un nouveau point clé apparaît sur la partie supérieure du graphe.
-2.  **MODIFIER** : Pour changer un point existant, positionnez-vous dessus (le curseur devient vert sur le graphe), ajustez votre vue, puis cliquez à nouveau sur <span style="color: #2196F3">AJOUTER POINT</span> ![plus](https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3)pour écraser l'ancienne position par la nouvelle.
-3.  **SUPPRIMER** : Si un point ne vous convient plus, positionnez-vous dessus et cliquez sur <span style="color: #F44336">SUPPRIMER POINT</span> ![delete](https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336). Le point clé disparait du graphe.
+1.  **AJOUTER** : Cliquez sur le bouton <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">. Un nouveau point clé apparaît sur la partie supérieure du graphe.
+2.  **MODIFIER** : Pour changer un point existant, positionnez-vous dessus (le curseur devient vert sur le graphe), ajustez votre vue, puis cliquez à nouveau sur <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour écraser l'ancienne position par la nouvelle.
+3.  **SUPPRIMER** : Si un point ne vous convient plus, positionnez-vous dessus et cliquez sur <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;">. Le point clé disparait du graphe.
 
 > [!TIP]
 > **Priorité au Cap** : Dans la majorité des cas, vous n'aurez qu'à ajuster le **Cap** pour suivre la route. Ne modifiez le **Zoom** et le **Pitch** que pour des moments particuliers (survol d'un sommet, zoom sur un détail), afin de garder une stabilité visuelle globale.
@@ -49,13 +49,13 @@ Une fois que vous avez trouvé l'angle de vue idéal pour un endroit précis :
 
 Pour travailler efficacement sur l'édition de votre caméra, voici la méthode pas à pas conseillée :
 
-1.  **Sélecteur de la Caméra** : Choisissez le mode **Fixe**. Cela vous permet de préparer vos points de vue sans que la caméra ne bouge toute seule.
+1.  **Sélecteur de la Caméra** : Choisissez le mode <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">FIXE</span>. Cela vous permet de préparer vos points de vue sans que la caméra ne bouge toute seule.
 2.  **Affichage des Courbes** : Dans le panneau dédié, affichez principalement le **Cap** et le **Δ Cap** édités. Ce sont vos deux indicateurs de fluidité indispensables.
 3.  **Zooms de transition** : Ne configurez le **Zoom Départ** et le **Zoom Arrivée** qu'en toute fin de travail, une fois que toute votre trajectoire est déjà bien calée.
 4.  **Contrôle Combiné** : 
     *   Gardez votre souris positionnée à l'intérieur de l'onglet **Caméra**.
     *   Utilisez votre main gauche sur les **Flèches Gauche / Droite** du clavier pour vous déplacer le long de la trace.
-    *   Utilisez votre main droite pour actionner la **Molette de la souris** afin de modifier le **Cap** avec précision dès que vous voulez modifier le cap avant d'ajouter le point clé.
+    *   Utilisez votre main droite pour actionner la **Molette de la souris** afin de modifier le **Cap** avec précision dès que vous voulez modifier le cap avant d'ajouter le point clé via le bouton <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">.
 
 ---
 

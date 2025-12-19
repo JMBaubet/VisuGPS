@@ -10,13 +10,13 @@ En plaçant manuellement des **points clés**, vous créez un véritable scénar
 
 ## Présentation de l'Interface
 
-Le panneau latéral de l'onglet Caméra est organisé de haut en bas pour structurer votre travail :
+L'onglet <span style="color: #FF9800">CAMÉRA</span> du panneau latéral (situé en bas à doite de votre écran) est organisé de haut en bas pour structurer votre travail :
 
 ### 1. Comportement de la Caméra (Haut)
 Choisissez comment la caméra se comporte pendant vos réglages :
-*   **Fixe** : La caméra reste dans son état actuel (Zoom, Pitch, Cap). C'est le mode idéal pour préparer un nouveau point de vue sans être emporté par le mouvement existant. 
+*   <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">FIXE</span> : La caméra reste dans son état actuel (Zoom, Pitch, Cap). C'est le mode idéal pour préparer un nouveau point de vue sans être emporté par le mouvement existant. 
 Préférez ce mode quand vous devez ajouter un point clé à un endroit stratégique.
-*   **Animée** : La caméra suit fidèlement la trajectoire déjà programmée. 
+*   <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">ANIMÉE</span> : La caméra suit fidèlement la trajectoire déjà programmée. 
 Préférez ce mode pour vérifier immédiatement le rendu de vos transitions.
 
 ### 2. Affichage des Courbes (Milieu)
@@ -29,11 +29,11 @@ Deux onglets permettent de configurer des transitions automatiques de ces deux e
 *   **Curseur Zoom** : Permettent de régler le niveau de zoom.
 *   **Curseur Distance** : Permettent de régler la distance de transition (en mètres).
 
-Pour prendre en compte ces paramètres, vous devez cliquer sur le bouton <span style="color: #2196F3">METTRE À JOUR LE ZOOM</span>.
+Pour prendre en compte ces paramètres, vous devez cliquer sur le bouton <span style="background-color: rgba(33, 150, 243, 0.1); color: #2196F3; padding: 2px 10px; border-radius: 4px; font-size: 0.85em;">METTRE À JOUR LE ZOOM</span>.
 
 ### 4. Actions de Modification (Pied du panneau)
-*   <span style="color: #2196F3">AJOUTER POINT</span> ![plus](https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3) : Enregistre le point de vue actuel à l'emplacement de la trace.
-*   <span style="color: #F44336">SUPPRIMER POINT</span> ![delete](https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336) : Retire le point clé si vous êtes positionné exactement dessus.
+*   <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Enregistre le point de vue actuel à l'emplacement de la trace.
+*   <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> : Retire le point clé si vous êtes positionné exactement dessus.
 
 ---
 

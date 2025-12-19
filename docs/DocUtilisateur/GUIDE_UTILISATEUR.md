@@ -29,18 +29,18 @@ La barre d'outils, située en haut, regroupe les indicateurs de statut et les ac
 <img src="./images/ToolBar.png" alt="Barre d'outils de l'application" style="width:100%;">
  
 1.  **Statut des Services** : Une série d'icônes vous informe de l'état des connexions.
-    *   ![web-check](https://api.iconify.design/mdi/web-check.svg?color=green&width=24) **Connecté**
-    *   ![web-off](https://api.iconify.design/mdi/web-off.svg?color=red&width=24) **Hors ligne**
-    *   ![mapbox](https://api.iconify.design/mdi/mapbox.svg?color=blue&width=24) **Mapbox injoignable**
-    *   ![key-alert](https://api.iconify.design/mdi/key-alert.svg?color=red&width=24) **Token Mapbox invalide**
+    *   ![web-check](https://api.iconify.design/mdi/web-check.svg?color=green&width=20) **Connecté**
+    *   ![web-off](https://api.iconify.design/mdi/web-off.svg?color=red&width=20) **Hors ligne**
+    *   ![mapbox](https://api.iconify.design/mdi/mapbox.svg?color=blue&width=20) **Mapbox injoignable**
+    *   ![key-alert](https://api.iconify.design/mdi/key-alert.svg?color=red&width=20) **Token Mapbox invalide**
 2.  **Statut de la Télécommande** :
-    *   ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=24) **Connectée**
-    *   ![remote-off](https://api.iconify.design/mdi/remote-off.svg?color=blue&width=24) **Déconnectée** (cliquez pour afficher le QR Code de connexion)
+    *   ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=20) **Connectée**
+    *   ![remote-off](https://api.iconify.design/mdi/remote-off.svg?color=blue&width=20) **Déconnectée** (cliquez pour afficher le QR Code de connexion)
 3.  **Panneau de Mise à Jour des Communes** : Apparaît lorsqu'une recherche de communes est lancée. Il contient le nom du circuit, une barre de progression, des interrupteurs pour les API IGN/Mapbox et un bouton pour arrêter.
 4.  **Mode d'Exécution** : Un badge indique un mode spécial (ex: `EVAL`).
 5.  **Actions Principales** :
-    *   ![file-upload](https://api.iconify.design/mdi/file-upload.svg?color=currentColor&width=24) **Importer un circuit**
-    *   ![cog](https://api.iconify.design/mdi/cog.svg?color=currentColor&width=24) **Paramètres**
+    *   ![file-upload](https://api.iconify.design/mdi/file-upload.svg?color=currentColor&width=20) **Importer un circuit**
+    *   ![cog](https://api.iconify.design/mdi/cog.svg?color=currentColor&width=20) **Paramètres**
 
 ### 1.2 Filtrer et Trier les Circuits
 
@@ -145,11 +145,11 @@ La zone principale affiche les circuits sous forme de liste. Chaque ligne est un
 
 #### Actions et Icônes :
 
-*   **E. Mettre à jour les communes** (![city](https://api.iconify.design/mdi/city.svg?color=currentColor&width=18)) : L'icône change de couleur (Rouge, Orange, Vert) selon l'état.
-*   **F. Afficher la vignette** (![information](https://api.iconify.design/mdi/information.svg?color=currentColor&width=18)) : Affiche un aperçu 2D au survol.
-*   **G. Éditer le circuit** (![pencil](https://api.iconify.design/mdi/pencil.svg?color=currentColor&width=18)) : L'icône change de couleur (Rouge, Orange, Bleu) selon la progression.
-*   **H. Visualiser en 3D** (![eye](https://api.iconify.design/mdi/eye.svg?color=currentColor&width=18)) : L'icône change de couleur (Rouge, Orange, Vert) selon la qualité de l'édition.
-*   **I. Supprimer le circuit** (![delete](https://api.iconify.design/mdi/delete.svg?color=red&width=18)).
+*   **E. Mettre à jour les communes** (![city](https://api.iconify.design/mdi/city.svg?color=currentColor&width=20)) : L'icône change de couleur (Rouge, Orange, Vert) selon l'état.
+*   **F. Afficher la vignette** (![information](https://api.iconify.design/mdi/information.svg?color=currentColor&width=20)) : Affiche un aperçu 2D au survol.
+*   **G. Éditer le circuit** (![pencil](https://api.iconify.design/mdi/pencil.svg?color=currentColor&width=20)) : L'icône change de couleur (Rouge, Orange, Bleu) selon la progression.
+*   **H. Visualiser en 3D** (![eye](https://api.iconify.design/mdi/eye.svg?color=currentColor&width=20)) : L'icône change de couleur (Rouge, Orange, Vert) selon la qualité de l'édition.
+*   **I. Supprimer le circuit** (![delete](https://api.iconify.design/mdi/delete.svg?color=red&width=20)).
 
 ### Fonctionnement du Couplage de la Télécommande
 
@@ -160,8 +160,8 @@ Le couplage de la télécommande dans VisuGPS est un processus sécurisé qui pe
 3.  **Connexion depuis l'Appareil Mobile** : Sur votre appareil mobile, vous scannez le QR Code ou saisissez l'URL dans un navigateur web. Cela charge l'interface de la télécommande et tente d'établir une connexion WebSocket avec le serveur de VisuGPS.
 4.  **Demande de Couplage** : L'appareil mobile envoie une "demande de couplage" à l'application de bureau, incluant un identifiant unique et un code de couplage.
 5.  **Approbation de l'Utilisateur** : Pour des raisons de sécurité, une notification ou une boîte de dialogue apparaît sur votre bureau, vous demandant d'approuver ou de refuser la connexion de cet appareil mobile.
-6.  **Établissement de la Connexion et Communication** : Une fois le couplage approuvé, la connexion WebSocket est établie. L'icône de la télécommande dans l'application de bureau passe au vert ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=24). L'appareil mobile peut alors envoyer des commandes et recevoir des mises à jour d'état.
-7.  **Déconnexion** : Vous pouvez déconnecter la télécommande à tout moment en cliquant sur l'icône verte ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=24) et en confirmant la déconnexion.
+6.  **Établissement de la Connexion et Communication** : Une fois le couplage approuvé, la connexion WebSocket est établie. L'icône de la télécommande dans l'application de bureau passe au vert ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=20). L'appareil mobile peut alors envoyer des commandes et recevoir des mises à jour d'état.
+7.  **Déconnexion** : Vous pouvez déconnecter la télécommande à tout moment en cliquant sur l'icône verte ![remote](https://api.iconify.design/mdi/remote.svg?color=green&width=20) et en confirmant la déconnexion.
 
 
 ## 2. Processus d'Importation d'un Fichier GPX
