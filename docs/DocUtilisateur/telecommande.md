@@ -22,11 +22,19 @@ Une fenêtre "Connecter une télécommande" s'ouvre sur votre ordinateur :
 ### Étape 2 : Confirmation
 Une fois la connexion initiée depuis le mobile :
 1.  Une nouvelle boîte de dialogue **"Demande de Couplage"** apparaît sur l'ordinateur.
-2.  Elle affiche un **Code de couplage** (ex: `A1B2C3D4`).
+2.  Elle affiche un **Code de couplage** (ex: **<span style="color: blue">I3S2TE3R</span>**).
 3.  Vérifiez que ce code correspond exactement à celui affiché sur l'écran de votre mobile.
-4.  Cliquez sur **Accepter** pour finaliser la connexion.
+4.  Cliquez sur **<span style="color: green">ACCEPTER</span>** pour finaliser la connexion.
 
 Une fois connecté, l'icône de télécommande <img src="https://api.iconify.design/mdi/remote.svg?color=%234CAF50&width=24" style="vertical-align: middle;" /> dans la barre d'outils passe au vert.
+
+> [!NOTE]
+> Quand une télécommande est connectée, vous pouvez cliquer sur l'icône <img src="https://api.iconify.design/mdi/remote.svg?color=%234CAF50&width=24" style="vertical-align: middle;" />  pour déconnecter la télécommande. Confirmez ce choix en cliquant sur <span style="background-color: #2196F3; color: white; padding: 2px 5px; border-radius: 14px;"> Déconnecter </span>. 
+Une demande de couplage sera de nouveau effectuée si nécessaire.
+
+> [!WARNING]
+> **Attention** : Si vous cliquez sur **<span style="color: red">REFUSER</span>**, l'appareil sera **définitivement banni**. 
+L'objectif est de vous protéger contre des utilisateurs malveillants qui tenteraient de prendre le contrôle de votre présentation.
 
 > [!NOTE]
 > Ce couplage initial est mémorisé : vous n'aurez plus besoin de le refaire pour cet appareil lors des prochaines utilisations.
