@@ -1,6 +1,6 @@
 # Gestion des Messages
 
-Les messages sont des bulles de texte informatives qui apparaissent dynamiquement sur la carte pendant la visualisation. Ils servent à identifier des cols, des points de ravitaillement, à donner des informations de distance, des instructions de direction, etc.
+Les messages sont des bulles de texte informatives qui apparaissent dynamiquement sur la carte pendant la visualisation. Ils servent à identifier des cols, des points de ravitaillement, à donner des informations de distance, des instructions de direction, etc. (voir [Marqueurs kilométriques automatiques](./edition_marqueurs_km.md))
 
 [< Retour aux généralités Édition](./edition_intro.md)
 
@@ -8,12 +8,12 @@ Les messages sont des bulles de texte informatives qui apparaissent dynamiquemen
 
 ## L'onglet Message
 
-Situé dans le panneau de contrôle inférieur, l'onglet **<span style="color: #FF9800">Message</span>** regroupe tout ce qui concerne la gestion des messages.
+Situé dans le panneau de contrôle inférieur, l'onglet **<span style="color: #FF9800">Message</span>** regroupe tout ce qui concerne la gestion des messages manuels et des marqueurs kilométriques. (voir [Marqueurs kilométriques](./edition_marqueurs_km.md))
 
 ### 1. Sélection du Message
 Cliquez sur le bouton <span style="background-color: rgba(33, 150, 243, 0.1); color: #2196F3; padding: 2px 10px; border-radius: 4px; font-size: 0.85em;">SÉLECTIONNER UN MESSAGE</span> pour ouvrir votre bibliothèque. (voir [Bibliothèque de messages](./library_messages.md))
 *   Une fois sélectionné, un aperçu du message s'affiche avec son **texte** et sa **couleur de fond** réelle.
-*   Si aucun message n'est sélectionné, les options de réglage restent grisées.
+
 
 ### 2. Durée d'affichage
 Un double curseur permet de définir précisément quand le message apparaît et disparaît par rapport au passage du marqueur :
@@ -24,7 +24,7 @@ Un double curseur permet de définir précisément quand le message apparaît et
 > Par défaut, une unité (incrément) correspond à **100 m**. Si vous réglez le pré-affichage sur 5, le message apparaîtra 500 m avant le point précis.
 
 ### 3. Mise en page
-Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de la trace la bulle doit s'afficher. Cela permet d'éviter de masquer un élément important du relief ou de la route sur la carte.
+Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de la trace la bulle doit s'afficher. Cela permet d'éviter de s'affranchir du chauvechement. de deux messages proches l'un de l'autre.
 
 ---
 
@@ -36,7 +36,7 @@ Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de
     > [!TIP]
     > Comme pour les survols, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale.
 3.  Sélectionnez votre message dans la bibliothèque.
-4.  Réglez l'orientation (**G/D**) et la durée d'affichage.
+4.  Réglez l'orientation (**Gauche/Droite**) et la durée d'affichage.
 5.  Cliquez sur le bouton <span style="color: #2196F3">AJOUTER MESSAGE</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">.
 
 ### Mettre à jour ou Supprimer
@@ -46,13 +46,22 @@ Si un message existe déjà à votre position actuelle :
 
 ---
 
-## Gestion des Marqueurs Kilométriques
+## Visualisation sur le Graphe
 
-Ces outils permettent de jalonner automatiquement votre parcours pour aider le spectateur à se situer.
+Le graphe des messages offre une vue temporelle et spatiale de toutes vos annotations :
 
-*   **Ajout Global** : Cliquez sur <span style="color: #2196F3">AJOUTER LES DISTANCES</span> <img src="https://api.iconify.design/mdi/map-marker-distance.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour générer des marqueurs à intervalle régulier sur toute la trace.
-*   **Réglage de la fréquence** : La fréquence de ces marqueurs se définit dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) (**Édition > Messages > Marqueurs KM**). Par exemple tous les 5 km ou 10 km.
-*   **Nettoyage** : Le bouton <span style="color: #F44336">SUPPRIMER KM</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> retire instantanément tous les jalons de distance.
+*   **Rectangles de couleur** : Chaque message est représenté par un bloc horizontal. Sa largeur correspond à sa durée de visibilité (pré-affichage + post-affichage). La couleur du bloc est identique à celle choisie pour le message.
+*   **Ligne verticale (Ancrage)** : Au sein de chaque rectangle, un trait vertical plus épais indique le point d'ancrage exact (le kilomètre précis) du message.
+*   **Superposition (Lignes)** : Pour éviter que les messages ne se chevauchent, ils sont répartis sur plusieurs hauteurs (lignes). 
+    *   Les **marqueurs kilométriques** automatiques occupent généralement les lignes du bas.
+    *   Vos **messages personnels** occupent les lignes supérieures.
+*   **Interaction** : 
+    *   **Survol** : Passez la souris sur un rectangle pour voir le texte du message dans une bulle d'aide.
+    *   **Déplacement** : Cliquez n'importe où sur le graphe pour positionner instantanément le marqueur de l'application à cet endroit.
+
+---
+
+En complément des messages manuels, vous pouvez également générer automatiquement des jalons de distance sur l'ensemble de votre parcours. (voir [Gestion des Marqueurs Kilométriques](./edition_marqueurs_km.md))
 
 ---
 [< Retour aux généralités Édition](./edition_intro.md) | [Suivant : Mode Visualisation >](./visualisation.md)

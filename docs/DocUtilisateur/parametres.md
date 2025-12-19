@@ -32,7 +32,7 @@ VisuGPS utilise Mapbox pour l'affichage 3D.
 
 ### 6. Édition et Messages
 *   **Aide Emojis** : URL de la page web ouverte lors du clic sur le bouton d'aide dans l'édition de message.
-*   **Gestion des Marqueurs KM** : Configuration de la fréquence et du style des jalons de distance.
+*   **Gestion des Marqueurs KM** : Configuration de la fréquence et du style des jalons de distance. (voir [Marqueurs Kilométriques](./edition_marqueurs_km.md))
 *   **Incréments d'affichage** : Durées par défaut pour le pré/post affichage des messages.
 
 ### 7. Gestion des Modes

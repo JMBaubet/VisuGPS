@@ -45,7 +45,7 @@ C'est le mode par défaut pour définir le "vol" de la caméra. Vous placez des 
 Ce mode permet d'ajouter des événements ponctuels pour dynamiser l'animation. (voir [Événements : Pauses et Survols](./edition_flyto_pause.md))
 
 ### 3. Mode Message
-Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours. (voir [Gestion des Messages](./edition_messages.md))
+Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours ou générer des [marqueurs kilométriques](./edition_marqueurs_km.md) automatiques. (voir [Gestion des Messages](./edition_messages.md))
 
 ---
 

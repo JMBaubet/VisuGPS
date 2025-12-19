@@ -374,8 +374,8 @@
                 variant="outlined"
                 @click="emit('open-distance-markers-dialog')"
               >
-                <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
-                Ajouter les distances
+                <span class="mr-2">Ajouter les distances</span>
+                <v-icon>mdi-map-marker-distance</v-icon>
               </v-btn>
             </v-col>
           </v-row>
@@ -388,8 +388,8 @@
                 variant="outlined"
                 @click="emit('open-distance-markers-dialog')"
               >
-                <v-icon class="mr-2">mdi-map-marker-distance</v-icon>
-                Modifier km
+                <span class="mr-2">Modifier km</span>
+                <v-icon>mdi-map-marker-distance</v-icon>
               </v-btn>
             </v-col>
             <v-col cols="6">
@@ -399,8 +399,8 @@
                 variant="outlined"
                 @click="emit('delete-distance-markers')"
               >
-                <v-icon class="mr-2">mdi-delete</v-icon>
-                Supprimer km
+                <span class="mr-2">Supprimer km</span>
+                <v-icon>mdi-delete</v-icon>
               </v-btn>
             </v-col>
           </v-row>
