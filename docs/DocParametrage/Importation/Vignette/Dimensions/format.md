@@ -9,9 +9,9 @@ Ce document détaille le paramètre `format`, qui contrôle le ratio largeur/hau
 Le paramètre `format` définit les proportions de la miniature de la trace GPX. Il s'exprime sous forme de ratio (par exemple, "1/1" pour un carré, "16/9" pour un format écran large).
 
 -   **Libellé**: Format de la vignette
--   **Type**: Chaîne de caractères (String)
+-   **Type**: Liste de choix
 -   **Valeur par défaut**: "1/1"
--   **Options disponibles**: "1/1", "4/3", "16/9"
+-   **Options disponibles**: "16/9", "16/10", "4/3", "1/1", "3/4"
 
 ## ⚖️ Justification : Pourquoi choisir un format de vignette ?
 
@@ -19,9 +19,11 @@ Le choix du format influence l'esthétique de la vignette et la manière dont la
 
 ### 1. 🖼️ Esthétique et Présentation
 
--   **"1/1" (Carré)** : Idéal pour une présentation équilibrée, souvent utilisé pour les icônes ou les aperçus compacts.
--   **"4/3" (Classique)** : Un format traditionnel, proche de celui des écrans d'ordinateur plus anciens ou de certaines photos.
 -   **"16/9" (Écran Large)** : Adapté aux écrans modernes et aux vidéos, il peut être pertinent pour des traces très étendues horizontalement.
+-   **"16/10" (Large)** : Un format légèrement plus haut que le 16/9, très répandu sur les ordinateurs portables.
+-   **"4/3" (Classique)** : Un format traditionnel, proche de celui des écrans d'ordinateur plus anciens ou de certaines photos.
+-   **"1/1" (Carré)** : Idéal pour une présentation équilibrée, souvent utilisé pour les icônes ou les aperçus compacts.
+-   **"3/4" (Portrait)** : Un format plus haut que large, adapté aux traces s'étendant verticalement (Nord-Sud).
 
 ### 2. 🗺️ Visualisation de la Trace
 
