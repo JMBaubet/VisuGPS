@@ -121,12 +121,20 @@
       :group-path="fullPath"
       @update:show="isMonitorDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour les dossiers -->
+    <EditDirectoryDialog
+      v-if="selectedParameter && selectedParameter.type === 'directory'"
+      :show="isDirectoryDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isDirectoryDialogVisible = $event"
+    />
   </div>
 </template>
 
 <script setup>
 import { defineProps, computed, ref } from 'vue';
-import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '@/composables/useSettings';
 import EditStringDialog from './EditStringDialog.vue';
 import EditIntDialog from './EditIntDialog.vue';
@@ -137,6 +145,7 @@ import EditCoordDialog from './EditCoordDialog.vue';
 import EditSecretDialog from './EditSecretDialog.vue';
 import EditListDialog from './EditListDialog.vue';
 import EditMonitorDialog from './EditMonitorDialog.vue';
+import EditDirectoryDialog from './EditDirectoryDialog.vue';
 
 const { updateSetting } = useSettings();
 
@@ -160,6 +169,7 @@ const isCoordDialogVisible = ref(false);
 const isSecretDialogVisible = ref(false);
 const isListDialogVisible = ref(false);
 const isMonitorDialogVisible = ref(false);
+const isDirectoryDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = async (param) => {
@@ -183,19 +193,7 @@ const openEditDialog = async (param) => {
   } else if (param.type === 'monitor') {
     isMonitorDialogVisible.value = true;
   } else if (param.type === 'directory') {
-    try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        defaultPath: param.surcharge || param.defaut || undefined,
-      });
-      
-      if (selected) {
-        await updateSetting(fullPath.value, param.identifiant, selected);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la sélection du dossier:", error);
-    }
+    isDirectoryDialogVisible.value = true;
   }
 };
 
