@@ -1820,8 +1820,9 @@
                 "identifiant": "Version Export",
                 "libelle": "Version Export",
                 "description": "Version du format d'exportation.",
-                "type": "texte",
+                "type": "string",
                 "defaut": "1.0",
+                "critique": true,
                 "doc": "docs/DocParametrage/Systeme/Export Import/Version Export.md"
               }
             ]
