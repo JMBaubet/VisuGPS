@@ -10,6 +10,7 @@
             >
                 <template v-slot:title>
                     <span :class="`text-${mode.color} font-weight-bold`">{{ mode.name }}</span>
+                    <div v-if="mode.description" class="text-caption text-grey">{{ mode.description }}</div>
                 </template>
 
                 <template v-slot:append>
@@ -69,6 +70,15 @@
     @confirmed="handleRestartConfirmed"
     @cancelled="handleRestartCancelled"
   />
+
+  <ConfirmationDialog
+    v-model="showDeleteConfirmDialog"
+    title="Supprimer le mode"
+    :message="`Êtes-vous sûr de vouloir supprimer le mode d'exécution <strong>${modeToDelete}</strong> ?<br>Cette action est irréversible.`"
+    confirmText="Supprimer"
+    cancelText="Annuler"
+    @confirm="confirmDeleteMode"
+  />
 </template>
 
 <script setup>
@@ -78,6 +88,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { relaunch } from '@tauri-apps/plugin-process';
 import RestartConfirmationDialog from './RestartConfirmationDialog.vue';
+import ConfirmationDialog from './ConfirmationDialog.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -96,6 +107,9 @@ const showRestartDialog = ref(false);
 const restartDialogTitle = ref('');
 const restartDialogMessage = ref('');
 let restartPromiseResolve = null;
+
+const showDeleteConfirmDialog = ref(false);
+const modeToDelete = ref('');
 
 const rules = {
   required: value => !!value || 'Requis.',
@@ -214,6 +228,13 @@ const deleteMode = async (modeName) => {
     return;
   }
 
+  modeToDelete.value = modeName;
+  showDeleteConfirmDialog.value = true;
+};
+
+const confirmDeleteMode = async () => {
+  const modeName = modeToDelete.value;
+
   try {
     await invoke('delete_execution_mode', { modeName });
     showSnackbar(`Le mode d'exécution '${modeName}' a été supprimé avec succès.`, 'success');
@@ -230,7 +251,7 @@ const selectMode = async (modeName) => {
     showSnackbar(`Mode ${modeName} sélectionné avec succès.`, 'success');
 
     restartDialogTitle.value = 'Redémarrer l\'application';
-    restartDialogMessage.value = 'Le mode d\'exécution a été modifié. Voulez-vous redémarrer l\'application pour prendre en compte le nouveau mode ?';
+    restartDialogMessage.value = 'Le mode d\'exécution est en cours de modification. Vous devez redémarrer l\'application pour prendre en compte le nouveau mode. Confirmez-vous le changement de mode et le redémarrage ?';
     showRestartDialog.value = true;
 
     const shouldRestart = await new Promise(resolve => {

@@ -186,9 +186,24 @@ fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMo
         if path.is_dir() {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 let mode_type = get_execution_mode(name);
+                let mut description = None;
+
+                // Try to read settings.json to get the description
+                let settings_path = path.join("settings.json");
+                if let Ok(content) = fs::read_to_string(settings_path) {
+                    if let Ok(json) = serde_json::from_str::<Value>(&content) {
+                        if let Some(desc) = json.get("référence")
+                            .and_then(|r| r.get("description"))
+                            .and_then(|d| d.as_str()) {
+                            description = Some(desc.to_string());
+                        }
+                    }
+                }
+
                 modes.push(ExecutionMode {
                     name: name.to_string(),
                     mode_type,
+                    description,
                 });
             }
         }
@@ -347,6 +362,7 @@ pub struct ExecutionMode {
     pub name: String,
     #[serde(rename = "modeType")]
     pub mode_type: String,
+    pub description: Option<String>,
 }
 
 fn get_execution_mode(app_env: &str) -> String {
