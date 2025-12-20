@@ -133,10 +133,10 @@ const isBackButtonVisibleFinal = computed(() => {
 });
 
 const isInitializing = ref(true);
-const isDistanceDisplayVisible = ref(true);
-const isControlsCardVisible = ref(true);
-const isCommuneWidgetVisible = ref(true);
-const isAltitudeVisible = ref(false);
+const isDistanceDisplayVisible = ref(getSettingValue('Visualisation/Widgets/distance') ?? true);
+const isControlsCardVisible = ref(getSettingValue('Visualisation/Widgets/commandes') ?? true);
+const isCommuneWidgetVisible = ref(getSettingValue('Visualisation/Widgets/communes') ?? true);
+const isAltitudeVisible = ref(getSettingValue('Visualisation/Widgets/altitude') ?? true);
 const isCursorHidden = ref(false);
 
 // --- Commune Widget State ---
@@ -701,14 +701,7 @@ const sensibilityPointDeVueY = computed(() => getSettingValue('Système/Téléco
 const sensibilityZoom = computed(() => getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 100);
 const sensibilityTilt = computed(() => getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50);
 
-const showAltitudeProfileSetting = computed(() => {
-    const value = getSettingValue('Visualisation/Profil Altitude/Graphe/Affichage');
-    return value;
-});
 
-watch(showAltitudeProfileSetting, (newValue) => {
-    isAltitudeVisible.value = newValue;
-}, { immediate: true });
 
 // --- Pause/Resume Logic ---
 const pausedCameraOptions = ref(null);

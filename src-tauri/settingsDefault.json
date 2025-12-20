@@ -1169,6 +1169,43 @@
             ]
           },
           {
+            "libelle": "Widgets",
+            "parametres": [
+              {
+                "identifiant": "distance",
+                "libelle": "Distance",
+                "description": "Afficher le widget de distance au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/distance.md"
+              },
+              {
+                "identifiant": "communes",
+                "libelle": "Communes",
+                "description": "Afficher le widget des communes au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/communes.md"
+              },
+              {
+                "identifiant": "altitude",
+                "libelle": "Altitude",
+                "description": "Afficher le profil d'altitude au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/altitude.md"
+              },
+              {
+                "identifiant": "commandes",
+                "libelle": "Commandes",
+                "description": "Afficher le panneau de commandes au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/commandes.md"
+              }
+            ]
+          },
+          {
             "libelle": "Lancement",
             "parametres": [
               {
@@ -1448,16 +1485,6 @@
                 "description": "Paramètres d'affichage du profil altimétrique.",
                 "type": "groupe",
                 "parametres": [
-                  {
-                    "identifiant": "Affichage",
-                    "libelle": "Afficher le profil",
-                    "description": "Affiche ou masque le profil altimétrique dans la vue de visualisation.",
-                    "type": "booleen",
-                    "defaut": true,
-                    "surcharge": null,
-                    "critique": false,
-                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/Affichage.md"
-                  },
                   {
                     "identifiant": "Abscisse",
                     "libelle": "Echelle des abscisses",
