@@ -8,7 +8,7 @@
           color="info"
           @click="showDocDialog = true"
           title="Afficher la documentation"
-        >mdi-book-open-outline</v-icon>
+        >mdi-book-open-page-variant-outline</v-icon>
       </v-card-title>
       <v-card-subtitle>{{ parameter.description }}</v-card-subtitle>
       

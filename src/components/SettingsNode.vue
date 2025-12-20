@@ -25,7 +25,16 @@
         class="param-item"
       >
         <template v-slot:prepend>
-          <v-icon :color="param.surcharge != null ? 'info' : undefined">mdi-file-cog-outline</v-icon>
+          <v-icon :color="param.surcharge != null ? 'yellow' : undefined">mdi-file-cog-outline</v-icon>
+          <v-btn
+            v-if="param.doc"
+            icon="mdi-book-open-page-variant-outline"
+            color="info"
+            variant="text"
+            @click.stop="openDocDialog(param)"
+            class="ml-1"
+            title="Afficher la documentation"
+          ></v-btn>
         </template>
         <v-list-item-title :class="{ 'text-warning': param.critique }">{{ param.libelle }}</v-list-item-title>
         <v-list-item-subtitle>{{ param.description }}</v-list-item-subtitle>
@@ -130,6 +139,15 @@
       :group-path="fullPath"
       @update:show="isDirectoryDialogVisible = $event"
     />
+
+    <!-- Composant de dialogue pour la documentation -->
+    <v-dialog v-model="isDocDialogVisible" max-width="800px">
+      <DocDisplay 
+        v-if="selectedParameter" 
+        :doc-path="selectedParameter.doc" 
+        @close="isDocDialogVisible = false" 
+      />
+    </v-dialog>
   </div>
 </template>
 
@@ -146,6 +164,7 @@ import EditSecretDialog from './EditSecretDialog.vue';
 import EditListDialog from './EditListDialog.vue';
 import EditMonitorDialog from './EditMonitorDialog.vue';
 import EditDirectoryDialog from './EditDirectoryDialog.vue';
+import DocDisplay from './DocDisplay.vue';
 
 const { updateSetting } = useSettings();
 
@@ -170,6 +189,7 @@ const isSecretDialogVisible = ref(false);
 const isListDialogVisible = ref(false);
 const isMonitorDialogVisible = ref(false);
 const isDirectoryDialogVisible = ref(false);
+const isDocDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
 const openEditDialog = async (param) => {
@@ -195,6 +215,11 @@ const openEditDialog = async (param) => {
   } else if (param.type === 'directory') {
     isDirectoryDialogVisible.value = true;
   }
+};
+
+const openDocDialog = (param) => {
+  selectedParameter.value = param;
+  isDocDialogVisible.value = true;
 };
 
 const fullPath = computed(() => {
