@@ -1,9 +1,11 @@
 use crate::AppState;
+use crate::gpx_processor::Circuit;
 use crate::get_setting_value;
 use crate::read_circuits_file;
+use crate::write_circuits_file;
 use std::fs;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::State;
 use serde::{Serialize, Deserialize};
@@ -11,6 +13,7 @@ use zip::write::FileOptions;
 
 #[derive(Serialize, Deserialize)]
 struct ExportMetadata {
+    circuit: Circuit,
     circuit_name: String,
     circuit_id: String,
     ville_name: String,
@@ -90,6 +93,7 @@ pub async fn export_circuit(
 
     // Prepare Metadata
     let metadata = ExportMetadata {
+        circuit: circuit.clone(),
         circuit_name: circuit.nom.clone(),
         circuit_id: circuit.circuit_id.clone(),
         ville_name,
@@ -148,4 +152,106 @@ pub async fn export_circuit(
     zip.finish().map_err(|e| e.to_string())?;
 
     Ok(format!("Circuit exporté avec succès vers {}", zip_path.display()))
+}
+
+#[derive(Serialize, Deserialize)]
+struct ImportResult {
+    success: bool,
+    message: String,
+    circuit_name: Option<String>,
+}
+
+#[tauri::command]
+pub async fn import_circuit(
+    _app: tauri::AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    file_path: String,
+) -> Result<String, String> { // Returning String message for simplicity, or complex object?
+    // Using simple string here as requested by plan, UI handles snackbar
+    let state_guard = state.lock().unwrap();
+    let app_env_path = state_guard.app_env_path.clone(); // Clone path
+    drop(state_guard); // Release lock as we might need it for read_circuits_file maybe? (It uses file read, so ok)
+    // Actually read_circuits_file helper is standalone. But write_circuits_file is too.
+
+    let zip_path = Path::new(&file_path);
+    if !zip_path.exists() {
+        return Err(format!("Le fichier n'existe pas : {}", file_path));
+    }
+
+    let file = fs::File::open(&zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+
+    // 1. Read Metadata
+    let metadata: ExportMetadata = {
+        let mut metadata_file = archive.by_name("metadata.json").map_err(|_| "Archive invalide : metadata.json manquant".to_string())?;
+        let mut metadata_content = String::new();
+        metadata_file.read_to_string(&mut metadata_content).map_err(|e| e.to_string())?;
+        serde_json::from_str(&metadata_content).map_err(|e| format!("Erreur lecture métadonnées : {}", e))?
+    };
+
+    // 2. Check for Duplicates (Circuit ID)
+    let mut circuits_file = read_circuits_file(&app_env_path)?;
+    if circuits_file.circuits.iter().any(|c| c.circuit_id == metadata.circuit_id) {
+        return Err(format!("Le circuit '{}' (ID: {}) existe déjà.", metadata.circuit_name, metadata.circuit_id));
+    }
+
+    // 3. Handle Ville (City) Conflict/Creation
+    let mut final_ville_id = metadata.ville_id.clone();
+    
+    if let Some(existing_ville) = circuits_file.villes.iter().find(|v| v.nom.eq_ignore_ascii_case(&metadata.ville_name)) {
+        final_ville_id = existing_ville.id.clone();
+    } else {
+        if circuits_file.villes.iter().any(|v| v.id == final_ville_id) {
+             final_ville_id = uuid::Uuid::new_v4().to_string();
+        }
+        
+        circuits_file.villes.push(crate::Ville {
+            id: final_ville_id.clone(),
+            nom: metadata.ville_name.clone(),
+        });
+    }
+
+    // 4. Handle Traceur Conflict/Creation
+    let mut final_traceur_id = metadata.traceur_id.clone();
+    
+    if let Some(existing_traceur) = circuits_file.traceurs.iter().find(|t| t.nom.eq_ignore_ascii_case(&metadata.traceur_name)) {
+        final_traceur_id = existing_traceur.id.clone();
+    } else {
+        if circuits_file.traceurs.iter().any(|t| t.id == final_traceur_id) {
+             final_traceur_id = uuid::Uuid::new_v4().to_string();
+        }
+        circuits_file.traceurs.push(crate::Traceur {
+            id: final_traceur_id.clone(),
+            nom: metadata.traceur_name.clone(),
+        });
+    }
+    
+
+
+    // 5. Extract Files
+    let circuit_dir = app_env_path.join("data").join(&metadata.circuit_id);
+    fs::create_dir_all(&circuit_dir).map_err(|e| e.to_string())?;
+
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = file.name().to_string();
+        
+        if name.starts_with("circuit/") {
+            // It's a circuit file
+            let file_name = Path::new(&name).file_name().unwrap(); // extract filename from circuit/xyz.json
+            let dest_path = circuit_dir.join(file_name);
+            let mut dest_file = fs::File::create(&dest_path).map_err(|e| e.to_string())?;
+            std::io::copy(&mut file, &mut dest_file).map_err(|e| e.to_string())?;
+        }
+    }
+
+    // 6. Update Circuits List
+    let mut imported_circuit = metadata.circuit.clone();
+    imported_circuit.ville_depart_id = final_ville_id;
+    imported_circuit.traceur_id = final_traceur_id;
+
+    circuits_file.circuits.push(imported_circuit);
+    write_circuits_file(&app_env_path, &circuits_file).map_err(|e| e.to_string())?;
+
+    Ok(format!("Circuit '{}' importé avec succès !", metadata.circuit_name))
 }
