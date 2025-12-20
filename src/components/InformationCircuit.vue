@@ -15,6 +15,9 @@
         >
           <v-icon>mdi-alert-circle</v-icon>
         </v-btn>
+        <v-btn icon @click="exportCircuit" color="info" class="mr-2" title="Exporter le circuit">
+          <v-icon>mdi-export</v-icon>
+        </v-btn>
         <v-btn icon @click="closeDialog">
           <v-icon>mdi-close</v-icon>
         </v-btn>
@@ -245,6 +248,16 @@ const traceurNames = computed(() => {
 const getCommuneNom = () => {
   const commune = props.allCommunes.find(c => c.id === props.circuit.villeDepartId);
   communeNom.value = commune ? commune.nom : 'Inconnu';
+};
+
+const exportCircuit = async () => {
+  try {
+    const message = await invoke('export_circuit', { circuitId: props.circuit.circuitId });
+    showSnackbar(message, 'success');
+  } catch (error) {
+    console.error('Error exporting circuit:', error);
+    showSnackbar(`Erreur lors de l'exportation : ${error}`, 'error');
+  }
 };
 
 const getQrCodePath = async () => {

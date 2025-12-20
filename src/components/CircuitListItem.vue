@@ -105,7 +105,7 @@
           :disabled="isView3dDisabled"
           :title="isView3dDisabled ? 'Service Mapbox non disponible (vérifiez le token ou la connexion)' : 'Visualiser le circuit en 3D'">
         </v-btn>
-        <v-btn icon="mdi-delete" variant="text" @click.stop="deleteCircuit" color="error"></v-btn>
+        <v-btn icon="mdi-delete" variant="text" @click.stop="deleteCircuit" color="error" title="Supprimer le circuit"></v-btn>
       </v-col>
     </v-row>
   </v-list-item>
@@ -255,6 +255,8 @@ const view3D = () => {
 const deleteCircuit = async () => {
   showConfirmDialog.value = true;
 };
+
+
 
 const proceedDeletion = async () => {
   try {

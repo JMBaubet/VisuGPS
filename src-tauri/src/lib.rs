@@ -23,6 +23,7 @@ pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
 pub mod tracking_processor;
+pub mod import_export;
 
 use chrono::prelude::*;
 #[allow(unused_imports)]
@@ -1826,7 +1827,9 @@ pub fn run() {
             update_animation_state,
             error_logger::save_error_event,
             error_logger::delete_error_entry,
-            get_migration_report
+            error_logger::delete_error_entry,
+            get_migration_report,
+            import_export::export_circuit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
