@@ -44,13 +44,13 @@
     <v-card-text>
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
-      <div v-else v-html="compiledMarkdown" class="markdown-body" @click="handleLinkClick"></div>
+      <div v-else v-html="compiledMarkdown" class="markdown-body" @click="handleLinkClick" ref="contentRef"></div>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
 import MarkdownIt from 'markdown-it';
@@ -263,6 +263,31 @@ async function fetchDocumentation(path, isHistoryAction = false) {
 watch(() => props.docPath, (newPath) => {
   if (newPath) fetchDocumentation(newPath);
 }, { immediate: true });
+
+const contentRef = ref(null);
+
+const handleGlobalWheel = (event) => {
+  // If we have content and the mouse is NOT over the content (to avoid double scroll)
+  if (contentRef.value) {
+    const isHoveringContent = contentRef.value.contains(event.target);
+    
+    // Si la souris n'est pas déjà sur le contenu, on scrolle manuellement
+    if (!isHoveringContent) {
+      // On peut ajouter une condition pour vérifier si le dialog est bien visible/au premier plan si nécessaire
+      // Mais comme le composant est monté uniquement quand le dialog est ouvert (v-if), ça devrait aller.
+      
+      contentRef.value.scrollTop += event.deltaY;
+    }
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('wheel', handleGlobalWheel);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('wheel', handleGlobalWheel);
+});
 </script>
 
 <style>
@@ -270,6 +295,8 @@ watch(() => props.docPath, (newPath) => {
 .markdown-body {
   line-height: 1.6;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  height: 90vh; /* Hauteur fixe pour permettre le scroll */
+  overflow-y: auto; /* Scroll interne */
 }
 
 /* Titres */
