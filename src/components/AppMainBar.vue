@@ -29,8 +29,13 @@
 
       <v-col cols="12" md="4" class="d-flex justify-end align-center">
         <!-- Import GPX Button -->
-        <v-btn icon @click="openGpxImportDialog">
+        <v-btn icon @click="openGpxImportDialog" title="Importer un fichier GPX">
           <v-icon >mdi-file-import-outline</v-icon>
+        </v-btn>
+
+        <!-- Import Circuit Button -->
+        <v-btn icon @click="importCircuit" title="Importer un circuit (.vgps)">
+          <v-icon>mdi-import</v-icon>
         </v-btn>
 
         <!-- Settings Button -->
@@ -67,12 +72,35 @@ import MajCommunesInfo from './MajCommunesInfo.vue';
 import RemoteControlDialog from './RemoteControlDialog.vue';
 import DocDisplay from './DocDisplay.vue'; // Added this import
 import { invoke } from '@tauri-apps/api/core';
-import { confirm } from '@tauri-apps/plugin-dialog';
+import { confirm, open } from '@tauri-apps/plugin-dialog';
+import { useSnackbar } from '../composables/useSnackbar';
 
-const emit = defineEmits(['open-gpx-import-dialog']);
+const emit = defineEmits(['open-gpx-import-dialog', 'circuit-imported']);
+const { showSnackbar } = useSnackbar();
 
 function openGpxImportDialog() {
   emit('open-gpx-import-dialog');
+}
+
+async function importCircuit() {
+  try {
+    const selected = await open({
+      multiple: false,
+      filters: [{
+        name: 'VisuGPS Circuit',
+        extensions: ['vgps']
+      }]
+    });
+
+    if (selected) {
+      const message = await invoke('import_circuit', { filePath: selected });
+      showSnackbar(message, 'success');
+      emit('circuit-imported');
+    }
+  } catch (error) {
+    console.error('Error importing circuit:', error);
+    showSnackbar(`Erreur lors de l'importation : ${error}`, 'error');
+  }
 }
 
 const showHelpDialog = ref(false); // Added this line

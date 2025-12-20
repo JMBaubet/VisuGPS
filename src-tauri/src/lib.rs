@@ -1829,7 +1829,8 @@ pub fn run() {
             error_logger::delete_error_entry,
             error_logger::delete_error_entry,
             get_migration_report,
-            import_export::export_circuit
+            import_export::export_circuit,
+            import_export::import_circuit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

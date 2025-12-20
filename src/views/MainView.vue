@@ -1,6 +1,9 @@
 <template>
   <v-container fluid class="fill-height d-flex flex-column pa-0">
-    <AppMainBar @open-gpx-import-dialog="gpxImportDialog = true" />
+    <AppMainBar 
+      @open-gpx-import-dialog="gpxImportDialog = true" 
+      @circuit-imported="handleGpxImported"
+    />
 
     <div class="w-100">
       <CircuitFilter 
