@@ -23,7 +23,8 @@ struct ExportMetadata {
     editeur_name: Option<String>,
     editeur_id: Option<String>,
     version_export: String,
-    messages: Vec<serde_json::Value>, // Using Value for flexibility
+    messages: Vec<serde_json::Value>, // Events
+    message_library: Vec<serde_json::Value>, // Message Definitions
 }
 
 #[tauri::command]
@@ -33,9 +34,9 @@ pub async fn export_circuit(
     circuit_id: String,
 ) -> Result<String, String> {
     let state_guard = state.lock().unwrap();
-    let app_env_path = state_guard.app_env_path.clone(); // Clone path to release lock if needed, though we hold it
+    let app_env_path = state_guard.app_env_path.clone();
     
-    // 1. Get Settings for Export Path and Version
+    // ... (Settings loading matching original) ...
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
@@ -77,23 +78,39 @@ pub async fn export_circuit(
         .map(|e| e.nom.clone())
         .unwrap_or_else(|| "Inconnu".to_string());
 
-    // 3. Load Messages
-    // Load evt.json. Assuming it is in data/[circuit_id]/evt.json based on common patterns, 
-    // OR it handles events globally?
-    // Checking lib.rs, event module commands don't seem to take circuit_id for *loading* initially?
-    // Wait, event::get_events takes circuitId in frontend usually if it's per circuit.
-    // Let's assume data/[circuit_id]/evt.json logic if that's where events are stored.
-    // Actually, based on AddMessageEvent in EditView.vue -> invoke('add_message_event', { circuitId ... })
-    // It implies events are stored relative to the circuit.
-    
+    // 3. Load Messages Events and Definitions
     let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
     let evt_path = circuit_data_dir.join("evt.json");
     let mut messages = Vec::new();
+    let mut message_library = Vec::new();
+
     if evt_path.exists() {
         let evt_content = fs::read_to_string(&evt_path).map_err(|e| e.to_string())?;
         let evt_json: serde_json::Value = serde_json::from_str(&evt_content).map_err(|e| e.to_string())?;
+        
         if let Some(range_events) = evt_json.get("rangeEvents").and_then(|v| v.as_array()) {
             messages = range_events.clone();
+
+            // Find used message IDs
+            let used_ids: Vec<String> = range_events.iter()
+                .filter_map(|evt| evt.get("messageId").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                .collect();
+
+            // Load User Library
+            let user_lib_path = app_env_path.join("messages_user.json");
+            if user_lib_path.exists() {
+                let lib_content = fs::read_to_string(&user_lib_path).unwrap_or_else(|_| "[]".to_string());
+                let user_lib: Vec<serde_json::Value> = serde_json::from_str(&lib_content).unwrap_or_default();
+                
+                // Collect definitions for used IDs
+                for msg_def in user_lib {
+                    if let Some(id) = msg_def.get("id").and_then(|v| v.as_str()) {
+                        if used_ids.contains(&id.to_string()) {
+                            message_library.push(msg_def);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -110,6 +127,7 @@ pub async fn export_circuit(
         editeur_id: Some(circuit.editeur_id.clone()),
         version_export,
         messages,
+        message_library,
     };
 
     // 4. Create Zip
@@ -210,8 +228,20 @@ pub async fn import_circuit(
         final_ville_id = existing_ville.id.clone();
     } else {
         if circuits_file.villes.iter().any(|v| v.id == final_ville_id) {
-             final_ville_id = uuid::Uuid::new_v4().to_string();
+             // ID conflict, generate new ID
+             let max_id = circuits_file
+                .villes
+                .iter()
+                .filter_map(|v| v.id.strip_prefix("vi-").and_then(|s| s.parse::<i32>().ok()))
+                .max()
+                .unwrap_or(0);
+             final_ville_id = format!("vi-{:04}", max_id + 1);
         }
+        
+        // Safety check if still exists (unlikely)
+         if circuits_file.villes.iter().any(|v| v.id == final_ville_id) {
+             // Fallback or panic? max+1 is safe.
+         }
         
         circuits_file.villes.push(crate::Ville {
             id: final_ville_id.clone(),
@@ -287,6 +317,86 @@ pub async fn import_circuit(
             let dest_path = circuit_dir.join(file_name);
             let mut dest_file = fs::File::create(&dest_path).map_err(|e| e.to_string())?;
             std::io::copy(&mut file, &mut dest_file).map_err(|e| e.to_string())?;
+        }
+    }
+
+    // 5b. Restore Messages (Events)
+    // We ensure messages are properly written to evt.json, using the metadata's messages as the source of truth
+    // to guarantee they are restored even if evt.json was not perfectly copied or was empty.
+    if !metadata.messages.is_empty() {
+        let evt_path = circuit_dir.join("evt.json");
+        let mut evt_data: serde_json::Value = if evt_path.exists() {
+             let content = fs::read_to_string(&evt_path).unwrap_or_else(|_| "{}".to_string());
+             serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
+        } else {
+             serde_json::json!({})
+        };
+
+        // Update/Set rangeEvents
+        evt_data["rangeEvents"] = serde_json::Value::Array(metadata.messages.clone());
+        
+        // Write back
+        let new_content = serde_json::to_string_pretty(&evt_data).map_err(|e| e.to_string())?;
+        fs::write(&evt_path, new_content).map_err(|e| e.to_string())?;
+    }
+
+    // 5c. Import Message Library
+    if !metadata.message_library.is_empty() {
+        // 1. Load User Library
+        let user_lib_path = app_env_path.join("messages_user.json");
+        let mut user_lib: Vec<serde_json::Value> = if user_lib_path.exists() {
+             let content = fs::read_to_string(&user_lib_path).unwrap_or_else(|_| "[]".to_string());
+             serde_json::from_str(&content).unwrap_or_default()
+        } else {
+             Vec::new()
+        };
+
+        // 2. Load Default Library to avoid duplicates
+        let default_lib: Vec<serde_json::Value> = {
+            #[cfg(debug_assertions)]
+            {
+                // In DEV, read from filesystem
+                // We need to resolve path relative to manifest
+                 if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+                    let mut path = std::path::PathBuf::from(manifest_dir);
+                    path.push("../public/messages_default.json");
+                    if let Ok(content) = fs::read_to_string(path) {
+                        serde_json::from_str(&content).unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    }
+                 } else {
+                     Vec::new()
+                 }
+            }
+            #[cfg(not(debug_assertions))]
+            {
+                // In PROD, use embedded
+                const EMBEDDED_DEFAULT_MESSAGES: &str = include_str!("../../public/messages_default.json");
+                serde_json::from_str(EMBEDDED_DEFAULT_MESSAGES).unwrap_or_default()
+            }
+        };
+
+        let mut modified = false;
+        for msg_def in metadata.message_library {
+             if let Some(import_id) = msg_def.get("id").and_then(|v| v.as_str()) {
+                 // Check if ID exists in Default Library
+                 let exists_in_default = default_lib.iter().any(|def| def.get("id").and_then(|v| v.as_str()) == Some(import_id));
+                 
+                 // Check if ID exists in User Library
+                 let exists_in_user = user_lib.iter().any(|existing| existing.get("id").and_then(|v| v.as_str()) == Some(import_id));
+
+                 // Add only if NOT in default AND NOT in user
+                 if !exists_in_default && !exists_in_user {
+                     user_lib.push(msg_def);
+                     modified = true;
+                 }
+             }
+        }
+
+        if modified {
+             let new_content = serde_json::to_string_pretty(&user_lib).map_err(|e| e.to_string())?;
+             fs::write(&user_lib_path, new_content).map_err(|e| e.to_string())?;
         }
     }
 

@@ -276,21 +276,17 @@ const saveTraceur = async () => {
   if (newTraceurName === props.circuit.traceur) return;
 
   let traceurId = props.allTraceurs.find(t => t.nom === newTraceurName)?.id;
-
-  if (!traceurId) {
-    // New traceur, create a new ID
-    const newId = `tr-${(props.allTraceurs.length + 1).toString().padStart(4, '0')}`;
-    traceurId = newId;
-    showSnackbar('Nouveau traceur ajouté : ' + newTraceurName, 'info');
-  }
+  
+  // If traceurId is undefined, backend will handle creation
 
   try {
-    await invoke('update_circuit_traceur', {
+    const finalId = await invoke('update_circuit_traceur', {
       circuitId: props.circuit.circuitId,
       newTraceur: newTraceurName,
-      newTraceurId: traceurId,
+      newTraceurId: traceurId || null,
     });
-    emit('update-circuit', { ...props.circuit, traceur: newTraceurName, traceurId: traceurId });
+    
+    emit('update-circuit', { ...props.circuit, traceur: newTraceurName, traceurId: finalId });
     showSnackbar('Traceur mis à jour avec succès !', 'success');
   } catch (error) {
     showSnackbar('Erreur lors de la mise à jour du traceur : ' + error, 'error');

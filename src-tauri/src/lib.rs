@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use uuid::Uuid;
+
 
 pub mod colors;
 pub mod communes_updater;
@@ -723,12 +723,32 @@ fn update_circuit_traceur(
     state: State<Mutex<AppState>>,
     circuit_id: String,
     new_traceur: String,
-    new_traceur_id: String,
-) -> Result<(), String> {
+    new_traceur_id: Option<String>,
+) -> Result<String, String> { // Return the confirmed ID
     let state = state.lock().unwrap();
     let app_env_path = &state.app_env_path;
 
     let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    // Determine the Traceur ID
+    let final_traceur_id = if let Some(id) = new_traceur_id {
+        // ID provided (existing traceur selected)
+        id
+    } else {
+        // No ID provided, check if name already exists
+        if let Some(existing) = circuits_file.traceurs.iter().find(|t| t.nom.eq_ignore_ascii_case(&new_traceur)) {
+             existing.id.clone()
+        } else {
+            // Create new ID
+            let max_id = circuits_file
+                .traceurs
+                .iter()
+                .filter_map(|t| t.id.strip_prefix("tr-").and_then(|s| s.parse::<i32>().ok()))
+                .max()
+                .unwrap_or(0);
+            format!("tr-{:04}", max_id + 1)
+        }
+    };
 
     // Update circuit's traceur
     if let Some(circuit) = circuits_file
@@ -736,8 +756,7 @@ fn update_circuit_traceur(
         .iter_mut()
         .find(|c| c.circuit_id == circuit_id)
     {
-        circuit.traceur_id = new_traceur_id.clone();
-        circuit.traceur_id = new_traceur_id.clone();
+        circuit.traceur_id = final_traceur_id.clone();
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
     }
@@ -746,17 +765,17 @@ fn update_circuit_traceur(
     if !circuits_file
         .traceurs
         .iter()
-        .any(|t| t.id == new_traceur_id)
+        .any(|t| t.id == final_traceur_id)
     {
         circuits_file.traceurs.push(Traceur {
-            id: new_traceur_id.clone(),
+            id: final_traceur_id.clone(),
             nom: new_traceur.clone(),
         });
     }
 
     write_circuits_file(app_env_path, &circuits_file)?;
 
-    Ok(())
+    Ok(final_traceur_id)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -840,8 +859,17 @@ fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, St
         return Err(format!("Le traceur '{}' existe déjà.", nom));
     }
 
+    let max_id = circuits_file
+        .traceurs
+        .iter()
+        .filter_map(|t| t.id.strip_prefix("tr-").and_then(|s| s.parse::<i32>().ok()))
+        .max()
+        .unwrap_or(0);
+    
+    let new_id = format!("tr-{:04}", max_id + 1);
+
     let new_traceur = Traceur {
-        id: Uuid::new_v4().to_string(),
+        id: new_id,
         nom: nom.clone(),
     };
     circuits_file.traceurs.push(new_traceur.clone());

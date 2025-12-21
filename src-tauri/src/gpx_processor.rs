@@ -13,7 +13,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
-use uuid::Uuid;
+
 
 use super::{get_setting_value, AppState, CircuitsFile, Editor, Ville};
 use crate::distance_markers;
@@ -606,8 +606,17 @@ fn resolve_ville_id(circuits_file: &mut CircuitsFile, ville_nom: &str) -> Result
     if let Some(ville) = circuits_file.villes.iter().find(|v| v.nom == ville_nom) {
         Ok(ville.id.clone())
     } else {
+        let max_id = circuits_file
+            .villes
+            .iter()
+            .filter_map(|v| v.id.strip_prefix("vi-").and_then(|s| s.parse::<i32>().ok()))
+            .max()
+            .unwrap_or(0);
+        
+        let new_id = format!("vi-{:04}", max_id + 1);
+
         let new_ville = Ville {
-            id: Uuid::new_v4().to_string(),
+            id: new_id.clone(),
             nom: ville_nom.to_string(),
         };
         circuits_file.villes.push(new_ville.clone());
