@@ -7,7 +7,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{State, Manager};
 use serde::{Serialize, Deserialize};
 use zip::write::FileOptions;
 
@@ -410,4 +410,148 @@ pub async fn import_circuit(
     write_circuits_file(&app_env_path, &circuits_file).map_err(|e| e.to_string())?;
 
     Ok(format!("Circuit '{}' importé avec succès !", metadata.circuit_name))
+}
+
+fn zip_directory(dir: &Path, zip: &mut zip::ZipWriter<fs::File>, options: FileOptions<()>, prefix: &Path) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|e| e.to_string())?;
+    for entry in entries {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let name = path.strip_prefix(prefix).unwrap().to_str().unwrap().replace("\\", "/");
+
+        if path.is_file() {
+            if name.ends_with(".DS_Store") { continue; }
+            zip.start_file(name, options).map_err(|e| e.to_string())?;
+            let mut f = fs::File::open(&path).map_err(|e| e.to_string())?;
+            let mut buffer = Vec::new();
+            f.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+            zip.write_all(&buffer).map_err(|e| e.to_string())?;
+        } else if path.is_dir() {
+            zip.add_directory(name, options).map_err(|e| e.to_string())?;
+            zip_directory(&path, zip, options, prefix)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn export_context(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    mode_name: String,
+) -> Result<String, String> {
+    let state_guard = state.lock().unwrap();
+    let app_env_path = state_guard.app_env_path.clone(); // Currently active env path
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+    let context_path = visugps_dir.join(&mode_name);
+
+    if !context_path.exists() {
+        return Err(format!("Le contexte '{}' n'existe pas.", mode_name));
+    }
+
+    // Load settings from ACTIVE context to get export dir
+    // (Assuming we want to use the active configuration to decide where to put the export)
+    // Or should we load settings from the context being exported?
+    // Usually "Settings" (Export path) are global or system-wide preferences, but stored in settings.json.
+    // Let's use the active environment's settings for the export destination.
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let export_dir_setting = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Dossier")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| "Export Directory setting not found".to_string())?;
+
+    let export_path = if export_dir_setting == "DEFAULT_DOWNLOADS" {
+        dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
+    } else {
+        PathBuf::from(export_dir_setting)
+    };
+
+    if !export_path.exists() {
+        return Err(format!("Export directory does not exist: {}", export_path.display()));
+    }
+
+    let zip_filename = format!("Context_{}.vctx", mode_name);
+    let zip_path = export_path.join(&zip_filename);
+    let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
+    let mut zip = zip::ZipWriter::new(file);
+
+    let options: FileOptions<()> = FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .unix_permissions(0o755);
+
+    zip_directory(&context_path, &mut zip, options, &context_path)?;
+
+    zip.finish().map_err(|e| e.to_string())?;
+
+    Ok(format!("Contexte exporté vers {}", zip_path.display()))
+}
+
+#[tauri::command]
+pub async fn import_context(
+    app: tauri::AppHandle,
+    state: State<'_, Mutex<AppState>>,
+    mode_name: String,
+    file_path: String,
+) -> Result<String, String> {
+    let state_guard = state.lock().unwrap();
+    let current_mode = state_guard.app_env.clone();
+    drop(state_guard);
+
+    if mode_name == current_mode {
+        return Err("Impossible d'importer dans le mode actif.".to_string());
+    }
+
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+    let context_path = visugps_dir.join(&mode_name);
+
+    if !context_path.exists() {
+         return Err(format!("Le contexte '{}' n'existe pas.", mode_name));
+    }
+
+    let zip_path = Path::new(&file_path);
+    if !zip_path.exists() {
+        return Err("Le fichier d'import n'existe pas.".to_string());
+    }
+
+    // Safety: Wipe directory logic
+    // We should be careful. removing dir requires it to end with mode_name.
+    if !context_path.ends_with(&mode_name) {
+         return Err("Erreur de chemin de sécurité.".to_string());
+    }
+    
+    // Check zip validity first
+    let file = fs::File::open(&zip_path).map_err(|e| e.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+
+    // Wipe
+    fs::remove_dir_all(&context_path).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&context_path).map_err(|e| e.to_string())?;
+
+    // Unzip
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let outpath = match file.enclosed_name() {
+            Some(path) => context_path.join(path),
+            None => continue,
+        };
+
+        if (*file.name()).ends_with('/') {
+            fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                }
+            }
+            let mut outfile = fs::File::create(&outpath).map_err(|e| e.to_string())?;
+            std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(format!("Contexte '{}' importé avec succès !", mode_name))
 }

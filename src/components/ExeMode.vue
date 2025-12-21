@@ -1,21 +1,22 @@
 <template>
   <v-dialog v-model="dialog" max-width="600px">
     <v-card>
-      <v-card-title class="headline">Gestion des modes d'exécution</v-card-title>
+      <v-card-title class="headline d-flex justify-space-between align-center">
+        Gestion des modes d'exécution
+        <v-btn icon="mdi-book-open-page-variant-outline" variant="text" color="info" @click="showDocDialog = true" title="Aide"></v-btn>
+      </v-card-title>
       <v-card-text>
-        <v-list lines="one" class="mb-4">
+        <v-list class="mb-4">
             <v-list-item
                 v-for="mode in sortedAndStyledModes"
                 :key="mode.name"
             >
                 <template v-slot:title>
                     <span :class="`text-${mode.color} font-weight-bold`">{{ mode.name }}</span>
-                    <div v-if="mode.description" class="text-caption text-grey">{{ mode.description }}</div>
+                    <div v-if="mode.description" class="text-caption text-grey" style="white-space: normal;">{{ mode.description }}</div>
                 </template>
 
                 <template v-slot:append>
-                    <v-chip v-if="mode.name === appEnv" color="primary" variant="elevated" size="small" class="ml-2">Actif</v-chip>
-
                     <!-- Delete Button -->
                     <v-btn
                         v-if="deletableModes.some(m => m.name === mode.name)"
@@ -25,6 +26,27 @@
                         @click="deleteMode(mode.name)"
                         class="ml-2"
                         title="Supprimer ce mode"
+                    ></v-btn>
+
+                    <!-- Import Button -->
+                    <v-btn
+                        v-if="mode.name !== appEnv"
+                        icon="mdi-database-import-outline"
+                        variant="text"
+                        color="warning"
+                        @click="handleImportClick(mode.name)"
+                        class="ml-2"
+                        title="Importer un contexte (Ecrasement)"
+                    ></v-btn>
+
+                    <!-- Export Button -->
+                    <v-btn
+                        icon="mdi-database-export-outline"
+                        variant="text"
+                        color="info"
+                        @click="handleExportClick(mode.name)"
+                        class="ml-2"
+                        title="Exporter ce contexte"
                     ></v-btn>
 
                     <!-- Select Button -->
@@ -37,6 +59,8 @@
                         class="ml-2"
                         title="Sélectionner ce mode"
                     ></v-btn>
+
+                    <v-chip v-if="mode.name === appEnv" color="primary" variant="elevated" size="small" class="ml-2">Actif</v-chip>
                 </template>
             </v-list-item>
         </v-list>
@@ -79,6 +103,31 @@
     cancelText="Annuler"
     @confirm="confirmDeleteMode"
   />
+
+  <!-- Import Warnings -->
+  <ConfirmationDialog
+    v-model="showImportWarningDialog"
+    title="Attention Importation"
+    :message="importWarningMessage"
+    confirmText="Continuer"
+    cancelText="Annuler"
+    color="warning"
+    @confirm="proceedToImportOrSecondWarning"
+  />
+  
+  <ConfirmationDialog
+    v-model="showOpeDoubleCheckDialog"
+    title="CONFIRMATION CRITIQUE (OPE)"
+    message="<strong style='color:red'>VOUS ÊTES SUR LE POINT D'ÉCRASER LE CONTEXTE DE PRODUCTION (OPE).</strong><br><br>JE CONFIRME QUE J'AI UNE SAUVEGARDE ET QUE JE VEUX ÉCRASER TOUTES LES DONNÉES DE PRODUCTION."
+    confirmText="OUI, ÉCRASER OPE"
+    cancelText="Annuler"
+    color="error"
+    @confirm="executeImport"
+  />
+
+  <v-dialog v-model="showDocDialog" max-width="800px">
+      <DocDisplay doc-path="/docs/DocUtilisateur/modes_fonctionnement.md" @close="showDocDialog = false" />
+  </v-dialog>
 </template>
 
 <script setup>
@@ -87,8 +136,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { relaunch } from '@tauri-apps/plugin-process';
+import { exit } from '@tauri-apps/plugin-process';
+import { open } from '@tauri-apps/plugin-dialog';
 import RestartConfirmationDialog from './RestartConfirmationDialog.vue';
 import ConfirmationDialog from './ConfirmationDialog.vue';
+import DocDisplay from './DocDisplay.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -110,6 +162,14 @@ let restartPromiseResolve = null;
 
 const showDeleteConfirmDialog = ref(false);
 const modeToDelete = ref('');
+const showDocDialog = ref(false);
+
+// Import/Export state
+const showImportWarningDialog = ref(false);
+const showOpeDoubleCheckDialog = ref(false);
+const importTargetMode = ref('');
+const importFilePath = ref('');
+const importWarningMessage = ref('');
 
 const rules = {
   required: value => !!value || 'Requis.',
@@ -273,6 +333,58 @@ const selectMode = async (modeName) => {
     console.error("Error selecting execution mode:", error);
     showSnackbar(`Erreur lors de la sélection du mode: ${error.message || error}`, 'error');
   }
+};
+
+const handleExportClick = async (modeName) => {
+  try {
+     const message = await invoke('export_context', { modeName });
+     showSnackbar(message, 'success');
+  } catch (error) {
+     showSnackbar(`Erreur lors de l'export: ${error}`, 'error');
+  }
+};
+
+const handleImportClick = async (modeName) => {
+  try {
+     const selected = await open({
+        multiple: false,
+        filters: [{
+             name: 'Contexte VisuGPS',
+             extensions: ['vctx']
+        }]
+     });
+
+     if (selected) {
+         importFilePath.value = selected.path || selected; // Handle returned object or path
+         importTargetMode.value = modeName;
+         
+         importWarningMessage.value = `ATTENTION : Vous êtes sur le point d'importer des données dans le contexte <strong>${modeName}</strong>.<br><br><strong>TOUTES les données actuelles de ce contexte seront ÉCRASÉES et PERDUES.</strong><br><br>Voulez-vous continuer ?`;
+         showImportWarningDialog.value = true;
+     }
+  } catch (error) {
+      console.error("File selection error:", error);
+  }
+};
+
+const proceedToImportOrSecondWarning = () => {
+    // If OPE, Double Check
+    if (importTargetMode.value === 'OPE') {
+        showOpeDoubleCheckDialog.value = true;
+    } else {
+        executeImport();
+    }
+};
+
+const executeImport = async () => {
+    try {
+        const message = await invoke('import_context', {
+            modeName: importTargetMode.value,
+            filePath: importFilePath.value
+        });
+        showSnackbar(message, 'success');
+    } catch (error) {
+        showSnackbar(`Erreur lors de l'import: ${error}`, 'error');
+    }
 };
 
 const handleRestartConfirmed = () => {
