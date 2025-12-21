@@ -20,6 +20,8 @@ struct ExportMetadata {
     ville_id: String,
     traceur_name: String,
     traceur_id: String,
+    editeur_name: Option<String>,
+    editeur_id: Option<String>,
     version_export: String,
     messages: Vec<serde_json::Value>, // Using Value for flexibility
 }
@@ -71,6 +73,10 @@ pub async fn export_circuit(
         .map(|t| t.nom.clone())
         .unwrap_or_else(|| "Inconnu".to_string());
 
+    let editeur_name = circuits_file.editeurs.iter().find(|e| e.id == circuit.editeur_id)
+        .map(|e| e.nom.clone())
+        .unwrap_or_else(|| "Inconnu".to_string());
+
     // 3. Load Messages
     // Load evt.json. Assuming it is in data/[circuit_id]/evt.json based on common patterns, 
     // OR it handles events globally?
@@ -100,12 +106,14 @@ pub async fn export_circuit(
         ville_id: circuit.ville_depart_id.clone(),
         traceur_name,
         traceur_id: circuit.traceur_id.clone(),
+        editeur_name: Some(editeur_name),
+        editeur_id: Some(circuit.editeur_id.clone()),
         version_export,
         messages,
     };
 
     // 4. Create Zip
-    let zip_filename = format!("_{}_.vgps", circuit.nom.replace(" ", "_")); // Santize filename better?
+    let zip_filename = format!("{}.vgps", circuit.nom.replace(" ", "_")); // Santize filename better?
     let zip_path = export_path.join(&zip_filename);
     let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
@@ -225,6 +233,43 @@ pub async fn import_circuit(
             nom: metadata.traceur_name.clone(),
         });
     }
+
+    // 5. Handle Editeur Conflict/Creation
+    let mut final_editeur_id = metadata.editeur_id.clone().unwrap_or_else(|| "inconnu".to_string());
+    let editeur_name = metadata.editeur_name.clone().unwrap_or_else(|| "Inconnu".to_string());
+    
+    // If id is "inconnu" or name is "Inconnu", we might want to try to find "Inconnu" editor or create it?
+    // Or just proceed with standard logic:
+    
+    if let Some(existing_editeur) = circuits_file.editeurs.iter().find(|e| e.nom.eq_ignore_ascii_case(&editeur_name)) {
+        final_editeur_id = existing_editeur.id.clone();
+    } else {
+        if circuits_file.editeurs.iter().any(|e| e.id == final_editeur_id) || final_editeur_id == "inconnu" {
+             // Generate new ID with ed-XXXX format logic
+             if editeur_name == "Inconnu" {
+                 final_editeur_id = "ed-0000".to_string();
+             } else {
+                 let max_id = circuits_file
+                    .editeurs
+                    .iter()
+                    .filter_map(|e| e.id.strip_prefix("ed-").and_then(|s| s.parse::<i32>().ok()))
+                    .max()
+                    .unwrap_or(0);
+                 final_editeur_id = format!("ed-{:04}", max_id + 1);
+             }
+        }
+        
+        // Check again if we just generated an ID that already exists (unlikely given max+1 but compliant with safety)
+        if circuits_file.editeurs.iter().any(|e| e.id == final_editeur_id) && final_editeur_id != "ed-0000" {
+             // Fallback if somehow logic failed, though max+1 should cover it. 
+             // Just keeping max+1 logic is sufficient.
+        }
+
+        circuits_file.editeurs.push(crate::Editor {
+            id: final_editeur_id.clone(),
+            nom: editeur_name,
+        });
+    }
     
 
 
@@ -249,6 +294,7 @@ pub async fn import_circuit(
     let mut imported_circuit = metadata.circuit.clone();
     imported_circuit.ville_depart_id = final_ville_id;
     imported_circuit.traceur_id = final_traceur_id;
+    imported_circuit.editeur_id = final_editeur_id;
 
     circuits_file.circuits.push(imported_circuit);
     write_circuits_file(&app_env_path, &circuits_file).map_err(|e| e.to_string())?;
