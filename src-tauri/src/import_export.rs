@@ -10,6 +10,23 @@ use std::sync::Mutex;
 use tauri::{State, Manager};
 use serde::{Serialize, Deserialize};
 use zip::write::FileOptions;
+use std::time::SystemTime;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ImportDirEntry {
+    pub name: String,
+    #[serde(rename = "isDir")]
+    pub is_dir: bool,
+    pub path: String,
+    pub size: u64,
+    pub modified: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ImportListResult {
+    pub path: String,
+    pub entries: Vec<ImportDirEntry>,
+}
 
 #[derive(Serialize, Deserialize)]
 struct ExportMetadata {
@@ -25,6 +42,114 @@ struct ExportMetadata {
     version_export: String,
     messages: Vec<serde_json::Value>, // Events
     message_library: Vec<serde_json::Value>, // Message Definitions
+}
+
+
+
+#[tauri::command]
+pub fn list_import_files(
+    state: State<Mutex<AppState>>,
+    path: Option<String>,
+    extensions: Vec<String>,
+) -> Result<ImportListResult, String> {
+    let state = state.lock().unwrap();
+    let settings_path = state.app_env_path.join("settings.json");
+    let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    // Determine the base path
+    let target_path = if let Some(p) = path {
+        if p == "DEFAULT_IMPORT" {
+            // Use the setting value
+             let import_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.ImportDir")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| "ImportDir setting not found".to_string())?;
+
+            if import_dir_setting == "DEFAULT_DOWNLOADS" {
+                dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
+            } else {
+                PathBuf::from(import_dir_setting)
+            }
+        } else {
+             PathBuf::from(p)
+        }
+    } else {
+         // Default if path is None (should behave like DEFAULT_IMPORT)
+         let import_dir_setting = get_setting_value(&settings, "data.groupes.Importation.parametres.ImportDir")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "ImportDir setting not found".to_string())?;
+
+        if import_dir_setting == "DEFAULT_DOWNLOADS" {
+            dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
+        } else {
+            PathBuf::from(import_dir_setting)
+        }
+    };
+
+    if !target_path.exists() || !target_path.is_dir() {
+        return Err(format!("Directory not found: {}", target_path.display()));
+    }
+
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&target_path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let entry_path = entry.path();
+        let metadata = entry.metadata().map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+
+         // Filter hidden files
+        if name.starts_with('.') {
+            continue;
+        }
+
+        let is_dir = metadata.is_dir();
+        
+        let should_include = if is_dir {
+            true
+        } else {
+             if extensions.is_empty() {
+                 true
+             } else {
+                 if let Some(ext) = entry_path.extension().and_then(|s| s.to_str()) {
+                     extensions.iter().any(|e| e.eq_ignore_ascii_case(ext))
+                 } else {
+                     false
+                 }
+             }
+        };
+
+        if should_include {
+            let modified = metadata.modified()
+                .unwrap_or(SystemTime::UNIX_EPOCH)
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            entries.push(ImportDirEntry {
+                name,
+                is_dir,
+                path: entry_path.to_string_lossy().into_owned(),
+                size: metadata.len(),
+                modified,
+            });
+        }
+    }
+
+    // Sort: Dirs first, then files, alphabetical
+    entries.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            b.is_dir.cmp(&a.is_dir) // Dirs (true) before files (false)
+        } else {
+            a.name.to_lowercase().cmp(&b.name.to_lowercase())
+        }
+    });
+
+    Ok(ImportListResult {
+        path: target_path.to_string_lossy().into_owned(),
+        entries,
+    })
 }
 
 #[tauri::command]
@@ -43,18 +168,16 @@ pub async fn export_circuit(
 
     let export_dir_setting = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Dossier")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "Export Directory setting not found".to_string())?;
+        .map(|s| s.to_string());
 
     let version_export = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Version Export")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "1.0".to_string());
 
-    let export_path = if export_dir_setting == "DEFAULT_DOWNLOADS" {
-        dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
-    } else {
-        PathBuf::from(export_dir_setting)
+    let export_path = match export_dir_setting {
+        Some(dir) if dir != "DEFAULT_DOWNLOADS" && !dir.is_empty() => PathBuf::from(dir),
+        _ => dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?,
     };
 
     if !export_path.exists() {
@@ -461,13 +584,11 @@ pub async fn export_context(
 
     let export_dir_setting = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Dossier")
         .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "Export Directory setting not found".to_string())?;
+        .map(|s| s.to_string());
 
-    let export_path = if export_dir_setting == "DEFAULT_DOWNLOADS" {
-        dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
-    } else {
-        PathBuf::from(export_dir_setting)
+    let export_path = match export_dir_setting {
+         Some(dir) if dir != "DEFAULT_DOWNLOADS" && !dir.is_empty() => PathBuf::from(dir),
+         _ => dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?,
     };
 
     if !export_path.exists() {

@@ -621,15 +621,16 @@ fn resolve_ville_id(circuits_file: &mut CircuitsFile, ville_nom: &str) -> Result
         };
         circuits_file.villes.push(new_ville.clone());
         Ok(new_ville.id)
+
     }
 }
 
 fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
     let gpx_dir_setting =
-        super::get_setting_value(settings, "data.groupes.Importation.parametres.GPXFile")
+        super::get_setting_value(settings, "data.groupes.Importation.parametres.ImportDir")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .ok_or_else(|| "Configuration du dossier GPX introuvable.".to_string())?;
+            .ok_or_else(|| "Configuration du dossier d'import introuvable.".to_string())?;
 
     if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
         dirs::download_dir()

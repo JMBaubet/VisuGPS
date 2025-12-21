@@ -87,6 +87,13 @@
     </v-card>
   </v-dialog>
 
+  <ImportDialog 
+      v-model="showImportDialog" 
+      :extensions="importExtensions" 
+      :title="importTitle"
+      @select="handleImportSelection"
+  />
+
   <RestartConfirmationDialog
     v-model="showRestartDialog"
     :title="restartDialogTitle"
@@ -137,7 +144,16 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { exit } from '@tauri-apps/plugin-process';
-import { open } from '@tauri-apps/plugin-dialog';
+import ImportDialog from './ImportDialog.vue'; // Import generic dialog
+
+
+
+const showImportDialog = ref(false);
+const importExtensions = ref(['vgps', 'vctx']); // Default extensions
+const importTitle = ref("Importer un contexte");
+const importingModeName = ref(null); // To store which mode name we are importing into (or generic import)
+
+
 import RestartConfirmationDialog from './RestartConfirmationDialog.vue';
 import ConfirmationDialog from './ConfirmationDialog.vue';
 import DocDisplay from './DocDisplay.vue';
@@ -344,27 +360,28 @@ const handleExportClick = async (modeName) => {
   }
 };
 
-const handleImportClick = async (modeName) => {
-  try {
-     const selected = await open({
-        multiple: false,
-        filters: [{
-             name: 'Contexte VisuGPS',
-             extensions: ['vctx']
-        }]
-     });
+const handleImportClick = async function importContext(modeName) {
+  // Setup dialog
+  importingModeName.value = modeName;
+  importExtensions.value = ['vctx'];
+  importTitle.value = `Importer dans ${modeName}`;
+  showImportDialog.value = true;
+}
 
-     if (selected) {
-         importFilePath.value = selected.path || selected; // Handle returned object or path
-         importTargetMode.value = modeName;
-         
-         importWarningMessage.value = `ATTENTION : Vous êtes sur le point d'importer des données dans le contexte <strong>${modeName}</strong>.<br><br><strong>TOUTES les données actuelles de ce contexte seront ÉCRASÉES et PERDUES.</strong><br><br>Voulez-vous continuer ?`;
-         showImportWarningDialog.value = true;
-     }
-  } catch (error) {
-      console.error("File selection error:", error);
-  }
-};
+async function handleImportSelection(filePath) {
+    if (!filePath || !importingModeName.value) return;
+
+    // Set temporary values used by the legacy confirmation flow
+    importFilePath.value = filePath;
+    importTargetMode.value = importingModeName.value;
+    // Reset specific states
+    importingModeName.value = null; 
+
+    // Trigger First Warning Dialog
+    importWarningMessage.value = `ATTENTION : Vous êtes sur le point d'importer des données dans le contexte <strong>${importTargetMode.value}</strong>.<br><br><strong>TOUTES les données actuelles de ce contexte seront ÉCRASÉES et PERDUES.</strong><br><br>Voulez-vous continuer ?`;
+    showImportWarningDialog.value = true;
+}
+
 
 const proceedToImportOrSecondWarning = () => {
     // If OPE, Double Check
@@ -382,6 +399,8 @@ const executeImport = async () => {
             filePath: importFilePath.value
         });
         showSnackbar(message, 'success');
+        // Refresh modes
+        executionModes.value = await invoke('list_execution_modes');
     } catch (error) {
         showSnackbar(`Erreur lors de l'import: ${error}`, 'error');
     }

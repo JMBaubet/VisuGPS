@@ -130,46 +130,7 @@ fn read_settings(state: State<Mutex<AppState>>) -> Result<Value, String> {
     Ok(json_content)
 }
 
-#[tauri::command]
-fn list_gpx_files(state: State<Mutex<AppState>>) -> Result<Vec<String>, String> {
-    let state = state.lock().unwrap();
-    let settings_path = state.app_env_path.join("settings.json");
-    let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-    let settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
 
-    let gpx_dir_setting =
-        get_setting_value(&settings, "data.groupes.Importation.parametres.GPXFile")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .ok_or_else(|| "GPXFile setting not found".to_string())?;
-
-    let gpx_path = if gpx_dir_setting == "DEFAULT_DOWNLOADS" {
-        dirs::download_dir().ok_or_else(|| "Could not find download directory".to_string())?
-    } else {
-        PathBuf::from(gpx_dir_setting)
-    };
-
-    if !gpx_path.is_dir() {
-        return Err(format!("GPX directory not found: {}", gpx_path.display()));
-    }
-
-    let mut gpx_files = Vec::new();
-    for entry in fs::read_dir(gpx_path).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let path = entry.path();
-        if path.is_file() {
-            if let Some(extension) = path.extension().and_then(|s| s.to_str()) {
-                if extension.eq_ignore_ascii_case("gpx") {
-                    gpx_files.push(path.file_name().unwrap().to_string_lossy().into_owned());
-                }
-            }
-        }
-    }
-
-    gpx_files.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
-
-    Ok(gpx_files)
-}
 
 #[tauri::command]
 fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMode>, String> {
@@ -1790,7 +1751,6 @@ pub fn run() {
             delete_execution_mode,
             select_execution_mode,
             update_setting, // This now takes app_handle
-            list_gpx_files,
             analyze_gpx_file,
             commit_new_circuit,
             list_traceurs,
@@ -1860,7 +1820,8 @@ pub fn run() {
             import_export::export_circuit,
             import_export::import_circuit,
             import_export::export_context,
-            import_export::import_context
+            import_export::import_context,
+            import_export::list_import_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

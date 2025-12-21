@@ -54,8 +54,9 @@ Une fenêtre s'ouvre vous permettant de :
 
 *   **Exporter un contexte** : Sauvegardez un environnement complet (circuits, paramètres, données) sous forme d'archive `.vctx` en cliquant sur l'icône <img src="https://api.iconify.design/mdi/database-export-outline.svg?color=blue&width=20" style="vertical-align: middle; margin-bottom: 3px;">.
 
-*   **Importer un contexte** : Restaurez un environnement depuis un fichier `.vctx` en cliquant sur l'icône <img src="https://api.iconify.design/mdi/database-import-outline.svg?color=orange&width=20" style="vertical-align: middle; margin-bottom: 3px;">.
-    > ⚠️ **Attention** : L'importation **ÉCRASE IRRÉVERSIBLEMENT** toutes les données existantes du mode ciblé. Soyez vigilant, en particulier avec le mode de Production (OPE).
+*   **Importer un contexte** : Restaurez un environnement depuis un fichier `.vctx` ou `.vgps` en cliquant sur l'icône <img src="https://api.iconify.design/mdi/database-import-outline.svg?color=orange&width=20" style="vertical-align: middle; margin-bottom: 3px;">.
+    Une fenêtre de navigation s'ouvre pour vous permettre de sélectionner le fichier archive.
+    > ⚠️ **Attention** : L'importation **ÉCRASE IRRÉVERSIBLEMENT** toutes les données existantes du mode ciblé. Soyez vigilant, en particulier avec le mode de Production (OPE). Une demande de confirmation vous sera faite.
 
 ---
 [< Retour à l'accueil](./index.md) | [< Retour à la barre d'outils](./toolbar.md)

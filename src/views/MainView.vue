@@ -1,8 +1,9 @@
 <template>
   <v-container fluid class="fill-height d-flex flex-column pa-0">
     <AppMainBar 
-      @open-gpx-import-dialog="gpxImportDialog = true" 
-      @circuit-imported="handleGpxImported"
+      @open-gpx-import-dialog="openGpxImport" 
+      @open-circuit-import-dialog="openCircuitImport"
+      @circuit-imported="handleImported"
     />
 
     <div class="w-100">
@@ -34,7 +35,13 @@
       class="mt-4"
     ></v-pagination>
 
-    <GpxImportDialog v-model="gpxImportDialog" @gpx-imported="handleGpxImported" />
+    <ImportDialog
+      v-model="showImportDialog"
+      :extensions="importConfig.extensions"
+      :title="importConfig.title"
+      @select="handleImportSelection"
+    />
+    <TraceurSelectionDialog ref="traceurDialog" />
   </v-container>
 </template>
 
@@ -43,13 +50,24 @@ import { ref, onMounted, computed, reactive } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import AppMainBar from '../components/AppMainBar.vue';
-import GpxImportDialog from '../components/GpxImportDialog.vue';
+import ImportDialog from '../components/ImportDialog.vue';
+import TraceurSelectionDialog from '../components/TraceurSelectionDialog.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
 import CircuitFilter from '@/components/CircuitFilter.vue';
 import { useSettings } from '@/composables/useSettings';
 import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
+import { useSnackbar } from '@/composables/useSnackbar';
 
-const gpxImportDialog = ref(false);
+
+const { showSnackbar } = useSnackbar();
+
+const showImportDialog = ref(false);
+const importConfig = reactive({
+  extensions: ['gpx'],
+  title: 'Importer un fichier GPX',
+  type: 'gpx'
+});
+const traceurDialog = ref(null);
 const allCircuits = ref([]);
 const allCommunes = ref([]);
 const allTraceurs = ref([]);
@@ -159,7 +177,69 @@ async function loadFilterData() {
   }
 }
 
-function handleGpxImported() {
+function openGpxImport() {
+  importConfig.extensions = ['gpx'];
+  importConfig.title = 'Importer un fichier GPX';
+  importConfig.type = 'gpx';
+  showImportDialog.value = true;
+}
+
+function openCircuitImport() {
+  importConfig.extensions = ['vgps'];
+  importConfig.title = 'Importer un circuit (.vgps)';
+  importConfig.type = 'vgps';
+  showImportDialog.value = true;
+}
+
+// Function handling the full GPX import flow
+async function handleImportSelection(filename) {
+    try {
+        if (importConfig.type === 'gpx') {
+             // GPX Import Flow
+            // Phase 1: Analysis
+            const draftCircuit = await invoke('analyze_gpx_file', { filename });
+
+            // Phase 2: Traceur Selection
+            if (!traceurDialog.value) return;
+            const traceurId = await traceurDialog.value.open();
+            
+            // Phase 3: Commit
+            const circuitId = await invoke('commit_new_circuit', { 
+                draft: draftCircuit, 
+                traceurId: traceurId 
+            });
+
+            // Phase 4: Thumbnail
+            const settings = await invoke('read_settings');
+            const lineStringPath = `data/${circuitId}/lineString.json`;
+            
+            await invoke('generate_gpx_thumbnail', {
+                circuitId: circuitId,
+                lineStringPath: lineStringPath,
+                settings: settings
+            });
+
+            showSnackbar(`Circuit '${draftCircuit.nom}' importé avec succès.`, 'success');
+
+        } else if (importConfig.type === 'vgps') {
+             // VGPS Import Flow
+             const message = await invoke('import_circuit', { filePath: filename });
+             showSnackbar(message, 'success');
+        }
+
+        handleImported();
+
+    } catch (e) {
+        if (typeof e === 'string' && e.includes('annulée')) {
+            console.log("Import cancelled");
+        } else {
+             console.error("Import error:", e);
+             showSnackbar(`Erreur lors de l'import: ${e}`, 'error');
+        }
+    }
+}
+
+function handleImported() {
   refreshCircuits();
   loadFilterData();
 }

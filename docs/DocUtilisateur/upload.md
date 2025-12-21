@@ -9,9 +9,10 @@ Cette section explique comment importer vos fichiers GPX dans VisuGPS et gérer 
 Pour ajouter un nouveau circuit à votre bibliothèque :
 
 1.  Sur l'écran d'accueil, cliquez sur le bouton **Importer** <img src="https://api.iconify.design/mdi/file-import-outline.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> situé en haut à droite de la barre de l'application.
-2.  Une fenêtre de sélection de fichier s'ouvre. Elle filtre automatiquement les fichiers `.gpx`. Par défaut c'est le dossier Téléchargements qui est sélectionné. 
-Vous pouvez filtrer les noms de fichiers avec la barre de recherche en haut de la fenêtre. 
-Naviguez jusqu'à votre fichier `.gpx` et validez.
+12.  Une fenêtre de navigation interne s'ouvre. Elle liste les fichiers `.gpx` et les dossiers. Le dossier par défaut est défini dans les paramètres ("Dossier d'import").
+13.  **Navigation** : Vous pouvez cliquer sur les dossiers pour naviguer.
+14.  **Filtrage** : Utilisez la barre de recherche en haut pour filtrer les fichiers par nom.
+15.  Sélectionnez votre fichier `.gpx` pour valider.
 3.  **Choix du Traceur** : Une boîte de dialogue s'ouvre pour attribuer un auteur à la trace.
     *   Sélectionnez un traceur existant dans la liste.
     *   Ou créez-en un nouveau en saisissant son nom.

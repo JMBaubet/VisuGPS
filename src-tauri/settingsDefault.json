@@ -345,10 +345,10 @@
           {
             "defaut": "DEFAULT_DOWNLOADS",
             "description": "Dossier pour l'importation des fichiers GPX. 'DEFAULT_DOWNLOADS' utilise le dossier de téléchargement de l'utilisateur.",
-            "identifiant": "GPXFile",
-            "libelle": "Dossier des fichiers GPX",
+            "identifiant": "ImportDir",
+            "libelle": "Dossier d'import",
             "type": "directory",
-            "doc": "docs/DocParametrage/Importation/GPXFile.md"
+            "doc": "docs/DocParametrage/Importation/ImportDir.md"
           },
           {
             "defaut": 10,
@@ -1802,28 +1802,6 @@
                 "min": 10,
                 "max": 200,
                 "doc": "docs/DocParametrage/Systeme/Telecommande/sensibiliteTilt.md"
-              }
-            ]
-          },
-          {
-            "libelle": "Export Import",
-            "parametres": [
-              {
-                "identifiant": "Dossier",
-                "libelle": "Dossier Export Import",
-                "description": "Dossier utilisé pour l'exportation et l'importation de circuits.",
-                "type": "directory",
-                "defaut": "DEFAULT_DOWNLOADS",
-                "doc": "docs/DocParametrage/Systeme/Export Import/Dossier.md"
-              },
-              {
-                "identifiant": "Version Export",
-                "libelle": "Version Export",
-                "description": "Version du format d'exportation.",
-                "type": "string",
-                "defaut": "1.0",
-                "critique": true,
-                "doc": "docs/DocParametrage/Systeme/Export Import/Version Export.md"
               }
             ]
           }
