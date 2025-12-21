@@ -1815,6 +1815,8 @@
     "date_revision": null,
     "date_revison": null,
     "description": "Mode d'écécution par défaut de l'application VisuGPS",
-    "version": "1.0.1"
+    "version": "1.0.0",
+    "version_export_circuit": "1.0.0",
+    "version_export_context": "1.0.0"
   }
 }

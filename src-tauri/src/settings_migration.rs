@@ -32,13 +32,24 @@ pub fn compare_and_merge(old_settings: &Value, new_default: &Value) -> (Value, O
     let existing_version = old_settings.get("référence").and_then(|r| r.get("version")).and_then(|v| v.as_str());
     let default_version = new_default.get("référence").and_then(|r| r.get("version")).and_then(|v| v.as_str());
 
-    let version_info = if existing_version != default_version {
-        Some((existing_version.unwrap_or("N/A"), default_version.unwrap_or("N/A")))
-    } else {
-        None
-    };
+    let existing_export_ver = old_settings.get("référence").and_then(|r| r.get("version_export_circuit")).and_then(|v| v.as_str());
+    let default_export_ver = new_default.get("référence").and_then(|r| r.get("version_export_circuit")).and_then(|v| v.as_str());
 
-    let report_string = generate_markdown_report(&report, version_info);
+    let existing_context_ver = old_settings.get("référence").and_then(|r| r.get("version_export_context")).and_then(|v| v.as_str());
+    let default_context_ver = new_default.get("référence").and_then(|r| r.get("version_export_context")).and_then(|v| v.as_str());
+
+    let mut version_messages = Vec::new();
+    if existing_version != default_version {
+        version_messages.push(format!("**Mise à jour de la version de configuration de `{}` à `{}`.**", existing_version.unwrap_or("N/A"), default_version.unwrap_or("N/A")));
+    }
+    if existing_export_ver != default_export_ver {
+        version_messages.push(format!("**Mise à jour de la version d'export circuit de `{}` à `{}`.**", existing_export_ver.unwrap_or("N/A"), default_export_ver.unwrap_or("N/A")));
+    }
+    if existing_context_ver != default_context_ver {
+        version_messages.push(format!("**Mise à jour de la version d'export contexte de `{}` à `{}`.**", existing_context_ver.unwrap_or("N/A"), default_context_ver.unwrap_or("N/A")));
+    }
+
+    let report_string = generate_markdown_report(&report, version_messages);
     
     (merged, report_string)
 }
@@ -102,6 +113,9 @@ fn merge_recursive(
                 // Generic object merge (like "référence")
                 let mut new_map = def_map.clone();
                 for (k, v) in def_map {
+                    // Specific ignore for 'version' keys to avoid duplicating them in recursive merge?
+                    // Actually, logic below just merges. But version comparison is redundant if handled above.
+                    // However, we still want new version values in the output.
                     let new_path = if path.is_empty() { k.clone() } else { format!("{}/{}", path, k) };
                     if let Some(exist_v) = exist_map.get(k) {
                         new_map.insert(k.clone(), merge_recursive(v, exist_v, new_path, report));
@@ -256,26 +270,24 @@ fn format_value(v: Option<&Value>, is_secret: bool) -> String {
     }
 }
 
-fn generate_markdown_report(report: &MigrationReport, version_info: Option<(&str, &str)>) -> Option<String> {
+fn generate_markdown_report(report: &MigrationReport, version_messages: Vec<String>) -> Option<String> {
     let content_changed = !report.added.is_empty() || !report.removed.is_empty() || !report.modified.is_empty();
 
-    if !content_changed && version_info.is_none() {
+    if !content_changed && version_messages.is_empty() {
         return None;
     }
 
     let mut md = String::new();
     md.push_str("# Rapport de mise à jour des paramètres\n\n");
 
-    if let Some((old_v, new_v)) = version_info {
-        md.push_str(&format!(
-            "**Mise à jour de la version de configuration de `{}` à `{}`.**\n\n",
-            old_v, new_v
-        ));
+    for msg in version_messages.iter() {
+        md.push_str(msg);
+        md.push_str("\n\n");
     }
 
     if content_changed {
         md.push_str("Des modifications de paramètres ont été détectées et votre configuration a été mise à jour pour refléter ces changements.\n\n");
-    } else if version_info.is_some() {
+    } else if !version_messages.is_empty() {
         md.push_str("Aucun changement de paramètre n'a été détecté, mais la configuration a été synchronisée en raison du changement de version.\n\n");
     }
 

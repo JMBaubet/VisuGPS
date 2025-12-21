@@ -796,7 +796,11 @@ pub fn get_setting_value<'a>(settings: &'a Value, path: &str) -> Option<&'a Valu
         }
     }
 
-    current.get("defaut")
+    if let Some(def) = current.get("defaut") {
+        return Some(def);
+    }
+
+    Some(current)
 }
 
 #[tauri::command]

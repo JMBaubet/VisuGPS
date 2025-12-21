@@ -29,19 +29,26 @@ pub struct ImportListResult {
 }
 
 #[derive(Serialize, Deserialize)]
-struct ExportMetadata {
-    circuit: Circuit,
-    circuit_name: String,
-    circuit_id: String,
-    ville_name: String,
-    ville_id: String,
-    traceur_name: String,
-    traceur_id: String,
-    editeur_name: Option<String>,
-    editeur_id: Option<String>,
-    version_export: String,
-    messages: Vec<serde_json::Value>, // Events
-    message_library: Vec<serde_json::Value>, // Message Definitions
+pub struct ExportMetadata {
+    #[serde(rename = "version_export")]
+    pub version_export: String,
+    pub circuit: Circuit,
+    pub circuit_name: String,
+    pub circuit_id: String,
+    pub ville_name: String,
+    pub ville_id: String,
+    pub traceur_name: String,
+    pub traceur_id: String,
+    pub editeur_name: Option<String>,
+    pub editeur_id: Option<String>,
+    pub messages: Vec<serde_json::Value>, // Events
+    pub message_library: Vec<serde_json::Value>, // Message Definitions
+}
+
+#[derive(Serialize)]
+pub struct ContextExportMetadata {
+    #[serde(rename = "version_export")]
+    pub version_export: String,
 }
 
 
@@ -170,7 +177,8 @@ pub async fn export_circuit(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let version_export = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Version Export")
+    let version_export = get_setting_value(&settings, "référence.version_export_circuit")
+        .or_else(|| get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Version Export"))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "1.0".to_string());
@@ -582,6 +590,11 @@ pub async fn export_context(
     let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
+    let version_export = get_setting_value(&settings, "référence.version_export_context")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "1.0".to_string());
+
     let export_dir_setting = get_setting_value(&settings, "data.groupes.Système.groupes.Export Import.parametres.Dossier")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
@@ -603,6 +616,14 @@ pub async fn export_context(
     let options: FileOptions<()> = FileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o755);
+
+    // Add metadata.json
+    let metadata = ContextExportMetadata {
+        version_export,
+    };
+    zip.start_file("metadata.json", options).map_err(|e| e.to_string())?;
+    let metadata_json = serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+    zip.write_all(metadata_json.as_bytes()).map_err(|e| e.to_string())?;
 
     zip_directory(&context_path, &mut zip, options, &context_path)?;
 
