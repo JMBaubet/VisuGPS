@@ -339,18 +339,22 @@ pub async fn import_circuit(
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
 
     // 1. Read Metadata
-    let metadata: ExportMetadata = {
+    let mut metadata: ExportMetadata = {
         let mut metadata_file = archive.by_name("metadata.json").map_err(|_| "Archive invalide : metadata.json manquant".to_string())?;
         let mut metadata_content = String::new();
         metadata_file.read_to_string(&mut metadata_content).map_err(|e| e.to_string())?;
         serde_json::from_str(&metadata_content).map_err(|e| format!("Erreur lecture métadonnées : {}", e))?
     };
 
-    // 2. Check for Duplicates (Circuit ID)
+    // 2. Always generate new Circuit ID (as requested by user)
     let mut circuits_file = read_circuits_file(&app_env_path)?;
-    if circuits_file.circuits.iter().any(|c| c.circuit_id == metadata.circuit_id) {
-        return Err(format!("Le circuit '{}' (ID: {}) existe déjà.", metadata.circuit_name, metadata.circuit_id));
-    }
+    
+    // Always increment and assign new ID to avoid any potential conflict and keep historical order
+    circuits_file.index_circuits += 1;
+    let new_id = format!("circ-{:04}", circuits_file.index_circuits);
+    
+    metadata.circuit_id = new_id.clone();
+    metadata.circuit.circuit_id = new_id;
 
     // 3. Handle Ville (City) Conflict/Creation
     let mut final_ville_id = metadata.ville_id.clone();
