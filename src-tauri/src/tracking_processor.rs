@@ -38,10 +38,10 @@ pub fn generate_tracking_file(
     let bearing_smoothing = super::get_setting_value(settings, "data.groupes.Importation.groupes.Tracking.parametres.LissageCap")
         .and_then(|v| v.as_u64())
         .unwrap_or(15) as usize;
-    let default_zoom = super::get_setting_value(settings, "data.groupes.Importation.groupes.Caméra.parametres.Zoom")
+    let default_zoom = super::get_setting_value(settings, "data.groupes.Importation.groupes.Camera.parametres.Zoom")
         .and_then(|v| v.as_u64().map(|i| i as u32))
         .unwrap_or(16);
-    let default_pitch = super::get_setting_value(settings, "data.groupes.Importation.groupes.Caméra.parametres.Pitch")
+    let default_pitch = super::get_setting_value(settings, "data.groupes.Importation.groupes.Camera.parametres.Pitch")
         .and_then(|v| v.as_u64().map(|i| i as u32))
         .unwrap_or(60);
 

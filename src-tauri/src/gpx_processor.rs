@@ -350,38 +350,38 @@ pub fn commit_new_circuit(
 
     let zoom_depart_enabled = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepart",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomDepart.parametres.zoomDepart",
     )
     .and_then(|v| v.as_bool())
     .unwrap_or(true);
     let zoom_depart_valeur = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartValeur",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomDepart.parametres.zoomDepartValeur",
     )
     .and_then(|v| v.as_f64())
     .unwrap_or(18.0);
     let zoom_depart_distance = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.zoomDepartDistance",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomDepart.parametres.zoomDepartDistance",
     )
     .and_then(|v| v.as_i64())
     .unwrap_or(20) as i32;
 
     let zoom_arrivee_enabled = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.zoomArrivee",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomArrivee.parametres.zoomArrivee",
     )
     .and_then(|v| v.as_bool())
     .unwrap_or(true);
     let zoom_arrivee_valeur = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.zoomArriveeValeur",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomArrivee.parametres.zoomArriveeValeur",
     )
     .and_then(|v| v.as_f64())
     .unwrap_or(18.0);
     let zoom_arrivee_distance = super::get_setting_value(
         &settings,
-        "data.groupes.Edition.groupes.Caméra.parametres.distanceZoomArrivee",
+        "data.groupes.Edition.groupes.Camera.groupes.ZoomArrivee.parametres.distanceZoomArrivee",
     )
     .and_then(|v| v.as_i64())
     .unwrap_or(20) as i32;
