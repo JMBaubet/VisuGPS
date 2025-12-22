@@ -1,7 +1,7 @@
 {
   "name": "visugps",
   "version": "1.0.0",
-  "description": "Ce document décrit le projet **VisuGPS**, une application de bureau multiplateforme pour la visualisation 3D de fichiers GPX, axée sur la création d'animations.",
+  "description": "VisuGPS - Visualisation 3D de fichiers GPX",
   "main": "index.js",
   "scripts": {
     "dev": "vite",

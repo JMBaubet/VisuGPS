@@ -311,12 +311,6 @@ pub async fn export_circuit(
     Ok(format!("Circuit exporté avec succès vers {}", zip_path.display()))
 }
 
-#[derive(Serialize, Deserialize)]
-struct ImportResult {
-    success: bool,
-    message: String,
-    circuit_name: Option<String>,
-}
 
 #[tauri::command]
 pub async fn import_circuit(
