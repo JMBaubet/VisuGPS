@@ -260,9 +260,34 @@ const deleteCircuit = async () => {
 
 const proceedDeletion = async () => {
   try {
+    // 1. Mémoriser les informations liées (ville, traceur, messages)
+    const relatedIds = {
+      ville: props.circuit.villeDepartId,
+      traceur: props.circuit.traceurId,
+      messages: []
+    };
+
+    // Récupérer les messages avant que le dossier du circuit ne soit supprimé
+    try {
+      const events = await invoke('get_events', { circuitId: props.circuit.circuitId });
+      if (events && events.rangeEvents) {
+        // Collecter les IDs uniques de messages
+        const msgIds = new Set();
+        events.rangeEvents.forEach(e => {
+          if (e.messageId) msgIds.add(e.messageId);
+        });
+        relatedIds.messages = Array.from(msgIds);
+      }
+    } catch (e) {
+      console.warn('Impossible de récupérer les événements avant suppression:', e);
+    }
+
+    // 2. Supprimer le circuit
     await invoke('delete_circuit', { circuitId: props.circuit.circuitId });
     showSnackbar('Circuit supprimé avec succès.', 'success');
-    emit('circuit-deleted');
+    
+    // 3. Émettre l'événement avec les infos pour le nettoyage des orphelins
+    emit('circuit-deleted', relatedIds);
   } catch (error) {
     showSnackbar(`Erreur lors de la suppression du circuit : ${error}`, 'error');
     console.error('Error deleting circuit:', error);

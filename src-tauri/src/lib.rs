@@ -1192,6 +1192,143 @@ fn delete_circuit(state: State<Mutex<AppState>>, circuit_id: String) -> Result<(
 }
 
 #[tauri::command]
+fn get_orphans(app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<Orphans, String> {
+    let app_env_path = {
+        let state = state.lock().unwrap();
+        state.app_env_path.clone()
+    };
+    let circuits_file = read_circuits_file(&app_env_path)?;
+
+    // 1. Traceurs orphelins
+    let used_traceur_ids: std::collections::HashSet<String> = circuits_file
+        .circuits
+        .iter()
+        .map(|c| c.traceur_id.clone())
+        .collect();
+    let orphan_traceurs: Vec<Traceur> = circuits_file
+        .traceurs
+        .iter()
+        .filter(|t| !used_traceur_ids.contains(&t.id))
+        .cloned()
+        .collect();
+
+    // 2. Villes orphelines
+    let used_ville_ids: std::collections::HashSet<String> = circuits_file
+        .circuits
+        .iter()
+        .map(|c| c.ville_depart_id.clone())
+        .collect();
+    let orphan_villes: Vec<Ville> = circuits_file
+        .villes
+        .iter()
+        .filter(|v| !used_ville_ids.contains(&v.id))
+        .cloned()
+        .collect();
+
+    // 3. Messages orphelins
+    let user_messages_path = app_env_path.join("messages_user.json");
+    let user_messages: Vec<Message> = if user_messages_path.exists() {
+        let content = fs::read_to_string(&user_messages_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let mut used_message_ids = std::collections::HashSet::new();
+    for circuit in &circuits_file.circuits {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+            for re in events.range_events {
+                if let Some(msg_id) = re.message_id {
+                    used_message_ids.insert(msg_id);
+                }
+            }
+        }
+    }
+
+    let orphan_messages: Vec<Message> = user_messages
+        .into_iter()
+        .filter(|m| !used_message_ids.contains(&m.id))
+        .collect();
+
+    Ok(Orphans {
+        villes: orphan_villes,
+        traceurs: orphan_traceurs,
+        messages: orphan_messages,
+    })
+}
+
+#[tauri::command]
+fn delete_orphans(
+    state: State<Mutex<AppState>>,
+    ville_ids: Vec<String>,
+    traceur_ids: Vec<String>,
+    message_ids: Vec<String>,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    // 1. Update circuits.json
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+    let initial_ville_len = circuits_file.villes.len();
+    let initial_traceur_len = circuits_file.traceurs.len();
+
+    circuits_file.villes.retain(|v| !ville_ids.contains(&v.id));
+    circuits_file.traceurs.retain(|t| !traceur_ids.contains(&t.id));
+
+    if circuits_file.villes.len() != initial_ville_len || circuits_file.traceurs.len() != initial_traceur_len {
+        write_circuits_file(app_env_path, &circuits_file)?;
+    }
+
+    // 2. Update messages_user.json
+    let user_messages_path = app_env_path.join("messages_user.json");
+    if user_messages_path.exists() && !message_ids.is_empty() {
+        let content = fs::read_to_string(&user_messages_path).map_err(|e| e.to_string())?;
+        let mut messages: Vec<Message> = serde_json::from_str(&content).unwrap_or_default();
+        let initial_msg_len = messages.len();
+        messages.retain(|m| !message_ids.contains(&m.id));
+        
+        if messages.len() != initial_msg_len {
+            let new_content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
+            fs::write(&user_messages_path, new_content).map_err(|e| e.to_string())?;
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn check_message_usage(
+    app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    message_id: String,
+) -> Result<Vec<String>, String> {
+    let app_env_path = {
+        let state = state.lock().unwrap();
+        state.app_env_path.clone()
+    };
+    let circuits_file = read_circuits_file(&app_env_path)?;
+    let mut using_circuits = Vec::new();
+
+    for circuit in circuits_file.circuits {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+            for re in events.range_events {
+                if let Some(mid) = re.message_id {
+                    if mid == message_id {
+                        using_circuits.push(circuit.nom);
+                        break;
+                    }
+                }
+            }
+        }
+        if using_circuits.len() >= 10 {
+            break;
+        }
+    }
+
+    Ok(using_circuits)
+}
+
+#[tauri::command]
 fn get_thumbnail_as_base64(
     state: State<Mutex<AppState>>,
     circuit_id: String,
@@ -1399,6 +1536,14 @@ pub struct FilterData {
     max_denivele: i32,
     villes: Vec<Ville>,
     traceurs: Vec<Traceur>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Orphans {
+    pub villes: Vec<Ville>,
+    pub traceurs: Vec<Traceur>,
+    pub messages: Vec<Message>,
 }
 
 #[tauri::command]
@@ -1840,6 +1985,9 @@ pub fn run() {
             gpx_processor::get_remote_control_url,
             update_animation_state,
             error_logger::save_error_event,
+            get_orphans,
+            delete_orphans,
+            check_message_usage,
             error_logger::delete_error_entry,
             error_logger::delete_error_entry,
             get_migration_report,

@@ -42,6 +42,12 @@
       @select="handleImportSelection"
     />
     <TraceurSelectionDialog ref="traceurDialog" />
+    <OrphanCleanupDialog 
+      v-model="showOrphanDialog" 
+      :orphans="currentOrphans" 
+      :related-ids="currentRelatedIds"
+      @cleaned="handleImported"
+    />
   </v-container>
 </template>
 
@@ -54,6 +60,7 @@ import ImportDialog from '../components/ImportDialog.vue';
 import TraceurSelectionDialog from '../components/TraceurSelectionDialog.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
 import CircuitFilter from '@/components/CircuitFilter.vue';
+import OrphanCleanupDialog from '@/components/OrphanCleanupDialog.vue';
 import { useSettings } from '@/composables/useSettings';
 import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 import { useSnackbar } from '@/composables/useSnackbar';
@@ -72,6 +79,10 @@ const allCircuits = ref([]);
 const allCommunes = ref([]);
 const allTraceurs = ref([]);
 const filterData = ref(null);
+
+const showOrphanDialog = ref(false);
+const currentOrphans = ref({ villes: [], traceurs: [], messages: [] });
+const currentRelatedIds = ref({ ville: null, traceur: null, messages: [] });
 
 const { getSettingValue } = useSettings();
 
@@ -244,9 +255,22 @@ function handleImported() {
   loadFilterData();
 }
 
-function handleCircuitDeleted() {
+async function handleCircuitDeleted(relatedIds) {
   refreshCircuits();
   loadFilterData();
+
+  if (relatedIds) {
+    try {
+      const orphans = await invoke('get_orphans');
+      if (orphans.villes.length > 0 || orphans.traceurs.length > 0 || orphans.messages.length > 0) {
+        currentOrphans.value = orphans;
+        currentRelatedIds.value = relatedIds;
+        showOrphanDialog.value = true;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la détection des orphelins:', error);
+    }
+  }
 }
 
 function handleCircuitUpdated(updatedCircuit) {

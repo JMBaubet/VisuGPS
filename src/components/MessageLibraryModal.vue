@@ -92,6 +92,33 @@
       @confirm="deleteMessage"
     />
 
+    <v-dialog v-model="usageDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="headline bg-warning text-white pa-4">
+          <v-icon start color="white">mdi-alert</v-icon>
+          Suppression impossible
+        </v-card-title>
+        <v-card-text class="pa-4">
+          Ce message est actuellement utilisé dans les circuits suivants :
+          <v-list density="compact" class="mt-2">
+            <v-list-item v-for="(circuit, index) in usageList" :key="index">
+              <v-list-item-title>• {{ circuit }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+          <div v-if="usageList.length >= 10" class="text-caption text-grey mt-2">
+            (Liste limitée aux 10 premiers circuits trouvés)
+          </div>
+          <p class="mt-4">
+            Vous ne pouvez pas supprimer un message qui est en cours d'utilisation.
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" @click="usageDialog = false">Compris</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </v-dialog>
 </template>
 
@@ -114,6 +141,8 @@ const dialog = ref(props.modelValue);
 const loading = ref(false);
 const editDialog = ref(false);
 const deleteDialog = ref(false);
+const usageDialog = ref(false);
+const usageList = ref([]);
 const selectedMessage = ref(null);
 const filterText = ref('');
 
@@ -157,9 +186,22 @@ const openEditMessageDialog = (message) => {
   editDialog.value = true;
 };
 
-const confirmDelete = (message) => {
+const confirmDelete = async (message) => {
   selectedMessage.value = message;
-  deleteDialog.value = true;
+  loading.value = true;
+  try {
+    const circuits = await invoke('check_message_usage', { messageId: message.id });
+    if (circuits.length > 0) {
+      usageList.value = circuits;
+      usageDialog.value = true;
+    } else {
+      deleteDialog.value = true;
+    }
+  } catch (error) {
+    console.error("Erreur lors de la vérification de l'usage du message:", error);
+  } finally {
+    loading.value = false;
+  }
 };
 
 const saveMessage = async ({ message, target }) => {
