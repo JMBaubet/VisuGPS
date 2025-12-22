@@ -1640,7 +1640,7 @@ pub struct DocResponse {
 }
 
 #[tauri::command]
-fn get_doc_content(app_handle: AppHandle, path: String) -> Result<DocResponse, String> {
+fn get_doc_content(app_handle: AppHandle, state: State<Mutex<AppState>>, path: String) -> Result<DocResponse, String> {
     let final_path = if cfg!(debug_assertions) {
         // In DEV, resolve relative to the project root.
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
@@ -1674,8 +1674,30 @@ fn get_doc_content(app_handle: AppHandle, path: String) -> Result<DocResponse, S
         resource_path
     };
 
-    let content = fs::read_to_string(&final_path)
+    let mut content = fs::read_to_string(&final_path)
         .map_err(|e| format!("Failed to read doc file at '{}': {}", final_path.display(), e))?;
+
+    // Inject version variables
+    let settings = {
+        let state = state.lock().unwrap();
+        let settings_path = state.app_env_path.join("settings.json");
+        match fs::read_to_string(settings_path) {
+            Ok(c) => serde_json::from_str::<Value>(&c).unwrap_or(Value::Null),
+            Err(_) => Value::Null,
+        }
+    };
+
+    if let Some(reference) = settings.get("référence") {
+        if let Some(v_app) = reference.get("version").and_then(|v| v.as_str()) {
+            content = content.replace("{{versionApplication}}", v_app);
+        }
+        if let Some(v_cir) = reference.get("version_export_circuit").and_then(|v| v.as_str()) {
+            content = content.replace("{{versionArchivage}}", v_cir);
+        }
+        if let Some(v_ctx) = reference.get("version_export_context").and_then(|v| v.as_str()) {
+            content = content.replace("{{versionExport}}", v_ctx);
+        }
+    }
 
     Ok(DocResponse {
         path: final_path.to_string_lossy().into_owned(),

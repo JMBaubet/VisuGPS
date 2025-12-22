@@ -46,3 +46,14 @@ Accédez à la configuration complète de l'application :
 ## 4. Foire Aux Questions
 
 *   **[FAQ](./faq.md)** : Réponses aux problèmes courants et astuces.
+
+---
+
+<small>
+
+
+*   **Version de l'application** : {{versionApplication}}
+*   **Version d'export des circuits** : {{versionArchivage}}
+*   **Version d'export des contextes** : {{versionExport}}
+
+</small>
