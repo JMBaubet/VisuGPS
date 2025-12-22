@@ -4,6 +4,20 @@ La télécommande adapte automatiquement son interface selon que votre animation
 
 [< Retour au sommaire](./exploitation.md)
 
+---
+
+## 💡 Maintien de l'éveil (Anti-veille)
+
+Pour éviter que votre téléphone ne se mette en veille pendant que vous contrôlez l'animation, utilisez le bouton situé tout en haut de l'interface :
+
+*   <span style="display: inline-block; background-color: #6c757d; color: white; border: 2px solid white; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; margin: 2px;">🌙 Maintenir l'écran : OFF</span> (Bouton gris) : Votre téléphone suivra ses réglages habituels de mise en veille.
+*   <span style="display: inline-block; background-color: #198754; color: white; border: 2px solid white; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; margin: 2px;">💡 Maintenir l'écran : ON</span> (Bouton vert) : **L'écran restera allumé en permanence** tant que la page de la télécommande est ouverte. 
+
+> [!TIP]
+> Il est recommandé d'activer cette option dès la connexion pour une expérience de contrôle fluide sans interruption.
+
+---
+
 ## 1. Mode Lecture (Animation en cours)
 
 <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; font-family: sans-serif; max-width: 400px; margin: 10px auto; color: #212529;">

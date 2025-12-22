@@ -19,6 +19,12 @@ window.statusDiv = document.getElementById('status');
 window.pairingCodeDiv = document.getElementById('pairing-code');
 window.controlsDiv = document.getElementById('controls');
 
+// NoSleep management
+window.noSleep = null;
+window.noSleepEnabled = false;
+window.nosleepControl = document.getElementById('nosleep-control');
+window.nosleepButton = document.getElementById('toggle-nosleep');
+
 // Initialisation
 window.onload = () => {
     if (!clientId) {
@@ -28,6 +34,54 @@ window.onload = () => {
 
     // Ajout des écouteurs d'événements pour les boutons
     setupButtonListeners();
+
+    // Initialize NoSleep if available
+    const NoSleepClass = window.NoSleep || (typeof NoSleep !== 'undefined' ? NoSleep : null);
+
+    if (NoSleepClass) {
+        window.noSleep = new NoSleepClass();
+
+        const updateNoSleepUI = () => {
+            if (nosleepButton) {
+                if (noSleepEnabled) {
+                    nosleepButton.textContent = "💡 Maintenir l'écran : ON";
+                    nosleepButton.classList.remove('btn-secondary', 'btn-outline-secondary');
+                    nosleepButton.classList.add('btn-success');
+                } else {
+                    nosleepButton.textContent = "🌙 Maintenir l'écran : OFF";
+                    nosleepButton.classList.remove('btn-success', 'btn-secondary');
+                    nosleepButton.classList.add('btn-outline-secondary');
+                }
+            }
+        };
+
+        // Initial UI state update to change from "Veuillez patienter..."
+        updateNoSleepUI();
+
+        if (nosleepButton) {
+            nosleepButton.addEventListener('click', () => {
+                if (!noSleepEnabled) {
+                    window.noSleep.enable();
+                    window.noSleepEnabled = true;
+                    console.log("NoSleep enabled");
+                } else {
+                    window.noSleep.disable();
+                    window.noSleepEnabled = false;
+                    console.log("NoSleep disabled");
+                }
+                updateNoSleepUI();
+            });
+        }
+    } else {
+        if (nosleepButton) {
+            nosleepButton.textContent = "NoSleep non disponible";
+            nosleepButton.classList.add('btn-danger');
+        }
+        if (statusDiv) {
+            statusDiv.innerHTML += "<br><span style='color:orange;'>Avertissement: La bibliothèque NoSleep n'a pas été détectée.</span>";
+        }
+        console.warn("NoSleep library not found");
+    }
 
     // Auto-reconnect when tab becomes visible (wake up from sleep)
     document.addEventListener('visibilitychange', () => {

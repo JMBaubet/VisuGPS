@@ -27,6 +27,7 @@ const REMOTE_CLIENT_UI_JS: &str = include_str!("../../src/remote_client/remote-u
 const REMOTE_CLIENT_SPEED_JS: &str = include_str!("../../src/remote_client/remote-speed.js");
 const REMOTE_CLIENT_CAMERA_JS: &str = include_str!("../../src/remote_client/remote-camera.js");
 const REMOTE_CLIENT_WEBSOCKET_JS: &str = include_str!("../../src/remote_client/remote-websocket.js");
+const REMOTE_CLIENT_NOSLEEP_JS: &str = include_str!("../../src/remote_client/nosleep.min.js");
 
 use crate::remote_clients;
 use crate::{AppState, get_setting_value};
@@ -167,9 +168,9 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                 }
             };
 
-            let header = String::from_utf8_lossy(&buffer[..n]);
+            let header_peek = String::from_utf8_lossy(&buffer[..n]);
 
-            if header.contains("Upgrade: websocket") {
+            if header_peek.contains("Upgrade: websocket") {
                 // Handle WebSocket connection
                                 let ws_stream = match accept_async(stream).await {
                     Ok(s) => s,
@@ -493,10 +494,11 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
 
                 CLIENT_SENDERS.lock().unwrap().remove(&peer_addr.to_string());
                 info!("Client {} déconnecté.", peer_addr);
-            } else if header.starts_with("GET /remote") {
+            } else if header_peek.starts_with("GET /remote") {
                 // Handle HTTP GET request for static files
-                let path = header.split_whitespace().nth(1).unwrap_or("/");
-                debug!("Chemin de la requête HTTP: {}", path);
+                let full_path = header_peek.split_whitespace().nth(1).unwrap_or("/");
+                let path = full_path.split('?').next().unwrap_or(full_path);
+                debug!("Chemin de la requête HTTP: {} (nettoyé: {})", full_path, path);
 
                 match path {
                     "/remote" | "/remote/" | "/remote/index.html" => {
@@ -521,7 +523,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-utils.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_UTILS_JS.len(),
                             REMOTE_CLIENT_UTILS_JS
                         );
@@ -531,7 +533,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-ui.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_UI_JS.len(),
                             REMOTE_CLIENT_UI_JS
                         );
@@ -541,7 +543,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-websocket.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_WEBSOCKET_JS.len(),
                             REMOTE_CLIENT_WEBSOCKET_JS
                         );
@@ -552,7 +554,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
 
                     "/remote/remote-speed.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_SPEED_JS.len(),
                             REMOTE_CLIENT_SPEED_JS
                         );
@@ -562,7 +564,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     },
                     "/remote/remote-camera.js" => {
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             REMOTE_CLIENT_CAMERA_JS.len(),
                             REMOTE_CLIENT_CAMERA_JS
                         );
@@ -573,13 +575,21 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                     "/remote/main.js" => {
                         let dynamic_js = generate_main_js_with_ip(&my_local_ip_clone, port_clone);
                         let response = format!(
-                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: text/javascript\r\nContent-Length: {}\r\n\r\n{}",
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n{}",
                             dynamic_js.len(),
                             dynamic_js
                         );
                         if let Err(e) = stream.write_all(response.as_bytes()).await {
                             error!("Erreur lors de l'envoi de la réponse HTTP à {}: {}", peer_addr, e);
                         }
+                    },
+                    "/remote/nosleep.min.js" | "/remote/nosleep-v2.min.js" => {
+                        let header = format!(
+                            "HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\nContent-Type: application/javascript\r\nContent-Length: {}\r\n\r\n",
+                            REMOTE_CLIENT_NOSLEEP_JS.len()
+                        );
+                        let _ = stream.write_all(header.as_bytes()).await;
+                        let _ = stream.write_all(REMOTE_CLIENT_NOSLEEP_JS.as_bytes()).await;
                     },
                     _ => {
                         let _ = stream.write_all(b"HTTP/1.1 404 NOT FOUND\r\n\r\n").await;
@@ -593,7 +603,7 @@ pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Val
                 debug!("Réponse HTTP envoyée à {}.", peer_addr);
             } else {
                 // Unknown request type
-                debug!("Requête inconnue de {}:\n{}", peer_addr, header);
+                debug!("Requête inconnue de {}:\n{}", peer_addr, header_peek);
                 let _ = stream.write_all(b"HTTP/1.1 400 Bad Request\r\n\r\n").await;
             }
         });    }
