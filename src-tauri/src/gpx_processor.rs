@@ -476,7 +476,7 @@ pub fn commit_new_circuit(
     let settings: serde_json::Value =
         serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    tracking_processor::generate_tracking_file(
+    let total_tracking_points = tracking_processor::generate_tracking_file(
         &app_env_path,
         &new_circuit_id,
         &draft.track_points,
@@ -544,6 +544,109 @@ pub fn commit_new_circuit(
         events_file.range_events.extend(generated_dm_events);
         event::write_events(app_handle, &new_circuit_id, &events_file)?;
     }
+
+    // --- Start of new code for auto-add Start/Arrival messages ---
+    let afficher_depart = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.afficherDepart",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(true);
+
+    let afficher_arrivee = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.afficherArrivee",
+    )
+    .and_then(|v| v.as_bool())
+    .unwrap_or(true);
+
+    if afficher_depart || afficher_arrivee {
+        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+
+        if afficher_depart {
+             let message_depart = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.messageDepart",
+            )
+            .and_then(|v| v.as_str())
+            .unwrap_or("_Départ_green")
+            .to_string();
+
+            let orientation_depart_droite = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.orientationDepartDroite",
+            )
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+             let post_affichage_depart = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.postAffichageDepart",
+            )
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10) as u32;
+
+            if let Some(first_point) = draft.track_points.first() {
+                 let start_event = event::RangeEventData {
+                    event_id: uuid::Uuid::new_v4().to_string(),
+                    message_id: Some(message_depart),
+                    message: None,
+                    anchor_increment: 0,
+                    start_increment: 0,
+                    end_increment: post_affichage_depart, // 0 + post
+                    coord: first_point.clone(),
+                    orientation: if orientation_depart_droite { "Droite".to_string() } else { "Gauche".to_string() },
+                    metadata: None,
+                };
+                events_file.range_events.push(start_event);
+            }
+        }
+
+        if afficher_arrivee {
+            let message_arrivee = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.messageArrivee",
+            )
+            .and_then(|v| v.as_str())
+            .unwrap_or("_Arrivée_red")
+            .to_string();
+
+            let orientation_arrivee_droite = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.orientationArriveeDroite",
+            )
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+             let pre_affichage_arrivee = super::get_setting_value(
+                &settings,
+                "data.groupes.Importation.groupes.Label Départ Arrivée.parametres.preAffichageArrivee",
+            )
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10) as u32;
+
+            if let Some(last_point) = draft.track_points.last() {
+                let last_idx = (total_tracking_points - 1) as u32;
+                let start_idx = last_idx.saturating_sub(pre_affichage_arrivee);
+
+                 let end_event = event::RangeEventData {
+                    event_id: uuid::Uuid::new_v4().to_string(),
+                    message_id: Some(message_arrivee),
+                    message: None,
+                    anchor_increment: last_idx,
+                    start_increment: start_idx,
+                    end_increment: last_idx,
+                    coord: last_point.clone(),
+                    orientation: if orientation_arrivee_droite { "Droite".to_string() } else { "Gauche".to_string() },
+                    metadata: None,
+                };
+                 events_file.range_events.push(end_event);
+            }
+        }
+
+        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+    }
+    // --- End of new code for auto-add Start/Arrival messages ---
 
     // --- Start of new code for auto-deleting GPX file ---
     let auto_delete = get_setting_value(

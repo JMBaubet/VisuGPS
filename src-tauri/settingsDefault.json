@@ -331,6 +331,79 @@
                 "doc": "docs/DocParametrage/Importation/QRCode/taille.md"
               }
             ]
+          },
+          {
+            "libelle": "Label Départ Arrivée",
+            "parametres": [
+              {
+                "identifiant": "afficherDepart",
+                "libelle": "Afficher le départ",
+                "description": "Indique si un message de départ doit être ajouté automatiquement au début du circuit.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/afficherDepart.md"
+              },
+              {
+                "identifiant": "messageDepart",
+                "libelle": "Message départ",
+                "description": "Identifiant du message à afficher au départ.",
+                "type": "message",
+                "defaut": "_Départ_green",
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/messageDepart.md"
+              },
+              {
+                "identifiant": "orientationDepartDroite",
+                "libelle": "Orientation départ à droite",
+                "description": "Orientation du message de départ (true pour Droite, false pour Gauche).",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/orientationDepartDroite.md"
+              },
+              {
+                "identifiant": "postAffichageDepart",
+                "libelle": "Post affichage départ",
+                "description": "Durée d'affichage après le départ (en incréments).",
+                "type": "entier",
+                "defaut": 10,
+                "min": 1,
+                "max": 20,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/postAffichageDepart.md"
+              },
+              {
+                "identifiant": "afficherArrivee",
+                "libelle": "Afficher l'arrivée",
+                "description": "Indique si un message d'arrivée doit être ajouté automatiquement à la fin du circuit.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/afficherArrivee.md"
+              },
+              {
+                "identifiant": "messageArrivee",
+                "libelle": "Message arrivée",
+                "description": "Identifiant du message à afficher à l'arrivée.",
+                "type": "message",
+                "defaut": "_Arrivée_red",
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/messageArrivee.md"
+              },
+              {
+                "identifiant": "orientationArriveeDroite",
+                "libelle": "Orientation arrivée à droite",
+                "description": "Orientation du message d'arrivée (true pour Droite, false pour Gauche).",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/orientationArriveeDroite.md"
+              },
+              {
+                "identifiant": "preAffichageArrivee",
+                "libelle": "Pré affichage arrivée",
+                "description": "Durée d'affichage avant l'arrivée (en incréments).",
+                "type": "entier",
+                "defaut": 10,
+                "min": 1,
+                "max": 20,
+                "doc": "docs/DocParametrage/Importation/LabelDepartArrivee/preAffichageArrivee.md"
+              }
+            ]
           }
         ],
         "parametres": [

@@ -42,6 +42,18 @@
             <v-avatar v-if="param.type === 'couleur'" :color="param.surcharge || param.defaut" size="24"></v-avatar>
             <v-chip v-else-if="param.type === 'entier' || param.type === 'reel' || param.type === 'list' || param.type === 'monitor'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
             <v-chip v-else-if="param.type === 'directory'" size="small" class="text-truncate" style="max-width: 200px;">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
+            <div v-else-if="param.type === 'message' && getMessage(param.surcharge || param.defaut)"
+                 :style="{
+                    backgroundColor: toHex(getMessage(param.surcharge || param.defaut).style.backgroundColor),
+                    color: getContrastColor(getMessage(param.surcharge || param.defaut).style.backgroundColor),
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    display: 'inline-block'
+                 }">
+              {{ getMessage(param.surcharge || param.defaut).text }}
+            </div>
+            <v-chip v-else-if="param.type === 'message'" size="small" color="grey">Inconnu ({{ param.surcharge || param.defaut }})</v-chip>
             <v-chip v-else-if="param.type === 'secret'" size="small">******</v-chip>
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
@@ -140,6 +152,15 @@
       @update:show="isDirectoryDialogVisible = $event"
     />
 
+    <!-- Composant de dialogue pour les messages -->
+    <EditMessageDialog
+      v-if="selectedParameter && selectedParameter.type === 'message'"
+      :show="isMessageDialogVisible"
+      :parameter="selectedParameter"
+      :group-path="fullPath"
+      @update:show="isMessageDialogVisible = $event"
+    />
+
     <!-- Composant de dialogue pour la documentation -->
     <v-dialog v-model="isDocDialogVisible" max-width="800px">
       <DocDisplay 
@@ -164,9 +185,15 @@ import EditSecretDialog from './EditSecretDialog.vue';
 import EditListDialog from './EditListDialog.vue';
 import EditMonitorDialog from './EditMonitorDialog.vue';
 import EditDirectoryDialog from './EditDirectoryDialog.vue';
+import EditMessageDialog from './EditMessageDialog.vue'; // Changed from MessageLibraryModal
 import DocDisplay from './DocDisplay.vue';
+import { useMessages } from '@/composables/useMessages'; // Import useMessages
 
 const { updateSetting } = useSettings();
+const { getMessage, toHex, getContrastColor, fetchMessages } = useMessages();
+
+// Fetch messages on mount so they are available for display
+fetchMessages();
 
 const props = defineProps({
   node: {
@@ -189,6 +216,7 @@ const isSecretDialogVisible = ref(false);
 const isListDialogVisible = ref(false);
 const isMonitorDialogVisible = ref(false);
 const isDirectoryDialogVisible = ref(false);
+const isMessageDialogVisible = ref(false);
 const isDocDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
@@ -214,8 +242,11 @@ const openEditDialog = async (param) => {
     isMonitorDialogVisible.value = true;
   } else if (param.type === 'directory') {
     isDirectoryDialogVisible.value = true;
+  } else if (param.type === 'message') {
+    isMessageDialogVisible.value = true;
   }
 };
+
 
 const openDocDialog = (param) => {
   selectedParameter.value = param;

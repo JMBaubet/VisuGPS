@@ -99,8 +99,9 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import MessageEditDialog from './MessageEditDialog.vue';
-import ConfirmationDialog from './ConfirmationDialog.vue'; // Assuming this component exists
-import { useVuetifyColors } from '@/composables/useVuetifyColors'; // Import added
+import ConfirmationDialog from './ConfirmationDialog.vue';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { useMessages } from '@/composables/useMessages'; // Import useMessages
 
 const props = defineProps({
   modelValue: Boolean,
@@ -109,7 +110,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select-message']);
 
 const dialog = ref(props.modelValue);
-const messages = ref([]);
+// const messages = ref([]); // Removed local state
 const loading = ref(false);
 const editDialog = ref(false);
 const deleteDialog = ref(false);
@@ -117,37 +118,33 @@ const selectedMessage = ref(null);
 const filterText = ref('');
 
 const isDevMode = computed(() => import.meta.env.DEV);
-const { toHex, getContrastColor } = useVuetifyColors(); // Destructure color utilities
+const { toHex, getContrastColor } = useVuetifyColors();
+const { messages, refreshMessages } = useMessages(); // Use shared state
 
 const getTextForSorting = (text) => {
   const firstLetterMatch = text.match(/\p{L}/u);
   if (firstLetterMatch) {
     return text.substring(firstLetterMatch.index);
   }
-  return text; // Fallback to original text if no letters are found
+  return text;
 };
 
 const filteredMessages = computed(() => {
-  if (!filterText.value) {
-    return messages.value;
+  let msgs = messages.value; // Use shared messages
+  if (filterText.value) {
+    msgs = msgs.filter(message =>
+      getTextForSorting(message.text).toLowerCase().includes(filterText.value.toLowerCase())
+    );
   }
-  return messages.value.filter(message =>
-    getTextForSorting(message.text).toLowerCase().includes(filterText.value.toLowerCase())
+  return msgs.slice().sort((a, b) =>
+      getTextForSorting(a.text).localeCompare(getTextForSorting(b.text))
   );
 });
 
-const fetchMessages = async () => {
+const fetchMessagesLocal = async () => {
   loading.value = true;
-  try {
-    const fetchedMessages = await invoke('get_message_library');
-    messages.value = fetchedMessages.sort((a, b) =>
-      getTextForSorting(a.text).localeCompare(getTextForSorting(b.text))
-    );
-  } catch (error) {
-    console.error("Erreur lors de la récupération de la bibliothèque de messages:", error);
-  } finally {
-    loading.value = false;
-  }
+  await refreshMessages();
+  loading.value = false;
 };
 
 const openNewMessageDialog = () => {
@@ -170,7 +167,7 @@ const saveMessage = async ({ message, target }) => {
     // Convert 'Utilisateur'/'Production' back to 'user'/'default' for backend
     const backendTarget = target === 'Utilisateur' ? 'user' : 'default';
     await invoke('save_message', { newMessage: message, target: backendTarget });
-    fetchMessages(); // Refresh the list
+    fetchMessagesLocal(); // Refresh shared state
   } catch (error) {
     console.error("Erreur lors de la sauvegarde du message:", error);
   }
@@ -180,7 +177,7 @@ const deleteMessage = async () => {
   if (!selectedMessage.value) return;
   try {
     await invoke('delete_message', { id: selectedMessage.value.id, target: selectedMessage.value.source });
-    fetchMessages(); // Refresh the list
+    fetchMessagesLocal(); // Refresh shared state
   } catch (error) {
     console.error("Erreur lors de la suppression du message:", error);
   }
@@ -190,7 +187,7 @@ const deleteMessage = async () => {
 watch(() => props.modelValue, (newVal) => {
   dialog.value = newVal;
   if (newVal) {
-    fetchMessages();
+    fetchMessagesLocal();
   }
 });
 

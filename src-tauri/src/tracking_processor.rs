@@ -31,7 +31,7 @@ pub fn generate_tracking_file(
     circuit_id: &str,
     track_points: &Vec<Vec<f64>>,
     settings: &serde_json::Value,
-) -> Result<(), String> {
+) -> Result<usize, String> {
     let segment_length = super::get_setting_value(settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
         .and_then(|v| v.as_f64())
         .unwrap_or(100.0);
@@ -115,7 +115,7 @@ pub fn generate_tracking_file(
     let tracking_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
     fs::write(&tracking_path, tracking_content).map_err(|e| e.to_string())?; 
 
-    Ok(())
+    Ok(tracking_points.len())
 }
 
 fn interpolate_altitude(point: &Point<f64>, track_points: &Vec<Vec<f64>>) -> f64 {

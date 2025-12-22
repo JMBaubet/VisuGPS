@@ -78,5 +78,13 @@
       "backgroundColor": "blue",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Test_nouveau_message_blue",
+    "text": "😎 Test nouveau message",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
   }
 ]
