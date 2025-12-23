@@ -33,6 +33,7 @@ La bibliothèque contient deux types de messages :
 2.  Saisissez le **Texte** de votre message.
 3.  Choisissez une **Couleur de fond** parmi la palette Material Design proposée.
     > [!TIP]
+    >
     > VisuGPS adapte automatiquement la couleur du texte (Noir ou Blanc) en fonction de la couleur de fond choisie pour garantir une lisibilité maximale (contraste).
 4.  **Emojis** : Vous pouvez intégrer des emojis dans vos textes (ex: `:mountain:`, `:bike:`). Cliquez sur le bouton <span style="color: #2196F3">Aide Emojis</span> <img src="https://api.iconify.design/mdi/emoticon-outline.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour ouvrir une page d'aide listant les codes disponibles.
 5.  Cliquez sur **Sauvegarder**.

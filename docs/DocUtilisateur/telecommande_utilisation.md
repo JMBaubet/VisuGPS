@@ -14,6 +14,8 @@ Pour éviter que votre téléphone ne se mette en veille pendant que vous contr�
 *   <span style="display: inline-block; background-color: #198754; color: white; border: 2px solid white; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; margin: 2px;">💡 Maintenir l'écran : ON</span> (Bouton vert) : **L'écran restera allumé en permanence** tant que la page de la télécommande est ouverte. 
 
 > [!TIP]
+>
+>
 > Il est recommandé d'activer cette option dès la connexion pour une expérience de contrôle fluide sans interruption.
 
 ---

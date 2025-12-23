@@ -10,7 +10,10 @@ Lorsque vous avez importé un fichier GPX, vous pouvez cliquer sur l'icône <img
 
 Le processus se déroule en plusieurs passes pour optimiser la performance et respecter les limites des API externes. On commence par mettre à jour le nom de communes, tous les 1600m, puis tous les 800m, puis tous les 400m, etc.
 
-> **Note** : Ce processus peut prendre plusieurs dizaines de minutes en fonction de la longueur de la trace. Il s'exécute intégralement en **tâche de fond**, ce qui signifie que vous pouvez continuer à utiliser l'application normalement sans interférence.
+> [!NOTE]
+>
+>
+> Ce processus peut prendre plusieurs dizaines de minutes en fonction de la longueur de la trace. Il s'exécute intégralement en **tâche de fond**, ce qui signifie que vous pouvez continuer à utiliser l'application normalement sans interférence.
 
 ### Indicateur d'Avancement
 L'icône <img src="https://api.iconify.design/mdi/city-variant.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> change de couleur pour indiquer le taux de complétion :
@@ -43,7 +46,10 @@ Cette barre contient deux interrupteurs permettant d'activer ou désactiver les 
 *   **Switch Mapbox** : Permet de couper l'interrogation de Mapbox si :
     * Vous observez des lenteurs.
 
-> **Note** : Si vous coupez les deux sources, la mise à jour s'appuiera uniquement sur les données OpenStreetMap (plus lentes et moins précises).
+> [!NOTE]
+>
+>
+> Si vous coupez les deux sources, la mise à jour s'appuiera uniquement sur les données OpenStreetMap (plus lentes et moins précises).
 
 VisuGPS utilise plusieurs services en cascade pour garantir le meilleur résultat :
 

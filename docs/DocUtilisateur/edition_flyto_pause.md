@@ -14,6 +14,8 @@ Situé dans le panneau de contrôle inférieur, cet onglet regroupe tout ce qui 
 ### 1. Mode de Synchronisation
 Comme pour la caméra, vous disposez du sélecteur <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">FIXE</span> / <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">ANIMÉE</span>. 
 > [!TIP]
+>
+>
 > Utilisez le mode **FIXE** pour préparer tranquillement la cible de votre survol (POI) ou ajuster la vue d'une pause sans que le mouvement automatique ne vous déplace.
 
 ### 2. Durée du survol
@@ -44,6 +46,7 @@ Le Survol est un "décrochage" spectaculaire : la caméra quitte la trace pour a
 1.  Positionnez-vous à l'emplacement de déclenchement sur la trace.
 2.  **Ciblage** : Déplacez la carte (**clic gauche**) pour placer le point d'intérêt (sommet, lac, village) précisément au centre de votre écran.
     > [!TIP]
+    >
     > Lorsque vous effectuez le ciblage avec un **clic gauche**, la vue bascule automatiquement en **vue 2D** (vue de dessus) pour vous permettre de positionner le centre de la vue avec une précision extrême. Une fois le point sélectionné ou la manipulation terminée, la vue revient d'elle-même en **3D**.
 3.  Ajustez les paramètres cinématographiques :
     *   **Cap** : L'angle sous lequel vous regardez la cible. (**clic droit**)

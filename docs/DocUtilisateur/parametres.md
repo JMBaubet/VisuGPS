@@ -1,6 +1,9 @@
 # Configuration de VisuGPS
 
 > [!IMPORTANT]
+>
+>
+> 
 > Avant de modifier vos réglages, nous vous recommandons de lire l'**[Introduction à la gestion des paramètres](./introduction_parametres.md)** pour comprendre la symbolique des icônes et les précautions à prendre avec les réglages critiques, identifiés par l'icône ⚠️.
 
 Ce document répertorie l'ensemble des paramètres de configuration de l'application, organisés selon l'arborescence officielle. Chaque paramètre est lié à sa documentation détaillée.

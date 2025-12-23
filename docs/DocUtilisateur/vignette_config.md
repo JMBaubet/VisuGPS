@@ -7,7 +7,10 @@ VisuGPS génère automatiquement des images miniatures (vignettes) pour chaque c
 ## Accès aux Paramètres
 Ces réglages sont accessibles dans le menu **Paramètres > Importation > Vignette**.
 
-> **Note** : Les modifications de ces paramètres s'appliqueront uniquement aux **nouvelles importations** de circuits. Pour modifier la vignette d'un circuit existant, vous devez le supprimer et le réimporter.
+> [!NOTE]
+>
+>
+> Les modifications de ces paramètres s'appliqueront uniquement aux **nouvelles importations** de circuits. Pour modifier la vignette d'un circuit existant, vous devez le supprimer et le réimporter.
 
 ## Vignette
 
@@ -41,7 +44,9 @@ Ces indicateurs permettent de visualiser le sens de parcours, ce qui est particu
     *   *Exemple : Tous les 10 km.*
 *   **<span style="color: #2196F3">Couleur des marqueurs de distance</span>** : Couleur de base des pastilles.
 
-> **Note - Limitations techniques** :
+> [!NOTE]
+>
+>
 > * Sur la vignette, chaque marqueur est limité à **un seul caractère** (ex: 1, 2, ... 9, 0). Pour les parcours de plus de 100 km (par défaut), la saturation de la couleur change tous les 10 marqueurs (du plus clair au plus foncé) pour permettre de différencier les dizaines.
 
 ### DepartArrivee

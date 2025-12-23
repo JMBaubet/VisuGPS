@@ -8,6 +8,8 @@ Ce guide explique comment utiliser l'interface pour créer, modifier et supprime
 La création d'un point de vue repose sur le réglage de trois paramètres. Pour garantir une stabilité visuelle, **privilégiez l'ajustement du Cap** et ne modifiez le Zoom et le Pitch que lorsque c'est réellement nécessaire.
 
 > [!TIP]
+>
+>
 > Dans l'indicateur situé en haut à droite de l'écran (Paramètres de Caméra), les valeurs de **Zoom** et de **Pitch** s'affichent en **<span style="color: #4CAF50">vert</span>** lorsqu'elles correspondent aux réglages par défaut du logiciel. 
 Cela vous aide à repérer visuellement les moments où vous n'utilisez pas ces valeurs par défaut qui doivent être privilégiées.
 
@@ -48,6 +50,8 @@ Une demande de confirmation vous sera demandée.
 Le point clé disparait du graphe.
 
 > [!TIP]
+>
+>
 > **Priorité au Cap** : Dans la majorité des cas, vous n'aurez qu'à ajuster le **Cap** pour suivre la route. Ne modifiez le **Zoom** et le **Pitch** que pour des moments particuliers (survol d'un sommet, zoom sur un détail), afin de garder une stabilité visuelle globale.
 
 ---

@@ -22,7 +22,10 @@ Lorsque vous supprimez un circuit dans VisuGPS, voici ce qui se passe techniquem
 *   **Fichiers de configuration** : Les fichiers JSON générés pour ce circuit (paramètres de caméra, évènements, etc.) sont supprimés du dossier de stockage de l'application.
 *   **Vignette** : L'image miniature générée est supprimée.
 
-> **Note** : Le fichier GPX original sur votre ordinateur n'est jamais impacté par cette suppression. Seules les données importées et les configurations créées dans VisuGPS sont effacées.
+> [!NOTE]
+>
+>
+> Le fichier GPX original sur votre ordinateur n'est jamais impacté par cette suppression. Seules les données importées et les configurations créées dans VisuGPS sont effacées.
 
 ---
 [< Retour à l'accueil](./index.md)

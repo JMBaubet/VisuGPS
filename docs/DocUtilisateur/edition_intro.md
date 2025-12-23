@@ -37,6 +37,8 @@ Voici comment vous déplacer le long de votre trace :
 *   **Maj (Shift) + Flèches** : Déplacement rapide (Incrément de 1 km par défaut).
 
 > [!NOTE]
+>
+>
 > Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [Paramètres](./parametres.md).
 
 ### Via les Graphes

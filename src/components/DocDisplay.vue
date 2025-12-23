@@ -1,6 +1,9 @@
 <template>
-  <v-card :class="theme.global.current.value.dark ? 'theme-dark' : 'theme-light'">
-    <v-card-title class="d-flex justify-space-between align-center">
+  <v-card 
+    :class="[theme.global.current.value.dark ? 'theme-dark' : 'theme-light', 'd-flex flex-column']" 
+    style="height: 90vh; max-height: 90vh; overflow: hidden !important;"
+  >
+    <v-card-title class="doc-header d-flex justify-space-between align-center flex-none">
       <div class="d-flex align-center">
         <v-btn
           icon
@@ -41,11 +44,13 @@
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-card-title>
-    <v-card-text>
+    
+    <!-- Zone de scroll séparée pour éviter les glitchs sur la toolbar -->
+    <div class="flex-grow-1 overflow-y-auto pa-4" ref="scrollContainer">
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
       <div v-else v-html="compiledMarkdown" class="markdown-body" @click="handleLinkClick" ref="contentRef"></div>
-    </v-card-text>
+    </div>
   </v-card>
 </template>
 
@@ -166,7 +171,7 @@ md.renderer.rules.image = function (tokens, idx, options, env, self) {
         // En dev, on assume que les images sont servies depuis /docs/ si elles sont référencées dans la doc
         // Mais attention, "resolvePath" donne un chemin absolu par rapport à la racine "docs" du backend
         // Pour l'affichage frontend (<img>), il faut un chemin accessible par le navigateur.
-        // Si on est en dev, `npm run tauri dev` sert le dossier `public` à la racine.
+        // Si on est en dev, `npm run tauri dev` serv le dossier `public` à la racine.
         // Mes docs sont dans /docs/...
         
         let resolved = resolvePath(currentDocPath.value, src);
@@ -195,11 +200,33 @@ function normalizePaths(markdown) {
   });
 }
 
-const compiledMarkdown = computed(() =>
-  md.render(normalizePaths(markdownContent.value))
-);
+const compiledMarkdown = computed(() => {
+  let html = md.render(normalizePaths(markdownContent.value));
+  
+  // Post-traitement pour transformer les blockquotes commençant par [!TYPE] en alertes stylisées
+  html = html.replace(/<blockquote>\s*<p>\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(?:<br>)?/gi, (match, type) => {
+    const lowerType = type.toLowerCase();
+    let displayTitle = type;
+    
+    // Traduction en français pour l'affichage
+    switch(lowerType) {
+      case 'note': displayTitle = 'Note'; break;
+      case 'tip': displayTitle = 'Astuce'; break;
+      case 'important': displayTitle = 'Important'; break;
+      case 'warning': displayTitle = 'Attention'; break;
+      case 'caution': displayTitle = 'Prudence'; break;
+    }
+    
+    return `<blockquote class="markdown-alert markdown-alert-${lowerType}">
+              <p class="markdown-alert-title">
+                <span class="alert-icon-wrapper">${displayTitle}</span>
+              </p>`;
+  });
+  
+  return html;
+});
 
-async function fetchDocumentation(path, isHistoryAction = false) {
+async function fetchDocumentation(path, isHistoryAction = false, anchor = null) {
   loading.value = true;
   error.value = null;
   markdownContent.value = '';
@@ -228,6 +255,67 @@ async function fetchDocumentation(path, isHistoryAction = false) {
     error.value = e;
   } finally {
     loading.value = false;
+    
+    // On attend que Vue et le DOM soient prêts après loading = false
+    if (anchor) {
+      setTimeout(() => {
+        scrollToAnchor(anchor);
+      }, 300); // 300ms pour laisser le temps au rendu complexe et aux images
+    } else {
+      // Remonter en haut si pas d'ancre
+      nextTick(() => {
+        if (scrollContainer.value) scrollContainer.value.scrollTop = 0;
+      });
+    }
+  }
+}
+
+function scrollToAnchor(anchorName) {
+  if (!scrollContainer.value || !contentRef.value) return;
+  
+  const decodedAnchor = decodeURIComponent(anchorName).toLowerCase().replace(/^#/, '');
+  console.log(`Searching for anchor: ${decodedAnchor}`);
+
+  // 1. Recherche par ID
+  let element = document.getElementById(decodedAnchor);
+  
+  if (!element) {
+    // 2. Recherche par texte de titre ou slug
+    const headers = contentRef.value.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    
+    // On essaie plusieurs stratégies de matching
+    for (const h of headers) {
+      const text = h.innerText.toLowerCase().trim();
+      
+      // Stratégie A : Slugification standard (on retire tout sauf alphanum et tirets)
+      const slug = text
+        .replace(/[^\w\s-à-ÿ]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+      
+      // Stratégie B : Nettoyage radical (chiffres et lettres seulement) pour les chapitres comme "5.3."
+      const cleanText = text.replace(/[^\wà-ÿ]/g, '');
+      const cleanAnchor = decodedAnchor.replace(/[^\wà-ÿ]/g, '');
+
+      if (slug === decodedAnchor || 
+          slug.includes(decodedAnchor) || 
+          (cleanAnchor.length > 2 && cleanText.includes(cleanAnchor)) ||
+          text.includes(decodedAnchor)) {
+        element = h;
+        break;
+      }
+    }
+  }
+
+  if (element) {
+    console.log('Element found, scrolling to offsetTop:', element.offsetTop);
+    scrollContainer.value.scrollTo({
+      top: element.offsetTop - 20,
+      behavior: 'smooth'
+    });
+  } else {
+    console.warn(`Anchor not found: ${decodedAnchor}`);
+    scrollContainer.value.scrollTop = 0;
   }
 }
 
@@ -238,6 +326,8 @@ async function fetchDocumentation(path, isHistoryAction = false) {
     const hrefAttribute = target.getAttribute('href'); 
     console.log('Link clicked:', { href: target.href, attribute: hrefAttribute });
 
+    if (!hrefAttribute) return;
+
     // Handle external links
     if (hrefAttribute.startsWith('http')) {
       event.preventDefault();
@@ -246,16 +336,25 @@ async function fetchDocumentation(path, isHistoryAction = false) {
       return;
     }
 
-    // Handle internal markdown links
-    if (hrefAttribute.endsWith('.md')) {
+    // Handle internal markdown links (with or without anchor)
+    if (hrefAttribute.includes('.md')) {
       console.log('Intercepting markdown link:', hrefAttribute);
       event.preventDefault();
       event.stopPropagation();
-      event.stopImmediatePropagation();
       
-      const resolved = resolvePath(currentDocPath.value, hrefAttribute);
-      console.log(`Navigating to doc: ${resolved}`);
-      fetchDocumentation(resolved);
+      const [path, anchor] = hrefAttribute.split('#');
+      const resolved = resolvePath(currentDocPath.value, path);
+      console.log(`Navigating to doc: ${resolved}${anchor ? ' #'+anchor : ''}`);
+      fetchDocumentation(resolved, false, anchor);
+      return;
+    }
+
+    // Handle scroll to anchor in the SAME document
+    if (hrefAttribute.startsWith('#')) {
+      event.preventDefault();
+      event.stopPropagation();
+      const anchor = hrefAttribute.substring(1);
+      scrollToAnchor(anchor);
       return;
     }
   };
@@ -265,6 +364,7 @@ watch(() => props.docPath, (newPath) => {
 }, { immediate: true });
 
 const contentRef = ref(null);
+const scrollContainer = ref(null);
 
 const handleGlobalWheel = (event) => {
   // If we have content and the mouse is NOT over the content (to avoid double scroll)
@@ -295,8 +395,30 @@ onUnmounted(() => {
 .markdown-body {
   line-height: 1.6;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  height: 90vh; /* Hauteur fixe pour permettre le scroll */
-  overflow-y: auto; /* Scroll interne */
+  position: relative; /* ✅ Nécessaire pour que offsetTop soit relatif à ce conteneur */
+}
+
+/* Fix header colors to prevent transparency glitches */
+.doc-header {
+  flex: 0 0 auto; /* ✅ Fixe la hauteur */
+  z-index: 10;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+.theme-light.v-card {
+  background-color: #ffffff !important;
+}
+.theme-dark.v-card {
+  background-color: #121212 !important;
+}
+
+.theme-light .doc-header {
+  background-color: #ffffff !important; /* ✅ Blanc pur, pas de transparence */
+  color: #000000 !important;
+}
+.theme-dark .doc-header {
+  background-color: #1e1e1e !important; /* ✅ Gris foncé pur */
+  color: #ffffff !important;
 }
 
 /* Titres */
@@ -454,5 +576,60 @@ onUnmounted(() => {
 .theme-dark .markdown-body img[src*="api.iconify.design"]:not([src*="color="]) {
   filter: invert(1);
 }
+
+/* --- GitHub-style Alerts (Callouts) --- */
+.markdown-body .markdown-alert {
+  padding: 8px 16px;
+  margin-bottom: 16px;
+  border-left: 0.25em solid;
+  border-radius: 0 6px 6px 0;
+}
+
+.markdown-body .markdown-alert-title {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+/* Types d'alertes */
+.markdown-body .markdown-alert-note {
+  border-left-color: #2196F3;
+  background-color: rgba(33, 150, 243, 0.1);
+}
+.markdown-body .markdown-alert-note .markdown-alert-title { color: #2196F3; }
+
+.markdown-body .markdown-alert-tip {
+  border-left-color: #4CAF50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+.markdown-body .markdown-alert-tip .markdown-alert-title { color: #4CAF50; }
+
+.markdown-body .markdown-alert-important {
+  border-left-color: #7c4dff;
+  background-color: rgba(124, 77, 255, 0.1);
+}
+.markdown-body .markdown-alert-important .markdown-alert-title { color: #7c4dff; }
+
+.markdown-body .markdown-alert-warning {
+  border-left-color: #FF9800;
+  background-color: rgba(255, 152, 0, 0.1);
+}
+.markdown-body .markdown-alert-warning .markdown-alert-title { color: #FF9800; }
+
+.markdown-body .markdown-alert-caution {
+  border-left-color: #F44336;
+  background-color: rgba(244, 67, 54, 0.1);
+}
+.markdown-body .markdown-alert-caution .markdown-alert-title { color: #F44336; }
+
+/* Adaptation au mode sombre */
+.theme-dark .markdown-body .markdown-alert-note { background-color: rgba(33, 150, 243, 0.15); }
+.theme-dark .markdown-body .markdown-alert-tip { background-color: rgba(76, 175, 80, 0.15); }
+.theme-dark .markdown-body .markdown-alert-important { background-color: rgba(124, 77, 255, 0.15); }
+.theme-dark .markdown-body .markdown-alert-warning { background-color: rgba(255, 152, 0, 0.15); }
+.theme-dark .markdown-body .markdown-alert-caution { background-color: rgba(244, 67, 54, 0.15); }
 
 </style>

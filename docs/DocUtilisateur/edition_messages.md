@@ -21,6 +21,8 @@ Un double curseur permet de définir précisément quand le message apparaît et
 *   **Post-affichage** (Côté droit) : Distance après le passage du marqueur.
 
 > [!NOTE]
+>
+>
 > Par défaut, une unité (incrément) correspond à **100 m**. Si vous réglez le pré-affichage sur 5, le message apparaîtra 500 m avant le point précis.
 
 ### 3. Mise en page
@@ -31,12 +33,15 @@ Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de
 ## Créer et Gérer les Messages
 
 > [!NOTE]
+>
+>
 > Les messages peuvent être ancrés n'importe où sur la carte, que ce soit précisément sur votre trace ou sur un point d'intérêt situé à l'écart du parcours.
 
 ### Ajouter un message
 1.  **Position temporelle** : Placez le marqueur au kilomètre souhaité sur la trace.
 2.  **Ciblage de l'ancrage** : Déplacez la carte (**clic gauche**) pour placer l'endroit exact où la flèche du message doit pointer (ex: un sommet, une auberge) au centre de votre écran.
     > [!TIP]
+    >
     > Comme pour les survols, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale.
 3.  Sélectionnez votre message dans la bibliothèque.
 4.  Réglez l'orientation (**Gauche/Droite**) et la durée d'affichage.

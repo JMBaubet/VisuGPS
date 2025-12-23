@@ -5,6 +5,8 @@ Ce document détaille le paramètre `Port`, qui définit le numéro de port util
 ---
 
 > [!IMPORTANT]
+>
+>
 > **PARAMÈTRE CRITIQUE** : La modification du port du serveur interrompt immédiatement toute communication avec les télécommandes couplées. Vous devrez mettre à jour l'adresse de connexion sur vos appareils mobiles pour retrouver les contrôles.
 
 ---

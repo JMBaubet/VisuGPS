@@ -5,6 +5,8 @@ Ce document détaille le paramètre `denivele_lissage_distance`, qui définit la
 ---
 
 > [!IMPORTANT]
+>
+>
 > **PARAMÈTRE CRITIQUE** : Ce réglage influe directement sur l'intégrité des statistiques (distance, dénivelé positif) enregistrées dans votre base de données circuits. Une modification peut altérer significativement l'interprétation de vos performances sportives.
 
 ---

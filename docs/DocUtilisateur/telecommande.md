@@ -29,14 +29,20 @@ Une fois la connexion initiée depuis le mobile :
 Une fois connecté, l'icône de télécommande <img src="https://api.iconify.design/mdi/remote.svg?color=%234CAF50&width=24" style="vertical-align: middle;" /> dans la barre d'outils passe au vert.
 
 > [!NOTE]
+>
+>
 > Quand une télécommande est connectée, vous pouvez cliquer sur l'icône <img src="https://api.iconify.design/mdi/remote.svg?color=%234CAF50&width=24" style="vertical-align: middle;" />  pour déconnecter la télécommande. Confirmez ce choix en cliquant sur <span style="background-color: #2196F3; color: white; padding: 2px 5px; border-radius: 14px;"> Déconnecter </span>. 
 Une demande de couplage sera de nouveau effectuée si nécessaire.
 
 > [!WARNING]
-> **Attention** : Si vous cliquez sur **<span style="color: red">REFUSER</span>**, l'appareil sera **définitivement banni**. 
+>
+>
+> Si vous cliquez sur **<span style="color: red">REFUSER</span>**, l'appareil sera **définitivement banni**. 
 L'objectif est de vous protéger contre des utilisateurs malveillants qui tenteraient de prendre le contrôle de votre présentation.
 
 > [!NOTE]
+>
+>
 > Ce couplage initial est mémorisé : vous n'aurez plus besoin de le refaire pour cet appareil lors des prochaines utilisations.
 
 ## Fonctionnalités

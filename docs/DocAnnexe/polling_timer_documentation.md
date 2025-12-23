@@ -1,6 +1,8 @@
 # Le Timer dans le Polling Réseau
 
 > [!IMPORTANT]
+>
+>
 > **PARAMÈTRE CRITIQUE** : Un intervalle trop court peut surcharger votre processeur et être interprété comme une activité abusive par les services tiers. À l'inverse, un intervalle trop long rendra la télécommande peu réactive.
 
 ---
