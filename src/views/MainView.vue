@@ -1,8 +1,7 @@
 <template>
   <v-container fluid class="fill-height d-flex flex-column pa-0">
     <AppMainBar 
-      @open-gpx-import-dialog="openGpxImport" 
-      @open-circuit-import-dialog="openCircuitImport"
+      @open-import-dialog="openImport" 
       @circuit-imported="handleImported"
     />
 
@@ -37,8 +36,10 @@
 
     <ImportDialog
       v-model="showImportDialog"
+      v-model:type="importConfig.type"
       :extensions="importConfig.extensions"
       :title="importConfig.title"
+      show-type-switch
       @select="handleImportSelection"
     />
     <TraceurSelectionDialog ref="traceurDialog" />
@@ -188,17 +189,10 @@ async function loadFilterData() {
   }
 }
 
-function openGpxImport() {
-  importConfig.extensions = ['gpx'];
-  importConfig.title = 'Importer un fichier GPX';
+function openImport() {
+  importConfig.extensions = ['gpx']; // Default, but ImportDialog will handle it with the switch
+  importConfig.title = 'Importer un fichier';
   importConfig.type = 'gpx';
-  showImportDialog.value = true;
-}
-
-function openCircuitImport() {
-  importConfig.extensions = ['vgps'];
-  importConfig.title = 'Importer un circuit (.vgps)';
-  importConfig.type = 'vgps';
   showImportDialog.value = true;
 }
 

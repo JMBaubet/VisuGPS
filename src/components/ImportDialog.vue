@@ -1,12 +1,24 @@
 <template>
   <v-dialog v-model="dialog" max-width="800px" @click:outside="close" @keydown.esc="close">
-    <v-card>
-      <v-card-title class="d-flex justify-space-between align-center">
+    <v-card height="80vh" class="d-flex flex-column">
+      <v-card-title class="d-flex align-center">
         <span>{{ title }}</span>
+        <div v-if="showTypeSwitch" class="d-flex align-center ml-4 mt-1">
+            <span class="text-caption mr-2">GPX</span>
+            <v-switch
+                v-model="isVgps"
+                hide-details
+                density="compact"
+                color="primary"
+                flat
+            ></v-switch>
+            <span class="text-caption ml-2">VGPS</span>
+        </div>
+        <v-spacer></v-spacer>
         <v-btn icon="mdi-close" variant="text" @click="close"></v-btn>
       </v-card-title>
       
-      <v-card-text>
+      <v-card-text class="d-flex flex-column flex-grow-1 overflow-hidden">
         <!-- Path Navigation / Breadcrumbs could go here if needed, but path display is enough -->
         <div class="d-flex align-center mb-2 text-caption text-grey">
             <v-icon icon="mdi-folder-open" size="small" class="mr-2"></v-icon>
@@ -26,7 +38,7 @@
 
         <div v-if="error" class="text-error mb-2">{{ error }}</div>
 
-        <v-list density="compact" class="border rounded" style="max-height: 400px; overflow-y: auto;">
+        <v-list density="compact" class="border rounded flex-grow-1 overflow-y-auto">
             <!-- Go Up Directory -->
             <v-list-item
                 v-if="canGoUp"
@@ -77,12 +89,35 @@ const props = defineProps({
   extensions: {
       type: Array,
       default: () => [] 
+  },
+  showTypeSwitch: {
+      type: Boolean,
+      default: false
+  },
+  type: {
+      type: String,
+      default: 'gpx'
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'select']);
+const emit = defineEmits(['update:modelValue', 'update:type', 'select']);
 
 const dialog = ref(props.modelValue);
+const isVgps = ref(props.type === 'vgps');
+
+// Synchronize isVgps with type prop
+watch(() => props.type, (newType) => {
+    isVgps.value = newType === 'vgps';
+});
+
+// Emit type change when switch is toggled
+watch(isVgps, (val) => {
+    const newType = val ? 'vgps' : 'gpx';
+    emit('update:type', newType);
+    // Reload directory with new extensions
+    loadDirectory('DEFAULT_IMPORT');
+});
+
 const currentPath = ref('');
 const items = ref([]);
 const loading = ref(false);
@@ -102,6 +137,13 @@ const canGoUp = computed(() => {
     // Actually backend doesn't return ".." 
     // We can simulate it. 
     return currentPath.value && currentPath.value.length > 1; // Very rough check
+});
+
+const currentExtensions = computed(() => {
+    if (props.showTypeSwitch) {
+        return isVgps.value ? ['vgps'] : ['gpx'];
+    }
+    return props.extensions;
 });
 
 watch(() => props.modelValue, (newVal) => {
@@ -125,7 +167,7 @@ async function loadDirectory(path) {
     try {
         const result = await invoke('list_import_files', { 
             path: path,
-            extensions: props.extensions 
+            extensions: currentExtensions.value
         });
         currentPath.value = result.path;
         items.value = result.entries;

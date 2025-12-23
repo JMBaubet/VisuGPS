@@ -28,14 +28,9 @@
       </v-col>
 
       <v-col cols="12" md="4" class="d-flex justify-end align-center">
-        <!-- Import GPX Button -->
-        <v-btn icon @click="openGpxImportDialog" title="Importer un fichier GPX">
+        <!-- Import Button -->
+        <v-btn icon @click="openImportDialog" title="Importer un fichier (GPX ou VGPS)">
           <v-icon >mdi-file-import-outline</v-icon>
-        </v-btn>
-
-        <!-- Import Circuit Button -->
-        <v-btn icon @click="importCircuit" title="Importer un circuit (.vgps)">
-          <v-icon>mdi-import</v-icon>
         </v-btn>
 
         <!-- Settings Button -->
@@ -75,15 +70,11 @@ import { invoke } from '@tauri-apps/api/core';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { useSnackbar } from '../composables/useSnackbar';
 
-const emit = defineEmits(['open-gpx-import-dialog', 'open-circuit-import-dialog', 'circuit-imported']);
+const emit = defineEmits(['open-import-dialog', 'circuit-imported']);
 const { showSnackbar } = useSnackbar();
 
-function openGpxImportDialog() {
-  emit('open-gpx-import-dialog');
-}
-
-async function importCircuit() {
-  emit('open-circuit-import-dialog');
+function openImportDialog() {
+  emit('open-import-dialog');
 }
 
 const showHelpDialog = ref(false); // Added this line
