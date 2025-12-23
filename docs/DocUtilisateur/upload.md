@@ -38,7 +38,7 @@ Lors de l'importation d'une trace brute, VisuGPS calcule les indicateurs suivant
 *   **Dénivelé positif** : Cumul des gains d'altitude.
 *   **Point culminant** : Identification de l'altitude maximale.
 *   **Ville de départ** : Identification automatique de la commune de départ.
-*   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [Configuration des Vignettes](./vignette_config.md))
+*   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [2.1. Vignette](./parametres.md#21-vignette))
 
 Une fois l'importation terminée, votre circuit apparaît immédiatement dans la liste principale. Vous pouvez cliquer dessus pour consulter ses détails ou passer en mode édition.
 
