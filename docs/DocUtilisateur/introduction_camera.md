@@ -2,6 +2,9 @@
 
 Lors du chargement de votre fichier GPX, l'application effectue un premier calcul automatique pour positionner et orienter la caméra le long de la trace. Cependant, sur des parcours complexes — avec des changements de direction fréquents ou un relief marqué — l'automatisation seule peine à offrir une fluidité parfaite et un angle de vue toujours optimal.
 
+> [!NOTE]
+> En affichant les courbes calculées (notamment le Δ Cap), vous pouvez facilement identifier les zones où l'animation risque d'être saccadée. Les pics trop hauts indiquent des virages trop brusques de la vue. (voir [Le Graphe de Caméra](#le-graphe-de-caméra))
+
 Le but de l'édition de la caméra est de positionner, sur des points spécifiques, un point de vue qui va permettre d'obtenir une visualisation la plus fluide possible et de mettre en valeur les dénivelés et les courbes du relief, essentiels pour apprécier pleinement les parcours montagneux.
 
 En plaçant manuellement des **points clés**, vous créez un véritable scénario de vol cinématographique adapté à votre trace.
@@ -31,9 +34,12 @@ Deux onglets permettent de configurer des transitions automatiques de ces deux e
 
 Pour prendre en compte ces paramètres, vous devez cliquer sur le bouton <span style="background-color: rgba(33, 150, 243, 0.1); color: #2196F3; padding: 2px 10px; border-radius: 4px; font-size: 0.85em;">METTRE À JOUR LE ZOOM</span>.
 
+> [!IMPORTANT]
+> Il est fortement conseillé de configurer le **Zoom Arrivée** seulement une fois l'édition du circuit terminée. Cela vous permettra de conserver une visibilité sur les **courbes calculées** (notamment le Δ Cap) et de l'avancement de votre édition jusqu’à la fin du parcours pendant vos réglages.
+
 ### 4. Actions de Modification (Pied du panneau)
-*   <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Enregistre le point de vue actuel à l'emplacement de la trace.
-*   <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> : Retire le point clé si vous êtes positionné exactement dessus.
+*   <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Enregistre le point de vue actuel à l'emplacement de la trace. Si un point clé est déjà positionné à cet endroit, une demande de confirmation vous sera demandée.
+*   <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> : Retire le point clé si vous êtes positionné exactement dessus. Une demande de confirmation vous sera demandée.
 
 ---
 

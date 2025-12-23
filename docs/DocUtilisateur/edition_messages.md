@@ -1,6 +1,6 @@
 # Gestion des Messages
 
-Les messages sont des bulles de texte informatives qui apparaissent dynamiquement sur la carte pendant la visualisation. Ils servent à identifier des cols, des points de ravitaillement, à donner des informations de distance, des instructions de direction, etc. (voir [Marqueurs kilométriques automatiques](./edition_marqueurs_km.md))
+Les messages sont des bulles de texte informatives qui apparaissent dynamiquement sur la carte pendant la visualisation. Ils servent à identifier des cols, des points de ravitaillement, à donner des informations de distance, des instructions de direction, (voir [Marqueurs kilométriques automatiques](./edition_marqueurs_km.md)), etc.
 
 [< Retour aux généralités Édition](./edition_intro.md)
 
@@ -24,11 +24,14 @@ Un double curseur permet de définir précisément quand le message apparaît et
 > Par défaut, une unité (incrément) correspond à **100 m**. Si vous réglez le pré-affichage sur 5, le message apparaîtra 500 m avant le point précis.
 
 ### 3. Mise en page
-Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de la trace la bulle doit s'afficher. Cela permet d'éviter de s'affranchir du chauvechement. de deux messages proches l'un de l'autre.
+Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de la trace la bulle doit s'afficher. Cela permet d'éviter le chevauchement de deux messages proches l'un de l'autre.
 
 ---
 
 ## Créer et Gérer les Messages
+
+> [!NOTE]
+> Les messages peuvent être ancrés n'importe où sur la carte, que ce soit précisément sur votre trace ou sur un point d'intérêt situé à l'écart du parcours.
 
 ### Ajouter un message
 1.  **Position temporelle** : Placez le marqueur au kilomètre souhaité sur la trace.

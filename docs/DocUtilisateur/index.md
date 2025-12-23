@@ -15,7 +15,7 @@ VisuGPS est conçu pour mettre en valeur vos parcours GPX. L'interface principal
 L'écran d'accueil se décompose de haut en bas. Cliquez sur chaque section pour en savoir plus :
 
 ### A. La Barre d'Outils
-Située sur la zone supérieure, elle contient les indicateurs techniques (connexion, télécommande, mise à jour des communes), le mode de fonctionnement, et les boutons d'actions globales (importations, paramètres, documentation).
+Située sur la zone supérieure, elle contient les indicateurs techniques (connexion, télécommande, mise à jour des communes), le mode de fonctionnement, et les boutons d'actions globales (importation, paramètres, documentation).
 Voir la documentation sur **[La Barre d'Outils](./toolbar.md)**.
 
 ### B. La Barre de Filtres et Tris

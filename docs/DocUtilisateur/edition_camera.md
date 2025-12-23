@@ -36,9 +36,16 @@ Pour vous déplacer le long du parcours tout en ajustant votre vue, utilisez les
 
 Une fois que vous avez trouvé l'angle de vue idéal pour un endroit précis :
 
-1.  **AJOUTER** : Cliquez sur le bouton <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">. Un nouveau point clé apparaît sur la partie supérieure du graphe.
-2.  **MODIFIER** : Pour changer un point existant, positionnez-vous dessus (le curseur devient vert sur le graphe), ajustez votre vue, puis cliquez à nouveau sur <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour écraser l'ancienne position par la nouvelle.
-3.  **SUPPRIMER** : Si un point ne vous convient plus, positionnez-vous dessus et cliquez sur <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;">. Le point clé disparait du graphe.
+1.  **AJOUTER** : Cliquez sur le bouton <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">. 
+Un nouveau point clé apparaît sur la partie supérieure du graphe.
+2.  **MODIFIER** : Pour changer un point existant, 
+Positionnez-vous dessus, 
+Ajustez votre vue,
+cliquez sur <span style="color: #2196F3">AJOUTER POINT</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour écraser l'ancienne position par la nouvelle. 
+Une demande de confirmation vous sera demandée.
+3.  **SUPPRIMER** : Si un point ne vous convient plus, positionnez-vous dessus et cliquez sur <span style="color: #F44336">SUPPRIMER POINT</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;">. 
+Une demande de confirmation vous sera demandée. 
+Le point clé disparait du graphe.
 
 > [!TIP]
 > **Priorité au Cap** : Dans la majorité des cas, vous n'aurez qu'à ajuster le **Cap** pour suivre la route. Ne modifiez le **Zoom** et le **Pitch** que pour des moments particuliers (survol d'un sommet, zoom sur un détail), afin de garder une stabilité visuelle globale.

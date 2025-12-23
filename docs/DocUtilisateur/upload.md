@@ -13,11 +13,13 @@ Cette section explique comment importer vos fichiers de parcours dans VisuGPS. L
 
 L'interface de sélection est identique pour les deux types de fichiers.
 
-1.  **Lancer l'import** : Sur l'écran d'accueil, cliquez sur le bouton **Importer** <img src="https://api.iconify.design/mdi/import.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> situé en haut à droite de la barre de l'application.
+1.  **Lancer l'import** : Sur l'écran d'accueil, cliquez sur le bouton **Importer** <img src="https://api.iconify.design/mdi/file-import-outline.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> situé en haut à droite de la barre de l'application.
 2.  **Parcourir les fichiers** : Une fenêtre de navigation s'ouvre sur votre dossier d'importation par défaut (configurable dans les paramètres).
+3.  **Choisir le type de fichier** : En bas à gauche de la fenêtre, un sélecteur permet de choisir entre **"GPX"** (sélectionné par défaut) et **"VGPS"**. Assurez-vous d'avoir sélectionné le format correspondant à votre fichier.
+4.  **Navigation et Filtrage** :
     *   **Navigation** : Vous pouvez cliquer sur les dossiers pour naviguer dans votre arborescence.
     *   **Filtrage** : Utilisez la barre de recherche en haut pour retrouver rapidement un fichier par son nom.
-3.  **Sélectionner le fichier** : Cliquez sur le fichier `.gpx` ou `.vgps` souhaité pour valider votre choix.
+5.  **Sélectionner le fichier** : Cliquez sur le fichier souhaité pour valider votre choix.
 
 ### Distinction selon le format sélectionné
 

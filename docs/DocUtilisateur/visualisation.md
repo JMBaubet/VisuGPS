@@ -32,6 +32,11 @@ Un menu escamotable permet de piloter la lecture :
 *   **Profil d'Altitude** : Un graphique dynamique au bas de l'écran montre votre position sur le relief.
 *   **Croix Centrale** : En mode Pause, une croix peut s'afficher pour indiquer le centre de rotation de la caméra.
 
+### Télécommande Mobile
+Vous pouvez piloter intégralement votre visualisation depuis votre smartphone (Lecture, Vitesse, Affichage des widgets, etc.).
+*   **[Connexion et Couplage](./telecommande_couplage.md)** : Comment appairer votre mobile.
+*   **[Utilisation de la Télécommande](./telecommande_utilisation.md)** : Liste des commandes disponibles sur mobile.
+
 ## 3. Raccourcis Clavier
 
 | Touche | Action |

@@ -52,7 +52,7 @@ Le Survol est un "décrochage" spectaculaire : la caméra quitte la trace pour a
 4.  Cliquez sur le bouton <span style="color: #2196F3">AJOUTER SURVOL</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour valider votre événement.
 
 ### Vérification
-Une fois les réglages effectués, cliquez sur le bouton <span style="color: #2196F3">VÉRIFIER</span> <img src="https://api.iconify.design/mdi/play.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> pour prévisualiser instantanément le mouvement de survol tel qu'il apparaîtra dans la visualisation finale.
+Une fois les réglages effectués, pour prévisualiser le rendu final faire un aller-retour sur la trace avec les touches **Flèches Gauche / Droite** du clavier, puis cliquez sur le bouton <span style="color: #2196F3">VÉRIFIER</span> <img src="https://api.iconify.design/mdi/play.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">.
 
 ### Suppression
 *   **Supprimer** : Si vous êtes positionné sur un survol existant, le bouton <span style="color: #F44336">SUPPRIMER LE SURVOL</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;"> s'affiche pour vous permettre de le retirer.

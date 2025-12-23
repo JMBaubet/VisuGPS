@@ -1,10 +1,19 @@
 # Mode Édition : Vue d'ensemble
 
-Le mode Édition est l'espace de travail où vous configurez votre trace et préparez votre visalisation 3D. 
-Cet espace est organisé autour de trois modes d'Édition complémentaires accessibles via des onglets : 
-* Caméra, (voir [Introduction à la Caméra](./introduction_camera.md))
-* Pause/Survol, (voir [Événements : Pauses et Survols](./edition_flyto_pause.md))
-* Message. (voir [Gestion des Messages](./edition_messages.md))
+Le mode Édition est l'espace de travail où vous configurez votre trace et préparez votre visualisation 3D. 
+
+## Accéder au Mode Édition
+
+Pour commencer la mise en scène d'un circuit :
+1.  Depuis l'écran d'accueil, repérez le circuit souhaité dans la liste.
+2.  Cliquez sur le bouton **Éditer** <img src="https://api.iconify.design/mdi/pencil.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> situé sur la droite du circuit.
+
+À l'ouverture du mode Édition, vous arrivez directement sur l'onglet **Caméra**, qui est le mode de configuration principal.
+
+Cet espace est organisé autour de trois modes complémentaires accessibles via des onglets en bas de l'écran : 
+*   **Caméra** (sélectionné par défaut),
+*   **Pause/Survol**,
+*   **Message**.
 
 
 
