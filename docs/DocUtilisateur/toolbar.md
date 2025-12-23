@@ -25,7 +25,6 @@ Au centre de la barre d'outils, un badge peut s'afficher pour indiquer l'environ
 
 *   **Pas de badge** : Mode **Production (PROD)**. C'est le mode standard pour l'utilisation quotidienne.
 *   **<span style="background-color: rgba(41, 121, 255, 0.1); color: #2979FF; padding: 2px 8px; border-radius: 4px;">EVAL</span>** (Bleu) : Mode **Évaluation**. Utilisé pour tester de nouvelles fonctionnalités sans affecter les données principales. **Un cadre bleu entoure l'application.**
-*   **<span style="background-color: rgba(255, 145, 0, 0.1); color: #FF9100; padding: 2px 8px; border-radius: 4px;">TEST</span>** (Orange) : Mode **Test**. Environnement de développement ou de test technique. **Un cadre orange entoure l'application.**
 
 Pour en savoir plus sur la gestion de ces environnements, consultez la page dédiée. *(Voir [Modes de Fonctionnement](./modes_fonctionnement.md))*
 

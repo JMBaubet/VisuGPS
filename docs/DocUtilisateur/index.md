@@ -40,7 +40,7 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 Accédez à la configuration complète de l'application :
 
 *   **[Paramètres](./parametres.md)** : Tokens Mapbox, Unités, Thèmes, Dossiers de stockage.
-*   **[Modes de Fonctionnement](./modes_fonctionnement.md)** : Gestion des environnements (Production, Évaluation, Test).
+*   **[Modes de Fonctionnement](./modes_fonctionnement.md)** : Gestion des environnements (Production, Évaluation).
 
 ## 4. Foire Aux Questions
 
