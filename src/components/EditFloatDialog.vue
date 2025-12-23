@@ -34,6 +34,16 @@
                 <v-icon v-if="hasSurcharge && !isModified" @click="removeSurcharge" title="Supprimer la surcharge" color="info">mdi mdi-format-color-marker-cancel</v-icon>
               </v-col>
             </v-row>
+            <v-slider
+              v-if="parameter.min != null && parameter.max != null"
+              v-model="sliderValue"
+              :min="parameter.min"
+              :max="parameter.max"
+              :step="parameter.step || 0.01"
+              thumb-label
+              class="mt-4"
+              color="primary"
+            ></v-slider>
           </v-form>
         </v-container>
       </v-card-text>
@@ -85,6 +95,17 @@ const isModified = computed(() => {
     }
   }
   return initial !== current;
+});
+
+const sliderValue = computed({
+  get: () => {
+    const val = parseFloat(editableValue.value);
+    return isNaN(val) ? (props.parameter.min || 0) : val;
+  },
+  set: (val) => {
+    // On conserve le format chaîne pour le champ texte
+    editableValue.value = String(val);
+  }
 });
 
 watch(editableValue, (newValue, oldValue) => {
