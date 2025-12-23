@@ -2,7 +2,8 @@
 
 VisuGPS peut enrichir vos traces GPX en récupérant le nom des communes traversées. Cette fonctionnalité permet d'avoir lors de la visualisation 3D, l'affichage des communes traversées.
 
-[< Retour à l'accueil](./index.md)
+[< Retour aux détails du circuit](./circuit_details.md)
+
 
 ## 1. Principe de Fonctionnement
 
@@ -91,4 +92,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [1.1. MajCommunes](./parametres.md#11-majcommunes)
 
 ---
-[< Retour à l'accueil](./index.md) | [< Retour à la barre d'outils](./toolbar.md)
+[< Retour aux détails du circuit](./circuit_details.md)

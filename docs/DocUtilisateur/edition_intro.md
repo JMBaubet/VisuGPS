@@ -2,6 +2,8 @@
 
 Le mode Édition est l'espace de travail où vous configurez votre trace et préparez votre visualisation 3D. 
 
+[< Retour au guide d'exploitation](./exploitation.md)
+
 ## Accéder au Mode Édition
 
 Pour commencer la mise en scène d'un circuit :
@@ -38,8 +40,7 @@ Voici comment vous déplacer le long de votre trace :
 
 > [!NOTE]
 >
->
-> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [Paramètres](./parametres.md).
+> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [Paramètres](./parametres.md#36-commandes-clavier).
 
 ### Via les Graphes
 Sur les graphes vous avez sur l'axe des abscisses des indicateurs de progression (en km) permettant de vous positionner instantanément au kilomètre correspondant.
@@ -66,3 +67,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 
 ---
 
+[< Retour au guide d'exploitation](./exploitation.md)

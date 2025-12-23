@@ -2,7 +2,7 @@
 
 L'exportation permet de sauvegarder un circuit complet, incluant sa trace géographique et toute la mise en scène (caméras, événements, messages) réalisée en mode Édition. L'archive générée porte l'extension `.vgps`.
 
-[< Retour à l'accueil](./index.md) | [< Précédent : Utilisation](./exploitation.md)
+[< Retour au guide d'exploitation](./exploitation.md)
 
 ## Pourquoi exporter ?
 
@@ -29,4 +29,4 @@ Retrouvez les réglages du dossier de destination dans :
 * [1. ⚙️ Système > Dossiers](./parametres.md#1--système--dossiers)
 
 ---
-[< Retour à l'accueil](./index.md)
+[< Retour au guide d'exploitation](./exploitation.md)

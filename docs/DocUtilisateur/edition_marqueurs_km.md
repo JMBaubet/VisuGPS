@@ -39,4 +39,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [3.5.1. Distance](./parametres.md#351-distance)
 
 ---
-[< Retour à la gestion des Messages](./edition_messages.md) | [Suivant : Mode Visualisation >](./visualisation.md)
+[< Retour à la gestion des Messages](./edition_messages.md)

@@ -64,4 +64,4 @@ Une fenêtre s'ouvre vous permettant de :
     > L'importation **ÉCRASE IRRÉVERSIBLEMENT** toutes les données existantes du mode ciblé. Soyez vigilant, en particulier avec le mode de Production (OPE). Une demande de confirmation vous sera faite.
 
 ---
-[< Retour à l'accueil](./index.md) | [< Retour à la barre d'outils](./toolbar.md)
+[< Retour à l'accueil](./index.md)

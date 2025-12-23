@@ -36,5 +36,4 @@ R : L'application n'arrive peut-être pas à déterminer votre adresse IP locale
 **Q : "Impossible de se connecter" sur le mobile.**
 R : C'est souvent un blocage pare-feu. Autorisez VisuGPS dans le pare-feu de votre ordinateur pour le port 9001 (TCP).
 
----
 [< Retour à l'accueil](./index.md)

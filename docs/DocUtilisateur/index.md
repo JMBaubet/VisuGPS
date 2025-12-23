@@ -35,14 +35,15 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 *   Visualisation et Animation.
 *   Contrôle à distance.
 
-## 3. Gestion des Paramètres
+## 3. Modes de Fonctionnement
 
-Accédez à la configuration complète de l'application :
-
-*   **[Paramètres](./parametres.md)** : Tokens Mapbox, Unités, Thèmes, Dossiers de stockage.
 *   **[Modes de Fonctionnement](./modes_fonctionnement.md)** : Gestion des environnements (Production, Évaluation).
 
-## 4. Foire Aux Questions
+## 4. Gestion des Paramètres
+
+*   **[Paramètres](./parametres.md)** : Ensemble de paramètres qui permettent de modifier l'aspect et le comportement de l'application.
+
+## 5. Foire Aux Questions
 
 *   **[FAQ](./faq.md)** : Réponses aux problèmes courants et astuces.
 

@@ -2,7 +2,7 @@
 
 Il est important de pouvoir gérer votre bibliothèque en supprimant les circuits obsolètes ou importés par erreur.
 
-[< Retour à l'accueil](./index.md) | [< Précédent : Importation](./upload.md)
+[< Retour au guide d'exploitation](./exploitation.md) 
 
 ## Supprimer un Circuit
 
@@ -28,4 +28,4 @@ Lorsque vous supprimez un circuit dans VisuGPS, voici ce qui se passe techniquem
 > Le fichier GPX original sur votre ordinateur n'est jamais impacté par cette suppression. Seules les données importées et les configurations créées dans VisuGPS sont effacées.
 
 ---
-[< Retour à l'accueil](./index.md)
+[< Retour au guide d'exploitation](./exploitation.md)

@@ -8,7 +8,6 @@
 
 Ce document répertorie l'ensemble des paramètres de configuration de l'application, organisés selon l'arborescence officielle. Chaque paramètre est lié à sa documentation détaillée.
 
-[< Retour à l'accueil](./index.md)
 
 ---
 
@@ -338,4 +337,4 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Sensibilité de l'inclinaison (tilt)](../DocParametrage/Systeme/Telecommande/sensibiliteTilt.md)
 
 ---
-[< Retour à l'accueil](./index.md)
+

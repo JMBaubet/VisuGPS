@@ -2,8 +2,9 @@
 
 Lors du chargement de votre fichier GPX, l'application effectue un premier calcul automatique pour positionner et orienter la caméra le long de la trace. Cependant, sur des parcours complexes — avec des changements de direction fréquents ou un relief marqué — l'automatisation seule peine à offrir une fluidité parfaite et un angle de vue toujours optimal.
 
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)
+
 > [!NOTE]
->
 >
 > En affichant les courbes calculées (notamment le Δ Cap), vous pouvez facilement identifier les zones où l'animation risque d'être saccadée. Les pics trop hauts indiquent des virages trop brusques de la vue. (voir [Le Graphe de Caméra](#le-graphe-de-caméra))
 
@@ -38,7 +39,6 @@ Pour prendre en compte ces paramètres, vous devez cliquer sur le bouton <span s
 
 > [!IMPORTANT]
 >
->
 > Il est fortement conseillé de configurer le **Zoom Arrivée** seulement une fois l'édition du circuit terminée. Cela vous permettra de conserver une visibilité sur les **courbes calculées** (notamment le Δ Cap) et de l'avancement de votre édition jusqu’à la fin du parcours pendant vos réglages.
 
 ### 4. Actions de Modification (Pied du panneau)
@@ -62,9 +62,18 @@ Situé en bas de l'écran, le graphe est votre tableau de bord technique. Il aff
 
 ---
 
+## Passer à la pratique
+
+Maintenant que vous comprenez les principes théoriques du mouvement de la caméra et l'utilité du graphe, vous pouvez passer à la configuration concrète de votre circuit.
+
+*   **[Éditer la Caméra](./edition_camera.md)** : Apprenez à placer vos points clés et à sculpter votre trajectoire de vol.
+
+---
+
 ### 🛠️ Paramètres Liés
 Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
 * [3.3. Camera](./parametres.md#33-camera)
 
 ---
-[< Retour aux généralités Édition](./edition_intro.md) | [Passer à la pratique : Éditer la Caméra >](./edition_camera.md)
+
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)

@@ -1,9 +1,11 @@
 # Événements : Pauses et Survols
 
 Pour rendre votre animation plus captivante et moins linéaire, VisuGPS vous permet d'intégrer des événements ponctuels. Ces outils sont essentiels pour rythmer le récit, marquer des temps d'arrêt sur des panoramas ou effectuer des détours cinématographiques vers des points d'intérêt (POI).
-Lors de la visualisation de votre parcours, les pauses et les survols interromperont l'avancement de la trace. Vous devrez alors appuyer sur la touche **P** pour reprendre l'animation ou utiliser la télécommande. (voir [Télécommande](./telecommande.md))
+> [!NOTE]
+>
+> Lors de la visualisation de votre parcours, les pauses et les survols interromperont l'avancement de la trace. Vous devrez alors appuyer sur la touche **P** pour reprendre l'animation ou utiliser la télécommande. (voir [Télécommande](./telecommande_utilisation.md))
 
-[< Retour aux généralités Édition](./edition_intro.md)
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)
 
 ---
 
@@ -14,7 +16,6 @@ Situé dans le panneau de contrôle inférieur, cet onglet regroupe tout ce qui 
 ### 1. Mode de Synchronisation
 Comme pour la caméra, vous disposez du sélecteur <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">FIXE</span> / <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">ANIMÉE</span>. 
 > [!TIP]
->
 >
 > Utilisez le mode **FIXE** pour préparer tranquillement la cible de votre survol (POI) ou ajuster la vue d'une pause sans que le mouvement automatique ne vous déplace.
 
@@ -77,4 +78,5 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [3.4. Pause et Survol](./parametres.md#34-pause-et-survol)
 
 ---
-[< Retour aux généralités Édition](./edition_intro.md) | [Suivant : Messages >](./edition_messages.md)
+
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)

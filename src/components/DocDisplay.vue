@@ -3,7 +3,9 @@
     :class="[theme.global.current.value.dark ? 'theme-dark' : 'theme-light', 'd-flex flex-column']" 
     style="height: 90vh; max-height: 90vh; overflow: hidden !important;"
   >
-    <v-card-title class="doc-header d-flex justify-space-between align-center flex-none">
+    <v-card-title 
+      :class="['doc-header d-flex justify-space-between align-center flex-none', { 'header-parameters': isParameterDoc }]"
+    >
       <div class="d-flex align-center">
         <v-btn
           icon
@@ -38,7 +40,7 @@
         >
           <v-icon>mdi-arrow-right</v-icon>
         </v-btn>
-        <span>Documentation</span>
+        <span>{{ isParameterDoc ? 'Documentation des paramètres' : 'Manuel utilisateur' }}</span>
       </div>
       <v-btn icon variant="text" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
@@ -101,6 +103,11 @@ const historyIndex = ref(-1);
 
 const canGoBack = computed(() => historyIndex.value > 0);
 const canGoForward = computed(() => historyIndex.value < history.value.length - 1);
+
+const isParameterDoc = computed(() => {
+  const path = currentDocPath.value.toLowerCase();
+  return path.includes('parametres.md') || path.includes('docparametrage');
+});
 
 function goHome() {
   fetchDocumentation('/docs/DocUtilisateur/index.md');
@@ -419,6 +426,23 @@ onUnmounted(() => {
 .theme-dark .doc-header {
   background-color: #1e1e1e !important; /* ✅ Gris foncé pur */
   color: #ffffff !important;
+}
+
+/* Style spécifique pour la doc des paramètres */
+.header-parameters {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.theme-light .header-parameters {
+  background-color: #FFF3E0 !important; /* Ambre très clair */
+  border-bottom: 2px solid #FF9800 !important;
+  color: #E65100 !important;
+}
+
+.theme-dark .header-parameters {
+  background-color: #2D2214 !important; /* Marron/Orange très sombre */
+  border-bottom: 2px solid #FF9800 !important;
+  color: #FFB74D !important;
 }
 
 /* Titres */

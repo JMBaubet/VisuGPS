@@ -2,7 +2,8 @@
 
 Cette section explique comment importer vos fichiers de parcours dans VisuGPS. L'application accepte deux formats de fichiers : les traces brutes (**GPX**) et les archives complètes (**VGPS**).
 
-[< Retour à l'accueil](./index.md)
+[< Retour au guide d'exploitation](./exploitation.md)
+
 
 ## 1. Définition des Formats
 
@@ -40,6 +41,12 @@ Lors de l'importation d'une trace brute, VisuGPS calcule les indicateurs suivant
 *   **Ville de départ** : Identification automatique de la commune de départ.
 *   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [2.1. Vignette](./parametres.md#21-vignette))
 
+> [!NOTE]
+> 
+> En plus de ces indicateurs, deux types de messages sont ajoutés automatiquement à votre mise en scène par défaut :
+> *   **Labels de Départ et d'Arrivée** : Des bulles textuelles marquées "Départ" et "Arrivée" (voir [Paramètres 2.5](./parametres.md#25-label-départ-arrivée)).
+> *   **Marqueurs Kilométriques** : Des jalons de distance positionnés tout au long du parcours (voir [Paramètres 3.5.1](./parametres.md#351-distance)).
+
 Une fois l'importation terminée, votre circuit apparaît immédiatement dans la liste principale. Vous pouvez cliquer dessus pour consulter ses détails ou passer en mode édition.
 
 ---
@@ -49,4 +56,5 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [2. 🔵 Importation](./parametres.md#2--importation)
 
 ---
-[< Retour à l'accueil](./index.md) | [Suivant : Gestion des Traces >](./gestion_traces.md)
+
+[< Retour au guide d'exploitation](./exploitation.md)

@@ -141,4 +141,3 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [5.3. Télécommande](./parametres.md#53-télécommande)
 
 ---
-[< Retour à l'accueil](./index.md) | [< Précédent : Connexion](./telecommande_couplage.md)

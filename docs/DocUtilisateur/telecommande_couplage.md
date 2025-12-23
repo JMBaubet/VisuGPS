@@ -57,4 +57,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [5.3. Télécommande](./parametres.md#53-télécommande)
 
 ---
-[Suivant : Utilisation de la télécommande >](./telecommande_utilisation.md)
+

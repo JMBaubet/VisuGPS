@@ -2,7 +2,7 @@
 
 Juste en dessous de la barre d'outils, le panneau de filtres vous permet de retrouver rapidement un circuit parmi votre collection.
 
-[< Retour à l'accueil](./index.md) | [< Précédent : Barre d'Outils](./toolbar.md)
+[< Retour à l'accueil](./index.md)
 
 ## 1. Filtrer les Traces
 
@@ -29,4 +29,4 @@ Le bouton de tri permet de réorganiser l'affichage des cartes :
 Vous pouvez inverser l'ordre (Croissant / Décroissant) pour chaque critère.
 
 ---
-[< Retour à l'accueil](./index.md) | [Suivant : Détails Circuit >](./circuit_details.md)
+[< Retour à l'accueil](./index.md)

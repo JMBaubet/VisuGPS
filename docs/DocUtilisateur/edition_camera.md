@@ -2,6 +2,8 @@
 
 Ce guide explique comment utiliser l'interface pour créer, modifier et supprimer vos points de contrôle caméra afin d'obtenir une animation fluide.
 
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)
+
 
 ## Pilotage de la Vue
 
@@ -84,4 +86,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [3.3. Camera](./parametres.md#33-camera)
 
 ---
-[< Retour à l'introduction Caméra](./introduction_camera.md) | [Suivant : Survols & Pauses >](./edition_flyto_pause.md)
+[< Retour au mode Édition](./edition_intro.md#les-trois-modes-dédition) | [< Retour au guide d'exploitation](./exploitation.md)

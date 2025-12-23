@@ -2,7 +2,8 @@
 
 Cette section décrit comment exploiter le mode Visualisation, l'aboutissement de votre travail où l'animation 3D prend vie selon vos réglages de caméra et d'événements.
 
-[< Retour à l'accueil](./index.md) | [< Précédent : Édition](./edition_messages.md)
+[< Retour au guide d'exploitation](./exploitation.md)
+
 
 ## 1. Déroulement de l'Animation
 
@@ -64,4 +65,4 @@ Retrouvez les réglages détaillés associés à cette fonctionnalité dans la s
 * [4. 🟡 Visualisation](./parametres.md#4--visualisation)
 
 ---
-[< Retour à l'accueil](./index.md) | [Suivant : Paramètres >](./parametres.md)
+[< Retour au guide d'exploitation](./exploitation.md)
