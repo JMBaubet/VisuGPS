@@ -424,6 +424,7 @@
             "doc": "docs/DocParametrage/Importation/ImportDir.md"
           },
           {
+            "critique": true,
             "defaut": 10,
             "description": "Distance minimale (en mètres) entre deux points pour le calcul du dénivelé positif. Permet de lisser les imprécisions de l'altitude.",
             "identifiant": "denivele_lissage_distance",
@@ -1818,6 +1819,7 @@
             "libelle": "Télécommande",
             "parametres": [
               {
+                "critique": true,
                 "identifiant": "Port",
                 "libelle": "Port du serveur de télécommande",
                 "description": "Port utilisé par le serveur WebSocket pour la télécommande.",

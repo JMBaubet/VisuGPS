@@ -93,7 +93,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 **Description** : Gestion des fichiers source et du calcul de dénivelé.
 *   [Suppression après importation](../DocParametrage/Importation/autoDelete.md)
 *   [Dossier d'import](../DocParametrage/Importation/ImportDir.md)
-*   [Distance de lissage du dénivelé](../DocParametrage/Importation/denivele_lissage_distance.md)
+*   ⚠️ [Distance de lissage du dénivelé](../DocParametrage/Importation/denivele_lissage_distance.md)
 
 ---
 
@@ -327,7 +327,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ### 5.3. Télécommande
 **Description** : Configuration du serveur de communication et sensibilité des contrôles mobiles.
-*   [Port du serveur](../DocParametrage/Systeme/Telecommande/Port.md)
+*   ⚠️ [Port du serveur](../DocParametrage/Systeme/Telecommande/Port.md)
 *   [Sensibilité du point de vue (X)](../DocParametrage/Systeme/Telecommande/sensibilitePointDeVueX.md)
 *   [Sensibilité du point de vue (Y)](../DocParametrage/Systeme/Telecommande/sensibilitePointDeVueY.md)
 *   [Sensibilité du cap](../DocParametrage/Systeme/Telecommande/sensibiliteCap.md)

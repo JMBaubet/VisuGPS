@@ -4,6 +4,11 @@ Ce document détaille le paramètre `Port`, qui définit le numéro de port util
 
 ---
 
+> [!IMPORTANT]
+> **PARAMÈTRE CRITIQUE** : La modification du port du serveur interrompt immédiatement toute communication avec les télécommandes couplées. Vous devrez mettre à jour l'adresse de connexion sur vos appareils mobiles pour retrouver les contrôles.
+
+---
+
 ## 🎯 Rôle du Paramètre
 
 Le paramètre `Port` spécifie le port réseau sur lequel l'application écoutera les connexions entrantes pour la fonctionnalité de télécommande. Il est essentiel pour établir la communication entre l'application et un client de télécommande externe.

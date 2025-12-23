@@ -1,5 +1,10 @@
 # Le Timer dans le Polling Réseau
 
+> [!IMPORTANT]
+> **PARAMÈTRE CRITIQUE** : Un intervalle trop court peut surcharger votre processeur et être interprété comme une activité abusive par les services tiers. À l'inverse, un intervalle trop long rendra la télécommande peu réactive.
+
+---
+
 ## 🖥️ Qu'est-ce que le "Polling" ?
 
 Le *polling* (ou "vérification à intervalle régulier") est une technique où une application vérifie l'état d'un service réseau de manière répétée à une fréquence définie.

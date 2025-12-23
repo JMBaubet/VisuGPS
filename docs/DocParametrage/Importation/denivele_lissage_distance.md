@@ -4,6 +4,11 @@ Ce document détaille le paramètre `denivele_lissage_distance`, qui définit la
 
 ---
 
+> [!IMPORTANT]
+> **PARAMÈTRE CRITIQUE** : Ce réglage influe directement sur l'intégrité des statistiques (distance, dénivelé positif) enregistrées dans votre base de données circuits. Une modification peut altérer significativement l'interprétation de vos performances sportives.
+
+---
+
 ## 🎯 Rôle du Paramètre
 
 Le paramètre `denivele_lissage_distance` est utilisé pour filtrer les petites variations d'altitude entre des points très proches. Si la distance entre deux points consécutifs est inférieure à cette valeur, leur différence d'altitude ne sera pas prise en compte dans le calcul du dénivelé positif total.
