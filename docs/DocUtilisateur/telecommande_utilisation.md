@@ -133,4 +133,10 @@ Lorsque l'animation est en pause, l'interface se transforme pour vous laisser ex
 *   **▶️ Play** : Relance l'animation et repasse la télécommande en **Mode Lecture**.
 
 ---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [5.3. Télécommande](./parametres.md#53-télécommande)
+
+---
 [< Retour à l'accueil](./index.md) | [< Précédent : Connexion](./telecommande_couplage.md)

@@ -33,4 +33,10 @@ Une fois vos réglages terminés, cliquez sur **Appliquer**. L'application va al
 Si vous souhaitez retirer tous les jalons de distance d'un seul coup, utilisez le bouton <span style="color: #F44336">SUPPRIMER KM</span> <img src="https://api.iconify.design/mdi/delete.svg?width=20&color=%23F44336" style="vertical-align: middle; margin-bottom: 3px;">.
 
 ---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [3.5.1. Distance](./parametres.md#351-distance)
+
+---
 [< Retour à la gestion des Messages](./edition_messages.md) | [Suivant : Mode Visualisation >](./visualisation.md)

@@ -67,4 +67,10 @@ Le graphe des messages offre une vue temporelle et spatiale de toutes vos annota
 En complément des messages manuels, vous pouvez également générer automatiquement des jalons de distance sur l'ensemble de votre parcours. (voir [Gestion des Marqueurs Kilométriques](./edition_marqueurs_km.md))
 
 ---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [3.5. Messages](./parametres.md#35-messages)
+
+---
 [< Retour aux généralités Édition](./edition_intro.md) | [Suivant : Mode Visualisation >](./visualisation.md)

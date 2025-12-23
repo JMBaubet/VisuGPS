@@ -66,7 +66,7 @@ Lorsque l'animation est en pause, prenez le contrôle total de la vue 3D :
 Si la connexion échoue :
 *   Vérifiez que le **Pare-feu (Firewall)** de votre ordinateur autorise VisuGPS à communiquer sur le port 9001.
 *   Confirmez que les deux appareils sont bien sur le même réseau local.
-*   Essayez de changer le port dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) si le 9001 est déjà utilisé.
+*   Essayez de changer le port dans les [Paramètres](./parametres.md) si le 9001 est déjà utilisé.
 
 ---
 [< Retour à l'accueil](./index.md) | [Suivant : FAQ >](./faq.md)

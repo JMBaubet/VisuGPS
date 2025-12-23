@@ -57,4 +57,10 @@ Situé en bas de l'écran, le graphe est votre tableau de bord technique. Il aff
 *   **Colonne "Éditée" (Vos réglages)** : Affiche en couleur les courbes résultant de vos points clés. Le but est d'ajuster ces courbes pour qu'elles soient les plus régulières possibles.
 
 ---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [3.3. Camera](./parametres.md#33-camera)
+
+---
 [< Retour aux généralités Édition](./edition_intro.md) | [Passer à la pratique : Éditer la Caméra >](./edition_camera.md)

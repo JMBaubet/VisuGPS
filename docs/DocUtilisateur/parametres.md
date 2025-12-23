@@ -1,6 +1,9 @@
 # Configuration de VisuGPS
 
-Ce document répertorie l'ensemble des paramètres de configuration de l'application, organisés selon l'arborescence officielle. Chaque paramètre est lié à sa documentation détaillée pour vous permettre de configurer VisuGPS selon vos besoins.
+> [!IMPORTANT]
+> Avant de modifier vos réglages, nous vous recommandons de lire l'**[Introduction à la gestion des paramètres](./introduction_parametres.md)** pour comprendre la symbolique des icônes et les précautions à prendre avec les réglages critiques, identifiés par l'icône ⚠️.
+
+Ce document répertorie l'ensemble des paramètres de configuration de l'application, organisés selon l'arborescence officielle. Chaque paramètre est lié à sa documentation détaillée.
 
 [< Retour à l'accueil](./index.md)
 
@@ -21,7 +24,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 #### 1.1.2. APIs
 **Description** : Activation individuelle des services de géocodage.
 *   [Activer l'API IGN par défaut](../DocParametrage/Accueil/MajCommunes/APIs/IgnActif.md)
-*   [Activer l'API Mapbox par défaut](../DocParametrage/Accueil/MajCommunes/APIs/MapboxActif.md)
+*   ⚠️ [Activer l'API Mapbox par défaut](../DocParametrage/Accueil/MajCommunes/APIs/MapboxActif.md)
 
 ### 1.2. Paramètres d'Affichage
 **Description** : Configuration de l'interface de la liste des circuits sur l'écran d'accueil.
@@ -63,8 +66,8 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ### 2.2. Tracking
 **Description** : Paramètres techniques d'analyse de la trace (segmentation et lissage du cap).
-*   [Longueur du segment](../DocParametrage/Importation/Tracking/LongueurSegment.md)
-*   [Lissage du cap](../DocParametrage/Importation/Tracking/LissageCap.md)
+*   ⚠️ [Longueur du segment](../DocParametrage/Importation/Tracking/LongueurSegment.md)
+*   ⚠️ [Lissage du cap](../DocParametrage/Importation/Tracking/LissageCap.md)
 
 ### 2.3. Caméra
 **Description** : Valeurs par défaut de la vue 3D lors du premier chargement d'un circuit.
@@ -303,9 +306,9 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ### 4.7. Taille des Messages
 **Description** : Réglages de la lisibilité des bulles de texte sur la carte.
-*   [Taille de police de base](../DocParametrage/Visualisation/Taille%20des%20Messages/baseFontSize.md)
-*   [Coefficient largeur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefLargeurMessage.md)
-*   [Coefficient réducteur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefReducteurMessage.md)
+*   ⚠️ [Taille de police de base](../DocParametrage/Visualisation/Taille%20des%20Messages/baseFontSize.md)
+*   ⚠️ [Coefficient largeur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefLargeurMessage.md)
+*   ⚠️ [Coefficient réducteur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefReducteurMessage.md)
 
 ---
 
@@ -319,8 +322,8 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ### 5.2. Timers et Tokens
 **Description** : Paramètres réseau et clés d'accès aux services cartographiques.
-*   [Interval de vérification du réseau](../DocAnnexe/polling_timer_documentation.md)
-*   [Token Mapbox](../DocAnnexe/obtenir_token_mapbox.md)
+*   ⚠️ [Interval de vérification du réseau](../DocAnnexe/polling_timer_documentation.md)
+*   ⚠️ [Token Mapbox](../DocAnnexe/obtenir_token_mapbox.md)
 
 ### 5.3. Télécommande
 **Description** : Configuration du serveur de communication et sensibilité des contrôles mobiles.

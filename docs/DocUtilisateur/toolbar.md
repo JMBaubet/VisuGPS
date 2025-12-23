@@ -32,7 +32,7 @@ Pour en savoir plus sur la gestion de ces environnements, consultez la page déd
 ## 3. Actions Globales (Droite)
 
 *   **Importation** <img src="https://api.iconify.design/mdi/file-import-outline.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> : Ouvre l'assistant d'importation pour les fichiers GPX ou les archives VGPS. *(Voir [Importation](./upload.md))*
-*   **Paramètres** <img src="https://api.iconify.design/mdi/cog.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> : Accède au menu de configuration de l'application. *(Voir [<span style="color: #FFC107">Paramètres</span>](./parametres.md))*
+*   **Paramètres** <img src="https://api.iconify.design/mdi/cog.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;"> : Accède au menu de configuration de l'application. *(Voir [Paramètres](./parametres.md))*
 *   **Documentation** <img src="https://api.iconify.design/mdi/book-open-page-variant-outline.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;"> : Affiche ce manuel utilisateur directement dans l'application.
 
 ---

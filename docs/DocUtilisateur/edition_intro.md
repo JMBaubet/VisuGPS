@@ -37,7 +37,7 @@ Voici comment vous déplacer le long de votre trace :
 *   **Maj (Shift) + Flèches** : Déplacement rapide (Incrément de 1 km par défaut).
 
 > [!NOTE]
-> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md).
+> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [Paramètres](./parametres.md).
 
 ### Via les Graphes
 Sur les graphes vous avez sur l'axe des abscisses des indicateurs de progression (en km) permettant de vous positionner instantanément au kilomètre correspondant.
@@ -58,13 +58,9 @@ Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcour
 
 ---
 
-## Paramètres Liés
-
-Certaines commandes de l'éditeur peuvent être personnalisées dans le menu [<span style="color: #FFC107">Paramètres</span>](./parametres.md) :
-
-*   **Touches d'avancement** : Redéfinissez les touches clavier utilisées pour avancer ou reculer sur la trace (flèches par défaut).
-*   **Incréments de déplacement** : Réglez la finesse du déplacement (nombre de points de tracking par appui touche).
-*   **Commandes de Pitch** : Changez les touches ou l'incrément de l'inclinaison de la caméra.
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [3. 🟠 Édition](./parametres.md#3--édition)
 
 ---
 

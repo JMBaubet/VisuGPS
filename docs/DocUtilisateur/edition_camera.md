@@ -74,4 +74,10 @@ Pour obtenir une vidéo agréable à regarder :
 *   Si vous constatez un mouvement brusque (Δ Cap elevé), entre deux points, supprimer un point d'extrémité de ce mouvement brusque pour adoucir le rendu final.
 
 ---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [3.3. Camera](./parametres.md#33-camera)
+
+---
 [< Retour à l'introduction Caméra](./introduction_camera.md) | [Suivant : Survols & Pauses >](./edition_flyto_pause.md)

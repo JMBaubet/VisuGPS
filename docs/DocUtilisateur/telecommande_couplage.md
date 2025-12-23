@@ -42,7 +42,13 @@ Une fois connecté, l'icône de télécommande <img src="https://api.iconify.des
 Si la connexion échoue :
 *   Vérifiez que le **Pare-feu (Firewall)** de votre ordinateur autorise VisuGPS à communiquer sur le port 9001.
 *   Confirmez que les deux appareils sont bien sur le même réseau local.
-*   Essayez de changer le port dans les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) si le 9001 est déjà utilisé.
+*   Essayez de changer le port dans les [Paramètres](./parametres.md) si le 9001 est déjà utilisé.
+
+---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [5.3. Télécommande](./parametres.md#53-télécommande)
 
 ---
 [Suivant : Utilisation de la télécommande >](./telecommande_utilisation.md)

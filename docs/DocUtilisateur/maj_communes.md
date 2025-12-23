@@ -61,7 +61,7 @@ VisuGPS utilise plusieurs services en cascade pour garantir le meilleur résulta
 
 ## 3. Configuration
 
-Vous pouvez ajuster le comportement de la mise à jour via les [<span style="color: #FFC107">Paramètres</span>](./parametres.md) (**Accueil > MajCommunes**).
+Vous pouvez ajuster le comportement de la mise à jour via les [Paramètres](./parametres.md) (**Accueil > MajCommunes**).
 
 ### Timers (Délais)
 Pour éviter de saturer les services (et de se faire bloquer), des délais d'attente sont configurés entre chaque requête :
@@ -76,8 +76,13 @@ Vous avez la possibilité d'activer ou désactiver globalement certaines APIs :
 
 ## 4. Impact sur l'Application
 
-La récupération des noms de communes permet de :
-1.  **Enrichir la lvisualisation 3D** : Possibilité d'afficher les communes traversées.
+La récupération des noms de communes permet d'enrichir la visualisation 3D en affichant dynamiquement le nom de la commune survolée.
+
+---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [1.1. MajCommunes](./parametres.md#11-majcommunes)
 
 ---
 [< Retour à l'accueil](./index.md) | [< Retour à la barre d'outils](./toolbar.md)

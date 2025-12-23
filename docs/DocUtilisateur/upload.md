@@ -40,9 +40,13 @@ Lors de l'importation d'une trace brute, VisuGPS calcule les indicateurs suivant
 *   **Ville de départ** : Identification automatique de la commune de départ.
 *   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [Configuration des Vignettes](./vignette_config.md))
 
-## Accès au Circuit
-
 Une fois l'importation terminée, votre circuit apparaît immédiatement dans la liste principale. Vous pouvez cliquer dessus pour consulter ses détails ou passer en mode édition.
+
+---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [2. 🔵 Importation](./parametres.md#2--importation)
 
 ---
 [< Retour à l'accueil](./index.md) | [Suivant : Gestion des Traces >](./gestion_traces.md)

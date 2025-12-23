@@ -59,14 +59,9 @@ Si vous mettez l'animation en **Pause**, vous restez libre de manipuler la camé
 
 ---
 
-## 5. Paramètres Liés
-
-L'apparence et le comportement des widgets dépendent de certains paramètres globaux (accessibles dans le menu [<span style="color: #FFC107">Paramètres</span>](./parametres.md) > Visualisation > Widgets) :
-
-*   **Distance** : Afficher ou masquer le widget de distance au démarrage. (voir [Distance](../DocParametrage/Visualisation/Widgets/distance.md))
-*   **Communes** : Afficher ou masquer le widget des communes au démarrage. (voir [Communes](../DocParametrage/Visualisation/Widgets/communes.md))
-*   **Altitude** : Afficher ou masquer le profil d'altitude au démarrage. (voir [Altitude](../DocParametrage/Visualisation/Widgets/altitude.md))
-*   **Commandes** : Afficher ou masquer le panneau de commandes au démarrage. (voir [Commandes](../DocParametrage/Visualisation/Widgets/commandes.md))
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [4. 🟡 Visualisation](./parametres.md#4--visualisation)
 
 ---
-[< Retour à l'accueil](./index.md) | [Suivant : <span style="color: #FFC107">Paramètres</span> >](./parametres.md)
+[< Retour à l'accueil](./index.md) | [Suivant : Paramètres >](./parametres.md)

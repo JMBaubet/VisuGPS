@@ -2,10 +2,10 @@
 
 VisuGPS génère automatiquement des images miniatures (vignettes) pour chaque circuit importé. Ce document détaille les paramètres personnalisables pour adapter le rendu de ces images.
 
-[< Retour aux <span style="color: #FFC107">Paramètres</span>](./parametres.md)
+[< Retour aux Paramètres](./parametres.md)
 
 ## Accès aux Paramètres
-Ces réglages sont accessibles dans le menu **<span style="color: #FFC107">Paramètres</span> > Importation > Vignette**.
+Ces réglages sont accessibles dans le menu **Paramètres > Importation > Vignette**.
 
 > **Note** : Les modifications de ces paramètres s'appliqueront uniquement aux **nouvelles importations** de circuits. Pour modifier la vignette d'un circuit existant, vous devez le supprimer et le réimporter.
 
@@ -58,4 +58,10 @@ Ces marqueurs permettent de visualiser le sens du parcours pour les circuits "ou
     *   *Défaut : Bleu*
 
 ---
-[< Retour aux <span style="color: #FFC107">Paramètres</span>](./parametres.md) | [< Retour à l'Importation](./upload.md)
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [2.1. Vignette](./parametres.md#21-vignette)
+
+---
+[< Retour aux Paramètres](./parametres.md) | [< Retour à l'Importation](./upload.md)
