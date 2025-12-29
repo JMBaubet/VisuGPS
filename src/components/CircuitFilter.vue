@@ -4,7 +4,16 @@
             <v-icon start>mdi-filter-variant</v-icon>
             Filtrage & Tri
             <v-spacer></v-spacer>
-            <v-btn @click="resetFilters" variant="text" size="small">Réinitialiser</v-btn>
+            <v-btn 
+                @click="resetFilters" 
+                variant="text" 
+                size="small" 
+                color="blue"
+                prepend-icon="mdi-filter-variant-remove"
+                :disabled="isResetDisabled || isResetting"
+            >
+                Réinitialiser
+            </v-btn>
         </v-card-title>
         <v-card-text class="pt-2">
             <v-row dense align="center">
@@ -120,7 +129,7 @@
 </template>
 
 <script setup>
-import { watch, reactive, computed } from 'vue';
+import { watch, reactive, computed, ref } from 'vue';
 import { useTheme } from 'vuetify';
 
 const theme = useTheme();
@@ -148,6 +157,26 @@ const emit = defineEmits(['update:modelValue', 'update:sortValue']);
 
 const filters = reactive({ ...props.modelValue });
 const sort = reactive({ ...props.sortValue });
+const isResetting = ref(false);
+
+const isResetDisabled = computed(() => {
+    // Check if filters are at their default values
+    const isFiltersDefault = 
+        filters.nom === '' &&
+        filters.villeId === null &&
+        filters.traceurId === null &&
+        filters.distance[0] === props.filterData.minDistance &&
+        filters.distance[1] === props.filterData.maxDistance &&
+        filters.denivele[0] === props.filterData.minDenivele &&
+        filters.denivele[1] === props.filterData.maxDenivele;
+    
+    // Check if sort is at its default value
+    const isSortDefault = 
+        sort.by === 'circuitId' &&
+        sort.order === 'asc';
+        
+    return isFiltersDefault && isSortDefault;
+});
 
 watch(filters, (newFilters) => {
     emit('update:modelValue', newFilters);
@@ -158,11 +187,21 @@ watch(sort, (newSort) => {
 });
 
 const resetFilters = () => {
+    isResetting.value = true;
     filters.nom = '';
     filters.villeId = null;
     filters.traceurId = null;
     filters.distance = [props.filterData.minDistance, props.filterData.maxDistance];
     filters.denivele = [props.filterData.minDenivele, props.filterData.maxDenivele];
+    
+    sort.by = 'circuitId';
+    sort.order = 'asc';
+
+    // The button will be disabled by isResetDisabled once reactivity cycles, 
+    // but isResetting ensures it's immediate and handles the click event completion.
+    setTimeout(() => {
+        isResetting.value = false;
+    }, 100);
 };
 
 const setSort = (field) => {

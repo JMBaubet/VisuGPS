@@ -88,7 +88,7 @@ const currentRelatedIds = ref({ ville: null, traceur: null, messages: [] });
 const { getSettingValue } = useSettings();
 
 const activeFilters = ref(null);
-const sortOptions = ref({ by: 'isoDateTime', order: 'desc' });
+const sortOptions = ref({ by: 'circuitId', order: 'asc' });
 
 const currentPage = ref(1);
 const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);

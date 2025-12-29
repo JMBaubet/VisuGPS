@@ -16,17 +16,21 @@ Les filtres s'appliquent en temps réel sur la liste des circuits :
 
 ## 2. Trier la Liste
 
-Le bouton de tri permet de réorganiser l'affichage des cartes :
+Pour chaque critère, un bouton permet de trier la liste en ordre croissant ou décroissant :
 
-*   **Date d'ajout** : (Par défaut) Les circuits les plus récemment importés apparaissent en premier.
-*   **Nom** : Ordre alphabétique.
+*   **Nom** : Ordre alphabétique du circuit.
 *   **Ville** : Tri par commune de départ.
-*   **Traceur** : Tri par auteur du circuit.
 *   **Distance** : Tri par longueur du parcours.
 *   **Dénivelé** : Tri par difficulté (D+).
-*   **Date de réalisation** : Basé sur la date temporelle contenue dans le fichier GPX (si présente).
+*   **Traceur** : Tri par auteur du circuit.
 
-Vous pouvez inverser l'ordre (Croissant / Décroissant) pour chaque critère.
+## 3. Réinitialiser les filtres et le tri
+
+Le bouton <span style="color: #2196F3; font-weight: bold; padding: 2px 4px; border-radius: 4px; font-size: 0.85em; text-transform: uppercase; display: inline-flex; align-items: center;"><img src="https://api.iconify.design/mdi/filter-variant-remove.svg?color=%232196F3&width=20" style="vertical-align: middle; margin-right: 4px;"> Réinitialiser</span> permet de revenir instantanément à l'état initial :
+*   **Suppression des filtres** : Tous les champs de recherche (nom, ville, traceur) et les curseurs (distance, dénivelé) sont remis à zéro.
+*   **Tri par défaut** : La liste est à nouveau triée par **Ordre d'import** (basé sur l'identifiant interne unique de chaque circuit).
+
+
 
 ---
 [< Retour à l'accueil](./index.md)
