@@ -416,7 +416,7 @@ onUnmounted(() => {
   background-color: #ffffff !important;
 }
 .theme-dark.v-card {
-  background-color: #121212 !important;
+  background-color: #1e1e1e !important;
 }
 
 .theme-light .doc-header {
@@ -424,7 +424,7 @@ onUnmounted(() => {
   color: #000000 !important;
 }
 .theme-dark .doc-header {
-  background-color: #1e1e1e !important; /* ✅ Gris foncé pur */
+  background-color: #2a2a2a !important; /* Gris plus clair pour trancher */
   color: #ffffff !important;
 }
 
@@ -440,7 +440,7 @@ onUnmounted(() => {
 }
 
 .theme-dark .header-parameters {
-  background-color: #2D2214 !important; /* Marron/Orange très sombre */
+  background-color: #382b1a !important; /* Marron/Orange un peu plus clair */
   border-bottom: 2px solid #FF9800 !important;
   color: #FFB74D !important;
 }
