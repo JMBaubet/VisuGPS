@@ -1,4 +1,4 @@
-use tauri::{App, AppHandle, Manager, State};
+use tauri::{App, AppHandle, Manager, State, menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu}};
 
 use base64::{engine::general_purpose, Engine as _};
 use reqwest;
@@ -1893,6 +1893,81 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            {
+                let app_handle = app.handle();
+                let name = "VisuGPS";
+                
+                let about_metadata = AboutMetadata {
+                    name: Some(name.to_string()),
+                    version: Some(app_handle.package_info().version.to_string()),
+                    copyright: Some(format!("© 2025 JMBaubet\nWebsite: https://github.com/JMBaubet/VisuGPS")),
+                    authors: Some(vec!["JMBaubet".to_string()]),
+                    comments: Some("Visualisation 3D de fichiers GPX".to_string()),
+                    website: Some("https://github.com/JMBaubet/VisuGPS".to_string()),
+                    website_label: Some("Dépôt GitHub".to_string()),
+                    credits: Some("Développé par JMBaubet\nProjet VisuGPS".to_string()),
+                    ..Default::default()
+                };
+
+                
+                let menu = Menu::with_items(
+                    app_handle,
+                    &[
+                        &Submenu::with_items(
+                            app_handle,
+                            name,
+                            true,
+                            &[
+                                &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
+                                &PredefinedMenuItem::separator(app_handle)?,
+                                &PredefinedMenuItem::services(app_handle, None)?,
+                                &PredefinedMenuItem::separator(app_handle)?,
+                                &PredefinedMenuItem::hide(app_handle, None)?,
+                                &PredefinedMenuItem::hide_others(app_handle, None)?,
+                                &PredefinedMenuItem::show_all(app_handle, None)?,
+                                &PredefinedMenuItem::separator(app_handle)?,
+                                &PredefinedMenuItem::quit(app_handle, None)?,
+                            ],
+                        )?,
+                        &Submenu::with_items(
+                            app_handle,
+                            "Edit",
+                            true,
+                            &[
+                                &PredefinedMenuItem::undo(app_handle, None)?,
+                                &PredefinedMenuItem::redo(app_handle, None)?,
+                                &PredefinedMenuItem::separator(app_handle)?,
+                                &PredefinedMenuItem::cut(app_handle, None)?,
+                                &PredefinedMenuItem::copy(app_handle, None)?,
+                                &PredefinedMenuItem::paste(app_handle, None)?,
+                                &PredefinedMenuItem::select_all(app_handle, None)?,
+                            ],
+                        )?,
+                        &Submenu::with_items(
+                            app_handle,
+                            "View",
+                            true,
+                            &[
+                                &PredefinedMenuItem::fullscreen(app_handle, None)?,
+                            ],
+                        )?,
+                        &Submenu::with_items(
+                            app_handle,
+                            "Window",
+                            true,
+                            &[
+                                &PredefinedMenuItem::minimize(app_handle, None)?,
+                                &PredefinedMenuItem::maximize(app_handle, None)?,
+                                &PredefinedMenuItem::separator(app_handle)?,
+                                &PredefinedMenuItem::close_window(app_handle, None)?,
+                            ],
+                        )?,
+                    ],
+                )?;
+                app.set_menu(menu)?;
+            }
+
             if cfg!(debug_assertions) {
                 if let Err(e) = app.handle().plugin(
                     tauri_plugin_log::Builder::default()
