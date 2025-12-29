@@ -1064,6 +1064,42 @@ fn delete_message(
 }
 
 #[tauri::command]
+fn update_reference_field(
+    _app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    field: String,
+    new_value: Value,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let settings_path = state.app_env_path.join("settings.json");
+    let file_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let mut settings: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    if let Some(reference) = settings.get_mut("référence") {
+        if let Some(obj) = reference.as_object_mut() {
+            obj.insert(field, new_value);
+            
+            // Also update revision date
+            let now = Utc::now();
+            obj.insert(
+                "date_revision".to_string(),
+                Value::String(now.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string()),
+            );
+        } else {
+            return Err("Section 'référence' is not an object".to_string());
+        }
+    } else {
+        return Err("Section 'référence' not found".to_string());
+    }
+
+    let new_settings_content =
+        serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    fs::write(&settings_path, new_settings_content).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 fn update_setting(
     app_handle: AppHandle,
     state: State<Mutex<AppState>>,
@@ -1938,6 +1974,7 @@ pub fn run() {
             save_tracking_file,
             convert_vuetify_color,
             update_camera_position,
+            update_reference_field,
             geo_processor::process_tracking_data,
             get_filter_data,
             update_tracking_km,

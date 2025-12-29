@@ -8,6 +8,7 @@
     <SnackbarContainer />
     <PairingDialog /> <!-- Added PairingDialog -->
     <MigrationReportModal v-model="showMigrationModal" :report="migrationReport" />
+    <WelcomeModal />
   </v-app>
 </template>
 
@@ -22,10 +23,11 @@ import { useSharedUiState } from '@/composables/useSharedUiState';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 import PairingDialog from '@/components/PairingDialog.vue';
 import MigrationReportModal from '@/components/MigrationReportModal.vue';
+import WelcomeModal from '@/components/WelcomeModal.vue';
 import { invoke } from '@tauri-apps/api/core';
 
 const { executionMode } = useEnvironment();
-const { initSettings } = useSettings();
+const { initSettings, status, updateReferenceField } = useSettings();
 const theme = useTheme();
 const { toggleBackButtonVisibility } = useSharedUiState();
 useCommunesUpdate(); // Initialize the composable
@@ -69,7 +71,10 @@ onMounted(async () => {
     const report = await invoke('get_migration_report');
     if (report) {
       migrationReport.value = report;
-      showMigrationModal.value = true;
+      // Si on a un rapport de migration, on passe en mode Update.
+      // Cela permet d'afficher update.md même si c'est la toute première fois
+      // que VisuGPS gère le statut (cas d'une montée de version < 1.0.0).
+      await updateReferenceField('Status', 'Update');
     }
   } catch (e) {
     console.error("Failed to check for migration report:", e);

@@ -11,7 +11,7 @@ let previousServiceStatus = null;
 
 export function useServiceStatus() {
   const { showSnackbar } = useSnackbar();
-  const { getSettingValue } = useSettings();
+  const { getSettingValue, status, updateReferenceField } = useSettings();
 
   const mapboxToken = computed(() => getSettingValue('Système.Tokens.mapbox'));
 
@@ -53,6 +53,12 @@ export function useServiceStatus() {
       const result = await invoke('check_mapbox_status', { token });
       if (result.success) {
         updateStatus('connected', 'Tous les services sont opérationnels.');
+
+        // Auto-update Status from Start to MapBoxOK if token is valid
+        if (status.value === 'Start') {
+          console.log("Valid token detected globally, updating Status to MapBoxOK");
+          updateReferenceField('Status', 'MapBoxOK');
+        }
       } else {
         if (result.reason === 'unreachable') {
           updateStatus('mapbox_unreachable', 'Serveur Mapbox inaccessible.');

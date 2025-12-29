@@ -34,16 +34,16 @@ const findParameterNode = (path) => {
 
 // Helper function to navigate a path and find a group
 const findGroupNode = (path) => {
-    if (!settings.value || !path) return settings.value.data;
-    let current = settings.value.data;
-    const parts = path.split('/');
-    for (const part of parts) {
-        if (!part) continue;
-        const nextGroup = current.groupes.find(g => g.libelle === part);
-        if (!nextGroup) return null;
-        current = nextGroup;
-    }
-    return current;
+  if (!settings.value || !path) return settings.value.data;
+  let current = settings.value.data;
+  const parts = path.split('/');
+  for (const part of parts) {
+    if (!part) continue;
+    const nextGroup = current.groupes.find(g => g.libelle === part);
+    if (!nextGroup) return null;
+    current = nextGroup;
+  }
+  return current;
 };
 
 
@@ -92,7 +92,7 @@ export function useSettings() {
           param.surcharge = newValue;
         }
       }
-      
+
       // 3. Update revision date in local state
       if (settings.value && settings.value.référence) {
         settings.value.référence.date_revision = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
@@ -105,10 +105,30 @@ export function useSettings() {
     }
   };
 
+  const updateReferenceField = async (field, newValue) => {
+    try {
+      await invoke('update_reference_field', {
+        field: field,
+        newValue: newValue
+      });
+
+      if (settings.value && settings.value.référence) {
+        settings.value.référence[field] = newValue;
+        settings.value.référence.date_revision = format(new Date(), "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+      }
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour du champ référence ${field}:`, error);
+      throw error;
+    }
+  };
+
   return {
     settings: computed(() => settings.value),
+    status: computed(() => settings.value?.référence?.Status),
+    version: computed(() => settings.value?.référence?.version),
     initSettings,
     getSettingValue,
-    updateSetting
+    updateSetting,
+    updateReferenceField
   };
 }
