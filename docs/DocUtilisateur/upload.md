@@ -39,13 +39,13 @@ Lors de l'importation d'une trace brute, VisuGPS calcule les indicateurs suivant
 *   **Dénivelé positif** : Cumul des gains d'altitude.
 *   **Point culminant** : Identification de l'altitude maximale.
 *   **Ville de départ** : Identification automatique de la commune de départ.
-*   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir [2.1. Vignette](./parametres.md#21-vignette))
+*   **Vignette** : Une image miniature du parcours est générée pour la liste. (voir paramètre [2.1. Vignette](./parametres.md#21-vignette))
 
 > [!NOTE]
 > 
 > En plus de ces indicateurs, deux types de messages sont ajoutés automatiquement à votre mise en scène par défaut :
-> *   **Labels de Départ et d'Arrivée** : Des bulles textuelles marquées "Départ" et "Arrivée" (voir [Paramètres 2.5](./parametres.md#25-label-départ-arrivée)).
-> *   **Marqueurs Kilométriques** : Des jalons de distance positionnés tout au long du parcours (voir [Paramètres 3.5.1](./parametres.md#351-distance)).
+> *   **Labels de Départ et d'Arrivée** : Des bulles textuelles marquées "Départ" et "Arrivée" (voir paramètre [2.5. Label Départ Arrivée](./parametres.md#25-label-départ-arrivée)).
+> *   **Marqueurs Kilométriques** : Des jalons de distance positionnés tout au long du parcours (voir paramètre [3.5.1. Distance](./parametres.md#351-distance)).
 
 Une fois l'importation terminée, votre circuit apparaît immédiatement dans la liste principale. Vous pouvez cliquer dessus pour consulter ses détails ou passer en mode édition.
 

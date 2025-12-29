@@ -26,7 +26,7 @@ L'exportation s'effectue individuellement pour chaque circuit depuis la liste pr
 
 ### 🛠️ Paramètres Liés
 Retrouvez les réglages du dossier de destination dans :
-* [1. ⚙️ Système > Dossiers](./parametres.md#1--système--dossiers)
+* [2.6. Dossier d'import](./parametres.md#26-autres-paramètres-dimportation)
 
 ---
 [< Retour au guide d'exploitation](./exploitation.md)

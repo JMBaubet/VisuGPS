@@ -4,9 +4,11 @@ Ce document détaille le paramètre `ImportDir`, qui définit le répertoire par
 
 ---
 
-## 🎯 Rôle du Paramètre
+Le paramètre `ImportDir` définit le chemin du dossier utilisé par défaut pour deux opérations majeures :
+- **L'importation** : l'ouverture de la fenêtre de sélection de fichiers (GPX, Contextes).
+- **L'exportation** : le dossier de destination automatique pour vos circuits sauvegardés au format `.vgps`.
 
-Le paramètre `ImportDir` mémorise le chemin du dossier que vous utilisez le plus fréquemment pour vos fichiers à importer. L'application ouvrira directement ce dossier pour vous faire gagner du temps.
+L'application mémorise ce chemin pour vous faire gagner du temps en ouvrant directement ce dossier.
 
 -   **Libellé**: Dossier d'import
 -   **Type**: Dossier (Directory)

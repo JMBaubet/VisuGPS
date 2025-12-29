@@ -40,7 +40,7 @@ Voici comment vous déplacer le long de votre trace :
 
 > [!NOTE]
 >
-> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les [Paramètres](./parametres.md#36-commandes-clavier).
+> Si votre clavier ne possède pas de touches fléchées (ou si vous préférez d'autres touches), vous pouvez les redéfinir dans les (voir paramètre [3.6. Commandes clavier](./parametres.md#36-commandes-clavier)).
 
 ### Via les Graphes
 Sur les graphes vous avez sur l'axe des abscisses des indicateurs de progression (en km) permettant de vous positionner instantanément au kilomètre correspondant.
@@ -57,7 +57,7 @@ C'est le mode par défaut pour définir le "vol" de la caméra. Vous placez des 
 Ce mode permet d'ajouter des événements ponctuels pour dynamiser l'animation. (voir [Événements : Pauses et Survols](./edition_flyto_pause.md))
 
 ### 3. Mode Message
-Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours ou générer des [marqueurs kilométriques](./edition_marqueurs_km.md) automatiques. (voir [Gestion des Messages](./edition_messages.md))
+Utilisez ce mode pour ajouter des annotations textuelles tout au long du parcours ou générer des marqueurs kilométriques automatiques. (voir [Gestion des Messages](./edition_messages.md))
 
 ---
 

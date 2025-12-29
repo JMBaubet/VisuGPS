@@ -32,7 +32,6 @@ graph TD
     Exploit --> Index
     Modes --> Index
     FAQ --> Index
-    Param --> Index
 
     %% Liens depuis la Barre d'Outils
     Toolbar --> MajCommunes
@@ -42,7 +41,6 @@ graph TD
     %% Liens depuis l'Importation (Upload)
     Upload --> Exploit
     Upload --> Details
-    Upload --> Param
 
     %% Liens depuis Détails Circuit
     Details --> MajCommunes
@@ -59,50 +57,75 @@ graph TD
     Exploit --> Export[vgps_export.md]
     Exploit --> Suppression
 
-    %% Détails de l'Édition
-    Editeur --> IntroCam[introduction_camera.md]
-    Editeur --> EditFly[edition_flyto_pause.md]
-    Editeur --> EditKM[edition_marqueurs_km.md]
-    Editeur --> EditMsg[edition_messages.md]
+    subgraph Mode_Edition ["Mode Édition"]
+        direction TB
+        Editeur[edition_intro.md]
+        IntroCam[introduction_camera.md]
+        EditFly[edition_flyto_pause.md]
+        EditKM[edition_marqueurs_km.md]
+        EditMsg[edition_messages.md]
+        EditCam[edition_camera.md]
+        LibMsg[library_messages.md]
+
+        %% Détails de l'Édition interne
+        Editeur --> IntroCam
+        Editeur --> EditFly
+        Editeur --> EditMsg
+        
+        IntroCam -->|#les-trois-modes-dédition| Editeur
+        IntroCam --> EditCam
+        
+        EditCam -->|#les-trois-modes-dédition| Editeur
+        
+        EditFly -->|#les-trois-modes-dédition| Editeur
+        
+        EditMsg -->|#les-trois-modes-dédition| Editeur
+        EditMsg --> EditKM
+        EditMsg --> LibMsg
+        
+        EditKM --> EditMsg
+        LibMsg --> EditMsg
+    end
+
+    subgraph Mode_Visualisation ["Mode Visualisation"]
+        direction TB
+        Visu[visualisation.md]
+        RemoteCouplage[telecommande_couplage.md]
+        RemoteUtil[telecommande_utilisation.md]
+
+        %% Liens internes Visualisation
+        Visu --> RemoteCouplage
+        Visu --> RemoteUtil
+        RemoteCouplage --> RemoteUtil
+        RemoteUtil --> RemoteCouplage
+    end
+
+    %% Liens depuis le Guide d'Exploitation (Exploitation)
+    Exploit --> Toolbar
+    Exploit --> Upload
+    Exploit --> Editeur
+    Exploit --> Visu
+    Exploit --> RemoteCouplage
+    Exploit --> Export[vgps_export.md]
+    Exploit --> Suppression
+
+    %% Liens externes depuis le mode Edition
     Editeur --> Exploit
-
-    %% Sous-pages d'Édition vers les sommets
-    IntroCam -->|#les-trois-modes-dédition| Editeur
-    IntroCam --> EditCam[edition_camera.md]
     IntroCam --> Exploit
-
-    EditCam -->|#les-trois-modes-dédition| Editeur
     EditCam --> Exploit
-
-    EditFly -->|#les-trois-modes-dédition| Editeur
-    EditFly --> RemoteUtil[telecommande_utilisation.md]
+    EditFly --> RemoteUtil
     EditFly --> Exploit
-
-    EditMsg -->|#les-trois-modes-dédition| Editeur
-    EditMsg --> EditKM
-    EditMsg --> LibMsg[library_messages.md]
     EditMsg --> Exploit
-    
-    EditKM --> EditMsg
 
-    LibMsg --> EditMsg
-
-    %% Visualisation et Télécommande
-    Visu --> RemoteCouplage
-    Visu --> RemoteUtil
+    %% Liens externes depuis le mode Visualisation
     Visu --> Exploit
-
     RemoteCouplage --> Exploit
-    RemoteCouplage --> RemoteUtil
-
     RemoteUtil --> Exploit
-    RemoteUtil --> RemoteCouplage
 
     %% Retours Techniques
     Export --> Exploit
     Suppression --> Exploit
     MajCommunes --> Details
-    Modes --> Index
 
     %% Styles
     style Index fill:#f9f,stroke:#333,stroke-width:4px

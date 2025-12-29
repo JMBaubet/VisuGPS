@@ -69,7 +69,7 @@ Les événements sont représentés sur les graphes par des blocs de couleur sit
 *   **Les blocs de Pauses** : de couleur **<span style="color: #9C27B0">mauve</span>** par défaut, ils affichent la zone où le temps "stagne" sur la trace.
 *   **Les blocs de Survols** : de couleur **<span style="color: #FF9800">orange</span>** par défaut, ils marquent l'endroit précis où le détour cinématographique va se déclencher.
 
-Vous pouvez ajuster la couleur et la longueur visuelle de ces blocs dans les [Paramètres](./parametres.md) (**Édition > Événements > Graphe**).
+Vous pouvez ajuster la couleur et la longueur visuelle de ces blocs dans les (voir paramètre [3.4.1. Graphe Pause et Survol](./parametres.md#341-graphe-pause-et-survol)).
 
 ---
 
