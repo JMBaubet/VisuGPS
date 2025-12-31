@@ -30,7 +30,10 @@ Un menu escamotable permet de piloter la lecture :
 ### Indicateurs Temps Réel
 *   **Widget Distance** : Affiche le kilomètre actuel par rapport au total.
 *   **Widget Commune** : Affiche en haut de l'écran le nom de la commune traversée.
-*   **Profil d'Altitude** : Un graphique dynamique au bas de l'écran montre votre position sur le relief.
+*   **Profil d'Altitude** : Un graphique dynamique au bas de l'écran montre votre position sur le relief. 
+    > [!NOTE]
+    >
+    > Le curseur de progression peut être personnalisé via le paramètre [Aspect curseur lié à la comète](./parametres.md#461-graphe) pour reprendre l'apparence de la comète.
 *   **Croix Centrale** : En mode Pause, une croix peut s'afficher pour indiquer le centre de rotation de la caméra.
 
 ### Télécommande Mobile

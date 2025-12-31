@@ -350,7 +350,9 @@ function scrollToAnchor(anchorName) {
       event.stopPropagation();
       
       const [path, anchor] = hrefAttribute.split('#');
-      const resolved = resolvePath(currentDocPath.value, path);
+      // Decode path to handle %20 and other encoded characters
+      const decodedPath = decodeURIComponent(path);
+      const resolved = resolvePath(currentDocPath.value, decodedPath);
       console.log(`Navigating to doc: ${resolved}${anchor ? ' #'+anchor : ''}`);
       fetchDocumentation(resolved, false, anchor);
       return;

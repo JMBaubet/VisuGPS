@@ -1596,6 +1596,14 @@
                     "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/Ordonnee.md"
                   },
                   {
+                    "identifiant": "aspectCurseurLieComete",
+                    "libelle": "Aspect curseur lié à la comète",
+                    "description": "Si activé, le curseur d'avancement reprend l'aspect de la comète (couleur, opacité, longueur).",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Visualisation/Profil Altitude/Graphe/aspectCurseurLieComete.md"
+                  },
+                  {
                     "identifiant": "RepereDistance",
                     "libelle": "Intervalle des repères distances",
                     "description": "Intervalle en kilomètres pour les repères sur l'axe des distances.",

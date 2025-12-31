@@ -297,6 +297,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Intervalle des repères distances](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/RepereDistance.md)
 *   [Intervalle des repères altitude](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/RepereAltitude.md)
 *   [Position du curseur](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/CurseurPositionKm.md)
+*   [Aspect curseur lié à la comète](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/aspectCurseurLieComete.md)
 
 #### 4.6.2. Couleurs de pente
 **Description** : Attribution des couleurs selon le pourcentage d'inclinaison.

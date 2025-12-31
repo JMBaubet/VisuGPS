@@ -45,8 +45,25 @@
               <path v-for="(segment, index) in pathSegments" :key="`line-${index}`" :d="segment.linePath" :stroke="segment.color" stroke-width="2" fill="none"></path>
           </g>
 
-          <!-- Progress Bar -->
-          <line class="progress-bar" :x1="progressX" y1="0" :x2="progressX" :y2="svgHeight - 20"></line>
+          <!-- Progress Bar / Cursor -->
+          <line
+              v-if="!isCometLinked"
+              class="progress-bar"
+              :x1="progressX"
+              y1="0"
+              :x2="progressX"
+              :y2="svgHeight - 20"
+          ></line>
+          
+          <rect
+              v-else
+              :x="rectDimensions.x"
+              y="0"
+              :width="rectDimensions.width"
+              :height="svgHeight - 20"
+              :fill="cursorColor"
+              :style="{ opacity: cursorOpacity }"
+          ></rect>
 
           <!-- Hover Line -->
           <line
@@ -108,6 +125,49 @@ const dataPointsForTooltip = ref([]);
 // --- Composables ---
 const { getSettingValue } = useSettings();
 const { toHex } = useVuetifyColors();
+
+// --- Computed for Cursor ---
+const isCometLinked = computed(() => getSettingValue('Visualisation/Profil Altitude/Graphe/aspectCurseurLieComete'));
+
+const cursorColor = computed(() => {
+    if (isCometLinked.value) {
+        const colorName = getSettingValue('Visualisation/Vue 3D/Trace/couleurComete');
+       return toHex(colorName) || 'white';
+    }
+    return 'white';
+});
+
+const cursorOpacity = computed(() => {
+    if (isCometLinked.value) {
+        let val = getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete');
+        if (typeof val === 'string') {
+            val = val.replace(',', '.');
+        }
+        const num = parseFloat(val);
+        // Ensure strictly normalized value
+        return !isNaN(num) ? Math.max(0, Math.min(1, num)) : 1;
+    }
+    return 1;
+});
+
+const cursorWidth = computed(() => {
+    if (isCometLinked.value && totalDistance.value > 0) {
+        const cometLengthMeters = getSettingValue('Visualisation/Vue 3D/Trace/longueurComete') || 50;
+        return (cometLengthMeters / totalDistance.value) * viewBoxWidth.value;
+    }
+    return 1.5; 
+});
+
+const rectDimensions = computed(() => {
+    const px = progressX.value;
+    const cw = cursorWidth.value;
+    const x = Math.max(0, px - cw);
+    const width = px - x; // Ensures width is exactly what's needed to reach px from x
+    return { x, width };
+});
+
+
+
 
 // --- Data Loading and Processing ---
 async function processData() {
