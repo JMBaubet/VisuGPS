@@ -171,6 +171,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 ### 3.4. Pause et Survol
 **Description** : Configuration des événements de transition (survol d'un point d'intérêt) et de pause.
 *   [Durée du survol (ms)](../DocParametrage/Edition/Pause_Flyto/dureeSurvol.md)
+*   [Couleur de la croix centrale](../DocParametrage/Edition/Pause_Flyto/couleurCroixCentraleEdition.md)
 
 #### 3.4.1. Graphe Pause et Survol
 **Description** : Couleurs et dimensions des symboles d'événements sur le graphe.

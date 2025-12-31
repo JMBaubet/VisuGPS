@@ -38,7 +38,7 @@ Un interrupteur (switch) **Gauche / Droite** permet de choisir de quel côté de
 1.  **Position temporelle** : Placez le marqueur au kilomètre souhaité sur la trace.
 2.  **Ciblage de l'ancrage** : Déplacez la carte (**clic gauche**) pour placer l'endroit exact où la flèche du message doit pointer (ex: un sommet, une auberge) au centre de votre écran.
     > [!TIP]
-    > Comme pour les survols, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale.
+    > Comme pour les survols, le **clic gauche** fait basculer la vue en **2D** pour vous permettre de pointer le lieu avec une précision chirurgicale grâce à la croix centrale. Vous pouvez personnaliser la couleur de cette croix dans la [Couleur de la croix centrale](./parametres.md#34-pause-et-survol).
 3.  Sélectionnez votre message dans la bibliothèque.
 4.  Réglez l'orientation (**Gauche/Droite**) et la durée d'affichage.
 5.  Cliquez sur le bouton <span style="color: #2196F3">AJOUTER MESSAGE</span> <img src="https://api.iconify.design/mdi/plus.svg?width=20&color=%232196F3" style="vertical-align: middle; margin-bottom: 3px;">.
@@ -72,6 +72,7 @@ En complément des messages manuels, vous pouvez également générer automatiqu
 ### 🛠️ Paramètres Liés
 Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
 * [3.5. Messages](./parametres.md#35-messages)
+* [Couleur de la croix centrale](./parametres.md#34-pause-et-survol)
 
 ---
 

@@ -829,6 +829,15 @@
                 "unite": "ms",
                 "critique": false,
                 "doc": "docs/DocParametrage/Edition/Pause_Flyto/dureeSurvol.md"
+              },
+              {
+                "identifiant": "couleurCroixCentraleEdition",
+                "libelle": "Couleur de la croix centrale",
+                "description": "Définit la couleur de la croix centrale affichée en mode pause ou survol en édition.",
+                "type": "couleur",
+                "defaut": "white",
+                "materialDesign": true,
+                "doc": "docs/DocParametrage/Edition/Pause_Flyto/couleurCroixCentraleEdition.md"
               }
             ],
             "groupes": [

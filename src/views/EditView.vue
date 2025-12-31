@@ -125,7 +125,7 @@
       />
     </div>
 
-    <CenterMarker v-if="showCenterMarker" />
+    <CenterMarker v-if="showCenterMarker" :color="couleurCroixCentraleEdition" />
     <ConfirmationDialog
       v-model="showConfirmationDialog"
       :title="confirmationProps.title"
@@ -195,6 +195,7 @@ const route = useRoute();
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { getSettingValue } = useSettings();
+const { toHex } = useVuetifyColors();
 const { isBackButtonVisible } = useSharedUiState();
 const { createMessageSVG } = useMessageDisplay(); // Import the SVG creation function
 
@@ -247,6 +248,14 @@ const incrementZoom = ref(0.1);
 const incrementZoomShift = ref(1.0);
 const incrementBearing = ref(1); // New: Bearing increment for mouse wheel
 const incrementBearingShift = ref(5); // New: Bearing shift increment for mouse wheel
+
+// New: Central cross color for Edition mode (reactive)
+const couleurCroixCentraleEdition = computed(() => {
+  const colorName = getSettingValue('Edition/Pause et Survol/couleurCroixCentraleEdition') || 'white';
+  const resolvedColor = toHex(colorName);
+  console.log('[EditView] couleurCroixCentraleEdition:', colorName, '->', resolvedColor);
+  return resolvedColor;
+});
 
 // New: Refs for ControlTabsWidget interaction
 const controlTabsWidgetRef = ref(null);
@@ -682,8 +691,6 @@ const colorOrigineZoom = ref('#000000');
 const colorEditedZoom = ref('#000000');
 const colorOriginePitch = ref('#000000');
 const colorEditedPitch = ref('#000000');
-
-const { toHex } = useVuetifyColors();
 
 const currentZoom = ref(0);
 const currentPitch = ref(0);

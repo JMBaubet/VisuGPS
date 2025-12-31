@@ -48,7 +48,7 @@ Le Survol est un "décrochage" spectaculaire : la caméra quitte la trace pour a
 2.  **Ciblage** : Déplacez la carte (**clic gauche**) pour placer le point d'intérêt (sommet, lac, village) précisément au centre de votre écran.
     > [!TIP]
     >
-    > Lorsque vous effectuez le ciblage avec un **clic gauche**, la vue bascule automatiquement en **vue 2D** (vue de dessus) pour vous permettre de positionner le centre de la vue avec une précision extrême. Une fois le point sélectionné ou la manipulation terminée, la vue revient d'elle-même en **3D**.
+    > Lorsque vous effectuez le ciblage avec un **clic gauche**, la vue bascule automatiquement en **vue 2D** (vue de dessus) pour vous permettre de positionner le centre de la vue avec une précision extrême grâce à la croix centrale. Une fois le point sélectionné ou la manipulation terminée, la vue revient d'elle-même en **3D**. Vous pouvez personnaliser la couleur de cette croix dans la [Couleur de la croix centrale](./parametres.md#34-pause-et-survol).
 3.  Ajustez les paramètres cinématographiques :
     *   **Cap** : L'angle sous lequel vous regardez la cible. (**clic droit**)
     *   **Pitch** : L'inclinaison de la caméra sur la cible. (**flèches haut/bas**)
