@@ -23,6 +23,7 @@ pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
 pub mod tracking_processor;
+pub mod network_utils;
 pub mod import_export;
 
 use chrono::prelude::*;

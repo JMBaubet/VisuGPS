@@ -2,7 +2,6 @@ use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use geo::{prelude::*, LineString as GeoLineString, Point};
 use image::ImageFormat;
-use local_ip_address::local_ip;
 use qrcode::QrCode;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
@@ -37,11 +36,8 @@ pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
-    let my_local_ip = match local_ip() {
-        Ok(ip) => ip.to_string(),
-        Err(e) => return Err(format!("Impossible d'obtenir l'adresse IP locale: {}", e)),
-    };
+pub async fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
+    let my_local_ip = crate::network_utils::get_best_ip().await;
 
     let app_env_path = {
         let app_state = app_handle.state::<Mutex<AppState>>();

@@ -2,7 +2,6 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use futures::{StreamExt, SinkExt};
 use log::{info, error, debug};
-use local_ip_address::local_ip;
 use tokio::io::AsyncWriteExt;
 use tauri::{command, AppHandle, Manager, Emitter};
 
@@ -120,13 +119,7 @@ pub struct RemoteCommandResponse {
 use serde_json::Value;
 
 pub async fn start_remote_server(app_handle: AppHandle, port: u16, settings: Value) {
-    let my_local_ip = match local_ip() {
-        Ok(ip) => ip.to_string(),
-        Err(e) => {
-            error!("Impossible d'obtenir l'adresse IP locale: {}", e);
-            return;
-        }
-    };
+    let my_local_ip = crate::network_utils::get_best_ip().await;
 
     let addr = format!("0.0.0.0:{}", port);
 
