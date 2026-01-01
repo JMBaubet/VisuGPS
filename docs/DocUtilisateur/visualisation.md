@@ -9,14 +9,14 @@ Cette section décrit comment exploiter le mode Visualisation, l'aboutissement d
 
 L'animation suit une séquence automatisée fluide :
 
-1.  **Lancement** : Transition (Flyto) depuis une vue d'ensemble de l'Europe vers votre trace.
-2.  **Introduction** : Zoom progressif vers le point de départ (km 0).
+1.  **Lancement** : Transition (Flyto) depuis une vue d'ensemble de l'Europe vers votre trace. La carte utilise alors le **style de lancement** (ex: Mapbox Standard) pour une clarté maximale à grande échelle.
+2.  **Introduction** : Zoom progressif vers le point de départ (km 0). Pendant cette phase, le style de carte bascule automatiquement vers le **style détaillé** (ex: Satellite) défini pour la trace.
 3.  **Lecture** : Le marqueur (comète) parcourt la trace. La caméra suit fidèlement les mouvements définis en mode Édition.
 4.  **Événements** :
     *   **Pauses** : L'animation s'arrête (voir [Panel de Contrôle] ci-dessous pour reprendre).
     *   **Survols** : La caméra s'échappe temporairement vers un point d'intérêt avant de revenir sur la trace.
     *   **Messages** : Apparition des bulles informatives et des marqueurs KM.
-5.  **Final** : Une fois l'arrivée atteinte, la caméra effectue un zoom arrière pour montrer l'intégralité du parcours.
+5.  **Final** : Une fois l'arrivée atteinte, la caméra effectue un zoom arrière pour montrer l'intégralité du parcours. Le style de carte repasse alors automatiquement en **style de lancement** pour une vue globale épurée.
 
 ## 2. Interface et Contrôles
 

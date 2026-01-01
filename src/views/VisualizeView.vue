@@ -533,12 +533,26 @@ async function executeFlytoSequence(flytoData) {
     setTimeout(async () => {
       if (!map) return;
 
+      // Masquer les widgets pour la vue globale finale
+      isDistanceDisplayVisible.value = false;
+      isCommuneWidgetVisible.value = false;
+      isAltitudeVisible.value = false;
+      isControlsCardVisible.value = false;
+      sendVisualizeViewStateUpdate();
+
       animationState.value = 'Vol_Final';
 
       // Hide the comet
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
 
       const traceBbox = turf.bbox(lineStringRef.value);
+      
+      // Changement de style vers le style de lancement pour la vue globale finale
+      if (styleLancement.value !== mapStyle.value) {
+          map.setStyle(styleLancement.value);
+          await new Promise(resolve => map.once('style.load', resolve));
+      }
+
       await flyToPromise(map, {
           pitch: 0,
           bearing: 0,
@@ -674,6 +688,7 @@ const handleMapZoom = () => {
 
 // --- Computed settings ---
 const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
+const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/styleLancement'));
 const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styleVisualisation'));
 const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration'));
 const traceColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'));
@@ -894,6 +909,14 @@ const resetAnimation = async () => {
 
     // Fly to Km 0
     if (map && trackingPointsWithDistanceRef.value && trackingPointsWithDistanceRef.value.length > 0) {
+        // Restaurer la visibilité des widgets selon les réglages
+        isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
+        isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
+        isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
+        isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? true;
+        isBackButtonVisible.value = true;
+        sendVisualizeViewStateUpdate();
+
         const startCameraOptions = {
             center: trackingPointsWithDistanceRef.value[0].coordonnee,
             zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
@@ -1110,7 +1133,7 @@ const initializeMap = async () => {
 
     map = new mapboxgl.Map({
       container: mapContainer.value,
-      style: mapStyle.value,
+      style: styleLancement.value,
       center: centerEurope.value,
       zoom: zoomEurope.value,
       pitch: 0,
@@ -1118,19 +1141,21 @@ const initializeMap = async () => {
       interactive: false, // Désactiver l'interaction au démarrage
     });
 
-    map.on('style.load', () => {
-      map.addSource('mapbox-dem', {
-        'type': 'raster-dem',
-        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-        'tileSize': 512,
-        'maxzoom': 14
-      });
+    const setupMapLayersAndSources = async () => {
+      if (!map.getSource('mapbox-dem')) {
+        map.addSource('mapbox-dem', {
+          'type': 'raster-dem',
+          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+          'tileSize': 512,
+          'maxzoom': 14
+        });
+      }
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
       map.setFog({});
-    });
 
-    map.on('load', async () => { // Changed to async
-      map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
+      if (!map.getSource('trace')) {
+        map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
+      }
 
       const paintProps = {
         'line-width': traceWidth.value,
@@ -1143,15 +1168,30 @@ const initializeMap = async () => {
         paintProps['line-color'] = finalTraceColor;
       }
 
-      map.addLayer({
-        id: 'trace-background-layer',
-        type: 'line',
-        source: 'trace',
-        paint: paintProps
-      });
+      if (!map.getLayer('trace-background-layer')) {
+        map.addLayer({
+          id: 'trace-background-layer',
+          type: 'line',
+          source: 'trace',
+          paint: paintProps
+        });
+      }
 
-      map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
-      map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
+      if (!map.getSource('comet-source')) {
+        map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
+      }
+      if (!map.getLayer('comet-layer')) {
+        map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
+      }
+    };
+
+    map.on('style.load', async () => {
+      await setupMapLayersAndSources();
+    });
+
+    map.on('load', async () => {
+      // map.on('load') sequence continues...
+      // Les sources et layers sont déjà gérés par style.load via setupMapLayersAndSources
 
       // --- Séquence d'animation d'initialisation ---
       isInitializing.value = true;
@@ -1203,6 +1243,12 @@ const initializeMap = async () => {
 
       // Séquence 3: Vol vers le début de la trace (km 0)
       animationState.value = 'Vol_Vers_Depart';
+
+      // Changement de style avant le vol vers le départ
+      if (mapStyle.value !== styleLancement.value) {
+          map.setStyle(mapStyle.value);
+          await new Promise(resolve => map.once('style.load', resolve));
+      }
       
       // Afficher les messages avec anchorIncrement !== 0 pendant le flyTo
       if (nearKm0.length > 0) {

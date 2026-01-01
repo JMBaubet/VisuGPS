@@ -1295,6 +1295,25 @@
             "libelle": "Lancement",
             "parametres": [
               {
+                "identifiant": "styleLancement",
+                "libelle": "Style de la carte au lancement",
+                "description": "Style de carte utilisé lors de la phase d'initialisation (vue Europe et vue globale).",
+                "type": "list",
+                "defaut": "mapbox://styles/mapbox/standard",
+                "valeurs": [
+                  "mapbox://styles/mapbox/standard",
+                  "mapbox://styles/mapbox/streets-v12",
+                  "mapbox://styles/mapbox/outdoors-v12",
+                  "mapbox://styles/mapbox/light-v11",
+                  "mapbox://styles/mapbox/dark-v11",
+                  "mapbox://styles/mapbox/satellite-v9",
+                  "mapbox://styles/mapbox/satellite-streets-v12",
+                  "mapbox://styles/mapbox/navigation-day-v1",
+                  "mapbox://styles/mapbox/navigation-night-v1"
+                ],
+                "doc": "docs/DocParametrage/Visualisation/Lancement/styleLancement.md"
+              },
+              {
                 "doc": "docs/DocParametrage/Visualisation/Lancement/centerEurope.md",
                 "defaut": [
                   2.3522,

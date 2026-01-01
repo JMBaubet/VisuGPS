@@ -249,6 +249,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ### 4.3. Lancement
 **Description** : Séquence d'introduction cinématographique (Plongée depuis l'espace vers le circuit).
+*   [Style de la carte au lancement](../DocParametrage/Visualisation/Lancement/styleLancement.md)
 *   [Centre initial](../DocParametrage/Visualisation/Lancement/centerEurope.md)
 *   [Zoom initial](../DocParametrage/Visualisation/Lancement/zoomEurope.md)
 *   [Durée vers la trace](../DocParametrage/Visualisation/Lancement/durationEuropeToTrace.md)
