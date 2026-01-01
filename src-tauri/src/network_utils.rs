@@ -34,6 +34,12 @@ pub async fn get_best_ip() -> String {
            lower_name.contains("bridge") ||
            lower_name.contains("virtualbox") ||
            lower_name.contains("vmware") ||
+           lower_name.contains("docker") ||
+           lower_name.contains("vethernet") ||
+           lower_name.contains("hyper-v") ||
+           lower_name.contains("cyberghost") ||
+           lower_name.contains("nordvpn") ||
+           lower_name.contains("wireguard") ||
            lower_name.contains("tailscale") {
             debug!("Interface ignorée (virtuelle/VPN) : {} ({})", name, ip_str);
             continue;
