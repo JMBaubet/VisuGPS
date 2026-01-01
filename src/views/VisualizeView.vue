@@ -8,13 +8,13 @@
   </transition>
 
   <transition name="fade">
-    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }">
+    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }" @wheel.stop>
       <span class="font-weight-bold">{{ currentCommuneName }}</span>
     </div>
   </transition>
 
               <transition name="fade">
-                <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display">
+                <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
                       <div class="d-flex align-center justify-center fill-height px-4">
                         <span class="font-weight-bold">Distance :&nbsp;</span>
                         <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
@@ -22,7 +22,7 @@
                 </v-card>
               </transition>  <div class="bottom-center-container">
     <transition name="fade">
-      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container">
+      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
           <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
       </div>
     </transition>
@@ -34,12 +34,13 @@
              size="x-large"
              rounded
              title="Reprendre l'animation (P)"
+             @wheel.stop
       >
         Reprise
       </v-btn>
     </transition>
     <transition name="fade">
-      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)">
+      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
         <v-card variant="elevated" class="controls-card">
             <div class="d-flex align-center pa-1">
                             <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
@@ -251,6 +252,21 @@ async function executeFlytoSequence(flytoData) {
     animationState.value = 'En_Pause';
     //showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
 
+    // Activer l'interaction cartographique pendant la pause Flyto
+    if (map) {
+        map.interactive = true;
+        map.dragRotate.enable();
+        map.dragPan.enable();
+        map.scrollZoom.enable({ around: 'center' });
+        
+        // Détecter si l'utilisateur bouge la caméra pour le vol de retour (optionnel mais propre)
+        map.on('move', onMapInteraction);
+        map.on('zoom', onMapInteraction);
+        map.on('pitch', onMapInteraction);
+        map.on('rotate', onMapInteraction);
+        map.on('zoom', handleMapZoom);
+    }
+
     // Attendre que l'utilisateur appuie sur "Play"
     await new Promise(resolve => {
         const unwatch = watch(() => isPaused.value, (newVal, oldVal) => {
@@ -260,6 +276,20 @@ async function executeFlytoSequence(flytoData) {
             }
         });
     });
+
+    // Désactiver l'interaction avant le vol de retour
+    if (map) {
+        map.interactive = false;
+        map.dragRotate.disable();
+        map.dragPan.disable();
+        map.scrollZoom.disable();
+        
+        map.off('move', onMapInteraction);
+        map.off('zoom', onMapInteraction);
+        map.off('pitch', onMapInteraction);
+        map.off('rotate', onMapInteraction);
+        map.off('zoom', handleMapZoom);
+    }
 
     // --- Phase 3: Vol de retour vers la trace ---
     animationState.value = 'Survol_Evenementiel';
@@ -368,7 +398,6 @@ async function executeFlytoSequence(flytoData) {
     if (currentIncrement !== undefined) {
         // Popups
         if (map && rangeEvents.value.length > 0) {
-            // console.log("Range events for comparison:", rangeEvents.value); // Keep this if needed, but it can be noisy
             const newVisibleIds = new Set();
             for (const msg of rangeEvents.value) {
                 const isVisible = currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement;
@@ -388,10 +417,7 @@ async function executeFlytoSequence(flytoData) {
                 if (!currentVisibleIds.has(id)) {
                     const newMsg = rangeEvents.value.find(m => m.eventId === id); // Use eventId here
                     if (newMsg && newMsg.message) {
-                        console.log("New message to display:", newMsg); // Debug log
-                        console.log("Message coordinates:", newMsg.coord); // Log coordinates
                         const svgContent = createMessageSVG(newMsg);
-                        console.log("Generated SVG:", svgContent); // Debug log
 
                         const orientation = newMsg.orientation || 'Droite';
                         const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
@@ -1318,6 +1344,9 @@ onMounted(() => {
   window.addEventListener('keyup', handleKeyUp);
 
   const setupRemoteListeners = async () => {
+    // Bloquer le scroll global du body
+    document.body.style.overflow = 'hidden';
+
     unlistenFunctions.push(await listen('remote_command::toggle_play', () => {
         if (isInitializing.value || isAnimationFinished.value) return;
         isPaused.value = !isPaused.value;
@@ -1432,6 +1461,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  // Restaurer le scroll global du body
+  document.body.style.overflow = '';
+
   unlistenFunctions.forEach(unlisten => unlisten());
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('keyup', handleKeyUp);
