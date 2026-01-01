@@ -1,6 +1,6 @@
-# ⏳ Paramètre : Durée Trace vers Départ (Initialisation Visualisation)
+# ⏳ Paramètre : Durée Trace vers Départ (Visualisation)
 
-Ce document détaille le paramètre `durationTraceToStart`, qui définit la durée en millisecondes de l'animation de survol qui va de la vue globale de la trace vers le point de départ (Km 0) de l'animation en mode visualisation.
+Ce document détaille le paramètre `durationTraceToStart`, qui définit la durée en secondes de l'animation de survol qui va de la vue globale de la trace vers le point de départ (Km 0) de l'animation en mode visualisation.
 
 ---
 
@@ -8,12 +8,12 @@ Ce document détaille le paramètre `durationTraceToStart`, qui définit la dur�
 
 Le paramètre `durationTraceToStart` contrôle la vitesse de la transition visuelle du zoom depuis la vue complète de la trace vers son point de départ. Une durée plus longue rend la transition plus lente et douce, préparant l'utilisateur au début de l'animation.
 
--   **Libellé**: Durée Trace vers Départ (ms)
--   **Type**: Entier
--   **Valeur par défaut**: 2000 ms
--   **Minimum**: 1000 ms
--   **Maximum**: 5000 ms
--   **Unité**: ms
+-   **Libellé**: Durée Trace vers Départ (sec)
+-   **Type**: Réel
+-   **Valeur par défaut**: 2.0 sec
+-   **Minimum**: 1.0 sec
+-   **Maximum**: 10.0 sec
+-   **Unité**: sec
 
 ## ⚖️ Justification : Pourquoi ajuster la durée de la transition Trace vers Départ ?
 
@@ -32,5 +32,5 @@ L'ajustement de cette durée est essentiel pour une introduction fluide et compr
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (2000 ms)** : Deux secondes offrent une transition douce et suffisamment rapide pour ne pas prolonger inutilement l'introduction.
+-   **Valeur par défaut (2.0 sec)** : Deux secondes offrent une transition douce et suffisamment rapide pour ne pas prolonger inutilement l'introduction.
 -   **Adapter aux préférences** : Vous pouvez augmenter ou diminuer cette durée selon l'effet cinématique souhaité.

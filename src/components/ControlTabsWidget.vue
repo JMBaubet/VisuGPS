@@ -249,15 +249,17 @@
           </div>
           <v-divider class="mb-4"></v-divider>
           <!-- Flyto duration slider (always visible) -->
-          <div class="d-flex align-center justify-center mb-2">
-            <span class="text-subtitle-2">Durée du survol : {{ (props.flytoDurationSetting / 1000).toFixed(1) }} s</span>
+          <div class="d-flex align-center justify-center">
+            <div class="mb-2">
+              <span class="text-subtitle-2">Durée du survol : {{ props.flytoDurationSetting.toFixed(1) }} s</span>
+            </div>
           </div>
           <v-slider
             :model-value="props.flytoDurationSetting"
             @update:model-value="(val) => emit('update:flytoDurationSetting', val)"
-            min="200"
-            max="10000"
-            step="100"
+            min="0.1"
+            max="10.0"
+            step="0.1"
             hide-details
             class="align-center"
           >

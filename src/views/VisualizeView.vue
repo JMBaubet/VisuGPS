@@ -205,9 +205,18 @@ watch(visualizeViewState, () => {
 
 const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
 const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
-const durationEuropeToTrace = computed(() => getSettingValue('Visualisation/Lancement/durationEuropeToTrace'));
-const pauseBeforeStart = computed(() => getSettingValue('Visualisation/Lancement/pauseBeforeStart'));
-const durationTraceToStart = computed(() => getSettingValue('Visualisation/Lancement/durationTraceToStart'));
+const durationEuropeToTrace = computed(() => {
+    const val = getSettingValue('Visualisation/Lancement/durationEuropeToTrace');
+    return val > 100 ? val : val * 1000;
+});
+const pauseBeforeStart = computed(() => {
+    const val = getSettingValue('Visualisation/Lancement/pauseBeforeStart');
+    return val > 100 ? val : val * 1000;
+});
+const durationTraceToStart = computed(() => {
+    const val = getSettingValue('Visualisation/Lancement/durationTraceToStart');
+    return val > 100 ? val : val * 1000;
+});
 
 // Helper function to promisify map.flyTo
 function flyToPromise(mapInstance, options) {
@@ -238,7 +247,10 @@ async function executeFlytoSequence(flytoData) {
     //showSnackbar('Début du survol programmé...', 'info');
     
     // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
-    const durationToTarget = Math.max(200, flytoData.duree / currentSpeed.value);
+    // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
+    // Heuristique : si la durée est > 100, on considère qu'elle est déjà en ms (rétrocompatibilité).
+    const durationInMs = flytoData.duree > 100 ? flytoData.duree : flytoData.duree * 1000;
+    const durationToTarget = Math.max(200, durationInMs / currentSpeed.value);
 
     await flyToPromise(map, {
         center: flytoData.coord,
@@ -726,12 +738,30 @@ const cometColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/co
 const cometWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurComete'));
 const cometOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/longueurComete'));
-const animationSpeed = computed(() => getSettingValue('Visualisation/Lecture/vitesse'));
-const timerReprisePause = computed(() => getSettingValue('Visualisation/Lecture/timerReprisePause'));
-const masquerCurseurDelai = computed(() => getSettingValue('Visualisation/Lecture/masquerCurseurDelai'));
-const delayAfterAnimationEnd = computed(() => getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd') * 1000); // Convert to ms
-const flyToGlobalDuration = computed(() => getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'));
-const flyToKm0Duration = computed(() => getSettingValue('Visualisation/Finalisation/flyToKm0Duration'));
+const animationSpeed = computed(() => {
+    const val = getSettingValue('Visualisation/Lecture/vitesse');
+    return val > 100 ? val : val * 1000;
+});
+const timerReprisePause = computed(() => {
+    const val = getSettingValue('Visualisation/Lecture/timerReprisePause');
+    return val > 100 ? val : val * 1000;
+});
+const masquerCurseurDelai = computed(() => {
+    const val = getSettingValue('Visualisation/Lecture/masquerCurseurDelai');
+    return val > 100 ? val : val * 1000;
+});
+const delayAfterAnimationEnd = computed(() => {
+    const val = getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd');
+    return (val > 100 ? val : val * 1000);
+}); 
+const flyToGlobalDuration = computed(() => {
+    const val = getSettingValue('Visualisation/Finalisation/flyToGlobalDuration');
+    return val > 100 ? val : val * 1000;
+});
+const flyToKm0Duration = computed(() => {
+    const val = getSettingValue('Visualisation/Finalisation/flyToKm0Duration');
+    return val > 100 ? val : val * 1000;
+});
 const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Lancement/pauseAuKm0'));
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
 const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Taille des Messages/baseFontSize'));
@@ -1264,6 +1294,7 @@ const initializeMap = async () => {
 
       // Séquence 2: Pause sur la vue globale (messages atKm0 déjà visibles)
       animationState.value = 'Pause_Observation';
+      
       
       await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
 

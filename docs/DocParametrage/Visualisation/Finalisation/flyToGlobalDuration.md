@@ -1,6 +1,6 @@
-# ⏳ Paramètre : Durée du survol global (Finalisation Visualisation)
+# ⏳ Paramètre : Durée du survol global (Visualisation)
 
-Ce document détaille le paramètre `flyToGlobalDuration`, qui définit la durée en millisecondes de l'animation de survol qui ramène la caméra à une vue globale de la trace après la fin de l'animation principale.
+Ce document détaille le paramètre `flyToGlobalDuration`, qui définit la durée en secondes de l'animation de survol qui ramène la caméra à une vue globale de la trace après la fin de l'animation principale.
 
 ---
 
@@ -8,12 +8,12 @@ Ce document détaille le paramètre `flyToGlobalDuration`, qui définit la duré
 
 Le paramètre `flyToGlobalDuration` contrôle la vitesse de la transition visuelle qui, après la fin de l'animation, ramène la caméra à une vue d'ensemble de la trace complète. Une durée plus longue rend la transition plus lente et douce.
 
--   **Libellé**: Durée du survol global (ms)
--   **Type**: Entier
--   **Valeur par défaut**: 2000 ms
--   **Minimum**: 500 ms
--   **Maximum**: 5000 ms
--   **Unité**: ms
+-   **Libellé**: Durée de l'animation vers la trace à l'arrivée
+-   **Type**: Réel
+-   **Valeur par défaut**: 2.0 sec
+-   **Minimum**: 0.5 sec
+-   **Maximum**: 10.0 sec
+-   **Unité**: sec
 
 ## ⚖️ Justification : Pourquoi ajuster la durée du survol global ?
 
@@ -32,5 +32,5 @@ L'ajustement de cette durée est essentiel pour une finalisation fluide et agré
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (2000 ms)** : Deux secondes offrent une transition douce et suffisamment rapide pour ne pas prolonger inutilement la finalisation.
+-   **Valeur par défaut (2.0 sec)** : Deux secondes offrent une transition douce et suffisamment rapide pour ne pas prolonger inutilement la finalisation.
 -   **Adapter aux préférences** : Vous pouvez augmenter ou diminuer cette durée selon l'effet cinématique souhaité.

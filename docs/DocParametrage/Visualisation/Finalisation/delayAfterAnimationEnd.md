@@ -8,11 +8,11 @@ Ce document détaille le paramètre `delayAfterAnimationEnd`, qui définit le d�
 
 Le paramètre `delayAfterAnimationEnd` introduit une courte pause après que l'animation ait atteint la fin de la trace. Ce délai permet à l'utilisateur de visualiser le point d'arrivée final avant que la caméra ne commence à se déplacer pour la séquence de finalisation.
 
--   **Libellé**: Délai après fin d'animation (s)
--   **Type**: Entier
--   **Valeur par défaut**: 3 secondes
--   **Minimum**: 0 secondes
--   **Maximum**: 10 secondes
+-   **Libellé**: Durée de la pause à l'arrivée
+-   **Type**: Réel
+-   **Valeur par défaut**: 3.0 sec
+-   **Minimum**: 0.0 sec
+-   **Maximum**: 10.0 sec
 
 ## ⚖️ Justification : Pourquoi un délai après la fin de l'animation ?
 

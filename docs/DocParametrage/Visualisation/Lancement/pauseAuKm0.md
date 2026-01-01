@@ -8,11 +8,11 @@ Ce document détaille le paramètre `pauseAuKm0`, qui définit la durée en seco
 
 Le paramètre `pauseAuKm0` introduit un court délai une fois que la caméra est positionnée au point de départ de la trace. Cette pause permet à l'utilisateur de se préparer au début du mouvement et d'apprécier le point de départ.
 
--   **Libellé**: Pause au Km 0 (sec)
--   **Type**: Réel (Float)
+-   **Libellé**: Durée de la pause au Km 0
+-   **Type**: Réel
 -   **Valeur par défaut**: 0.5 sec
--   **Minimum**: 0 sec
--   **Maximum**: 60 sec
+-   **Minimum**: 0.0 sec
+-   **Maximum**: 60.0 sec
 -   **Pas (step)**: 0.5 sec
 -   **Unité**: sec
 

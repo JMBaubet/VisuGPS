@@ -8,12 +8,12 @@ Ce document détaille le paramètre `timerReprisePause`, qui définit la durée 
 
 Le paramètre `timerReprisePause` contrôle la fluidité de la transition de la caméra lorsque l'animation reprend après avoir été mise en pause. Une valeur plus élevée rend la transition plus lente et douce, tandis qu'une valeur plus faible la rend plus rapide et abrupte.
 
--   **Libellé**: Durée de la reprise après pause (ms)
--   **Type**: Entier
--   **Valeur par défaut**: 1000 ms
--   **Minimum**: 0 ms
--   **Maximum**: 5000 ms
--   **Unité**: ms
+-   **Libellé**: Durée de la reprise après pause (sec)
+-   **Type**: Réel
+-   **Valeur par défaut**: 1.0 sec
+-   **Minimum**: 0.0 sec
+-   **Maximum**: 10.0 sec
+-   **Unité**: sec
 
 ## ⚖️ Justification : Pourquoi ajuster la durée de la reprise après pause ?
 

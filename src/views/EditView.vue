@@ -1564,7 +1564,8 @@ onMounted(async () => {
     messagePreAffichageSetting.value = defaultMessagePreAffichage.value;
     messagePostAffichageSetting.value = defaultMessagePostAffichage.value;
 
-    pitchTransitionDuration.value = await getSettingValue('Edition/Messages/transitionDuree');
+    const transitionVal = await getSettingValue('Edition/Messages/transitionDuree');
+    pitchTransitionDuration.value = transitionVal > 10 ? transitionVal : transitionVal * 1000;
 
     const circuitData = await invoke('get_circuit_data', { circuitId: circuitId });
     distanceMarkersConfig.value = circuitData.distanceMarkersConfig || null;

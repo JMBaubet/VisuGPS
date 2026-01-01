@@ -1,6 +1,6 @@
-# ⏳ Paramètre : Durée Europe vers Trace (Initialisation Visualisation)
+# ⏳ Paramètre : Durée Europe vers Trace (Visualisation)
 
-Ce document détaille le paramètre `durationEuropeToTrace`, qui définit la durée en millisecondes de l'animation de survol qui va de la vue générale de l'Europe vers la vue globale de la trace, au début de la visualisation.
+Ce document détaille le paramètre `durationEuropeToTrace`, qui définit la durée en secondes de l'animation de survol qui va de la vue générale de l'Europe vers la vue globale de la trace, au début de la visualisation.
 
 ---
 
@@ -8,12 +8,12 @@ Ce document détaille le paramètre `durationEuropeToTrace`, qui définit la dur
 
 Le paramètre `durationEuropeToTrace` contrôle la vitesse de la transition visuelle du zoom depuis l'Europe vers la trace complète. Une durée plus longue rend la transition plus lente et douce, renforçant l'effet cinématographique.
 
--   **Libellé**: Durée Europe vers Trace (ms)
--   **Type**: Entier
--   **Valeur par défaut**: 5000 ms
--   **Minimum**: 1000 ms
--   **Maximum**: 10000 ms
--   **Unité**: ms
+-   **Libellé**: Durée Europe vers Trace (sec)
+-   **Type**: Réel
+-   **Valeur par défaut**: 5.0 sec
+-   **Minimum**: 1.0 sec
+-   **Maximum**: 10.0 sec
+-   **Unité**: sec
 
 ## ⚖️ Justification : Pourquoi ajuster la durée de la transition Europe vers Trace ?
 
@@ -32,5 +32,5 @@ L'ajustement de cette durée est essentiel pour créer une introduction à l'ani
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (5000 ms)** : Cinq secondes offrent une transition douce et suffisamment longue pour apprécier l'effet de zoom progressif.
+-   **Valeur par défaut (5.0 sec)** : Cinq secondes offrent une transition douce et suffisamment longue pour apprécier l'effet de zoom progressif.
 -   **Adapter aux préférences** : Vous pouvez augmenter ou diminuer cette durée selon l'effet cinématique souhaité.
