@@ -772,7 +772,7 @@ watch(isPaused, (paused) => {
         map.interactive = true;
         map.dragRotate.enable();
         map.dragPan.enable();
-        map.scrollZoom.enable();
+        map.scrollZoom.enable({ around: 'center' });
 
         // Listen for any interaction
         map.on('move', onMapInteraction);
