@@ -29,7 +29,7 @@
     <transition name="fade">
       <v-btn v-if="!isInitializing && isPaused && !isControlsCardVisible"
              color="warning"
-             @click="isPaused = false"
+             @click="isAnimationFinished ? resetAnimation() : isPaused = false"
              class="bottom-controls"
              size="x-large"
              rounded
@@ -230,6 +230,7 @@ const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
 const isFlytoActive = ref(false);
 const preFlytoCameraOptions = ref(null);
+const globalTraceCameraOptions = ref(null);
 
 async function executeFlytoSequence(flytoData) {
     isWatcherActive = false; // Désactivation du watcher principal
@@ -595,13 +596,13 @@ async function executeFlytoSequence(flytoData) {
           pitch: 0,
           bearing: 0,
           duration: flyToGlobalDuration.value,
-          ...map.cameraForBounds(traceBbox, { padding: 40 })
+          ...(globalTraceCameraOptions.value || map.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 }))
       });
 
       animationState.value = 'Termine';
 
       if (repriseAutomatique.value) {
-        const pauseMs = pauseAvantReprise.value * 1000;
+        const pauseMs = pauseAvantReprise.value;
         if (pauseMs > 0) {
             await new Promise(resolve => setTimeout(resolve, pauseMs));
         }
@@ -762,8 +763,15 @@ const flyToKm0Duration = computed(() => {
     const val = getSettingValue('Visualisation/Finalisation/flyToKm0Duration');
     return val > 100 ? val : val * 1000;
 });
-const pauseAuKm0 = computed(() => getSettingValue('Visualisation/Lancement/pauseAuKm0'));
+const pauseAuKm0 = computed(() => {
+    const val = getSettingValue('Visualisation/Lancement/pauseAuKm0');
+    return val > 100 ? val : val * 1000;
+});
 const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
+const pauseAvantReprise = computed(() => {
+    const val = getSettingValue('Visualisation/Finalisation/pauseAvantReprise');
+    return val > 100 ? val : val * 1000;
+});
 const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Taille des Messages/baseFontSize'));
 
 const sensibilityCap = computed(() => getSettingValue('Système/Télécommande/sensibiliteCap') ?? 100);
@@ -872,6 +880,11 @@ watch(isPaused, (paused) => {
                  lastTimestamp = 0; // Reset timestamp for smooth resume even without flyTo
             }
         }
+
+        // Restart animation loop if it was stopped and we are effectively resuming
+        if (!isPaused.value && !animationFrameId) {
+            animationFrameId = requestAnimationFrame(animate);
+        }
     }
 });
 
@@ -973,6 +986,12 @@ const resetAnimation = async () => {
         isBackButtonVisible.value = true;
         sendVisualizeViewStateUpdate();
 
+        // Restauration du style de visualisation (satellite) si nécessaire
+        if (mapStyle.value !== map.getStyle().style) {
+            map.setStyle(mapStyle.value);
+            await new Promise(resolve => map.once('style.load', resolve));
+        }
+
         const startCameraOptions = {
             center: trackingPointsWithDistanceRef.value[0].coordonnee,
             zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
@@ -1008,7 +1027,7 @@ const resetAnimation = async () => {
     }
 
     // Démarrage automatique après la pause définie
-    const pauseMs = pauseAuKm0.value * 1000;
+    const pauseMs = pauseAuKm0.value;
     if (pauseMs > 0) {
         await new Promise(resolve => setTimeout(resolve, pauseMs));
     }
@@ -1285,11 +1304,14 @@ const initializeMap = async () => {
         }, delayBeforeStart);
       }
       
+      const globalView = map.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+      globalTraceCameraOptions.value = globalView;
+
       await flyToPromise(map, {
           pitch: 0,
           bearing: 0,
           duration: durationEuropeToTrace.value,
-          ...map.cameraForBounds(traceBbox, { padding: 40 }) // Utiliser cameraForBounds pour obtenir le centre/zoom
+          ...globalView
       });
 
       // Séquence 2: Pause sur la vue globale (messages atKm0 déjà visibles)
@@ -1345,7 +1367,7 @@ const initializeMap = async () => {
       animationFrameId = requestAnimationFrame(animate);
 
       // Démarrage automatique après la pause définie
-      const pauseMs = pauseAuKm0.value * 1000;
+      const pauseMs = pauseAuKm0.value;
       if (pauseMs > 0) {
           await new Promise(resolve => setTimeout(resolve, pauseMs));
       }

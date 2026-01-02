@@ -10,7 +10,7 @@
    - Remplis le formulaire.
    - Accepte les termes.
    - Clique sur **Continue**.
-   - Saisir les informations de paiement et valider. (C'est obligatoire pour obtenir un token)
+   - Saisir les informations de paiement et valider. (C'est obligatoire pour obtenir un token, mais l'utilisation normale que nous devons en faire est largement en-dessous du seuil gratuit)
    - Valider votre compte via l'email reçu.
    - Confirmer votre mot de passe.
    
