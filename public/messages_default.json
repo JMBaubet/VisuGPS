@@ -48,14 +48,6 @@
     }
   },
   {
-    "id": "_Stop_blue",
-    "text": "🛑 Stop",
-    "style": {
-      "backgroundColor": "blue",
-      "textColor": "white"
-    }
-  },
-  {
     "id": "_Droite_blue",
     "text": "➡️ Droite",
     "style": {
@@ -74,6 +66,78 @@
   {
     "id": "_Ravitaillement_blue",
     "text": "🥪 Ravitaillement",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Italie_blue",
+    "text": "🇮🇹 Italie",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_France__blue",
+    "text": "🇫🇷 France ",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Espagne_blue",
+    "text": "🇪🇸 Espagne",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Interdit_white",
+    "text": "🚳 Interdit",
+    "style": {
+      "backgroundColor": "white",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Stop_white",
+    "text": "🛑 Stop",
+    "style": {
+      "backgroundColor": "white",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_DANGER_white",
+    "text": "‼️ DANGER",
+    "style": {
+      "backgroundColor": "white",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Attention_white",
+    "text": "⚠️ Attention",
+    "style": {
+      "backgroundColor": "white",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Arrivée_sélection_blue",
+    "text": "🥇🥈🥉 Arrivée sélection",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Départ_sélection_blue",
+    "text": "🏅 Départ sélection",
     "style": {
       "backgroundColor": "blue",
       "textColor": "white"
