@@ -5,8 +5,15 @@
 1. **Créer un compte Mapbox**
    
    - Va sur [https://account.mapbox.com](https://account.mapbox.com)
-   - Clique sur **Sign up** si tu n’as pas encore de compte.
-   - Tu peux t’inscrire avec un email, GitHub ou Google.
+   - Clique sur **Sign up for Mapbox** si tu n’as pas encore de compte.
+   - Sélectionne **Individual**.
+   - Remplis le formulaire.
+   - Accepte les termes.
+   - Clique sur **Continue**.
+   - Saisir les informations de paiement et valider. (C'est obligatoire pour obtenir un token)
+   - Valider votre compte via l'email reçu.
+   - Confirmer votre mot de passe.
+   
 
 2. **Accéder à la page Tokens**
    
