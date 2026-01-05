@@ -554,6 +554,8 @@ pub struct CircuitForDisplay {
     iso_date_time: DateTime<Utc>,
     avancement_communes: i32,
     has_errors: bool,
+    #[serde(rename = "meteoConfig")]
+    meteo_config: Option<gpx_processor::CircuitMeteoConfig>,
 }
 
 #[tauri::command]
@@ -614,6 +616,7 @@ fn get_circuits_for_display(
                 iso_date_time: circuit.iso_date_time,
                 avancement_communes: circuit.avancement_communes,
                 has_errors,
+                meteo_config: circuit.meteo_config.clone(),
             }
         })
         .collect();

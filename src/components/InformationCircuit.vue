@@ -372,9 +372,6 @@ const hasMeteoChanges = computed(() => {
     return editedHeureDepart.value !== oldHeure ||
            editedVitesseMoyenne.value !== oldVitesse ||
            editedDateDepart.value !== (config.dateDepart || ""); 
-           // Note on date: if config.dateDepart is undefined, edited is tomorrow, so it might be different. 
-           // If we want to detect if values *changed* from *saved* values:
-           // If saved is None, and edited is 'Tomorrow', is that a change? Yes if we want to save it explicitly.
 });
 
 const saveMeteo = async () => {

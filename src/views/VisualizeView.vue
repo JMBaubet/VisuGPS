@@ -172,12 +172,32 @@ const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widget
 const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetDynamique') ?? true);
 const currentTraceBearing = ref(0);
 const currentCameraBearing = ref(0);
+const currentCircuitRef = ref(null); // Added for settings priority
 
 // Weather Settings
+// Prioritize circuit settings if available, otherwise fallback to global settings
 const meteoActif = computed(() => getSettingValue('Visualisation/Météo/meteoActif') ?? true);
-const defaultHeureDepart = computed(() => getSettingValue('Visualisation/Météo/heureDepart') || "08:30");
-const defaultVitesseMoyenne = computed(() => getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0);
-const orientationBoussole = computed(() => getSettingValue('Visualisation/Météo/orientationBoussole') || "Trace");
+
+const defaultHeureDepart = computed(() => {
+    if (currentCircuitRef.value?.meteoConfig?.heureDepart) {
+        return currentCircuitRef.value.meteoConfig.heureDepart;
+    }
+    return getSettingValue('Visualisation/Météo/heureDepart') || "08:30";
+});
+
+const defaultVitesseMoyenne = computed(() => {
+    if (currentCircuitRef.value?.meteoConfig?.vitesseMoyenne) {
+        return currentCircuitRef.value.meteoConfig.vitesseMoyenne;
+    }
+    return getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
+});
+
+const orientationBoussole = computed(() => {
+    if (currentCircuitRef.value?.meteoConfig?.orientationBoussole) {
+        return currentCircuitRef.value.meteoConfig.orientationBoussole;
+    }
+    return getSettingValue('Visualisation/Météo/orientationBoussole') || "Trace";
+});
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -824,9 +844,10 @@ const initWeather = async (circuit, trackPoints) => {
     
     // Get config from circuit or defaults
     const config = circuit?.meteoConfig || {};
+    // Use the computed properties if config values are missing, which now handled priority
     const startTime = config.heureDepart || defaultHeureDepart.value;
     const avgSpeed = config.vitesseMoyenne || defaultVitesseMoyenne.value;
-    
+
     let dateStr = config.dateDepart;
     if (!dateStr) {
         const d = new Date();
@@ -1246,6 +1267,7 @@ const initializeMap = async () => {
     ]);
 
     const currentCircuit = allCircuits.find(c => c.circuitId === props.circuitId);
+    currentCircuitRef.value = currentCircuit || null; // Store in ref
     if (currentCircuit) {
         avancementCommunes.value = currentCircuit.avancementCommunes;
     }
