@@ -53,7 +53,7 @@ function updateRemoteInterface(appState) {
     // Masquer toutes les pages
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.style.display = 'none');
-    
+
     // Adapter l'interface de la télécommande selon l'état de l'application
     const statusText = document.getElementById('status');
     const visualizeViewTitle = document.getElementById('visualize-view-title');
@@ -62,7 +62,7 @@ function updateRemoteInterface(appState) {
     statusText.style.display = 'block';
     visualizeViewTitle.style.display = 'block';
 
-    switch(appState) {
+    switch (appState) {
         case 'Visualize':
         case 'Visualisation':
             document.getElementById('page-visualize').style.display = 'block';
@@ -99,7 +99,7 @@ function updateRemoteInterface(appState) {
 function handleHijackedConnection() {
     manualDisconnect = true; // Prevent any further reconnection attempts
     updateStatus("Connexion privée. Cet appareil n'est plus autorisé.", true);
-    
+
     const pages = document.querySelectorAll('.page');
     pages.forEach(page => page.style.display = 'none');
 
@@ -135,6 +135,16 @@ function setupButtonListeners() {
     const toggleDistanceSwitch = document.getElementById('toggle-distance');
     if (toggleDistanceSwitch) {
         toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
+    }
+
+    const toggleWeatherDynamicSwitch = document.getElementById('toggle-weather-dynamic');
+    if (toggleWeatherDynamicSwitch) {
+        toggleWeatherDynamicSwitch.addEventListener('change', () => sendCommand('toggle_weather_dynamic'));
+    }
+
+    const toggleWeatherStaticSwitch = document.getElementById('toggle-weather-static');
+    if (toggleWeatherStaticSwitch) {
+        toggleWeatherStaticSwitch.addEventListener('change', () => sendCommand('toggle_weather_static'));
     }
 
     // Speed Slider
@@ -189,6 +199,12 @@ function handleFullStateUpdate(state) {
         document.getElementById('toggle-profile').checked = visualizeState.isAltitudeVisible;
         document.getElementById('toggle-communes').checked = visualizeState.isCommuneWidgetVisible;
         document.getElementById('toggle-distance').checked = visualizeState.isDistanceDisplayVisible;
+        if (document.getElementById('toggle-weather-dynamic')) {
+            document.getElementById('toggle-weather-dynamic').checked = visualizeState.isDynamicWeatherVisible;
+        }
+        if (document.getElementById('toggle-weather-static')) {
+            document.getElementById('toggle-weather-static').checked = visualizeState.isStaticWeatherVisible;
+        }
     }
 
     // Mettre à jour l'état de l'animation
@@ -216,7 +232,7 @@ function updatePlayPauseButton(state) {
     rewindBtn.onmouseleave = null;
     rewindBtn.ontouchstart = null;
     rewindBtn.ontouchend = null;
-    
+
     // --- Set default visual state ---
     playPauseButton.onclick = () => sendCommand('toggle_play');
     rewindBtn.style.display = 'block';
@@ -239,7 +255,7 @@ function updatePlayPauseButton(state) {
                 document.getElementById('page-visualize').style.display = 'none';
                 document.getElementById('page-camera-edit').style.display = 'block';
                 mainTitle.textContent = 'Contrôle Caméra';
-                
+
                 rewindBtn.innerHTML = '📷';
                 rewindBtn.onclick = () => {
                     document.getElementById('page-visualize').style.display = 'none';

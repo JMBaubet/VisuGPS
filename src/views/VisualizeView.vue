@@ -167,6 +167,7 @@ const isCursorHidden = ref(false);
 // --- Weather State ---
 const weatherForecasts = ref([]);
 const currentWeather = ref(null);
+// const isWeatherVisible = ref(true); // Removed
 const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetStatique') ?? true);
 const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetDynamique') ?? true);
 const currentTraceBearing = ref(0);
@@ -189,6 +190,8 @@ const visualizeViewState = reactive({
     isAltitudeVisible: isAltitudeVisible,
     isCommuneWidgetVisible: isCommuneWidgetVisible,
     isDistanceDisplayVisible: isDistanceDisplayVisible,
+    isStaticWeatherVisible: isStaticWeatherVisible, // Added
+    isDynamicWeatherVisible: isDynamicWeatherVisible, // Added
 });
 
 const unlistenFunctions = [];
@@ -234,6 +237,12 @@ watch(isCommuneWidgetVisible, (newValue) => {
 });
 watch(isDistanceDisplayVisible, (newValue) => {
     visualizeViewState.isDistanceDisplayVisible = newValue;
+});
+watch(isStaticWeatherVisible, (newValue) => { // Added
+    visualizeViewState.isStaticWeatherVisible = newValue;
+});
+watch(isDynamicWeatherVisible, (newValue) => { // Added
+    visualizeViewState.isDynamicWeatherVisible = newValue;
 });
 
 // Watch the reactive state and send updates to the backend
@@ -1561,6 +1570,14 @@ onMounted(() => {
     unlistenFunctions.push(await listen('remote_command::toggle_distance_display', () => {
         if (isInitializing.value) return;
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_weather_static', () => {
+        if (isInitializing.value) return;
+        isStaticWeatherVisible.value = !isStaticWeatherVisible.value;
+    }));
+    unlistenFunctions.push(await listen('remote_command::toggle_weather_dynamic', () => {
+        if (isInitializing.value) return;
+        isDynamicWeatherVisible.value = !isDynamicWeatherVisible.value;
     }));
     unlistenFunctions.push(await listen('remote_command::toggle_home', () => {
         if (isInitializing.value) return;
