@@ -1,61 +1,60 @@
 <template>
-  <v-card class="weather-widget-dynamic pl-2 pr-2 pt-1 pb-1 d-flex align-center" elevation="4">
-    <!-- Weather Icon -->
-    <v-icon size="large" :color="weatherInfo.color" class="mr-2" :title="weatherInfo.desc">{{ weatherInfo.icon }}</v-icon>
+<div class="weather-widget-container d-flex flex-row align-start">
+    
+    <!-- Card 1: Weather Info (Time + Data) -->
+    <v-card class="weather-info-card d-flex flex-column align-center justify-center px-4 py-1 mr-2" elevation="4">
+        
+        <!-- Time Range Label -->
+        <span class="text-caption font-weight-bold mb-0 text-grey-darken-1">{{ timeLabel }}</span>
 
-    <!-- Weather Info Section -->
-    <div class="d-flex flex-column mr-2">
-        <div class="d-flex align-center">
-            <v-icon size="small" class="mr-1" :color="getTempColor(weather.apparentTemperature)">mdi-thermometer</v-icon>
-            <span class="font-weight-bold">{{ Math.round(weather.apparentTemperature) }}°</span>
-        </div>
-        <div class="d-flex align-center">
-             <v-icon size="small" class="mr-1" color="blue-grey lighten-2">mdi-weather-windy</v-icon>
-             <span class="text-caption">{{ Math.round(weather.windSpeed) }} <span class="text-grey-darken-1" v-if="weather.windGusts > weather.windSpeed">({{Math.round(weather.windGusts)}})</span></span>
-        </div>
-        <div class="d-flex align-center">
-             <v-icon size="small" class="mr-1" color="blue" :icon="weather.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
-             <span class="text-caption" :class="{'font-weight-bold text-blue': weather.precipProb > 50}">{{ weather.precipProb }}%</span>
-        </div>
-    </div>
+        <!-- Weather Data Row -->
+        <div class="d-flex align-center justify-space-between w-100">
+            <!-- Icon -->
+            <v-icon size="default" :color="weatherInfo.color" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
+            
+            <!-- Temp -->
+            <div class="d-flex align-center mr-3">
+                <v-icon size="small" class="mr-1" :color="getTempColor(weather.temperature)">mdi-thermometer</v-icon>
+                <div class="d-flex align-baseline">
+                    <span class="font-weight-bold">{{ Math.round(weather.temperature) }}°C</span>
+                    <span class="text-caption text-grey ml-1" style="font-size: 0.7rem !important;">(Ress. {{ Math.round(weather.apparentTemperature) }}°)</span>
+                </div>
+            </div>
 
-    <!-- Compass Section -->
-    <div class="compass-container ml-2" :style="{ transform: `rotate(${-myHeading}deg)` }">
-        <div class="compass-rose">
-            <div class="north-marker">N</div>
-            <!-- Track Arrow: Points in direction of travel -->
-             <v-icon 
-                class="track-arrow" 
-                size="48"
-                :style="{ transform: `rotate(${traceBearing}deg) scaleY(1.2)` }"
-                color="black"
-            >
-                mdi-arrow-up
-            </v-icon>
-            <!-- Wind Arrow: Points to where wind is coming FROM (arrow points down wind direction?) -->
-            <!-- Actually arrow-down-thick at 0 deg points down. If windDir is 0 (North), it points South. -->
-            <!-- This visualizes the wind flow properly. -->
-             <v-icon 
-                class="wind-arrow" 
-                size="48"
-                :style="{ transform: `rotate(${weather.windDir}deg) scaleY(1.2)` }"
-                color="blue"
-            >
-                mdi-arrow-down-thick
-            </v-icon>
+            <!-- Precip -->
+            <div class="d-flex align-center">
+                <v-icon size="small" class="mr-1" color="blue" :icon="weather.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
+                <span class="font-weight-bold" :class="{'text-blue': weather.precipProb > 50}">
+                    {{ weather.precipProb }}% ({{ weather.precip }}mm)
+                </span>
+            </div>
         </div>
-    </div>
-  </v-card>
+    </v-card>
+
+    <!-- Card 2: Compass -->
+    <v-card class="compass-card d-flex align-center justify-center pa-1" elevation="4">
+            <CompassWidget 
+                :size="80"
+                :heading="myHeading"
+                :track-bearing="traceBearing"
+                :wind-direction="weather.windDir"
+                :wind-speed="weather.windSpeed"
+                :wind-gusts="weather.windGusts"
+            />
+        </v-card>
+
+</div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
 import { getWeatherInfo } from '@/services/WeatherIcons';
+import CompassWidget from '@/components/CompassWidget.vue';
 
 const props = defineProps({
   weather: {
     type: Object,
-    required: true, // { apparentTemperature, windSpeed, windGusts, windDir, code, ... }
+    required: true, // { apparentTemperature, windSpeed, windGusts, windDir, code, time ... }
   },
   bearing: {
     type: Number,
@@ -67,7 +66,7 @@ const props = defineProps({
   },
   orientationMode: {
     type: String,
-    default: 'Trace', // 'Trace' or 'Camera'
+    default: 'Trace', // 'Trace' or 'Camera' - Unused now for heading, but kept for props compatibility
   }
 });
 
@@ -78,6 +77,23 @@ const myHeading = computed(() => {
 
 const weatherInfo = computed(() => getWeatherInfo(props.weather.code));
 
+const timeLabel = computed(() => {
+    if (!props.weather.time) return '';
+    const date = new Date(props.weather.time);
+    
+    const days = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+    const months = ['Jan.', 'Fév.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+    
+    const dayName = days[date.getDay()];
+    const dayNum = String(date.getDate()).padStart(2, '0');
+    const monthName = months[date.getMonth()];
+    
+    const startHour = date.getHours();
+    const endHour = (startHour + 1) % 24;
+    
+    return `${dayName} ${dayNum} ${monthName} : ${String(startHour).padStart(2, '0')}h - ${String(endHour).padStart(2, '0')}h`;
+});
+
 const getTempColor = (temp) => {
     if (temp < 5) return 'blue';
     if (temp > 25) return 'red';
@@ -86,55 +102,24 @@ const getTempColor = (temp) => {
 </script>
 
 <style scoped>
-.weather-widget-dynamic {
-  /* Position handling moved to parent container */
+.weather-widget-container {
   position: relative;
   z-index: 1000;
+  pointer-events: none; /* Let clicks pass through container gaps */
+}
+
+/* Match Distance Widget Style (Standard v-card) */
+.weather-info-card {
+  pointer-events: auto;
+  /* Use default v-card background/radius, no custom override */
+}
+
+.compass-card {
   background-color: rgba(var(--v-theme-surface), 0.85);
   color: rgb(var(--v-theme-on-surface));
   backdrop-filter: blur(3px);
   border-radius: 20px;
-  pointer-events: auto;
+  pointer-events: auto; /* Re-enable clicks on cards */
 }
 
-.compass-container {
-    width: 60px;
-    height: 60px;
-    position: relative;
-    transition: transform 0.1s linear;
-}
-
-.compass-rose {
-    width: 100%;
-    height: 100%;
-    border: 2px solid rgb(var(--v-theme-on-surface));
-    border-radius: 50%;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.north-marker {
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 12px;
-    font-weight: bold;
-    color: red;
-    background: rgb(var(--v-theme-surface));
-    padding: 0 2px;
-}
-
-.wind-arrow {
-    position: absolute;
-    /* Rotation handled in template */
-}
-
-.track-arrow {
-    position: absolute;
-    /* Rotation handled in template */
-    opacity: 0.7; /* Make it slightly distinct */
-}
 </style>

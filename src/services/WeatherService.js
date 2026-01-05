@@ -127,7 +127,7 @@ const WeatherService = {
         // We assume all points are on the same day for simplicity OR we handle the date range.
         // The points have timestamps. We should find the min and max date.
 
-        const dates = sampledPoints.map(p => p.timestamp.toISOString().split('T')[0]);
+        const dates = sampledPoints.map(p => new Date(p.timestamp).toISOString().split('T')[0]);
         const uniqueDates = [...new Set(dates)].sort();
         const startDate = uniqueDates[0];
         const endDate = uniqueDates[uniqueDates.length - 1];
@@ -157,13 +157,23 @@ const WeatherService = {
             return results.map((locationData, index) => {
                 const point = sampledPoints[index];
                 const pointTime = point.timestamp;
+                // Find the hourly index corresponding to the interval [H, H+1)
+                // We want 08:30 to map to 08:00, and 08:59 to 08:00.
+                let closestIndex = -1;
 
-                // Find the hourly index closest to pointTime
-                // hourly.time is ISO8601 array
-                const timeIndex = locationData.hourly.time.findIndex(t => {
+                locationData.hourly.time.forEach((t, i) => {
                     const tDate = new Date(t);
-                    return Math.abs(tDate - pointTime) < 30 * 60 * 1000; // Within 30 mins
+                    const diff = pointTime - tDate; // diff in ms
+                    // Check if point is within the hour starting at tDate
+                    // Allow small tolerance? No, strict hour buckets usually best for "09h-10h".
+                    if (diff >= 0 && diff < 60 * 60 * 1000) {
+                        closestIndex = i;
+                    }
                 });
+
+                if (closestIndex === -1) return null;
+
+                const timeIndex = closestIndex;
 
                 if (timeIndex === -1) return null;
 

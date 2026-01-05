@@ -43,17 +43,15 @@ export function useMessageDisplay() {
         return `
             <svg width="${viewBoxWidth}" height="${viewBoxHeight}" viewBox="0 0 ${viewBoxWidth} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">
             <rect fill="${backgroundColor}" x="0" y="${rectY}" width="${rectWidth}" height="${baseRectHeight}" rx="${rectRx}" transform="${transform}" />
-            <text text-anchor="start" x="${textX}" y="${textY}" transform="${transform}">
+            <text 
+                text-anchor="start" 
+                x="${textX}" 
+                y="${textY}" 
+                transform="${transform}" 
+                style="font: bold ${fontSize}px Roboto, sans-serif; fill: ${textColor};"
+            >
                 ${text}
             </text>
-            <style>
-                <![CDATA[
-                text {
-                font: bold ${fontSize}px Roboto, sans-serif;
-                fill: ${textColor};
-                }
-                ]]>
-            </style>
             </svg>
         `;
     };

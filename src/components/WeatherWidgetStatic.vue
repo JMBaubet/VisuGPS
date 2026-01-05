@@ -19,7 +19,10 @@
         </thead>
         <tbody>
           <tr v-for="(item, index) in hourlyForecasts" :key="index">
-            <td class="px-2 font-weight-medium">{{ formatTime(item.time) }} ({{ Math.round(item.distanceKm) }}km)</td>
+            <td class="px-2 font-weight-medium">
+                <div>{{ item.timeLabel }}</div>
+                <div class="text-caption text-grey" style="font-size: 0.7rem !important;">{{ item.distanceLabel }}</div>
+            </td>
             <td class="px-1 text-center">
                  <v-icon :color="item.weatherIconColor" :title="item.weatherDesc">{{ item.weatherIcon }}</v-icon>
             </td>
@@ -27,10 +30,13 @@
                 <span class="text-blue">{{ Math.round(item.stats.temp.min) }}°</span> / 
                 <span :class="getTempColorClass(item.stats.temp.avg)" class="font-weight-bold">{{ Math.round(item.stats.temp.avg) }}°</span> / 
                 <span class="text-red">{{ Math.round(item.stats.temp.max) }}°</span>
+                <div class="text-caption text-grey" style="font-size: 0.7rem !important;">
+                    (Ress. {{ Math.round(item.stats.apparentT.avg) }}°)
+                </div>
             </td>
             <td class="px-2 text-center text-caption">
               <div class="d-flex align-center justify-center">
-                <v-icon :style="{ transform: `rotate(${item.stats.wind.dirAvg}deg)` }" size="small" class="mr-1">mdi-arrow-up</v-icon>
+                <v-icon :style="{ transform: `rotate(${item.stats.wind.dirAvg + 180}deg)` }" size="small" class="mr-1">mdi-arrow-up</v-icon>
                 {{ Math.round(item.stats.wind.speedAvg) }}
                 <span v-if="item.stats.wind.gustMax > item.stats.wind.speedAvg + 5" class="text-grey ml-1">
                     ({{ Math.round(item.stats.wind.gustMax) }})
@@ -39,12 +45,15 @@
             </td>
             <td class="px-2 text-center" :class="getRainColorClass(item.stats.precip.probMax)">
               {{ item.stats.precip.probMax }}%
+              <span class="text-caption">
+                ({{ item.stats.precip.sum.toFixed(1) }}mm)
+              </span>
             </td>
-          </tr>
+        </tr>
         </tbody>
-      </v-table>
+    </v-table>
     </v-card-text>
-  </v-card>
+</v-card>
 </template>
 
 <script setup>
@@ -54,10 +63,10 @@ import { useTheme } from 'vuetify';
 const theme = useTheme();
 
 const props = defineProps({
-  forecasts: {
+forecasts: {
     type: Array,
     required: true,
-  }
+}
 });
 
 defineEmits(['close']);
@@ -65,8 +74,13 @@ defineEmits(['close']);
 const formatTime = (isoString) => {
     if (!isoString) return '';
     const date = new Date(isoString);
-    // Use getHours() directly for "HHh" format, preventing invalid option errors
-    return String(date.getHours()).padStart(2, '0') + 'h';
+    const startHour = date.getHours();
+    const endHour = (startHour + 1) % 24;
+    
+    const startStr = String(startHour).padStart(2, '0') + 'h';
+    const endStr = String(endHour).padStart(2, '0') + 'h';
+    
+    return `${startStr} - ${endStr}`;
 };
 
 import { getWeatherInfo } from '@/services/WeatherIcons';
@@ -84,14 +98,17 @@ const hourlyForecasts = computed(() => {
         groups[time].push(item);
     });
 
-    return Object.keys(groups).sort().map(time => {
+    const sortedKeys = Object.keys(groups).sort();
+    
+    return sortedKeys.map((time, index) => {
         const items = groups[time];
-        const temps = items.map(i => i.weather.apparentTemperature);
+        const temps = items.map(i => i.weather.temperature); // FIX: Use real temperature
+        const apparentTemps = items.map(i => i.weather.apparentTemperature); // Added
         const windSpeeds = items.map(i => i.weather.windSpeed);
         const windGusts = items.map(i => i.weather.windGusts);
         const precipProbs = items.map(i => i.weather.precipProb);
         
-        // Calculate average wind direction: vector averaging
+        // Calculate average wind direction
         let sumSin = 0;
         let sumCos = 0;
         items.forEach(i => {
@@ -103,18 +120,50 @@ const hourlyForecasts = computed(() => {
         let avgDeg = avgRad * 180 / Math.PI;
         if (avgDeg < 0) avgDeg += 360;
 
-        // Weather Code: Use the one that occurs most, or explicitly prioritize worse weather?
-        // Let's take the max code usually implies "significant weather" vs clear.
-        // But 0=clear, 3=overcast, 99=thunderstorm. Generally higher is worse/more active.
         const maxCode = Math.max(...items.map(i => i.weather.code));
         const weatherInfo = getWeatherInfo(maxCode);
 
-        // Distance at the start of this hour (approx)
-        const distanceKm = items[0].point.distance / 1000;
+        // Time Label Formatting
+        const bucketDate = new Date(time);
+        let startObj = bucketDate;
+        
+        // For the very first row, use the exact start time of the first point
+        if (index === 0 && items.length > 0) {
+            startObj = new Date(items[0].point.timestamp);
+        }
+
+        const bucketNextHour = new Date(bucketDate);
+        bucketNextHour.setHours(bucketNextHour.getHours() + 1);
+
+        const formatH = (d) => String(d.getHours()).padStart(2,'0') + 'h';
+        const formatHM = (d) => {
+            const m = d.getMinutes();
+            if (m === 0) return formatH(d);
+            return String(d.getHours()).padStart(2,'0') + 'h' + String(m).padStart(2,'0');
+        };
+
+        const startStr = (index === 0) ? formatHM(startObj) : formatH(startObj);
+        
+        let endStr;
+        if (index === sortedKeys.length - 1 && items.length > 0) {
+             const lastPointTime = new Date(items[items.length - 1].point.timestamp);
+             endStr = formatHM(lastPointTime);
+        } else {
+             endStr = formatH(bucketNextHour);
+        }
+
+        // Distance Range calculation
+        const startDist = items[0].point.distance / 1000;
+        const endDist = items[items.length - 1].point.distance / 1000;
+        const distanceLabel = `${Math.round(startDist)} - ${Math.round(endDist)} km`;
+
+        const timeLabel = `${startStr} - ${endStr}`;
 
         return {
             time,
-            distanceKm,
+            timeLabel,
+            distanceLabel,
+            distanceKm: startDist, // Keep for sorting if needed, though index is used
             weatherCode: maxCode,
             weatherIcon: weatherInfo.icon,
             weatherIconColor: weatherInfo.color,
@@ -125,13 +174,17 @@ const hourlyForecasts = computed(() => {
                     max: Math.max(...temps),
                     avg: temps.reduce((a, b) => a + b, 0) / temps.length
                 },
+                apparentT: {
+                    avg: apparentTemps.reduce((a, b) => a + b, 0) / apparentTemps.length
+                },
                 wind: {
                     speedAvg: windSpeeds.reduce((a, b) => a + b, 0) / windSpeeds.length,
                     gustMax: Math.max(...windGusts),
-                    dirAvg: avgDeg // Use computed average direction
+                    dirAvg: avgDeg 
                 },
                 precip: {
-                    probMax: Math.max(...precipProbs)
+                    probMax: Math.max(...precipProbs),
+                    sum: items.map(i => i.weather.precip).reduce((a, b) => a + b, 0)
                 }
             }
         };

@@ -27,7 +27,7 @@
       <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
             <div class="d-flex align-center justify-center fill-height px-4">
               <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
+              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
             </div>  
       </v-card>
     </transition>
@@ -89,8 +89,6 @@
       </div>
     </transition>
   </div>
-
-
 </template>
 
 <script setup>
@@ -258,6 +256,7 @@ const durationTraceToStart = computed(() => {
     return val > 100 ? val : val * 1000;
 });
 
+
 // Helper function to promisify map.flyTo
 function flyToPromise(mapInstance, options) {
     return new Promise(resolve => {
@@ -265,6 +264,9 @@ function flyToPromise(mapInstance, options) {
         mapInstance.once('moveend', () => resolve());
     });
 }
+
+
+
 
 const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
@@ -636,6 +638,7 @@ async function executeFlytoSequence(flytoData) {
       });
       if (closest) {
           currentWeather.value = closest.weather;
+
       }
   }
 
@@ -1456,8 +1459,11 @@ const initializeMap = async () => {
       
       await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
 
+      
       // Séquence 3: Vol vers le début de la trace (km 0)
       animationState.value = 'Vol_Vers_Depart';
+
+
 
       // Changement de style avant le vol vers le départ
       if (mapStyle.value !== styleLancement.value) {
@@ -1702,7 +1708,7 @@ onUnmounted(() => {
   transform: translateX(-50%);
   z-index: 1; /* Ensure it's above map */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 20px; /* Space between widgets */
   pointer-events: none; /* Let clicks pass through gaps */
 }
