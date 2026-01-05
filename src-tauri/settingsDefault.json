@@ -1783,6 +1783,74 @@
                 "doc": "docs/DocParametrage/Visualisation/Taille des Messages/coefReducteurMessage.md"
               }
             ]
+          },
+          {
+            "libelle": "Météo",
+            "parametres": [
+              {
+                "identifiant": "meteoActif",
+                "libelle": "Activer la météo",
+                "description": "Active la récupération et l'affichage des données météo.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Meteo/meteoActif.md"
+              },
+              {
+                "identifiant": "heureDepart",
+                "libelle": "Heure de départ par défaut",
+                "description": "Heure de départ par défaut pour le calcul des prévisions météo.",
+                "type": "heure",
+                "defaut": "08:30",
+                "doc": "docs/DocParametrage/Visualisation/Meteo/heureDepart.md"
+              },
+              {
+                "identifiant": "vitesseMoyenne",
+                "libelle": "Vitesse moyenne par défaut (km/h)",
+                "description": "Vitesse moyenne par défaut pour estimer la progression sur le parcours.",
+                "type": "reel",
+                "defaut": 20.0,
+                "min": 5.0,
+                "max": 50.0,
+                "step": 0.5,
+                "unite": "km/h",
+                "doc": "docs/DocParametrage/Visualisation/Meteo/vitesseMoyenne.md"
+              },
+              {
+                "identifiant": "orientationBoussole",
+                "libelle": "Orientation de la boussole",
+                "description": "Référence pour le Nord de la boussole : aligné avec la trace ou avec la caméra.",
+                "type": "list",
+                "defaut": "Trace",
+                "valeurs": [
+                  "Trace",
+                  "Camera"
+                ],
+                "doc": "docs/DocParametrage/Visualisation/Meteo/orientationBoussole.md"
+              }
+            ],
+            "groupes": [
+              {
+                "libelle": "Widgets",
+                "parametres": [
+                  {
+                    "identifiant": "widgetStatique",
+                    "libelle": "Widget Statique (Tableau)",
+                    "description": "Afficher le tableau des prévisions heure par heure.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/widgetStatique.md"
+                  },
+                  {
+                    "identifiant": "widgetDynamique",
+                    "libelle": "Widget Dynamique (Boussole)",
+                    "description": "Afficher la boussole et les conditions actuelles.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/widgetDynamique.md"
+                  }
+                ]
+              }
+            ]
           }
         ]
       },

@@ -55,6 +55,7 @@
             </div>
             <v-chip v-else-if="param.type === 'message'" size="small" color="grey">Inconnu ({{ param.surcharge || param.defaut }})</v-chip>
             <v-chip v-else-if="param.type === 'secret'" size="small">******</v-chip>
+            <v-chip v-else-if="param.type === 'heure'" size="small">{{ param.surcharge != null ? param.surcharge : param.defaut }}</v-chip>
             <v-icon v-else-if="param.type === 'booleen'">{{ (param.surcharge != null ? param.surcharge : param.defaut) ? 'mdi-check' : 'mdi-close' }}</v-icon>
         </template>
       </v-list-item>
@@ -161,6 +162,15 @@
       @update:show="isMessageDialogVisible = $event"
     />
 
+    <!-- Composant de dialogue pour l'heure -->
+    <EditTimeDialog
+        v-if="selectedParameter && selectedParameter.type === 'heure'"
+        :show="isTimeDialogVisible"
+        :parameter="selectedParameter"
+        :group-path="fullPath"
+        @update:show="isTimeDialogVisible = $event"
+    />
+
     <!-- Composant de dialogue pour la documentation -->
     <v-dialog v-model="isDocDialogVisible" max-width="800px">
       <DocDisplay 
@@ -185,7 +195,8 @@ import EditSecretDialog from './EditSecretDialog.vue';
 import EditListDialog from './EditListDialog.vue';
 import EditMonitorDialog from './EditMonitorDialog.vue';
 import EditDirectoryDialog from './EditDirectoryDialog.vue';
-import EditMessageDialog from './EditMessageDialog.vue'; // Changed from MessageLibraryModal
+import EditMessageDialog from './EditMessageDialog.vue';
+import EditTimeDialog from './EditTimeDialog.vue';
 import DocDisplay from './DocDisplay.vue';
 import { useMessages } from '@/composables/useMessages'; // Import useMessages
 
@@ -217,6 +228,7 @@ const isListDialogVisible = ref(false);
 const isMonitorDialogVisible = ref(false);
 const isDirectoryDialogVisible = ref(false);
 const isMessageDialogVisible = ref(false);
+const isTimeDialogVisible = ref(false);
 const isDocDialogVisible = ref(false);
 const selectedParameter = ref(null);
 
@@ -244,6 +256,8 @@ const openEditDialog = async (param) => {
     isDirectoryDialogVisible.value = true;
   } else if (param.type === 'message') {
     isMessageDialogVisible.value = true;
+  } else if (param.type === 'heure') {
+    isTimeDialogVisible.value = true;
   }
 };
 

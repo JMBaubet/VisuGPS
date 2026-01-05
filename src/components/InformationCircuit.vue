@@ -94,6 +94,42 @@
                 >Sauvegarder</v-btn>
               </div>
             </div>
+
+            <!-- Weather Configuration -->
+            <v-divider class="my-3"></v-divider>
+            <div class="text-subtitle-2 mb-2">Paramètres Météo</div>
+            <v-row dense>
+                <v-col cols="4">
+                    <EditTime v-model="editedHeureDepart" label="Heure Départ" />
+                </v-col>
+                <v-col cols="4">
+                    <v-text-field
+                        v-model.number="editedVitesseMoyenne"
+                        label="Vitesse Moy. (km/h)"
+                        type="number"
+                        min="5"
+                        max="50"
+                        step="0.5"
+                        variant="underlined"
+                        density="compact"
+                        prepend-icon="mdi-speedometer"
+                        hide-details
+                    ></v-text-field>
+                </v-col>
+                <v-col cols="4">
+                    <EditDate v-model="editedDateDepart" label="Date Départ" />
+                </v-col>
+            </v-row>
+            <div class="d-flex justify-end mt-2">
+                 <v-btn
+                  color="primary"
+                  size="small"
+                  @click="saveMeteo"
+                  :disabled="!hasMeteoChanges"
+                >Sauvegarder Météo</v-btn>
+            </div>
+            <v-divider class="my-3"></v-divider>
+
             <v-row class="mt-4">
               <v-col cols="12" md="6" class="d-flex justify-center">
                 <v-img
@@ -175,6 +211,8 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import DistanceMarkersDialog from './DistanceMarkersDialog.vue';
+import EditTime from './EditTime.vue';
+import EditDate from './EditDate.vue';
 
 const props = defineProps({
   circuit: {
@@ -199,6 +237,11 @@ const { showSnackbar } = useSnackbar();
 const communeNom = ref('');
 const qrCodePath = ref('');
 const editedTraceur = ref(props.circuit.traceur);
+
+// Weather Editing
+const editedHeureDepart = ref("08:30");
+const editedVitesseMoyenne = ref(20.0);
+const editedDateDepart = ref("");
 
 const showErrorsDialog = ref(false);
 const circuitErrors = ref([]);
@@ -303,15 +346,75 @@ const closeDialog = () => {
   emit('close');
 };
 
+// Meteo Logic
+const getMeteoConfig = () => {
+    const config = props.circuit.meteoConfig || {};
+    editedHeureDepart.value = config.heureDepart || "08:30";
+    editedVitesseMoyenne.value = config.vitesseMoyenne || 20.0;
+    
+    // Default date is tomorrow if not set
+    if (config.dateDepart) {
+        editedDateDepart.value = config.dateDepart;
+    } else {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        editedDateDepart.value = tomorrow.toISOString().split('T')[0];
+    }
+};
+
+const hasMeteoChanges = computed(() => {
+    const config = props.circuit.meteoConfig || {};
+    const oldHeure = config.heureDepart || "08:30";
+    const oldVitesse = config.vitesseMoyenne || 20.0;
+    const oldDate = config.dateDepart || ((d) => { d.setDate(d.getDate()+1); return d.toISOString().split('T')[0];})(new Date()); // approx check
+
+    // Simple comparison
+    return editedHeureDepart.value !== oldHeure ||
+           editedVitesseMoyenne.value !== oldVitesse ||
+           editedDateDepart.value !== (config.dateDepart || ""); 
+           // Note on date: if config.dateDepart is undefined, edited is tomorrow, so it might be different. 
+           // If we want to detect if values *changed* from *saved* values:
+           // If saved is None, and edited is 'Tomorrow', is that a change? Yes if we want to save it explicitly.
+});
+
+const saveMeteo = async () => {
+    try {
+        await invoke('update_circuit_meteo', {
+            circuitId: props.circuit.circuitId,
+            heureDepart: editedHeureDepart.value,
+            vitesseMoyenne: Number(editedVitesseMoyenne.value),
+            dateDepart: editedDateDepart.value
+        });
+        
+        // Update local object via event to parent
+        const newMeteoConfig = {
+            heureDepart: editedHeureDepart.value,
+            vitesseMoyenne: Number(editedVitesseMoyenne.value),
+            dateDepart: editedDateDepart.value
+        };
+        
+        emit('update-circuit', { 
+            ...props.circuit, 
+            meteoConfig: newMeteoConfig
+        });
+        
+        showSnackbar('Paramètres météo mis à jour', 'success');
+    } catch (e) {
+        showSnackbar('Erreur sauvegarde météo: ' + e, 'error');
+    }
+};
+
 onMounted(() => {
   getCommuneNom();
   getQrCodePath();
+  getMeteoConfig();
 });
 
 watch(() => props.circuit, () => {
   getCommuneNom();
   getQrCodePath();
   editedTraceur.value = props.circuit.traceur;
+  getMeteoConfig();
 }, { deep: true });
 
 watch(appEnvPath, () => {

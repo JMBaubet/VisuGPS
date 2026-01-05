@@ -1,0 +1,33 @@
+export const getWeatherInfo = (code) => {
+    const codes = {
+        0: { icon: 'mdi-weather-sunny', color: 'orange', desc: 'Ciel dégagé' },
+        1: { icon: 'mdi-weather-partly-cloudy', color: 'orange-lighten-2', desc: 'Principalement dégagé' },
+        2: { icon: 'mdi-weather-partly-cloudy', color: 'grey-lighten-1', desc: 'Partiellement nuageux' },
+        3: { icon: 'mdi-weather-cloudy', color: 'grey', desc: 'Couvert' },
+        45: { icon: 'mdi-weather-fog', color: 'blue-grey-lighten-2', desc: 'Brouillard' },
+        48: { icon: 'mdi-weather-fog', color: 'blue-grey', desc: 'Brouillard givrant' },
+        51: { icon: 'mdi-weather-rainy', color: 'blue-lighten-2', desc: 'Bruine légère' },
+        53: { icon: 'mdi-weather-rainy', color: 'blue', desc: 'Bruine modérée' },
+        55: { icon: 'mdi-weather-pouring', color: 'blue-darken-2', desc: 'Bruine dense' },
+        56: { icon: 'mdi-weather-snowy-rainy', color: 'cyan', desc: 'Bruine verglaçante légère' },
+        57: { icon: 'mdi-weather-snowy-rainy', color: 'cyan-darken-2', desc: 'Bruine verglaçante dense' },
+        61: { icon: 'mdi-weather-rainy', color: 'blue', desc: 'Pluie faible' },
+        63: { icon: 'mdi-weather-pouring', color: 'blue-darken-1', desc: 'Pluie modérée' },
+        65: { icon: 'mdi-weather-pouring', color: 'blue-darken-4', desc: 'Pluie forte' },
+        66: { icon: 'mdi-weather-snowy-rainy', color: 'cyan', desc: 'Pluie verglaçante légère' },
+        67: { icon: 'mdi-weather-snowy-rainy', color: 'cyan-darken-2', desc: 'Pluie verglaçante forte' },
+        71: { icon: 'mdi-weather-snowy', color: 'white', desc: 'Neige faible' },
+        73: { icon: 'mdi-weather-snowy', color: 'grey-lighten-3', desc: 'Neige modérée' },
+        75: { icon: 'mdi-weather-snowy-heavy', color: 'grey-lighten-2', desc: 'Neige forte' },
+        77: { icon: 'mdi-weather-snowy', color: 'white', desc: 'Grains de neige' },
+        80: { icon: 'mdi-weather-pouring', color: 'blue-darken-2', desc: 'Averses de pluie faibles' },
+        81: { icon: 'mdi-weather-pouring', color: 'blue-darken-3', desc: 'Averses de pluie modérées' },
+        82: { icon: 'mdi-weather-pouring', color: 'blue-darken-4', desc: 'Averses de pluie violentes' },
+        85: { icon: 'mdi-weather-snowy-heavy', color: 'grey-lighten-2', desc: 'Averses de neige faibles' },
+        86: { icon: 'mdi-weather-snowy-heavy', color: 'grey', desc: 'Averses de neige fortes' },
+        95: { icon: 'mdi-weather-lightning', color: 'yellow-darken-2', desc: 'Orage' },
+        96: { icon: 'mdi-weather-lightning-rainy', color: 'amber-darken-2', desc: 'Orage avec grêle légère' },
+        99: { icon: 'mdi-weather-lightning-rainy', color: 'red-darken-4', desc: 'Orage avec grêle forte' },
+    };
+    return codes[code] || { icon: 'mdi-help-circle', color: 'grey', desc: 'Inconnu' };
+};

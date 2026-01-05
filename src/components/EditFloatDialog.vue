@@ -161,7 +161,7 @@ const validationRules = computed(() => [
 
 watch(() => props.parameter, (param) => {
   if (param) {
-    const initialValue = param.surcharge ?? null;
+    const initialValue = param.surcharge ?? param.defaut;
     editableValue.value = initialValue !== null ? String(initialValue) : null;
     surchargeRemoved.value = false;
     isValid.value = true;
@@ -169,7 +169,7 @@ watch(() => props.parameter, (param) => {
 }, { immediate: true, deep: true });
 
 const revertChanges = () => {
-  const initialValue = props.parameter.surcharge ?? null;
+  const initialValue = props.parameter.surcharge ?? props.parameter.defaut;
   editableValue.value = initialValue !== null ? String(initialValue) : null;
   surchargeRemoved.value = false;
 };

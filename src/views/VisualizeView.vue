@@ -13,14 +13,37 @@
     </div>
   </transition>
 
+              <!-- Weather Widgets -->
               <transition name="fade">
-                <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
-                      <div class="d-flex align-center justify-center fill-height px-4">
-                        <span class="font-weight-bold">Distance :&nbsp;</span>
-                        <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
-                      </div>  
-                </v-card>
-              </transition>  <div class="bottom-center-container">
+                  <WeatherWidgetStatic 
+                      v-if="!isInitializing && isStaticWeatherVisible && weatherForecasts.length > 0" 
+                      :forecasts="weatherForecasts" 
+                      @close="isStaticWeatherVisible = false"
+                  />
+              </transition>
+
+  <div class="top-center-container">
+    <transition name="fade">
+      <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
+            <div class="d-flex align-center justify-center fill-height px-4">
+              <span class="font-weight-bold">Distance :&nbsp;</span>
+              <span :class="['font-weight-bold', `text-${cometColor}`]">{{ distanceDisplay }}</span> <span class="font-weight-bold text-white">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
+            </div>  
+      </v-card>
+    </transition>
+
+    <transition name="fade">
+        <WeatherWidgetDynamic 
+            v-if="!isInitializing && isDynamicWeatherVisible && currentWeather" 
+            :weather="currentWeather"
+            :bearing="currentCameraBearing"
+            :trace-bearing="currentTraceBearing"
+            :orientation-mode="orientationBoussole"
+        />
+    </transition>
+  </div>
+
+              <div class="bottom-center-container">
     <transition name="fade">
       <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
           <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
@@ -86,6 +109,9 @@ import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/AltitudeSVG.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
+import WeatherWidgetStatic from '@/components/WeatherWidgetStatic.vue';
+import WeatherWidgetDynamic from '@/components/WeatherWidgetDynamic.vue';
+import WeatherService from '@/services/WeatherService';
 
 const props = defineProps({
   circuitId: {
@@ -139,6 +165,20 @@ const isControlsCardVisible = ref(getSettingValue('Visualisation/Widgets/command
 const isCommuneWidgetVisible = ref(getSettingValue('Visualisation/Widgets/communes') ?? true);
 const isAltitudeVisible = ref(getSettingValue('Visualisation/Widgets/altitude') ?? true);
 const isCursorHidden = ref(false);
+
+// --- Weather State ---
+const weatherForecasts = ref([]);
+const currentWeather = ref(null);
+const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetStatique') ?? true);
+const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetDynamique') ?? true);
+const currentTraceBearing = ref(0);
+const currentCameraBearing = ref(0);
+
+// Weather Settings
+const meteoActif = computed(() => getSettingValue('Visualisation/Météo/meteoActif') ?? true);
+const defaultHeureDepart = computed(() => getSettingValue('Visualisation/Météo/heureDepart') || "08:30");
+const defaultVitesseMoyenne = computed(() => getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0);
+const orientationBoussole = computed(() => getSettingValue('Visualisation/Météo/orientationBoussole') || "Trace");
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -511,6 +551,18 @@ async function executeFlytoSequence(flytoData) {
     map.setPitch(pitch);
     map.setBearing(bearing);
     map.setCenter([lookAtPointLng, lookAtPointLat]);
+    
+     // Calculate instantaneous track bearing using geometry
+    if (lineStringRef.value) {
+        try {
+                const p1 = turf.along(lineStringRef.value, distanceTraveled, {units: 'kilometers'});
+                const p2 = turf.along(lineStringRef.value, distanceTraveled + 0.01, {units: 'kilometers'});
+                currentTraceBearing.value = turf.bearing(p1, p2);
+        } catch (e) {
+            // Fallback
+             currentTraceBearing.value = bearing;
+        }
+    }
   } else {
     // Otherwise (no CPs, after last CP segment, or on a non-CP point), interpolate point-by-point for smooth movement.
     if (currentPoint) {
@@ -541,6 +593,18 @@ async function executeFlytoSequence(flytoData) {
             map.setPitch(pitch);
             map.setBearing(bearing);
             map.setCenter([lookAtPointLng, lookAtPointLat]);
+            
+            // Calculate instantaneous track bearing using geometry
+            if (lineStringRef.value) {
+                try {
+                     const p1 = turf.along(lineStringRef.value, distanceTraveled, {units: 'kilometers'});
+                     // Look ahead slightly (e.g. 10 meters) to smooth out jitter
+                     const p2 = turf.along(lineStringRef.value, distanceTraveled + 0.01, {units: 'kilometers'});
+                     currentTraceBearing.value = turf.bearing(p1, p2);
+                } catch (e) {
+                    console.warn("Error calculating track bearing:", e);
+                }
+            }
         } else {
             // At the very last point, just set the camera to its values
             const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * dynamicZoomCoefficient.value;
@@ -552,9 +616,29 @@ async function executeFlytoSequence(flytoData) {
             map.setPitch(pitch);
             map.setBearing(bearing);
             map.setCenter(center);
+            
+            currentTraceBearing.value = bearing;
         }
     }
   }
+
+  // Weather Dynamic Update
+  if (weatherForecasts.value.length > 0 && map) {
+      // Note: currentTraceBearing is now calculated accurately using turf geometry in the interpolation blocks above.
+      // Do NOT overwrite it with map.getBearing() here.
+      
+      // Update current weather based on distance
+      // Find closest forecast point by distance
+      // Optimization: maintain an index?
+      // Simple lookup for now since array is small (~100 items)
+      const closest = weatherForecasts.value.reduce((prev, curr) => {
+        return (Math.abs(curr.point.distance - currentDistanceInMeters.value) < Math.abs(prev.point.distance - currentDistanceInMeters.value) ? curr : prev);
+      });
+      if (closest) {
+          currentWeather.value = closest.weather;
+      }
+  }
+
 
   if (map) map.triggerRepaint();
 
@@ -720,6 +804,44 @@ const lerpAngle = (start, end, t) => {
 const handleMapZoom = () => {
     if (isPaused.value && map.getZoom() < zoomMinimum.value) {
         map.setZoom(zoomMinimum.value);
+    }
+};
+
+const initWeather = async (circuit, trackPoints) => {
+    if (!meteoActif.value) return;
+    
+    // Get config from circuit or defaults
+    const config = circuit?.meteoConfig || {};
+    const startTime = config.heureDepart || defaultHeureDepart.value;
+    const avgSpeed = config.vitesseMoyenne || defaultVitesseMoyenne.value;
+    
+    let dateStr = config.dateDepart;
+    if (!dateStr) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        dateStr = d.toISOString().split('T')[0];
+    }
+    
+    try {
+        // Transform trackPoints (which are weird objects from process_tracking_data) to simpler format if needed
+        // process_tracking_data returns objects with coordonnee: [lon, lat]
+        const simplePoints = trackPoints.map(p => ({
+            ...p,
+            0: p.coordonnee[0], // lon
+            1: p.coordonnee[1]  // lat
+        }));
+
+        const pointsWithTime = WeatherService.calculateTimings(simplePoints, startTime, avgSpeed, dateStr);
+        const sampled = WeatherService.samplePoints(pointsWithTime, 1000);
+        const forecasts = await WeatherService.fetchWeatherForecast(sampled);
+        
+        weatherForecasts.value = forecasts;
+        
+        if (forecasts.length > 0) {
+            currentWeather.value = forecasts[0].weather;
+        }
+    } catch (e) {
+        console.error("Weather init failed", e);
     }
 };
 
@@ -1079,7 +1201,13 @@ const handleKeyDown = (e) => {
         isControlsCardVisible.value = false;
         isCommuneWidgetVisible.value = false;
         isAltitudeVisible.value = false;
+        isStaticWeatherVisible.value = false;
+        isDynamicWeatherVisible.value = false;
         sendVisualizeViewStateUpdate();
+    } else if (e.key === 'm') {
+        isStaticWeatherVisible.value = !isStaticWeatherVisible.value;
+    } else if (e.key === 'M') {
+        isDynamicWeatherVisible.value = !isDynamicWeatherVisible.value;
     }
 };
 
@@ -1177,6 +1305,9 @@ const initializeMap = async () => {
         return;
     }
 
+    // Initialize Weather
+    await initWeather(currentCircuit, trackingPointsWithDistanceRef.value);
+
     // --- Trace Color Logic ---
     let finalTraceColor = toHex(traceColor.value);
     if (colorTraceBySlope.value) {
@@ -1267,6 +1398,11 @@ const initializeMap = async () => {
     map.on('load', async () => {
       // map.on('load') sequence continues...
       // Les sources et layers sont déjà gérés par style.load via setupMapLayersAndSources
+
+      // Update camera bearing on every move (covers rotate, flyTo, manual interaction)
+      map.on('move', () => {
+          currentCameraBearing.value = map.getBearing();
+      });
 
       // --- Séquence d'animation d'initialisation ---
       isInitializing.value = true;
@@ -1554,14 +1690,21 @@ onUnmounted(() => {
 }
 
 .distance-display {
-  position: fixed; /* Changed from absolute to fixed */
-  top: 20px; /* Fixed position from top */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
   pointer-events: auto;
   width: fit-content;
   height: 48px; /* Force height to match button */
+}
+
+.top-center-container {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1; /* Ensure it's above map */
+  display: flex;
+  align-items: center;
+  gap: 20px; /* Space between widgets */
+  pointer-events: none; /* Let clicks pass through gaps */
 }
 
 .bottom-center-container {
@@ -1636,9 +1779,9 @@ onUnmounted(() => {
 .commune-display {
   position: absolute;
   top: 20px;
-  right: 20px;
+  left: 80px; /* Position next to the back button (20px + ~48px button + gap) */
   width: 250px;
-  height: 40px;
+  height: 48px; /* Match standard button height for visual alignment */
   background-color: white;
   border-width: 4px;
   border-style: solid;

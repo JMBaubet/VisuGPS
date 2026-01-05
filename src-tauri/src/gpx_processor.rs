@@ -165,6 +165,16 @@ pub struct CircuitDistanceMarkersConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CircuitMeteoConfig {
+    #[serde(rename = "heureDepart")]
+    pub heure_depart: Option<String>,
+    #[serde(rename = "vitesseMoyenne")]
+    pub vitesse_moyenne: Option<f64>,
+    #[serde(rename = "dateDepart")]
+    pub date_depart: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Circuit {
     #[serde(rename = "circuitId")]
     pub circuit_id: String, // Rendre public
@@ -198,6 +208,12 @@ pub struct Circuit {
         skip_serializing_if = "Option::is_none"
     )]
     pub distance_markers_config: Option<CircuitDistanceMarkersConfig>,
+    #[serde(
+        rename = "meteoConfig",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub meteo_config: Option<CircuitMeteoConfig>,
 }
 
 struct GpxMetadata {
@@ -422,6 +438,7 @@ pub fn commit_new_circuit(
             },
         },
         distance_markers_config: None,
+        meteo_config: None,
     };
 
     circuits_file.circuits.push(new_circuit.clone()); // Clone new_circuit here

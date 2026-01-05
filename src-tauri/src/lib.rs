@@ -740,6 +740,38 @@ fn update_circuit_traceur(
     Ok(final_traceur_id)
 }
 
+#[tauri::command]
+fn update_circuit_meteo(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    heure_depart: Option<String>,
+    vitesse_moyenne: Option<f64>,
+    date_depart: Option<String>,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
+        circuit.meteo_config = Some(crate::gpx_processor::CircuitMeteoConfig {
+            heure_depart,
+            vitesse_moyenne,
+            date_depart,
+        });
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    Ok(())
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CircuitsJson {
     pub version: String,
@@ -2083,6 +2115,7 @@ pub fn run() {
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
+            update_circuit_meteo,
             get_available_monitors,
             update_current_view,
             remote_control::update_visualize_view_state,
