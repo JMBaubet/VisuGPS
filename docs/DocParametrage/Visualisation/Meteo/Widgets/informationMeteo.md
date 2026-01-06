@@ -1,33 +1,34 @@
 # 📊 Paramètre : Information Météo
 
-Ce document détaille le paramètre `Information Météo`, qui contrôle l'affichage du widget d'informations météorologiques.
+Ce document détaille le paramètre `Information Météo`, qui contrôle l'affichage des données météorologiques instantanées.
 
 ---
 
 ## 🎯 Rôle du Paramètre
 
-Ce paramètre active ou désactive l'affichage par défaut du tableau récapitulatif des prévisions sur la droite de l'écran lors du lancement de la visualisation.
+Ce paramètre active ou désactive l'affichage du panneau d'informations contenant :
+-   L'heure de passage estimée.
+-   La température (réelle et ressentie).
+-   Le risque de précipitations (pluie).
 
 - **Libellé**: Information Météo
 - **Type**: Booléen
 - **Valeur par défaut**: Vrai (Affiché)
 
-## ⚖️ Justification : Une vue d'ensemble
+## ⚖️ Justification : Le confort de course
 
-Le widget statique offre une vision macroscopique des conditions météo sur l'ensemble de la sortie.
+Ce widget agit comme un compteur de vélo avancé, donnant les informations vitales pour le cycliste à l'instant T de l'animation.
 
-### 1. 🔍 Anticipation
+### 1. 🌡️ Température et Ressenti
+-   Permet de voir immédiatement les changements de température (ex: chute de température au sommet d'un col).
+-   Affiche la température ressentie en plus de la réelle.
 
--   Il permet de voir en un coup d'œil que "la pluie arrive au km 40" ou que "le vent tourne au km 60".
--   Contrairement au widget dynamique qui montre l'instant T, le statique permet d'anticiper.
-
-### 2. 📉 Lisibilité
-
--   Présenté sous forme de liste, il permet de comparer les températures et vents à différents stades du parcours sans avoir à attendre que l'animation y arrive.
+### 2. ☔ Précipitations
+-   Indique la probabilité de pluie et la quantité attendue en mm, permettant d'identifier les zones humides du parcours.
 
 ---
 
 ## ⚠️ Recommandations
 
--   **Raccourci Clavier** : Quelle que soit la valeur par défaut, vous pouvez toujours masquer ou afficher ce widget pendant la lecture en appuyant sur la touche **'m'** (minuscule).
--   **Taille d'écran** : Sur les petits écrans, il peut être judicieux de le désactiver par défaut pour ne pas masquer la carte.
+-   **Raccourci Clavier** : Vous pouvez masquer ou afficher ce widget à tout moment en appuyant sur la touche **'m'**.
+-   **Combinaison** : Il fonctionne de pair avec la **Boussole**, qui elle gère le vent et l'orientation.
