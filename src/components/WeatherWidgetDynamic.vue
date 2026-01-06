@@ -6,44 +6,92 @@
     <transition name="fade">
         <v-card v-if="showInfo" class="weather-info-card d-flex flex-column align-center justify-center px-4 py-1 mb-2" elevation="4">
             
-            <!-- Time Range Label -->
-            <span class="text-caption font-weight-bold mb-0 text-grey-darken-1">{{ timeLabel }}</span>
-    
-            <!-- Weather Data Row -->
-            <div class="d-flex align-center justify-space-between w-100">
-                <!-- Icon -->
-                <v-icon size="default" :color="weatherInfo.color" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
-                
-                <!-- Temp -->
-                <div class="d-flex align-center mr-3">
-                    <v-icon size="small" class="mr-1" :color="getTempColor(weather.temperature)">mdi-thermometer</v-icon>
-                    <div class="d-flex align-baseline">
-                        <span class="font-weight-bold">{{ Math.round(weather.temperature) }}°C</span>
-                        <span class="text-caption text-grey ml-1" style="font-size: 0.7rem !important;">(Ress. {{ Math.round(weather.apparentTemperature) }}°)</span>
+            <!-- Multi-Scenario Mode -->
+            <template v-if="processedScenarios.length > 0">
+                <div v-for="(scen, idx) in processedScenarios" :key="idx" class="w-100 py-1" :class="{'border-b': idx < processedScenarios.length - 1}">
+                    <div class="d-flex align-center justify-space-between w-100">
+                        <!-- Group Name & Time -->
+                        <div class="d-flex flex-column mr-3" style="min-width: 80px;">
+                            <span class="text-caption font-weight-bold text-truncate" style="max-width: 100px;">{{ scen.nom || `Groupe ${idx+1}` }}</span>
+                            <span class="text-grey-darken-1" style="font-size: 0.7rem; margin-top: -4px;">{{ formatRowTime(scen.arrivalTime) }}</span>
+                        </div>
+                        
+                        <!-- Weather Data -->
+                        <div v-if="scen.weather" class="d-flex align-center flex-grow-1 justify-end">
+                            <!-- Icon -->
+                            <v-icon v-if="scen.weatherInfo" size="small" :color="scen.weatherInfo.color" class="mr-2">{{ scen.weatherInfo.icon }}</v-icon>
+                            
+                            <!-- Temp -->
+                            <div class="d-flex align-center mr-2">
+                                <span class="font-weight-bold text-body-2">{{ Math.round(scen.weather.temperature) }}°</span>
+                            </div>
+
+                            <!-- Rain -->
+                            <div class="d-flex align-center mr-2">
+                                <v-icon size="x-small" color="blue" class="mr-1">mdi-water-percent</v-icon>
+                                <span class="text-caption font-weight-bold" :class="{'text-blue': scen.weather.precipProb > 30}">
+                                    {{ scen.weather.precipProb }}%
+                                </span>
+                            </div>
+
+                            <!-- Wind -->
+                            <div class="d-flex align-center" style="min-width: 40px;">
+                                <v-icon size="x-small" color="grey" class="mr-1" :style="{ transform: `rotate(${scen.weather.windDir + 180}deg)` }">mdi-navigation</v-icon>
+                                <span class="text-caption font-weight-bold">{{ Math.round(scen.weather.windSpeed) }}</span>
+                            </div>
+                        </div>
+                        <div v-else class="text-caption text-disabled text-end flex-grow-1">N/A</div>
                     </div>
                 </div>
-    
-                <!-- Precip -->
-                <div class="d-flex align-center">
-                    <v-icon size="small" class="mr-1" color="blue" :icon="weather.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
-                    <span class="font-weight-bold" :class="{'text-blue': weather.precipProb > 50}">
-                        {{ weather.precipProb }}% ({{ weather.precip }}mm)
-                    </span>
+            </template>
+
+            <!-- Single Scenario Mode (Legacy) -->
+            <template v-else-if="weatherToDisplay">
+                <!-- Time Range Label -->
+                <span class="text-caption font-weight-bold mb-0 text-grey-darken-1">{{ timeLabel }}</span>
+        
+                <!-- Weather Data Row -->
+                <div class="d-flex align-center justify-space-between w-100">
+                    <!-- Icon -->
+                    <v-icon v-if="weatherInfo" size="default" :color="weatherInfo.color" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
+                    
+                    <!-- Temp -->
+                    <div class="d-flex align-center mr-3">
+                        <v-icon size="small" class="mr-1" :color="getTempColor(weatherToDisplay.temperature)">mdi-thermometer</v-icon>
+                        <div class="d-flex align-baseline">
+                            <span class="font-weight-bold">{{ Math.round(weatherToDisplay.temperature) }}°C</span>
+                            <span v-if="weatherToDisplay.apparentTemperature" class="text-caption text-grey ml-1" style="font-size: 0.7rem !important;">(Ress. {{ Math.round(weatherToDisplay.apparentTemperature) }}°)</span>
+                        </div>
+                    </div>
+        
+                    <!-- Precip -->
+                    <div class="d-flex align-center mr-3">
+                        <v-icon size="small" class="mr-1" color="blue" :icon="weatherToDisplay.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
+                        <span class="font-weight-bold" :class="{'text-blue': weatherToDisplay.precipProb > 50}">
+                            {{ weatherToDisplay.precipProb }}%
+                        </span>
+                    </div>
+
+                    <!-- Wind -->
+                    <div class="d-flex align-center">
+                        <v-icon size="small" class="mr-1" color="grey" :style="{ transform: `rotate(${weatherToDisplay.windDir + 180}deg)` }">mdi-navigation</v-icon>
+                        <span class="font-weight-bold">{{ Math.round(weatherToDisplay.windSpeed) }} <span class="text-caption">km/h</span></span>
+                    </div>
                 </div>
-            </div>
+            </template>
         </v-card>
     </transition>
 
     <!-- Card 2: Compass -->
     <transition name="fade-opacity">
-        <v-card v-if="showCompass" class="compass-card d-flex align-center justify-center pa-1" elevation="4">
+        <v-card v-if="showCompass && weatherToDisplay" class="compass-card d-flex align-center justify-center pa-1" elevation="4">
                 <CompassWidget 
                     :size="80"
                     :camera-bearing="bearing"
                     :track-bearing="traceBearing"
-                    :wind-direction="weather.windDir"
-                    :wind-speed="weather.windSpeed"
-                    :wind-gusts="weather.windGusts"
+                    :wind-direction="weatherToDisplay.windDir"
+                    :wind-speed="weatherToDisplay.windSpeed"
+                    :wind-gusts="weatherToDisplay.windGusts || 0"
                     :orientation-mode="orientationMode"
                 />
         </v-card>
@@ -60,11 +108,11 @@ import CompassWidget from '@/components/CompassWidget.vue';
 const props = defineProps({
   weather: {
     type: Object,
-    required: true, // { apparentTemperature, windSpeed, windGusts, windDir, code, time ... }
+    default: null
   },
   bearing: {
     type: Number,
-    default: 0, // Camera ID
+    required: true
   },
   traceBearing: {
     type: Number,
@@ -81,6 +129,24 @@ const props = defineProps({
   showCompass: {
     type: Boolean,
     default: true
+  },
+  
+  // Multi-Scenario Props
+  scenarios: {
+    type: Array,
+    default: () => []
+  },
+  weatherMatrix: {
+    type: Array,
+    default: () => []
+  },
+  currentDistance: {
+    type: Number,
+    default: 0
+  },
+  simulationStartDate: {
+    type: [Date, String, Object],
+    default: null
   }
 });
 
@@ -89,27 +155,98 @@ const myHeading = computed(() => {
     return props.bearing;
 });
 
-const weatherInfo = computed(() => getWeatherInfo(props.weather.code));
-
-const timeLabel = computed(() => {
-    if (!props.weather.time) return '';
-    const date = new Date(props.weather.time);
-    
-    const days = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
-    const months = ['Jan.', 'Fév.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
-    
-    const dayName = days[date.getDay()];
-    const dayNum = String(date.getDate()).padStart(2, '0');
-    const monthName = months[date.getMonth()];
-    
-    const startHour = date.getHours();
-    const endHour = (startHour + 1) % 24;
-    
-    return `${dayName} ${dayNum} ${monthName} : ${String(startHour).padStart(2, '0')}h - ${String(endHour).padStart(2, '0')}h`;
+const weatherToDisplay = computed(() => {
+    if (processedScenarios.value.length === 1) {
+        return processedScenarios.value[0].weather || props.weather;
+    }
+    return props.weather;
 });
 
+const weatherInfo = computed(() => weatherToDisplay.value ? getWeatherInfo(weatherToDisplay.value.code) : null);
+
+const timeLabel = computed(() => {
+    if (!props.weather || !props.weather.time) return "Météo Actuelle";
+    const date = new Date(props.weather.time);
+    const end = new Date(date.getTime() + 3600000); // Assuming weather data is hourly
+    return `De ${date.getHours()}h à ${end.getHours()}h`;
+});
+
+const processedScenarios = computed(() => {
+    if (!props.scenarios.length || !props.weatherMatrix.length || !props.simulationStartDate) return [];
+    
+    // Ensure simulationStartDate is a Date object
+    const baseDate = new Date(props.simulationStartDate);
+    if (isNaN(baseDate.getTime())) return [];
+
+    return props.scenarios.map(scen => {
+        const startTimeStr = scen.heureDepart || scen.start || "09:00";
+        const speed = scen.vitesseMoyenne || scen.speed || 20;
+
+        // 1. Calculate Estimated Arrival Date/Time
+        const [h, m] = startTimeStr.split(':').map(Number);
+        const arrivalDate = new Date(baseDate);
+        arrivalDate.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
+        
+        const travelTimeHours = props.currentDistance / (speed || 20);
+        arrivalDate.setTime(arrivalDate.getTime() + travelTimeHours * 3600000);
+        
+        // 2. Find Best Location Point in Matrix
+        let bestPoint = null;
+        let minDiff = Infinity;
+        
+        for (const pt of props.weatherMatrix) {
+            // Use km if available, fallback to increment estimation
+            const ptKm = (pt.km != null) ? pt.km : (pt.increment * 0.1);
+            const diff = Math.abs(ptKm - props.currentDistance);
+            
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestPoint = pt;
+            }
+        }
+        
+        // Fallback to first point if matrix not empty
+        if (!bestPoint && props.weatherMatrix.length > 0) {
+            bestPoint = props.weatherMatrix[0];
+        }
+
+        // 3. Find Best Hour in Point Data
+        let weatherAtHour = null;
+        if (bestPoint && bestPoint.hours) {
+            const targetHour = arrivalDate.getHours();
+            
+            // Direct lookup
+            weatherAtHour = bestPoint.hours[targetHour];
+
+            // Fallback: Matrix might only have data for certain hours (e.g. 6-20)
+            if (!weatherAtHour) {
+                const hours = Object.keys(bestPoint.hours).map(Number).sort((a,b) => a-b);
+                if (hours.length > 0) {
+                    // Find closest available hour
+                    const closestHour = hours.reduce((prev, curr) => {
+                        return (Math.abs(curr - targetHour) < Math.abs(prev - targetHour) ? curr : prev);
+                    });
+                    weatherAtHour = bestPoint.hours[closestHour];
+                }
+            }
+        }
+
+        return {
+            ...scen,
+            arrivalTime: arrivalDate,
+            weather: weatherAtHour || props.weather, // Ultimate fallback
+            weatherInfo: (weatherAtHour || props.weather) ? getWeatherInfo((weatherAtHour || props.weather).code) : null
+        };
+    });
+});
+
+const formatRowTime = (date) => {
+    if (!date) return '--:--';
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+};
+
 const getTempColor = (temp) => {
-    if (temp < 5) return 'blue';
+    if (temp < 10) return 'blue';
     if (temp > 25) return 'red';
     return 'orange'; // default
 };
@@ -137,7 +274,7 @@ const getTempColor = (temp) => {
 .fade-leave-active {
   transition: opacity 0.75s ease, max-height 0.75s ease, margin 0.75s ease, padding 0.75s ease;
   overflow: hidden;
-  max-height: 200px; /* Sufficient for info/compass */
+  max-height: 400px; /* Sufficient for info/compass */
 }
 
 .fade-enter-from,
@@ -158,5 +295,9 @@ const getTempColor = (temp) => {
 .fade-opacity-enter-from,
 .fade-opacity-leave-to {
   opacity: 0;
+}
+
+.border-b {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
 }
 </style>

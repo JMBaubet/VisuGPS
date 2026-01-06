@@ -165,6 +165,15 @@ pub struct CircuitDistanceMarkersConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MeteoScenario {
+    pub nom: String,
+    #[serde(rename = "heureDepart")]
+    pub heure_depart: String,
+    #[serde(rename = "vitesseMoyenne")]
+    pub vitesse_moyenne: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CircuitMeteoConfig {
     #[serde(rename = "heureDepart")]
     pub heure_depart: Option<String>,
@@ -172,6 +181,8 @@ pub struct CircuitMeteoConfig {
     pub vitesse_moyenne: Option<f64>,
     #[serde(rename = "dateDepart")]
     pub date_depart: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scenarios: Option<Vec<MeteoScenario>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

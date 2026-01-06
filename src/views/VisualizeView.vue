@@ -38,6 +38,20 @@
             :orientation-mode="currentOrientationMode"
             :show-info="isWeatherInfoVisible"
             :show-compass="isCompassVisible"
+            :scenarios="circuitScenarios"
+            :weather-matrix="weatherForecasts"
+            :current-distance="currentDistance"
+            :simulation-start-date="simulationStartDate"
+        />
+    </transition>
+    <transition name="fade">
+        <WeatherWidgetStatic 
+            v-if="showWeatherTable && weatherForecasts.length > 0" 
+            :weather-matrix="weatherForecasts" 
+            :scenarios="circuitScenarios"
+            :date="simulationStartDate"
+            @close="showWeatherTable = false" 
+            style="pointer-events: auto;"
         />
     </transition>
   </div>
@@ -108,7 +122,10 @@ import AltitudeSVG from '@/components/AltitudeSVG.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
 
 import WeatherWidgetDynamic from '@/components/WeatherWidgetDynamic.vue';
+import WeatherWidgetStatic from '@/components/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
+
+
 
 const props = defineProps({
   circuitId: {
@@ -169,6 +186,7 @@ const simulationStartDate = ref(null);
 const currentWeather = ref(null);
 // const isWeatherVisible = ref(true); // Removed
 const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true);
+const showWeatherTable = ref(false); // Widget Météo Tableau (Shift+M)
 const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/boussole') ?? true);
 const isWeatherInfoVisible = ref(isStaticWeatherVisible.value);
 const isCompassVisible = ref(isDynamicWeatherVisible.value);
@@ -205,6 +223,9 @@ const currentOrientationMode = ref(orientationBoussole.value);
 watch(orientationBoussole, (newVal) => {
     currentOrientationMode.value = newVal;
 });
+
+const currentDistance = computed(() => currentDistanceInMeters.value / 1000);
+const circuitScenarios = computed(() => currentCircuitRef.value?.meteoConfig?.scenarios || []);
 
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
@@ -665,7 +686,11 @@ async function executeFlytoSequence(flytoData) {
       const currentIncrement = Math.round(currentDistanceInMeters.value / 1000);
 
       // Find forecast for this increment
-      const forecast = weatherForecasts.value.find(f => f.increment === currentIncrement);
+      // Find forecast for this increment/km
+      const forecast = weatherForecasts.value.find(f => {
+          if (f.km !== undefined) return Math.abs(f.km - currentDistance.value) < 0.5;
+          return f.increment === currentIncrement;
+      });
       
       if (forecast && forecast.hours) {
           if (forecast.hours[currentHour]) {
@@ -922,7 +947,8 @@ const initWeather = async (circuit, trackPoints) => {
                     sampled.push({
                         lat: p.coordonnee[1],
                         lon: p.coordonnee[0],
-                        increment: inc
+                        increment: inc,
+                        km: p.distance // Use the real distance calculated by backend
                     });
                 }
             }
@@ -1341,8 +1367,10 @@ const handleKeyDown = (e) => {
     } else if (e.key === 'd' || e.key === 'D') {
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
         sendVisualizeViewStateUpdate();
-    } else if (e.key === 'm' || e.key === 'M') {
+    } else if (e.key === 'm') {
         isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
+    } else if (e.key === 'M') {
+        showWeatherTable.value = !showWeatherTable.value;
     } else if (e.key === 'b') {
         isCompassVisible.value = !isCompassVisible.value;
     } else if (e.key === 'B') {

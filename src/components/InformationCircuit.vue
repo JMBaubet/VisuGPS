@@ -146,6 +146,37 @@
                     </v-btn>
                 </v-col>
             </v-row>
+
+            <v-divider class="my-3"></v-divider>
+            <div class="d-flex justify-space-between align-center mb-2 px-2">
+                <div class="text-subtitle-2">Groupes / Scénarios Multi-Météo</div>
+                <v-btn size="x-small" color="primary" variant="flat" @click="addScenario" prepend-icon="mdi-plus">
+                    Ajouter un groupe
+                </v-btn>
+            </div>
+            
+            <div v-if="editedScenarios.length > 0" class="px-2">
+                <v-row v-for="(scen, idx) in editedScenarios" :key="idx" dense align="center" class="mb-1 pa-1 rounded border">
+                    <v-col cols="4">
+                        <v-text-field v-model="scen.nom" label="Nom" density="compact" hide-details variant="underlined" />
+                    </v-col>
+                    <v-col cols="3">
+                        <EditTime v-model="scen.heureDepart" label="Départ" />
+                    </v-col>
+                    <v-col cols="3">
+                        <v-text-field v-model.number="scen.vitesseMoyenne" label="Km/h" type="number" density="compact" hide-details variant="underlined" />
+                    </v-col>
+                    <v-col cols="2" class="d-flex justify-end">
+                        <v-btn icon size="x-small" color="error" variant="text" @click="removeScenario(idx)">
+                            <v-icon>mdi-delete</v-icon>
+                        </v-btn>
+                    </v-col>
+                </v-row>
+            </div>
+            <div v-else class="text-caption text-grey text-center py-2">
+                Aucun scénario spécifique configuré.
+            </div>
+            
             <v-divider class="my-3"></v-divider>
 
             <v-row class="mt-4">
@@ -262,6 +293,7 @@ const editedTraceur = ref(props.circuit.traceur);
 const editedHeureDepart = ref("08:30");
 const editedVitesseMoyenne = ref(20.0);
 const editedDateDepart = ref("");
+const editedScenarios = ref([]);
 
 const showErrorsDialog = ref(false);
 const circuitErrors = ref([]);
@@ -400,7 +432,22 @@ const getMeteoConfig = () => {
     }
     editedDateDepart.value = computedDate;
     
+    // Scenarios
+    editedScenarios.value = config.scenarios ? JSON.parse(JSON.stringify(config.scenarios)) : [];
+    
     nextTick(() => checkWeatherStatus());
+};
+
+const addScenario = () => {
+    editedScenarios.value.push({
+        nom: `Groupe ${editedScenarios.value.length + 1}`,
+        heureDepart: editedHeureDepart.value,
+        vitesseMoyenne: editedVitesseMoyenne.value
+    });
+};
+
+const removeScenario = (idx) => {
+    editedScenarios.value.splice(idx, 1);
 };
 
 const hasMeteoChanges = computed(() => {
@@ -418,7 +465,8 @@ const hasMeteoChanges = computed(() => {
     // Simple comparison
     return editedHeureDepart.value !== oldHeure ||
            editedVitesseMoyenne.value !== oldVitesse ||
-           editedDateDepart.value !== (config.dateDepart || ""); 
+           editedDateDepart.value !== (config.date_depart || config.dateDepart || "") ||
+           JSON.stringify(editedScenarios.value) !== JSON.stringify(config.scenarios || []); 
 });
 
 import WeatherService from '@/services/WeatherService';
@@ -495,27 +543,20 @@ const downloadWeather = async () => {
             throw new Error("Aucun point de tracking trouvé");
         }
         
-        // 2. Sample (same logic as VisualizeView)
+        // 2. Sample (1km resolution)
+        const segmentLengthValue = Number(getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
         const sampled = [];
         trackData.forEach((p, i) => {
-            // "trackData" might slightly differ if read_tracking_file returns raw JSON?
-            // VisualizeView uses "trackingPointsWithDistanceRef".
-            // lib.rs read_tracking_file returns Value (JSON).
-            // Usually JSON is array of objects.
-            // Assumption: p has coordonnee [lon, lat] and likely distance/cumul_dist.
-            // But we use index based increment.
-            
             if (i % 10 === 0 || i === trackData.length - 1) {
-                const inc = Math.round(i / 10);
-                if (!sampled.some(s => s.increment === inc)) {
-                    // Check if coordonnee exists
-                    if (p.coordonnee) {
-                        sampled.push({
-                            lat: p.coordonnee[1],
-                            lon: p.coordonnee[0],
-                            increment: inc
-                        });
-                    }
+                const inc = p.increment !== undefined ? p.increment : Math.round(i / 10);
+                // Check if coordonnee exists
+                if (p.coordonnee) {
+                    sampled.push({
+                        lat: p.coordonnee[1],
+                        lon: p.coordonnee[0],
+                        increment: inc,
+                        km: p.distance || (inc * segmentLengthValue) / 1000
+                    });
                 }
             }
         });
@@ -556,14 +597,16 @@ const saveMeteo = async () => {
             circuitId: props.circuit.circuitId,
             heureDepart: editedHeureDepart.value,
             vitesseMoyenne: Number(editedVitesseMoyenne.value),
-            dateDepart: editedDateDepart.value
+            dateDepart: editedDateDepart.value,
+            scenarios: editedScenarios.value.length > 0 ? editedScenarios.value : null
         });
         
         // Update local object via event to parent
         const newMeteoConfig = {
             heureDepart: editedHeureDepart.value,
             vitesseMoyenne: Number(editedVitesseMoyenne.value),
-            dateDepart: editedDateDepart.value
+            dateDepart: editedDateDepart.value,
+            scenarios: editedScenarios.value.length > 0 ? editedScenarios.value : null
         };
         
         emit('update-circuit', { 

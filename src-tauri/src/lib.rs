@@ -751,6 +751,7 @@ fn update_circuit_meteo(
     heure_depart: Option<String>,
     vitesse_moyenne: Option<f64>,
     date_depart: Option<String>,
+    scenarios: Option<Vec<crate::gpx_processor::MeteoScenario>>,
 ) -> Result<(), String> {
     let state = state.lock().unwrap();
     let app_env_path = &state.app_env_path;
@@ -766,6 +767,7 @@ fn update_circuit_meteo(
             heure_depart,
             vitesse_moyenne,
             date_depart,
+            scenarios,
         });
     } else {
         return Err(format!("Circuit with ID {} not found.", circuit_id));
