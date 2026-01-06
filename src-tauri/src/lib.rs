@@ -25,6 +25,7 @@ pub mod trace_style;
 pub mod tracking_processor;
 pub mod network_utils;
 pub mod import_export;
+pub mod weather_cache;
 
 use chrono::prelude::*;
 #[allow(unused_imports)]
@@ -2144,7 +2145,10 @@ pub fn run() {
             import_export::import_circuit,
             import_export::export_context,
             import_export::import_context,
-            import_export::list_import_files
+            import_export::list_import_files,
+            weather_cache::check_weather_cache,
+            weather_cache::save_weather_cache,
+            weather_cache::check_weather_cache_metadata
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

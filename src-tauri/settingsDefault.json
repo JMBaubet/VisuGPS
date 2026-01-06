@@ -1804,6 +1804,28 @@
                 "doc": "docs/DocParametrage/Visualisation/Meteo/heureDepart.md"
               },
               {
+                "identifiant": "heureDebutJournee",
+                "libelle": "Heure de début de journée",
+                "description": "Heure de début pour la récupération des données météo (0-23).",
+                "type": "entier",
+                "defaut": 6,
+                "min": 0,
+                "max": 23,
+                "unite": "heures",
+                "doc": "docs/DocParametrage/Visualisation/Meteo/heureDebutJournee.md"
+              },
+              {
+                "identifiant": "heureFinJournee",
+                "libelle": "Heure de fin de journée",
+                "description": "Heure de fin pour la récupération des données météo (0-23).",
+                "type": "entier",
+                "defaut": 20,
+                "min": 0,
+                "max": 23,
+                "unite": "heures",
+                "doc": "docs/DocParametrage/Visualisation/Meteo/heureFinJournee.md"
+              },
+              {
                 "identifiant": "vitesseMoyenne",
                 "libelle": "Vitesse moyenne par défaut (km/h)",
                 "description": "Vitesse moyenne par défaut pour estimer la progression sur le parcours.",
@@ -2005,7 +2027,7 @@
     "date_revision": null,
     "date_revison": null,
     "description": "Mode d'écécution par défaut de l'application VisuGPS",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "version_export_circuit": "1.0.0",
     "version_export_context": "1.0.0",
     "Status": "Start"

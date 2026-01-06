@@ -165,6 +165,7 @@ const isCursorHidden = ref(false);
 
 // --- Weather State ---
 const weatherForecasts = ref([]);
+const simulationStartDate = ref(null);
 const currentWeather = ref(null);
 // const isWeatherVisible = ref(true); // Removed
 const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true);
@@ -654,20 +655,31 @@ async function executeFlytoSequence(flytoData) {
   }
 
   // Weather Dynamic Update
-  if (weatherForecasts.value.length > 0 && map) {
-      // Note: currentTraceBearing is now calculated accurately using turf geometry in the interpolation blocks above.
-      // Do NOT overwrite it with map.getBearing() here.
-      
-      // Update current weather based on distance
-      // Find closest forecast point by distance
-      // Optimization: maintain an index?
-      // Simple lookup for now since array is small (~100 items)
-      const closest = weatherForecasts.value.reduce((prev, curr) => {
-        return (Math.abs(curr.point.distance - currentDistanceInMeters.value) < Math.abs(prev.point.distance - currentDistanceInMeters.value) ? curr : prev);
-      });
-      if (closest) {
-          currentWeather.value = closest.weather;
+  if (weatherForecasts.value.length > 0 && simulationStartDate.value && !isInitializing.value) {
+      // Calculate current simulation time
+      // accumulatedTime is in ms
+      const currentSimTime = new Date(simulationStartDate.value.getTime() + accumulatedTime);
+      const currentHour = currentSimTime.getHours();
 
+      // Calculate current increment (km)
+      const currentIncrement = Math.round(currentDistanceInMeters.value / 1000);
+
+      // Find forecast for this increment
+      const forecast = weatherForecasts.value.find(f => f.increment === currentIncrement);
+      
+      if (forecast && forecast.hours) {
+          if (forecast.hours[currentHour]) {
+              currentWeather.value = forecast.hours[currentHour];
+          } else {
+              // Fallback to closest available hour if out of range
+             const keys = Object.keys(forecast.hours).map(Number).sort((a,b)=>a-b);
+             if (keys.length > 0) {
+                 const closestH = keys.reduce((prev, curr) => {
+                     return (Math.abs(curr - currentHour) < Math.abs(prev - currentHour) ? curr : prev);
+                 });
+                 currentWeather.value = forecast.hours[closestH];
+             }
+          }
       }
   }
 
@@ -842,38 +854,138 @@ const handleMapZoom = () => {
 };
 
 const initWeather = async (circuit, trackPoints) => {
+    console.log("initWeather called", { 
+        meteoActif: meteoActif.value, 
+        circuitId: props.circuitId, 
+        trackPointsLength: trackPoints?.length 
+    });
     if (!meteoActif.value) return;
-    
-    // Get config from circuit or defaults
+
     const config = circuit?.meteoConfig || {};
-    // Use the computed properties if config values are missing, which now handled priority
-    const startTime = config.heureDepart || defaultHeureDepart.value;
-    const avgSpeed = config.vitesseMoyenne || defaultVitesseMoyenne.value;
-
-    let dateStr = config.dateDepart;
-    if (!dateStr) {
-        const d = new Date();
-        d.setDate(d.getDate() + 1);
-        dateStr = d.toISOString().split('T')[0];
-    }
+    // Start Time (e.g. "09:00")
+    const startTimeStr = config.heureDepart || defaultHeureDepart.value; // e.g. "09:00"
     
-    try {
-        // Transform trackPoints (which are weird objects from process_tracking_data) to simpler format if needed
-        // process_tracking_data returns objects with coordonnee: [lon, lat]
-        const simplePoints = trackPoints.map(p => ({
-            ...p,
-            0: p.coordonnee[0], // lon
-            1: p.coordonnee[1]  // lat
-        }));
+    // Date Logic
+    let dateStr = config.dateDepart;
+    let computedDate = null;
+    
+    // Calculate Today (Local)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        const pointsWithTime = WeatherService.calculateTimings(simplePoints, startTime, avgSpeed, dateStr);
-        const sampled = WeatherService.samplePoints(pointsWithTime, 1000);
-        const forecasts = await WeatherService.fetchWeatherForecast(sampled);
-        
-        weatherForecasts.value = forecasts;
-        
-        if (forecasts.length > 0) {
-            currentWeather.value = forecasts[0].weather;
+    // Check if stored date is valid and in the future
+    if (dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const storedDate = new Date(y, m - 1, d);
+        if (storedDate > today) {
+            computedDate = dateStr;
+        }
+    }
+
+    // Default to Tomorrow if no valid future date
+    if (!computedDate) {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const yyyy = tomorrow.getFullYear();
+        const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const dd = String(tomorrow.getDate()).padStart(2, '0');
+        computedDate = `${yyyy}-${mm}-${dd}`;
+    }
+    dateStr = computedDate;
+
+    console.log("initWeather Date Logic:", {
+        rawConfigDate: config.dateDepart,
+        calculatedDate: dateStr
+    });
+
+    // Set Simulation Start Date Ref
+    const [h, m] = startTimeStr.split(':').map(Number);
+    const startD = new Date(dateStr);
+    startD.setHours(h, m, 0, 0);
+    simulationStartDate.value = startD;
+
+    try {
+        if (!trackPoints || trackPoints.length === 0) return;
+
+        // Sample points every 10 indices (approx 1km) and last point
+        const sampled = [];
+        trackPoints.forEach((p, i) => {
+            if (i % 10 === 0 || i === trackPoints.length - 1) {
+                // Determine increment (km)
+                // User logic: "increment 0, 10, 20" -> these are indices in the 100m array.
+                // So KM = index / 10.
+                const inc = Math.round(i / 10);
+
+                // Avoid duplicates (e.g. if last point is close to 10th)
+                if (!sampled.some(s => s.increment === inc)) {
+                    // trackPoints have coordonnee: [lon, lat]
+                    sampled.push({
+                        lat: p.coordonnee[1],
+                        lon: p.coordonnee[0],
+                        increment: inc
+                    });
+                }
+            }
+        });
+
+        if (sampled.length > 0) {
+             // Filename: AAAMMJJ-HH-to-HH.json
+             const d = new Date(dateStr);
+             const yyyy = d.getFullYear();
+             const mm = String(d.getMonth() + 1).padStart(2, '0');
+             const dd = String(d.getDate()).padStart(2, '0');
+             const datePart = `${yyyy}${mm}${dd}`;
+
+             const startH = heureDebutJournee.value;
+             const endH = heureFinJournee.value;
+             
+             const sH = String(startH).padStart(2, '0');
+             const eH = String(endH).padStart(2, '0');
+
+             const filename = `${datePart}-${sH}-to-${eH}.json`;
+             console.log(`Checking weather cache: ${filename}`);
+
+             let matrix = null;
+             try {
+                  const cacheContent = await invoke('check_weather_cache', { circuitId: props.circuitId, filename });
+                  if (cacheContent) {
+                      console.log("Loading weather from cache");
+                      matrix = JSON.parse(cacheContent);
+                  }
+             } catch (err) {
+                 console.warn("Cache check failed", err);
+             }
+
+             if (!matrix) {
+                  console.log("Fetching weather from API (Matrix)");
+                  matrix = await WeatherService.fetchWeatherMatrix(sampled, dateStr, startH, endH);
+                  if (matrix && matrix.length > 0) {
+                       try {
+                           await invoke('save_weather_cache', { 
+                               circuitId: props.circuitId, 
+                               filename, 
+                               content: JSON.stringify(matrix, null, 2) 
+                           });
+                           console.log("Weather cache saved");
+                       } catch (err) {
+                           console.error("Failed to save cache", err);
+                       }
+                  }
+             }
+
+             weatherForecasts.value = matrix;
+             
+             // Set initial weather
+             if (matrix.length > 0) {
+                 const p0 = matrix[0]; 
+                 const startHour = startD.getHours();
+                 if (p0.hours && p0.hours[startHour]) {
+                    currentWeather.value = p0.hours[startHour];
+                 } else if (p0.hours) {
+                    const keys = Object.keys(p0.hours).sort();
+                    if (keys.length > 0) currentWeather.value = p0.hours[keys[0]];
+                 }
+             }
         }
     } catch (e) {
         console.error("Weather init failed", e);
@@ -896,6 +1008,9 @@ const cometColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/co
 const cometWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurComete'));
 const cometOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete'));
 const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/longueurComete'));
+const heureDebutJournee = computed(() => getSettingValue('Visualisation/Météo/heureDebutJournee') || 6);
+const heureFinJournee = computed(() => getSettingValue('Visualisation/Météo/heureFinJournee') || 20);
+
 const animationSpeed = computed(() => {
     const val = getSettingValue('Visualisation/Lecture/vitesse');
     return val > 100 ? val : val * 1000;

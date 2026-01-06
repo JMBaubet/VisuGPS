@@ -98,11 +98,11 @@
             <!-- Weather Configuration -->
             <v-divider class="my-3"></v-divider>
             <div class="text-subtitle-2 mb-2">Paramètres Météo</div>
-            <v-row dense>
-                <v-col cols="4">
+            <v-row dense align="center">
+                <v-col cols="3">
                     <EditTime v-model="editedHeureDepart" label="Heure Départ" />
                 </v-col>
-                <v-col cols="4">
+                <v-col cols="3">
                     <v-text-field
                         v-model.number="editedVitesseMoyenne"
                         label="Vitesse Moy. (km/h)"
@@ -116,18 +116,36 @@
                         hide-details
                     ></v-text-field>
                 </v-col>
-                <v-col cols="4">
+                <v-col cols="3">
                     <EditDate v-model="editedDateDepart" label="Date Départ" />
                 </v-col>
+                <v-col cols="3" class="d-flex justify-center">
+                     <v-btn
+                      color="primary"
+                      size="small"
+                      @click="saveMeteo"
+                      :disabled="!hasMeteoChanges"
+                    >Sauvegarder</v-btn>
+                </v-col>
             </v-row>
-            <div class="d-flex justify-end mt-2">
-                 <v-btn
-                  color="primary"
-                  size="small"
-                  @click="saveMeteo"
-                  :disabled="!hasMeteoChanges"
-                >Sauvegarder Météo</v-btn>
-            </div>
+            <v-row dense class="mt-1 mb-2">
+                <v-col cols="12" class="d-flex justify-space-between align-center px-4">
+                    <div class="text-body-2" :class="{'text-success': weatherStatus.includes('Présent'), 'text-grey': !weatherStatus.includes('Présent')}">
+                        <v-icon size="small" class="mr-1" :color="weatherStatus.includes('Présent') ? 'success' : 'grey'">mdi-weather-cloudy</v-icon>
+                        Fichier Météo : <strong>{{ weatherStatus }}</strong>
+                    </div>
+                    <v-btn
+                        size="small"
+                        :color="weatherStatus.includes('Présent') ? 'warning' : 'primary'"
+                        variant="tonal"
+                        :loading="isDownloadingWeather"
+                        @click="downloadWeather"
+                        prepend-icon="mdi-download"
+                    >
+                        {{ weatherStatus.includes('Présent') ? 'Mettre à jour' : 'Télécharger' }}
+                    </v-btn>
+                </v-col>
+            </v-row>
             <v-divider class="my-3"></v-divider>
 
             <v-row class="mt-4">
@@ -206,10 +224,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
+import { useSettings } from '@/composables/useSettings';
 import DistanceMarkersDialog from './DistanceMarkersDialog.vue';
 import EditTime from './EditTime.vue';
 import EditDate from './EditDate.vue';
@@ -233,6 +252,7 @@ const emit = defineEmits(['close', 'update-circuit']);
 
 const { appEnvPath } = useEnvironment();
 const { showSnackbar } = useSnackbar();
+const { getSettingValue } = useSettings();
 
 const communeNom = ref('');
 const qrCodePath = ref('');
@@ -352,27 +372,183 @@ const getMeteoConfig = () => {
     editedHeureDepart.value = config.heureDepart || "08:30";
     editedVitesseMoyenne.value = config.vitesseMoyenne || 20.0;
     
-    // Default date is tomorrow if not set
-    if (config.dateDepart) {
-        editedDateDepart.value = config.dateDepart;
-    } else {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        editedDateDepart.value = tomorrow.toISOString().split('T')[0];
+    // Date Logic
+    let dateStr = config.dateDepart;
+    let computedDate = null;
+    
+    // Calculate Today (Local)
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Check if stored date is valid and in the future
+    if (dateStr) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const storedDate = new Date(y, m - 1, d);
+        if (storedDate > today) {
+            computedDate = dateStr;
+        }
     }
+
+    // Default to Tomorrow if no valid future date
+    if (!computedDate) {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const yyyy = tomorrow.getFullYear();
+        const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const dd = String(tomorrow.getDate()).padStart(2, '0');
+        computedDate = `${yyyy}-${mm}-${dd}`;
+    }
+    editedDateDepart.value = computedDate;
+    
+    nextTick(() => checkWeatherStatus());
 };
 
 const hasMeteoChanges = computed(() => {
     const config = props.circuit.meteoConfig || {};
     const oldHeure = config.heureDepart || "08:30";
     const oldVitesse = config.vitesseMoyenne || 20.0;
-    const oldDate = config.dateDepart || ((d) => { d.setDate(d.getDate()+1); return d.toISOString().split('T')[0];})(new Date()); // approx check
+    const oldDate = config.dateDepart || ((d) => { 
+        d.setDate(d.getDate()+1); 
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    })(new Date());
 
     // Simple comparison
     return editedHeureDepart.value !== oldHeure ||
            editedVitesseMoyenne.value !== oldVitesse ||
            editedDateDepart.value !== (config.dateDepart || ""); 
 });
+
+import WeatherService from '@/services/WeatherService';
+
+const weatherStatus = ref('Inconnu');
+const isDownloadingWeather = ref(false);
+
+const getFilenameForDate = (dateStr) => {
+    const d = new Date(dateStr);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const datePart = `${yyyy}${mm}${dd}`;
+
+    const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+    const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
+    
+    const sH = String(startH).padStart(2, '0');
+    const eH = String(endH).padStart(2, '0');
+
+    return `${datePart}-${sH}-to-${eH}.json`;
+};
+
+const formatRelativeTime = (isoDate) => {
+    const d = new Date(isoDate);
+    const now = new Date();
+    const diffMs = now - d;
+    
+    if (diffMs < 0) return "à l'instant"; 
+
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(diffHours / 24);
+    const hours = diffHours % 24;
+
+    if (days > 0) {
+        return `il y a ${days}j et ${hours}h`;
+    } else if (hours > 0) {
+        return `il y a ${hours}h`;
+    } else {
+        return `il y a moins d'1h`;
+    }
+};
+
+const checkWeatherStatus = async () => {
+    if (!props.circuit?.circuitId || !editedDateDepart.value) return;
+    
+    const filename = getFilenameForDate(editedDateDepart.value);
+    try {
+        const metadata = await invoke('check_weather_cache_metadata', { 
+            circuitId: props.circuit.circuitId, 
+            filename 
+        });
+        
+        if (metadata) {
+            weatherStatus.value = `Présent (MAJ ${formatRelativeTime(metadata)})`;
+        } else {
+            weatherStatus.value = 'Non téléchargé';
+        }
+    } catch (e) {
+        console.warn("Check weather failed", e);
+        weatherStatus.value = 'Erreur vérification';
+    }
+};
+
+const downloadWeather = async () => {
+    if (!props.circuit?.circuitId || !editedDateDepart.value) return;
+    isDownloadingWeather.value = true;
+    
+    try {
+        // 1. Load tracking points
+        let trackData = await invoke('read_tracking_file', { circuitId: props.circuit.circuitId });
+        // trackData is the array of points
+        if (!trackData || trackData.length === 0) {
+            throw new Error("Aucun point de tracking trouvé");
+        }
+        
+        // 2. Sample (same logic as VisualizeView)
+        const sampled = [];
+        trackData.forEach((p, i) => {
+            // "trackData" might slightly differ if read_tracking_file returns raw JSON?
+            // VisualizeView uses "trackingPointsWithDistanceRef".
+            // lib.rs read_tracking_file returns Value (JSON).
+            // Usually JSON is array of objects.
+            // Assumption: p has coordonnee [lon, lat] and likely distance/cumul_dist.
+            // But we use index based increment.
+            
+            if (i % 10 === 0 || i === trackData.length - 1) {
+                const inc = Math.round(i / 10);
+                if (!sampled.some(s => s.increment === inc)) {
+                    // Check if coordonnee exists
+                    if (p.coordonnee) {
+                        sampled.push({
+                            lat: p.coordonnee[1],
+                            lon: p.coordonnee[0],
+                            increment: inc
+                        });
+                    }
+                }
+            }
+        });
+
+        if (sampled.length === 0) throw new Error("Échantillonnage vide");
+
+        // 3. Fetch Matrix
+        const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+        const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
+        
+        const matrix = await WeatherService.fetchWeatherMatrix(sampled, editedDateDepart.value, startH, endH);
+        
+        if (matrix && matrix.length > 0) {
+            // 4. Save
+            const filename = getFilenameForDate(editedDateDepart.value);
+            await invoke('save_weather_cache', {
+                circuitId: props.circuit.circuitId,
+                filename,
+                content: JSON.stringify(matrix, null, 2)
+            });
+            showSnackbar('Météo téléchargée avec succès', 'success');
+            checkWeatherStatus();
+        } else {
+            throw new Error("Aucune donnée reçue de l'API");
+        }
+
+    } catch (e) {
+        console.error("Download weather failed", e);
+        showSnackbar("Erreur téléchargement météo: " + e.message, 'error');
+    } finally {
+        isDownloadingWeather.value = false;
+    }
+};
 
 const saveMeteo = async () => {
     try {
@@ -401,10 +577,18 @@ const saveMeteo = async () => {
     }
 };
 
+watch(editedDateDepart, () => {
+  checkWeatherStatus();
+});
+
 onMounted(() => {
   getCommuneNom();
   getQrCodePath();
   getMeteoConfig();
+  // checkWeatherStatus called by watcher or getMeteoConfig implicitly?
+  // Watcher might not fire on initial set if equal? 
+  // Let's call it explicitly after a tick or in getMeteoConfig.
+  nextTick(() => checkWeatherStatus());
 });
 
 watch(() => props.circuit, () => {
@@ -412,6 +596,7 @@ watch(() => props.circuit, () => {
   getQrCodePath();
   editedTraceur.value = props.circuit.traceur;
   getMeteoConfig();
+  nextTick(() => checkWeatherStatus());
 }, { deep: true });
 
 watch(appEnvPath, () => {
