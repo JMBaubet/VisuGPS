@@ -7,23 +7,16 @@
     <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
   </transition>
 
-  <transition name="fade">
+  <transition name="fade-opacity">
     <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }" @wheel.stop>
       <span class="font-weight-bold">{{ currentCommuneName }}</span>
     </div>
   </transition>
 
-              <!-- Weather Widgets -->
-              <transition name="fade">
-                  <WeatherWidgetStatic 
-                      v-if="!isInitializing && isStaticWeatherVisible && weatherForecasts.length > 0" 
-                      :forecasts="weatherForecasts" 
-                      @close="isStaticWeatherVisible = false"
-                  />
-              </transition>
+
 
   <div class="top-center-container">
-    <transition name="fade">
+    <transition name="fade-opacity">
       <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
             <div class="d-flex align-center justify-center fill-height px-4">
               <span class="font-weight-bold">Distance :&nbsp;</span>
@@ -32,13 +25,19 @@
       </v-card>
     </transition>
 
+
+  </div>
+
+  <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
         <WeatherWidgetDynamic 
-            v-if="!isInitializing && isDynamicWeatherVisible && currentWeather" 
-            :weather="currentWeather"
-            :bearing="currentCameraBearing"
-            :trace-bearing="currentTraceBearing"
-            :orientation-mode="orientationBoussole"
+            v-if="!isInitializing && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
+            :weather="currentWeather" 
+            :bearing="currentCameraBearing" 
+            :trace-bearing="currentTraceBearing" 
+            :orientation-mode="currentOrientationMode"
+            :show-info="isWeatherInfoVisible"
+            :show-compass="isCompassVisible"
         />
     </transition>
   </div>
@@ -62,7 +61,7 @@
         Reprise
       </v-btn>
     </transition>
-    <transition name="fade">
+    <transition name="fade-opacity">
       <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
         <v-card variant="elevated" class="controls-card">
             <div class="d-flex align-center pa-1">
@@ -107,7 +106,7 @@ import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/AltitudeSVG.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
-import WeatherWidgetStatic from '@/components/WeatherWidgetStatic.vue';
+
 import WeatherWidgetDynamic from '@/components/WeatherWidgetDynamic.vue';
 import WeatherService from '@/services/WeatherService';
 
@@ -168,8 +167,10 @@ const isCursorHidden = ref(false);
 const weatherForecasts = ref([]);
 const currentWeather = ref(null);
 // const isWeatherVisible = ref(true); // Removed
-const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetStatique') ?? true);
-const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/widgetDynamique') ?? true);
+const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true);
+const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/boussole') ?? true);
+const isWeatherInfoVisible = ref(isStaticWeatherVisible.value);
+const isCompassVisible = ref(isDynamicWeatherVisible.value);
 const currentTraceBearing = ref(0);
 const currentCameraBearing = ref(0);
 const currentCircuitRef = ref(null); // Added for settings priority
@@ -199,20 +200,16 @@ const orientationBoussole = computed(() => {
     return getSettingValue('Visualisation/Météo/orientationBoussole') || "Trace";
 });
 
+const currentOrientationMode = ref(orientationBoussole.value);
+watch(orientationBoussole, (newVal) => {
+    currentOrientationMode.value = newVal;
+});
+
 // --- Commune Widget State ---
 const avancementCommunes = ref(0);
 const currentCommuneName = ref('');
 const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
 const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
-
-const visualizeViewState = reactive({
-    isControlsCardVisible: isControlsCardVisible,
-    isAltitudeVisible: isAltitudeVisible,
-    isCommuneWidgetVisible: isCommuneWidgetVisible,
-    isDistanceDisplayVisible: isDistanceDisplayVisible,
-    isStaticWeatherVisible: isStaticWeatherVisible, // Added
-    isDynamicWeatherVisible: isDynamicWeatherVisible, // Added
-});
 
 const unlistenFunctions = [];
 
@@ -237,38 +234,41 @@ const flytoEvents = ref({});
 const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
 
-
-
-
 // Function to send the current state to the backend
-const sendVisualizeViewStateUpdate = () => {
-    invoke('update_visualize_view_state', { state: visualizeViewState });
+const sendVisualizeViewStateUpdate = async () => {
+    try {
+        await invoke('update_visualize_view_state', {
+            state: {
+                isControlsCardVisible: isControlsCardVisible.value,
+                isAltitudeVisible: isAltitudeVisible.value,
+                isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+                isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+                isStaticWeatherVisible: isWeatherInfoVisible.value,
+                isDynamicWeatherVisible: isCompassVisible.value,
+                currentSpeed: currentSpeed.value,
+                animationState: animationState.value
+            }
+        });
+    } catch (error) {
+        console.error("Failed to broadcast visual state update:", error);
+    }
 };
 
-// Watch for changes in individual refs and update the reactive state
-watch(isControlsCardVisible, (newValue) => {
-    visualizeViewState.isControlsCardVisible = newValue;
-});
-watch(isAltitudeVisible, (newValue) => {
-    visualizeViewState.isAltitudeVisible = newValue;
-});
-watch(isCommuneWidgetVisible, (newValue) => {
-    visualizeViewState.isCommuneWidgetVisible = newValue;
-});
-watch(isDistanceDisplayVisible, (newValue) => {
-    visualizeViewState.isDistanceDisplayVisible = newValue;
-});
-watch(isStaticWeatherVisible, (newValue) => { // Added
-    visualizeViewState.isStaticWeatherVisible = newValue;
-});
-watch(isDynamicWeatherVisible, (newValue) => { // Added
-    visualizeViewState.isDynamicWeatherVisible = newValue;
+// Watch for changes and send updates
+watch(isControlsCardVisible, sendVisualizeViewStateUpdate);
+watch(isAltitudeVisible, sendVisualizeViewStateUpdate);
+watch(isCommuneWidgetVisible, sendVisualizeViewStateUpdate);
+watch(isDistanceDisplayVisible, sendVisualizeViewStateUpdate);
+watch(isWeatherInfoVisible, sendVisualizeViewStateUpdate);
+watch(isCompassVisible, sendVisualizeViewStateUpdate);
+
+// Update remote control when initialization finishes
+watch(isInitializing, (newVal) => {
+    if (!newVal) {
+        sendVisualizeViewStateUpdate();
+    }
 });
 
-// Watch the reactive state and send updates to the backend
-watch(visualizeViewState, () => {
-    sendVisualizeViewStateUpdate();
-}, { deep: true });
 
 const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
 const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
@@ -693,6 +693,8 @@ async function executeFlytoSequence(flytoData) {
       isCommuneWidgetVisible.value = false;
       isAltitudeVisible.value = false;
       isControlsCardVisible.value = false;
+      isWeatherInfoVisible.value = false;
+      isCompassVisible.value = false;
       sendVisualizeViewStateUpdate();
 
       animationState.value = 'Vol_Final';
@@ -1138,6 +1140,8 @@ const resetAnimation = async () => {
         isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
         isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
         isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? true;
+        isWeatherInfoVisible.value = true;
+        isCompassVisible.value = true;
         isBackButtonVisible.value = true;
         sendVisualizeViewStateUpdate();
 
@@ -1222,6 +1226,12 @@ const handleKeyDown = (e) => {
     } else if (e.key === 'd' || e.key === 'D') {
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
         sendVisualizeViewStateUpdate();
+    } else if (e.key === 'm' || e.key === 'M') {
+        isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
+    } else if (e.key === 'b') {
+        isCompassVisible.value = !isCompassVisible.value;
+    } else if (e.key === 'B') {
+        currentOrientationMode.value = currentOrientationMode.value === 'Trace' ? 'Camera' : 'Trace';
     } else if (e.key === 'h' || e.key === 'H') {
         toggleBackButtonVisibility();
     } else if (e.code === 'Space') {
@@ -1237,10 +1247,6 @@ const handleKeyDown = (e) => {
         isStaticWeatherVisible.value = false;
         isDynamicWeatherVisible.value = false;
         sendVisualizeViewStateUpdate();
-    } else if (e.key === 'm') {
-        isStaticWeatherVisible.value = !isStaticWeatherVisible.value;
-    } else if (e.key === 'M') {
-        isDynamicWeatherVisible.value = !isDynamicWeatherVisible.value;
     }
 };
 
@@ -1595,11 +1601,11 @@ onMounted(() => {
     }));
     unlistenFunctions.push(await listen('remote_command::toggle_weather_static', () => {
         if (isInitializing.value) return;
-        isStaticWeatherVisible.value = !isStaticWeatherVisible.value;
+        isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
     }));
     unlistenFunctions.push(await listen('remote_command::toggle_weather_dynamic', () => {
         if (isInitializing.value) return;
-        isDynamicWeatherVisible.value = !isDynamicWeatherVisible.value;
+        isCompassVisible.value = !isCompassVisible.value;
     }));
     unlistenFunctions.push(await listen('remote_command::toggle_home', () => {
         if (isInitializing.value) return;
@@ -1670,6 +1676,20 @@ onMounted(() => {
 
   const unwatchSettings = watch(settings, (newSettings) => {
     if (newSettings) {
+      // --- Update Widget Visibility from Settings ---
+      isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
+      isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? true;
+      isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
+      isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
+      
+      const staticW = getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true;
+      isStaticWeatherVisible.value = staticW;
+      isWeatherInfoVisible.value = staticW;
+
+      const dynamicW = getSettingValue('Visualisation/Météo/Widgets/boussole') ?? true;
+      isDynamicWeatherVisible.value = dynamicW;
+      isCompassVisible.value = dynamicW;
+
       // --- Cursor hide logic ---
       if (masquerCurseurDelai.value != null) {
         if (mapContainer.value) {
@@ -1738,6 +1758,8 @@ onUnmounted(() => {
   pointer-events: auto;
   width: fit-content;
   height: 48px; /* Force height to match button */
+  max-height: 60px;
+  overflow: hidden;
 }
 
 .top-center-container {
@@ -1761,12 +1783,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column-reverse;
   align-items: center;
-  gap: 8px;
+  /* gap: 8px; Removed to fix animation jump */
   pointer-events: none;
 }
 
 .bottom-controls {
   pointer-events: auto;
+  margin-top: 8px;
 }
 
 .altitude-svg-container {
@@ -1774,7 +1797,9 @@ onUnmounted(() => {
     pointer-events: auto;
     background-color: rgba(0, 0, 0, 0.7);
     border-radius: 5px;
+    margin-top: 8px; /* Replaces flex gap */
     max-height: 500px;
+    overflow: hidden; /* Ensure animation clipping */
 }
 
 .altitude-profile-container {
@@ -1827,6 +1852,8 @@ onUnmounted(() => {
   left: 80px; /* Position next to the back button (20px + ~48px button + gap) */
   width: 250px;
   height: 48px; /* Match standard button height for visual alignment */
+  max-height: 60px;
+  overflow: hidden;
   background-color: white;
   border-width: 4px;
   border-style: solid;
@@ -1842,13 +1869,27 @@ onUnmounted(() => {
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.75s ease, max-height 0.75s ease;
+  transition: opacity 0.75s ease, max-height 0.75s ease, margin 0.75s ease, padding 0.75s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
   max-height: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.fade-opacity-enter-active,
+.fade-opacity-leave-active {
+  transition: opacity 0.75s ease;
+}
+
+.fade-opacity-enter-from,
+.fade-opacity-leave-to {
+  opacity: 0;
 }
 
 /* Fade-in animation for messages during initialization */

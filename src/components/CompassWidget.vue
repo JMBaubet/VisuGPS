@@ -1,88 +1,87 @@
 <template>
-  <div class="compass-widget" :style="{ width: size + 'px', height: size + 'px' }">
-    <svg 
-      viewBox="0 0 100 100" 
-      width="100%" 
-      height="100%" 
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <!-- Main Rotating Group (The Dial + N) -->
-      <!-- Rotates opposite to heading to keep N pointing North relative to screen -->
-      <g :transform="`rotate(${-heading}, 50, 50)`">
-        
-        <!-- Dial Circle -->
-        <circle cx="50" cy="50" r="48" :fill="dialFill" stroke="currentColor" stroke-width="2" />
-        
-        <!-- Small Ticks (Cardinals) -->
-        <line x1="50" y1="2" x2="50" y2="8" stroke="currentColor" stroke-width="2" /> <!-- N -->
-        <line x1="50" y1="92" x2="50" y2="98" stroke="currentColor" stroke-width="2" /> <!-- S -->
-        <line x1="92" y1="50" x2="98" y2="50" stroke="currentColor" stroke-width="2" /> <!-- E -->
-        <line x1="2" y1="50" x2="8" y2="50" stroke="currentColor" stroke-width="2" /> <!-- W -->
+  <div class="compass-widget d-flex flex-column align-center" :style="{ width: size + 'px' }">
+    <div :style="{ width: size + 'px' }">
+        <svg 
+        viewBox="0 -12 100 112" 
+        width="100%" 
+        height="100%" 
+        xmlns="http://www.w3.org/2000/svg"
+        >
+        <!-- Main Rotating Group (The Dial + N) -->
+        <g :transform="mainGroupTransform">
+            
+            <!-- Dial Circle -->
+            <circle cx="50" cy="50" r="48" :fill="dialFill" stroke="white" stroke-width="2" />
+            
+            <!-- Cardinals -->
+            <!-- N -->
+            <line x1="50" y1="2" x2="50" y2="8" stroke="red" stroke-width="2" />
+            <text x="50" y="16" font-family="Arial" font-size="14" font-weight="bold" fill="red" text-anchor="middle" dominant-baseline="central" transform="rotate(0, 50, 16)">N</text>
+            
+            <!-- S -->
+            <line x1="50" y1="92" x2="50" y2="98" stroke="white" stroke-width="2" />
+            <text x="50" y="86" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" transform="rotate(180, 50, 86)">S</text>
+            
+            <!-- E -->
+            <line x1="92" y1="50" x2="98" y2="50" stroke="white" stroke-width="2" />
+            <text x="86" y="50" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" transform="rotate(90, 86, 50)">E</text>
+            
+            <!-- W (Ouest) -->
+            <line x1="2" y1="50" x2="8" y2="50" stroke="white" stroke-width="2" />
+            <text x="14" y="50" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central" transform="rotate(-90, 14, 50)">O</text>
 
-        <!-- Track Arrow (Black, Thin) -->
-        <!-- Rotated by traceBearing relative to the Dial (which is at -heading). -->
-        <!-- Logic: If Dial is -90 (N is Left), and Bearing is 90 (East), Net is 0 (Up). Correct. -->
-        <g :transform="`rotate(${trackBearing}, 50, 50)`">
-           <!-- Needle Shape pointing UP -->
-           <!-- long thin arrow with dynamic fill and adaptive border -->
-           <path d="M50 15 L45 85 L50 80 L55 85 Z" :fill="trackArrowColor" :stroke="mainArrowColor" stroke-width="1" opacity="0.9" />
+            <!-- Camera Marker -->
+            <!-- If Camera Mode: Black Triangle REMOVED. -->
+            <!-- If Track Mode: Grey Arrow Rotating. -->
+            <g :transform="`rotate(${cameraBearing}, 50, 50)`">
+                <!-- If Track Mode, use White Triangle (Identical to Blue but Inside) -->
+                <path v-if="orientationMode === 'Trace'" d="M50 2 L44 12 L56 12 Z" fill="white" stroke="none" /> 
+            </g>
+
+             <!-- Wind Markers -->
+             <!-- Wind Direction relative to North. -->
+             <!-- Rotated by windDirection. -->
+             <!-- Wind comes FROM direction. At 0deg (North), it should appear at Top (North). -->
+             <!-- Triangle Base at edge pointing Inward. -->
+            <g v-if="windSpeed > 0" :transform="`rotate(${windDirection}, 50, 50)`">
+                <!-- Diameter Line -->
+                <line x1="50" y1="2" x2="50" y2="98" :stroke="windColor" stroke-width="1" />
+
+                <!-- Gust Triangle (Second triangle, representing gusts) -->
+                <!-- User: "Height of second = rafale - 0.5 * vent" -> I will assume logic: Base same, Length proportional to Gust speed, behind wind triangle. -->
+                <!-- To make it visible behind, it must be wider or longer. -->
+                <!-- I'll make it longer based on gust speed ratio. Default logic. -->
+                <path :d="getWindTrianglePath(windGusts)" :fill="lightWindColor" stroke="none" opacity="0.6" />
+                
+                <!-- Wind Triangle (First triangle, closest to edge) -->
+                <path :d="getWindTrianglePath(windSpeed)" :fill="windColor" stroke="none" />
+            </g>
+
+            <!-- Trace Marker (Blue Triangle) - INNER -->
+            <!-- Only shown in Camera Mode (rotating with dial) -->
+            <g v-if="orientationMode === 'Camera'" :transform="`rotate(${trackBearing}, 50, 50)`">
+                 <path d="M50 2 L45 12 L55 12 Z" fill="#2196F3" stroke="none" /> 
+            </g>
+
         </g>
 
-        <!-- Wind Arrow (Adaptive Color, Needle) -->
-        <g :transform="`rotate(${windDirection}, 50, 50)`">
-            <!-- Needle shape pointing DOWN (Wind Flow: North wind flows South) -->
-            <!-- Inverted coordinates of the track arrow -->
-            <path d="M50 85 L45 15 L50 20 L55 15 Z" :fill="mainArrowColor" opacity="0.9" />
+        <!-- Trace Marker (Blue Triangle) - OUTER -->
+        <!-- Only shown in Trace Mode (Fixed Top, Outside Circle) -->
+        <g v-if="orientationMode === 'Trace'">
+            <!-- Drawn at Top Center, using the -12 negative space in ViewBox -->
+             <path d="M50 -12 L44 -2 L56 -2 Z" fill="#2196F3" stroke="none" /> 
         </g>
-
-        <!-- North Marker Text -->
-        <text 
-          class="north-label"
-          x="50" 
-          y="12" 
-          font-family="Arial, sans-serif" 
-          font-size="18" 
-          font-weight="bold" 
-          fill="#FF0000" 
-          text-anchor="middle"
-          dominant-baseline="central"
-        >N</text>
-
-      </g> <!-- End of Rotating Group -->
-
-      <!-- Center Text (Static Orientation) -->
-      <g>
-        <text 
-            x="50" 
-            :y="showGusts ? 42 : 50" 
-            font-family="Roboto, sans-serif" 
-            font-size="18" 
-            font-weight="bold" 
-            :fill="centerTextColor" 
-            :stroke="centerTextStroke" 
-            stroke-width="3" 
-            paint-order="stroke"
-            stroke-linejoin="round"
-            text-anchor="middle"
-            dominant-baseline="central"
-        >{{ Math.round(windSpeed) }}</text>
-        <text 
-            v-if="showGusts"
-            x="50" 
-            y="58" 
-            font-family="Roboto, sans-serif" 
-            font-size="12" 
-            font-weight="bold" 
-            :fill="centerTextColor" 
-            :stroke="centerTextStroke" 
-            stroke-width="3" 
-            paint-order="stroke"
-            stroke-linejoin="round"
-            text-anchor="middle"
-            dominant-baseline="central"
-        >({{ Math.round(windGusts) }})</text>
-      </g>
-    </svg>
+        </svg>
+    </div>
+    
+    <!-- Speed Text Below -->
+    <div class="text-caption font-weight-bold d-flex flex-column align-center" :style="{ color: windColor, lineHeight: '1.1', marginTop: '-5px' }">
+        <div class="d-flex align-baseline">
+            <span class="text-h6 font-weight-bold mr-1">{{ Math.round(windSpeed) }}</span>
+            <span v-if="showGusts" class="text-caption" style="opacity: 0.7">({{ Math.round(windGusts) }})</span>
+            <span class="text-caption ml-1">km/h</span>
+        </div>
+    </div>
   </div>
 </template>
 
@@ -93,9 +92,9 @@ import { useTheme } from 'vuetify';
 const props = defineProps({
   size: {
     type: Number,
-    default: 60
+    default: 80
   },
-  heading: {
+  cameraBearing: {
     type: Number,
     required: true
   },
@@ -114,36 +113,43 @@ const props = defineProps({
   windGusts: {
     type: Number,
     default: 0
+  },
+  orientationMode: { // 'Trace' or 'Camera'
+    type: String,
+    default: 'Trace' 
   }
 });
 
 const theme = useTheme();
 const isDark = computed(() => theme.global.current.value.dark);
 
-// Adaptive Colors
-const dialFill = computed(() => isDark.value ? 'rgba(50, 50, 50, 0.8)' : 'rgba(255, 255, 255, 0.7)');
-const mainArrowColor = computed(() => isDark.value ? 'white' : 'black'); // Top elements
-const centerTextColor = computed(() => isDark.value ? 'white' : 'black');
-const centerTextStroke = computed(() => isDark.value ? 'black' : 'white');
+const dialRotation = computed(() => {
+    // If Trace Mode: North is rotated by -trackBearing (Trace is Up at 0)
+    if (props.orientationMode === 'Trace') {
+        return -props.trackBearing;
+    }
+    // If Camera Mode: North is rotated by -cameraBearing (Camera is Up at 0)
+    return -props.cameraBearing;
+});
+
+const mainGroupTransform = computed(() => {
+    const rot = dialRotation.value;
+    return `translate(50, 50) rotate(${rot}) scale(1.0) translate(-50, -50)`;
+});
+
+const dialFill = computed(() => 'black');
 
 const showGusts = computed(() => props.windGusts > props.windSpeed + 5);
 
-const windLabel = computed(() => { // Unused but keeping for safety diff min logic
-    let text = Math.round(props.windSpeed).toString();
-    if (showGusts.value) {
-        text += `\n(${Math.round(props.windGusts)})`;
-    }
-    return text;
-});
-
-const trackArrowColor = computed(() => {
+// Wind Colors based on Delta (Headwind vs Tailwind)
+const windColor = computed(() => {
     let diff = Math.abs(props.trackBearing - props.windDirection) % 360;
     if (diff > 180) diff = 360 - diff;
 
     // Colors
-    const cRed = { r: 244, g: 67, b: 54 };   // #F44336
-    const cYellow = { r: 255, g: 235, b: 59 }; // #FFEB3B
-    const cGreen = { r: 76, g: 175, b: 80 };   // #4CAF50
+    const cRed = { r: 244, g: 67, b: 54 };   // #F44336 (Headwind)
+    const cGrey = { r: 158, g: 158, b: 158 }; // #9E9E9E (Crosswind - Gris)
+    const cGreen = { r: 76, g: 175, b: 80 };   // #4CAF50 (Tailwind)
 
     // Helper for linear interpolation
     const lerp = (start, end, factor) => Math.round(start + (end - start) * factor);
@@ -155,35 +161,63 @@ const trackArrowColor = computed(() => {
     });
 
     // Zones
-    // 0 - 30: Red (Plateau)
+    // 0 - 30: Red (Headwind - Wind from Front)
     if (diff <= 30) return colorString(cRed);
 
-    // 150 - 180: Green (Plateau)
+    // 150 - 180: Green (Tailwind - Wind from Behind)
     if (diff >= 150) return colorString(cGreen);
 
-    // 80 - 100: Yellow (Plateau)
-    if (diff >= 80 && diff <= 100) return colorString(cYellow);
+    // 80 - 100: Grey (Crosswind)
+    if (diff >= 80 && diff <= 100) return colorString(cGrey);
 
-    // 30 - 80: Gradient Red -> Yellow
+    // 30 - 80: Gradient Red -> Grey
     if (diff > 30 && diff < 80) {
         const factor = (diff - 30) / (80 - 30);
-        return colorString(lerpColor(cRed, cYellow, factor));
+        return colorString(lerpColor(cRed, cGrey, factor));
     }
 
-    // 100 - 150: Gradient Yellow -> Green
+    // 100 - 150: Gradient Grey -> Green
     if (diff > 100 && diff < 150) {
         const factor = (diff - 100) / (150 - 100);
-        return colorString(lerpColor(cYellow, cGreen, factor));
+        return colorString(lerpColor(cGrey, cGreen, factor));
     }
 
     return '#9E9E9E'; // Should not be reached
 });
+
+// Lighter/Darker version for gusts? User said "plus clair" (lighter).
+// We use the same color but rely on the opacity=0.6 defined in template to make it "lighter/transparent".
+const lightWindColor = computed(() => windColor.value);
+
+// Triangle Path Geometry
+const getWindTrianglePath = (speed) => {
+    // 10km/h = 12% diameter. 80km/h = 100% diameter.
+    // Diameter = 96 (Circle R=48).
+    // height = scale * 96.
+    
+    const minSpeed = 10;
+    const maxSpeed = 80;
+    const minPct = 0.12; 
+    
+    let ratio = Math.max(0, Math.min(1, (speed - minSpeed) / (maxSpeed - minSpeed)));
+    let heightPct = minPct + (1.0 - minPct) * ratio;
+    
+    // Safety check for very low speeds
+    if (speed <= 0) return '';
+    
+    const height = heightPct * 96; 
+    
+    // Base width - typically proportional to height or fixed angle?
+    // Let's use a fixed base width for clarity, or proportional.
+    // Triangle: Tip at (50, 2 + height). Base at (50-w, 2) to (50+w, 2).
+    const baseHalfWidth = 6 + (ratio * 6); // 6 to 12?
+    
+    // Pointing inward from Top Edge (y=2 is inside stroke).
+    return `M ${50 - baseHalfWidth} 2 L ${50 + baseHalfWidth} 2 L 50 ${2 + height} Z`;
+};
+
 </script>
 
 <style scoped>
-.compass-widget {
-  display: inline-block;
-  /* Use current text color for strokes unless overridden */
-  color: rgb(var(--v-theme-on-surface)); 
-}
+/* No specific styles needed beyond flex */
 </style>

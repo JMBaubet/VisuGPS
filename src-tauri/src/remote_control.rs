@@ -106,6 +106,10 @@ pub struct VisualizeViewState {
     pub is_altitude_visible: bool,
     pub is_commune_widget_visible: bool,
     pub is_distance_display_visible: bool,
+    pub is_static_weather_visible: bool,
+    pub is_dynamic_weather_visible: bool,
+    pub current_speed: f64,
+    pub animation_state: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

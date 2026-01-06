@@ -1,6 +1,6 @@
-# 📊 Paramètre : Widget Statique (Tableau)
+# 📊 Paramètre : Information Météo
 
-Ce document détaille le paramètre `Widget Statique`, qui contrôle l'affichage du tableau des prévisions.
+Ce document détaille le paramètre `Information Météo`, qui contrôle l'affichage du widget d'informations météorologiques.
 
 ---
 
@@ -8,7 +8,7 @@ Ce document détaille le paramètre `Widget Statique`, qui contrôle l'affichage
 
 Ce paramètre active ou désactive l'affichage par défaut du tableau récapitulatif des prévisions sur la droite de l'écran lors du lancement de la visualisation.
 
-- **Libellé**: Widget Statique (Tableau)
+- **Libellé**: Information Météo
 - **Type**: Booléen
 - **Valeur par défaut**: Vrai (Affiché)
 

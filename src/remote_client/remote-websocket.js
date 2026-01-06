@@ -109,6 +109,7 @@ function connectWebSocket() {
             }
             // Gérer les mises à jour de l'état de l'application
             updateRemoteInterface(message.appState);
+            sendCommand('request_full_state');
         } else if (message.type === "server_shutdown") {
             manualDisconnect = true;
             updateStatus(message.reason || "Déconnexion demandée par le serveur", true);
@@ -131,6 +132,20 @@ function connectWebSocket() {
                 document.getElementById('toggle-profile').checked = message.state.isAltitudeVisible;
                 document.getElementById('toggle-communes').checked = message.state.isCommuneWidgetVisible;
                 document.getElementById('toggle-distance').checked = message.state.isDistanceDisplayVisible;
+
+                if (document.getElementById('toggle-weather-dynamic')) {
+                    document.getElementById('toggle-weather-dynamic').checked = message.state.isDynamicWeatherVisible;
+                }
+                if (document.getElementById('toggle-weather-static')) {
+                    document.getElementById('toggle-weather-static').checked = message.state.isStaticWeatherVisible;
+                }
+
+                if (message.state.currentSpeed !== undefined) {
+                    updateSpeedDisplay(message.state.currentSpeed);
+                }
+                if (message.state.animationState) {
+                    updatePlayPauseButton(message.state.animationState);
+                }
             }
         } else if (message.type === "pause_state_update") {
         } else if (message.type === "animation_state_update") {

@@ -1,6 +1,6 @@
-# 🧭 Paramètre : Widget Dynamique (Boussole)
+# 🧭 Paramètre : Boussole
 
-Ce document détaille le paramètre `Widget Dynamique`, qui contrôle l'affichage du HUD (Heads-Up Display) météo en haut de l'écran.
+Ce document détaille le paramètre `Boussole`, qui contrôle l'affichage du HUD (Heads-Up Display) météo en haut de l'écran.
 
 ---
 
@@ -8,7 +8,7 @@ Ce document détaille le paramètre `Widget Dynamique`, qui contrôle l'affichag
 
 Ce paramètre active ou désactive l'affichage par défaut de la boussole et des indicateurs temps réel (température, vent) en haut au centre de l'écran.
 
-- **Libellé**: Widget Dynamique (Boussole)
+- **Libellé**: Boussole
 - **Type**: Booléen
 - **Valeur par défaut**: Vrai (Affiché)
 
@@ -29,5 +29,6 @@ Le widget dynamique est conçu pour accompagner l'animation comme un tableau de 
 
 ## ⚠️ Recommandations
 
--   **Raccourci Clavier** : Vous pouvez masquer ou afficher ce widget à tout moment en appuyant sur la touche **'M'** (majuscule).
+-   **Raccourci Clavier (Visibilité)** : Appuyez sur la touche **'b'** (minuscule) pour masquer ou afficher le widget.
+-   **Raccourci Clavier (Orientation)** : Appuyez sur la touche **'B'** (majuscule) pour changer le mode d'orientation (Trace / Caméra).
 -   **Combinaison** : Il est conçu pour fonctionner de pair avec le Widget Statique, l'un donnant le détail instantané, l'autre la vue d'ensemble.

@@ -1833,20 +1833,20 @@
                 "libelle": "Widgets",
                 "parametres": [
                   {
-                    "identifiant": "widgetStatique",
-                    "libelle": "Widget Statique (Tableau)",
-                    "description": "Afficher le tableau des prévisions heure par heure.",
+                    "identifiant": "informationMeteo",
+                    "libelle": "Information Météo",
+                    "description": "Afficher le widget d'informations météorologiques.",
                     "type": "booleen",
                     "defaut": true,
-                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/widgetStatique.md"
+                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/informationMeteo.md"
                   },
                   {
-                    "identifiant": "widgetDynamique",
-                    "libelle": "Widget Dynamique (Boussole)",
-                    "description": "Afficher la boussole et les conditions actuelles.",
+                    "identifiant": "boussole",
+                    "libelle": "Boussole",
+                    "description": "Afficher le widget boussole.",
                     "type": "booleen",
                     "defaut": true,
-                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/widgetDynamique.md"
+                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/boussole.md"
                   }
                 ]
               }
