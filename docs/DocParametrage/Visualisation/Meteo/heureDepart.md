@@ -23,12 +23,14 @@ La météo n'est pas statique ; elle évolue tout au long de la journée. Pour a
 
 ### 2. 📅 Gestion des "Trous" de Données
 
--   Les fichiers GPX ne contiennent pas toujours de données temporelles (timestamps).
+-   Les fichiers GPX ne contiennent pas de données temporelles (timestamps).
 -   En l'absence de ces données, ce paramètre combiné à la vitesse moyenne permet de simuler un horodatage complet du parcours.
+
+
 
 ---
 
 ## ⚠️ Recommandations
 
 -   **Adapter à votre pratique** : Si vous êtes un cycliste matinal, réglez cette valeur sur votre heure de sortie habituelle (ex: 07:30).
--   **Surcharge par circuit** : N'oubliez pas que vous pouvez modifier cette heure pour chaque circuit individuellement via le bouton "Sauvegarder Météo" dans les informations du circuit.
+-   **Surcharge par circuit** : N'oubliez pas que vous pouvez modifier cette heure pour chaque circuit individuellement en gérant des groupes qui partent à des horaires différents et qui roulent à des vitesses différentes dans les informations du circuit.

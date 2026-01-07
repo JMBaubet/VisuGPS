@@ -315,6 +315,20 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   ⚠️ [Coefficient largeur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefLargeurMessage.md)
 *   ⚠️ [Coefficient réducteur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefReducteurMessage.md)
 
+### 4.8. Météo
+**Description** : Gestion des données météorologiques et de l'orientation sur le parcours.
+*   [Activer la météo](../DocParametrage/Visualisation/Meteo/meteoActif.md)
+*   [Heure de départ par défaut](../DocParametrage/Visualisation/Meteo/heureDepart.md)
+*   [Heure de début de journée](../DocParametrage/Visualisation/Meteo/heureDebutJournee.md)
+*   [Heure de fin de journée](../DocParametrage/Visualisation/Meteo/heureFinJournee.md)
+*   [Vitesse moyenne par défaut (km/h)](../DocParametrage/Visualisation/Meteo/vitesseMoyenne.md)
+
+#### 4.8.1. Widgets
+**Description** : Gadgets visuels pour la météo et la navigation.
+*   [Information Météo](../DocParametrage/Visualisation/Meteo/Widgets/informationMeteo.md)
+*   [Boussole](../DocParametrage/Visualisation/Meteo/Widgets/boussole.md)
+*   [Orientation de la boussole](../DocParametrage/Visualisation/Meteo/Widgets/orientationBoussole.md)
+
 ---
 
 ## 5. ⚙️ Système

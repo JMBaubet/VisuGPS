@@ -19,7 +19,7 @@ Bien que l'ajout de la météo enrichisse la visualisation, il peut être néces
 ### 1. 🚀 Performance et Réseau
 
 -   La récupération des données météo nécessite des appels API vers Open-Meteo.
--   Sur une connexion très lente ou inexistante, ces appels peuvent échouer ou ralentir le chargement initial de la visualisation.
+-   Sur une connexion très lente ou inexistante, ces appels peuvent échouer ou ralentir le chargement initial de la visualisation si le fichier météo n'a pas été téléchargé au préalable.
 
 ### 2. 🎬 Pureté de l'Animation
 

@@ -23,6 +23,9 @@ Pour synchroniser la météo avec la position (ex: être au sommet du col à 11h
 -   Connaitre l'heure de départ ne suffit pas.
 -   Le système utilise cette vitesse pour projeter votre position dans le temps : `Temps = Distance / Vitesse`.
 
+> [!NOTE]
+> La vitesse moyenne est appliquée de manière **linéaire** sur tout le parcours. Elle ne tient pas compte du relief (montées, descentes) qui, dans la réalité, ferait varier la vitesse instantanée.
+
 ### 2. 🌤️ Précision des Prévisions
 
 -   Si vous roulez plus lentement que prévu, vous pourriez arriver sous la pluie alors que le système prévoyait du soleil.
