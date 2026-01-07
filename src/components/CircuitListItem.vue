@@ -96,7 +96,16 @@
           />
         </v-dialog>
 
-        <v-btn :color="editButtonColor" icon="mdi-pencil" variant="text" @click.stop="editTracking"></v-btn>
+        <v-btn icon="mdi-pencil" variant="text" @click.stop="editTracking" :color="editButtonColor" title="Éditer le tracking"></v-btn>
+        
+        <v-btn
+          icon="mdi-sun-thermometer"
+          variant="text"
+          @click.stop="openMeteo"
+          :color="weatherBtnColor"
+          title="Gestion Météo"
+        ></v-btn>
+
         <v-btn 
           :color="view3DButtonColor" 
           icon="mdi-eye" 
@@ -150,7 +159,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['circuit-deleted', 'circuit-updated']);
+const emit = defineEmits(['circuit-deleted', 'circuit-updated', 'open-meteo']);
 
 const isDev = ref(import.meta.env.DEV);
 const router = useRouter();
@@ -177,6 +186,57 @@ const vignettePlaceholderStyle = computed(() => {
 const isView3dDisabled = computed(() => {
   return serviceStatus.value !== 'connected';
 });
+
+// Weather Status Logic
+const weatherBtnColor = ref('grey');
+
+const getFilenameForDate = (dateStr) => {
+    const d = new Date(dateStr);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const datePart = `${yyyy}${mm}${dd}`;
+
+    const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+    const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
+    
+    const sH = String(startH).padStart(2, '0');
+    const eH = String(endH).padStart(2, '0');
+
+    return `${datePart}-${sH}-to-${eH}.json`;
+};
+
+const updateWeatherColor = async () => {
+    const config = props.circuit.meteoConfig || {};
+    if (!config.dateDepart) {
+        weatherBtnColor.value = 'grey';
+        return;
+    }
+    
+    try {
+        const filename = getFilenameForDate(config.dateDepart);
+        const metadata = await invoke('check_weather_cache_metadata', { 
+            circuitId: props.circuit.circuitId, 
+            filename 
+        });
+        
+        if (metadata) {
+             const d = new Date(metadata);
+             const now = new Date();
+             const diffHours = (now - d) / (1000 * 60 * 60);
+             
+             if (diffHours < 3) {
+                 weatherBtnColor.value = 'success'; // Green
+             } else {
+                 weatherBtnColor.value = 'info'; // Blue
+             }
+        } else {
+             weatherBtnColor.value = 'error'; // Red
+        }
+    } catch (e) {
+        weatherBtnColor.value = 'grey'; // Error checking
+    }
+};
 
 const getVignetteUrl = async () => {
   if (props.circuit.circuitId) {
@@ -248,6 +308,10 @@ const editTracking = () => {
   router.push({ name: 'EditView', params: { circuitId: props.circuit.circuitId } });
 };
 
+const openMeteo = () => {
+  emit('open-meteo', props.circuit);
+};
+
 const view3D = () => {
   router.push({ name: 'Visualize', params: { circuitId: props.circuit.circuitId } });
 };
@@ -255,8 +319,6 @@ const view3D = () => {
 const deleteCircuit = async () => {
   showConfirmDialog.value = true;
 };
-
-
 
 const proceedDeletion = async () => {
   try {
@@ -300,7 +362,12 @@ const handleCircuitUpdate = (updatedCircuit) => {
 
 onMounted(() => {
   getVignetteUrl();
+  updateWeatherColor();
 });
+
+watch(() => props.circuit, () => {
+    updateWeatherColor();
+}, { deep: true });
 
 watch(appEnvPath, () => {
   getVignetteUrl();

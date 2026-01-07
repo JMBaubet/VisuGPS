@@ -6,31 +6,39 @@
     <transition name="fade">
         <v-card v-if="showInfo" class="weather-info-card d-flex flex-column align-center justify-center px-4 py-1 mb-2" elevation="4">
             
+            <div class="text-caption font-weight-bold mb-1 align-self-start">{{ forecastDateFormatted }}</div>
+
             <!-- Multi-Scenario Mode -->
             <template v-if="processedScenarios.length > 0">
-                <div v-for="(scen, idx) in processedScenarios" :key="idx" class="w-100 py-1" :class="{'border-b': idx < processedScenarios.length - 1}">
+                <div v-for="(scen, idx) in processedScenarios" :key="idx" class="w-100 py-1" 
+                     :class="{'border-b': idx < processedScenarios.length - 1}">
                     <div class="d-flex align-center justify-space-between w-100">
                         <!-- Group Name & Time -->
                         <div class="d-flex flex-column mr-3" style="min-width: 80px;">
-                            <span class="text-caption font-weight-bold text-truncate" style="max-width: 100px;">{{ scen.nom || `Groupe ${idx+1}` }}</span>
+                            <div class="d-flex align-center">
+                                <span class="text-caption text-truncate font-weight-bold" style="max-width: 100px;">
+                                    {{ scen.nom || `Groupe ${idx+1}` }}
+                                </span>
+                                <v-icon v-if="scen.isReference || (!hasExplicitRef && idx === 0)" size="10" color="primary" class="ml-1">mdi-star</v-icon>
+                            </div>
                             <span class="text-grey-darken-1" style="font-size: 0.7rem; margin-top: -4px;">{{ formatRowTime(scen.arrivalTime) }}</span>
                         </div>
                         
                         <!-- Weather Data -->
                         <div v-if="scen.weather" class="d-flex align-center flex-grow-1 justify-end">
                             <!-- Icon -->
-                            <v-icon v-if="scen.weatherInfo" size="small" :color="scen.weatherInfo.color" class="mr-2">{{ scen.weatherInfo.icon }}</v-icon>
+                            <v-icon v-if="scen.weatherInfo" size="small" :color="resolveIconColor(scen.weatherInfo.color)" class="mr-2">{{ scen.weatherInfo.icon }}</v-icon>
                             
                             <!-- Temp -->
                             <div class="d-flex align-center mr-2">
-                                <span class="font-weight-bold text-body-2">{{ Math.round(scen.weather.temperature) }}°</span>
+                                <span class="font-weight-bold text-body-2" :class="getTempColor(scen.weather.temperature) ? 'text-' + getTempColor(scen.weather.temperature) : ''">{{ Math.round(scen.weather.temperature) }}°</span>
                             </div>
 
                             <!-- Rain -->
                             <div class="d-flex align-center mr-2">
-                                <v-icon size="x-small" color="blue" class="mr-1">mdi-water-percent</v-icon>
-                                <span class="text-caption font-weight-bold" :class="{'text-blue': scen.weather.precipProb > 30}">
-                                    {{ scen.weather.precipProb }}%
+                                <v-icon size="x-small" :color="precipIconColor" class="mr-1">mdi-water-percent</v-icon>
+                                <span class="text-caption font-weight-bold" :class="precipColorClass">
+                                    {{ scen.weather.precipProb }}% ({{ scen.weather.precip }}mm)
                                 </span>
                             </div>
 
@@ -53,22 +61,22 @@
                 <!-- Weather Data Row -->
                 <div class="d-flex align-center justify-space-between w-100">
                     <!-- Icon -->
-                    <v-icon v-if="weatherInfo" size="default" :color="weatherInfo.color" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
+                    <v-icon v-if="weatherInfo" size="default" :color="resolveIconColor(weatherInfo.color)" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
                     
                     <!-- Temp -->
                     <div class="d-flex align-center mr-3">
                         <v-icon size="small" class="mr-1" :color="getTempColor(weatherToDisplay.temperature)">mdi-thermometer</v-icon>
                         <div class="d-flex align-baseline">
-                            <span class="font-weight-bold">{{ Math.round(weatherToDisplay.temperature) }}°C</span>
+                            <span class="font-weight-bold" :class="getTempColor(weatherToDisplay.temperature) ? 'text-' + getTempColor(weatherToDisplay.temperature) : ''">{{ Math.round(weatherToDisplay.temperature) }}°C</span>
                             <span v-if="weatherToDisplay.apparentTemperature" class="text-caption text-grey ml-1" style="font-size: 0.7rem !important;">(Ress. {{ Math.round(weatherToDisplay.apparentTemperature) }}°)</span>
                         </div>
                     </div>
         
                     <!-- Precip -->
                     <div class="d-flex align-center mr-3">
-                        <v-icon size="small" class="mr-1" color="blue" :icon="weatherToDisplay.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
-                        <span class="font-weight-bold" :class="{'text-blue': weatherToDisplay.precipProb > 50}">
-                            {{ weatherToDisplay.precipProb }}%
+                        <v-icon size="small" class="mr-1" :color="precipIconColor" :icon="weatherToDisplay.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
+                        <span class="font-weight-bold" :class="precipColorClass">
+                            {{ weatherToDisplay.precipProb }}% ({{ weatherToDisplay.precip }}mm)
                         </span>
                     </div>
 
@@ -102,6 +110,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { useTheme } from 'vuetify';
 import { getWeatherInfo } from '@/services/WeatherIcons';
 import CompassWidget from '@/components/CompassWidget.vue';
 
@@ -149,6 +158,9 @@ const props = defineProps({
     default: null
   }
 });
+
+const theme = useTheme();
+const isDark = computed(() => theme.global.current.value.dark);
 
 const myHeading = computed(() => {
     // The compass rose should always rotate opposite to the camera to keep "N" pointing North relative to the view.
@@ -245,10 +257,57 @@ const formatRowTime = (date) => {
     return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 };
 
+const hasExplicitRef = computed(() => processedScenarios.value.some(s => s.isReference));
+
+const forecastDateFormatted = computed(() => {
+    let d = null;
+    if (processedScenarios.value.length > 0) {
+        d = new Date(props.simulationStartDate);
+    } else if (weatherToDisplay.value && weatherToDisplay.value.time) {
+        d = new Date(weatherToDisplay.value.time);
+    }
+
+    if (!d || isNaN(d.getTime())) return "";
+
+    let str = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+    return str.charAt(0).toUpperCase() + str.slice(1);
+});
+
+const precipColorClass = computed(() => {
+    return isDark.value ? 'text-white' : 'text-blue-grey-darken-3';
+});
+
+const precipIconColor = computed(() => {
+    return isDark.value ? 'white' : 'blue-grey-darken-3';
+});
+
+const resolveIconColor = (color) => {
+    if (!color) return undefined;
+
+    if (isDark.value) {
+        // Dark Mode: bright colors
+        if (color.includes('darken')) return color.replace('darken', 'lighten');
+        if (color === 'grey') return 'grey-lighten-1';
+    } else {
+        // Light Mode: dark colors
+        if (color === 'white') return 'grey-darken-3';
+        if (color.includes('lighten')) return color.replace('lighten', 'darken');
+        if (color === 'grey') return 'grey-darken-1';
+    }
+    return color;
+};
+
 const getTempColor = (temp) => {
-    if (temp < 10) return 'blue';
-    if (temp > 25) return 'red';
-    return 'orange'; // default
+    const suffix = isDark.value ? 'lighten-2' : 'darken-3';
+    const suffixYellow = isDark.value ? 'lighten-2' : 'darken-4'; // Yellow needs more contrast in light mode
+    
+    if (temp <= 0) return `blue-${suffix}`;
+    if (temp <= 7) return undefined; // Will create no class -> inherit default color
+    if (temp <= 14) return `grey-${isDark.value ? 'lighten-1' : 'darken-2'}`;
+    if (temp <= 20) return `green-${suffix}`;
+    if (temp <= 26) return `yellow-${suffixYellow}`;
+    if (temp <= 30) return `orange-${suffix}`;
+    return `red-${suffix}`;
 };
 </script>
 

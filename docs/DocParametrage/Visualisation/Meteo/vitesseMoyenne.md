@@ -10,7 +10,7 @@ Ce paramètre définit la vitesse de déplacement théorique utilisée pour calc
 
 - **Libellé**: Vitesse moyenne par défaut (km/h)
 - **Type**: Réel
-- **Valeur par défaut**: 20.0 km/h
+- **Valeur par défaut**: 28.0 km/h
 - **Unité**: km/h
 - **Plage**: 5.0 - 50.0 km/h
 

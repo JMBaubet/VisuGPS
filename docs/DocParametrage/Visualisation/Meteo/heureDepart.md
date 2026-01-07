@@ -10,7 +10,7 @@ Ce paramètre fixe l'heure à laquelle le parcours est supposé commencer si auc
 
 - **Libellé**: Heure de départ par défaut
 - **Type**: Heure (HH:MM)
-- **Valeur par défaut**: 08:30
+- **Valeur par défaut**: 09:30
 
 ## ⚖️ Justification : Importance de la synchronisation temporelle
 

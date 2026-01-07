@@ -1796,14 +1796,6 @@
                 "doc": "docs/DocParametrage/Visualisation/Meteo/meteoActif.md"
               },
               {
-                "identifiant": "heureDepart",
-                "libelle": "Heure de départ par défaut",
-                "description": "Heure de départ par défaut pour le calcul des prévisions météo.",
-                "type": "heure",
-                "defaut": "08:30",
-                "doc": "docs/DocParametrage/Visualisation/Meteo/heureDepart.md"
-              },
-              {
                 "identifiant": "heureDebutJournee",
                 "libelle": "Heure de début de journée",
                 "description": "Heure de début pour la récupération des données météo (0-23).",
@@ -1826,28 +1818,24 @@
                 "doc": "docs/DocParametrage/Visualisation/Meteo/heureFinJournee.md"
               },
               {
+                "identifiant": "heureDepart",
+                "libelle": "Heure de départ par défaut",
+                "description": "Heure de départ par défaut pour le calcul des prévisions météo.",
+                "type": "heure",
+                "defaut": "09:30",
+                "doc": "docs/DocParametrage/Visualisation/Meteo/heureDepart.md"
+              },
+              {
                 "identifiant": "vitesseMoyenne",
                 "libelle": "Vitesse moyenne par défaut (km/h)",
                 "description": "Vitesse moyenne par défaut pour estimer la progression sur le parcours.",
                 "type": "reel",
-                "defaut": 20.0,
+                "defaut": 28.0,
                 "min": 5.0,
                 "max": 50.0,
                 "step": 0.5,
                 "unite": "km/h",
                 "doc": "docs/DocParametrage/Visualisation/Meteo/vitesseMoyenne.md"
-              },
-              {
-                "identifiant": "orientationBoussole",
-                "libelle": "Orientation de la boussole",
-                "description": "Référence pour le Nord de la boussole : aligné avec la trace ou avec la caméra.",
-                "type": "list",
-                "defaut": "Trace",
-                "valeurs": [
-                  "Trace",
-                  "Camera"
-                ],
-                "doc": "docs/DocParametrage/Visualisation/Meteo/orientationBoussole.md"
               }
             ],
             "groupes": [
@@ -1869,6 +1857,18 @@
                     "type": "booleen",
                     "defaut": true,
                     "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/boussole.md"
+                  },
+                  {
+                    "identifiant": "orientationBoussole",
+                    "libelle": "Orientation de la boussole",
+                    "description": "Référence pour le Nord de la boussole : aligné avec la trace ou avec la caméra.",
+                    "type": "list",
+                    "defaut": "Trace",
+                    "valeurs": [
+                      "Trace",
+                      "Camera"
+                    ],
+                    "doc": "docs/DocParametrage/Visualisation/Meteo/Widgets/orientationBoussole.md"
                   }
                 ]
               }
@@ -2027,7 +2027,7 @@
     "date_revision": null,
     "date_revison": null,
     "description": "Mode d'écécution par défaut de l'application VisuGPS",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "version_export_circuit": "1.0.0",
     "version_export_context": "1.0.0",
     "Status": "Start"

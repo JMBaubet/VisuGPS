@@ -171,6 +171,8 @@ pub struct MeteoScenario {
     pub heure_depart: String,
     #[serde(rename = "vitesseMoyenne")]
     pub vitesse_moyenne: f64,
+    #[serde(rename = "isReference", default)]
+    pub is_reference: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -677,9 +677,27 @@ async function executeFlytoSequence(flytoData) {
 
   // Weather Dynamic Update
   if (weatherForecasts.value.length > 0 && simulationStartDate.value && !isInitializing.value) {
-      // Calculate current simulation time
-      // accumulatedTime is in ms
-      const currentSimTime = new Date(simulationStartDate.value.getTime() + accumulatedTime);
+      // Calculate current simulation time based on Reference Scenario
+      // Allows compass to follow specific scenario speed/time regardless of animation playback speed
+      let currentSimTime;
+      
+      const refScen = circuitScenarios.value.find(s => s.isReference) || circuitScenarios.value[0];
+      if (refScen) {
+           const refStart = refScen.heureDepart || "09:00";
+           const refSpeed = Number(refScen.vitesseMoyenne) || 20;
+
+           const [h, m] = String(refStart).split(':').map(Number);
+           const startDate = new Date(simulationStartDate.value);
+           // Reset to Ref Start Time
+           startDate.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
+
+           const hoursElapsed = currentDistance.value / refSpeed;
+           currentSimTime = new Date(startDate.getTime() + hoursElapsed * 3600000);
+      } else {
+           // Fallback to global animation time if no scenarios defined
+           currentSimTime = new Date(simulationStartDate.value.getTime() + accumulatedTime);
+      }
+
       const currentHour = currentSimTime.getHours();
 
       // Calculate current increment (km)

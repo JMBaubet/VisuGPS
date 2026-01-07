@@ -23,6 +23,7 @@
         :all-traceurs="allTraceurs"
         @circuit-deleted="handleCircuitDeleted"
         @circuit-updated="handleCircuitUpdated"
+        @open-meteo="openMeteoDialog"
       />
     </v-list>
 
@@ -49,6 +50,13 @@
       :related-ids="currentRelatedIds"
       @cleaned="handleImported"
     />
+    <MeteoManager
+      v-if="selectedCircuitForMeteo"
+      v-model="showMeteoDialog"
+      :circuit="selectedCircuitForMeteo"
+      @saved="handleMeteoSaved"
+      @downloaded="handleMeteoDownloaded"
+    />
   </v-container>
 </template>
 
@@ -59,6 +67,7 @@ import { listen } from '@tauri-apps/api/event';
 import AppMainBar from '../components/AppMainBar.vue';
 import ImportDialog from '../components/ImportDialog.vue';
 import TraceurSelectionDialog from '../components/TraceurSelectionDialog.vue';
+import MeteoManager from '@/components/MeteoManager.vue';
 import CircuitListItem from '@/components/CircuitListItem.vue';
 import CircuitFilter from '@/components/CircuitFilter.vue';
 import OrphanCleanupDialog from '@/components/OrphanCleanupDialog.vue';
@@ -80,6 +89,9 @@ const allCircuits = ref([]);
 const allCommunes = ref([]);
 const allTraceurs = ref([]);
 const filterData = ref(null);
+
+const showMeteoDialog = ref(false);
+const selectedCircuitForMeteo = ref(null);
 
 const showOrphanDialog = ref(false);
 const currentOrphans = ref({ villes: [], traceurs: [], messages: [] });
@@ -274,6 +286,21 @@ function handleCircuitUpdated(updatedCircuit) {
   }
   loadFilterData(); // Refresh filter data as traceurs might have changed
 }
+
+const openMeteoDialog = (circuit) => {
+  selectedCircuitForMeteo.value = circuit;
+  showMeteoDialog.value = true;
+};
+
+const handleMeteoSaved = () => {
+  // Optionally refresh or just update local state if needed.
+  // Ideally, re-fetching the specific circuit or updating the list item would be good.
+  refreshCircuits();
+};
+
+const handleMeteoDownloaded = () => {
+  refreshCircuits();
+};
 
 onMounted(async () => {
   await useSettings().initSettings(); // Ensure settings are loaded
