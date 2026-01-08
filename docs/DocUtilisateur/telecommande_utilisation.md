@@ -48,12 +48,28 @@ Pour éviter que votre téléphone ne se mette en veille pendant que vous contr�
     <span>Communes</span>
   </div>
 
-   <div style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
+   <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
      <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
       <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
       <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
     </div>
     <span>Distance</span>
+  </div>
+
+   <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
+     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
+      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
+      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+    </div>
+    <span>Information Météo</span>
+  </div>
+
+   <div style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
+     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
+      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
+      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+    </div>
+    <span>Boussole</span>
   </div>
 
   <!-- Buttons -->
@@ -87,6 +103,8 @@ Activez ou désactivez les éléments superposés à la carte pour épurer la pr
 *   **Profil Altitude** : Affiche/Masque le graphique de dénivelé.
 *   **Communes** : Affiche/Masque les infos sur la commune survolée.
 *   **Distance** : Affiche/Masque le compteur kilométrique.
+*   **Information Météo** : Affiche/Masque le widget météo.
+*   **Boussole** : Affiche/Masque la boussole.
 
 ---
 

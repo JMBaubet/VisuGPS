@@ -1386,9 +1386,11 @@ const handleKeyDown = (e) => {
         isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
         sendVisualizeViewStateUpdate();
     } else if (e.key === 'm') {
-        isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
-    } else if (e.key === 'M') {
-        showWeatherTable.value = !showWeatherTable.value;
+        if (e.ctrlKey) {
+            showWeatherTable.value = !showWeatherTable.value;
+        } else {
+            isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
+        }
     } else if (e.key === 'b') {
         isCompassVisible.value = !isCompassVisible.value;
     } else if (e.key === 'B') {
