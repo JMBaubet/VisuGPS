@@ -1831,12 +1831,12 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
                         // If requested size covers the full screen (or more), we maximize.
                         if req_phy_w >= m_size.width && req_phy_h >= m_size.height {
                             // Move to the target monitor first (Top-Left) so maximize happens there
-                            if let Err(e) =
-                                window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                            if let Err(e) = window.set_position(tauri::Position::Physical(
+                                tauri::PhysicalPosition {
                                     x: m_pos.x,
                                     y: m_pos.y,
-                                }))
-                            {
+                                },
+                            )) {
                                 eprintln!("Set Window Position for Maximize Error: {}", e);
                             }
 
@@ -1861,20 +1861,22 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
                         let final_phy_y = m_pos.y + (m_size.height as i32 - final_phy_h as i32) / 2;
 
                         // Apply Size (Physical)
-                        if let Err(e) = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                            width: final_phy_w,
-                            height: final_phy_h,
-                        })) {
+                        if let Err(e) =
+                            window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                                width: final_phy_w,
+                                height: final_phy_h,
+                            }))
+                        {
                             eprintln!("Set Window Size Error: {}", e);
                         }
 
                         // Apply Position (Physical)
-                        if let Err(e) =
-                            window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                        if let Err(e) = window.set_position(tauri::Position::Physical(
+                            tauri::PhysicalPosition {
                                 x: final_phy_x,
                                 y: final_phy_y,
-                            }))
-                        {
+                            },
+                        )) {
                             eprintln!("Set Window Position Error: {}", e);
                         }
 
@@ -1930,7 +1932,7 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
                 // Calculate Monitor Logical Properties
                 let m_pos_x_log = m_pos_phys.x as f64;
                 let m_pos_y_log = m_pos_phys.y as f64;
-                
+
                 let m_width_log = m_size_phys.width as f64 / scale_factor;
                 let m_height_log = m_size_phys.height as f64 / scale_factor;
 
@@ -1961,7 +1963,7 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
                 }));
                 let _ = window.center();
             }
-            
+
             let _ = window.set_focus();
         }
     });
@@ -1994,10 +1996,24 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
             let size = monitor.size();
             let position = monitor.position();
             let scale_factor = monitor.scale_factor();
-            let name = monitor
-                .name()
-                .map(|n| n.to_string())
-                .unwrap_or_else(|| format!("Monitor {}", index));
+            // Calculate logical size for display
+            let logical_width = (size.width as f64 / scale_factor) as u32;
+            let logical_height = (size.height as f64 / scale_factor) as u32;
+
+            let name = if cfg!(target_os = "windows") {
+                let m_name = monitor
+                    .name()
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| format!("Ecran {}", index));
+
+                // Clean up Windows system name like "\\.\DISPLAY1" -> "DISPLAY1"
+                let clean_name = m_name.replace(r"\\.\", "");
+
+                format!("{} ({}x{})", clean_name, logical_width, logical_height)
+            } else {
+                // Pour les autres OS, on renvoie juste la résolution, le frontend ajoute "Ecran X"
+                format!("({}x{})", logical_width, logical_height)
+            };
 
             monitors_info.push(MonitorInfo {
                 index,
