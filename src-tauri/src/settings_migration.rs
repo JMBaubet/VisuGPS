@@ -24,7 +24,7 @@ pub struct MigrationReport {
     pub all_overrides: Vec<(String, String, bool)>, // (path, value, is_out_of_bounds)
 }
 
-pub fn compare_and_merge(old_settings: &Value, new_default: &Value) -> (Value, Option<String>) {
+pub fn compare_and_merge(old_settings: &Value, new_default: &Value) -> (Value, Option<String>, bool) {
     let mut report = MigrationReport::default();
     let merged = merge_recursive(new_default, old_settings, "".to_string(), &mut report);
 
@@ -38,20 +38,24 @@ pub fn compare_and_merge(old_settings: &Value, new_default: &Value) -> (Value, O
     let existing_context_ver = old_settings.get("référence").and_then(|r| r.get("version_export_context")).and_then(|v| v.as_str());
     let default_context_ver = new_default.get("référence").and_then(|r| r.get("version_export_context")).and_then(|v| v.as_str());
 
+    let mut version_changed = false;
     let mut version_messages = Vec::new();
     if existing_version != default_version {
+        version_changed = true;
         version_messages.push(format!("**Mise à jour de la version de configuration de `{}` à `{}`.**", existing_version.unwrap_or("N/A"), default_version.unwrap_or("N/A")));
     }
     if existing_export_ver != default_export_ver {
+        version_changed = true;
         version_messages.push(format!("**Mise à jour de la version d'export circuit de `{}` à `{}`.**", existing_export_ver.unwrap_or("N/A"), default_export_ver.unwrap_or("N/A")));
     }
     if existing_context_ver != default_context_ver {
+        version_changed = true;
         version_messages.push(format!("**Mise à jour de la version d'export contexte de `{}` à `{}`.**", existing_context_ver.unwrap_or("N/A"), default_context_ver.unwrap_or("N/A")));
     }
 
     let report_string = generate_markdown_report(&report, version_messages);
     
-    (merged, report_string)
+    (merged, report_string, version_changed)
 }
 
 fn merge_recursive(
@@ -113,18 +117,57 @@ fn merge_recursive(
                 // Generic object merge (like "référence")
                 let mut new_map = def_map.clone();
                 for (k, v) in def_map {
-                    // Specific ignore for 'version' keys to avoid duplicating them in recursive merge?
-                    // Actually, logic below just merges. But version comparison is redundant if handled above.
-                    // However, we still want new version values in the output.
                     let new_path = if path.is_empty() { k.clone() } else { format!("{}/{}", path, k) };
+                    
+                    // Special case for version fields: ALWAYS take the default (new) value
+                    if k.starts_with("version") {
+                         // new_map already contains the default value v
+                         // We just need to check if it's different to populate the report via recursion?
+                         // Actually the report generation for versions is handled in compare_and_merge.
+                         // But we want to ensure new_map has the NEW version. It does because it's a clone of def_map.
+                         // So we don't need to do anything specific here, just skip merging with existing.
+                         continue;
+                    }
+
                     if let Some(exist_v) = exist_map.get(k) {
                         new_map.insert(k.clone(), merge_recursive(v, exist_v, new_path, report));
                     }
+                     // If exist_v is None, we keep the default value already in new_map (added param)
                 }
+                
+                // Also need to preserve existing keys that are NOT in default?
+                // Typically we only want keys defined in default structure. 
+                // But for "Status", if it's in default, we want to preserve existing value.
+                
                 Value::Object(new_map)
             }
         },
-        _ => default.clone(), // Fallback: use default if types don't match or not objects
+        // Fallback: Primitive values or types don't match
+        _ => {
+             // If types match and it's a primitive, keep EXISTING value (user preference)
+             // unless it's a version field (handled above in Object iteration).
+             // Wait, if we are here, we are at a leaf.
+             // If we are in "référence", we want to keep "Status": "Acq" even if default is "Start".
+             
+             // Check if types match
+             if get_type(default) == get_type(existing) {
+                 existing.clone()
+             } else {
+                 // Types differ -> structural change, use default
+                 default.clone()
+             }
+        }
+    }
+}
+
+fn get_type(v: &Value) -> &'static str {
+    match v {
+        Value::Null => "null",
+        Value::Bool(_) => "bool",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
     }
 }
 

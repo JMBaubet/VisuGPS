@@ -68,13 +68,15 @@ onMounted(async () => {
 
   // Check for migration report
   try {
-    const report = await invoke('get_migration_report');
-    if (report) {
-      migrationReport.value = report;
-      // Si on a un rapport de migration, on passe en mode Update.
-      // Cela permet d'afficher update.md même si c'est la toute première fois
-      // que VisuGPS gère le statut (cas d'une montée de version < 1.0.0).
-      await updateReferenceField('Status', 'Update');
+    const result = await invoke('get_migration_report');
+    if (result && result.report) {
+      migrationReport.value = result.report;
+      showMigrationModal.value = true;
+
+      // Only set status to Update if version actually changed
+      if (result.version_changed) {
+         await updateReferenceField('Status', 'Update');
+      }
     }
   } catch (e) {
     console.error("Failed to check for migration report:", e);

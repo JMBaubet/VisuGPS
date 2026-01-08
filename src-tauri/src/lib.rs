@@ -363,6 +363,7 @@ pub struct AppState {
     pub animation_speed: Mutex<f32>,
     pub visualize_view_state: Mutex<Option<remote_control::VisualizeViewState>>,
     pub migration_report: Mutex<Option<String>>,
+    pub migration_version_changed: Mutex<bool>,
 }
 
 impl Clone for AppState {
@@ -379,15 +380,32 @@ impl Clone for AppState {
             animation_speed: Mutex::new(*self.animation_speed.lock().unwrap()),
             visualize_view_state: Mutex::new(self.visualize_view_state.lock().unwrap().clone()),
             migration_report: Mutex::new(self.migration_report.lock().unwrap().clone()),
+            migration_version_changed: Mutex::new(*self.migration_version_changed.lock().unwrap()),
         }
     }
 }
 
+#[derive(Serialize)]
+pub struct MigrationInfo {
+    report: Option<String>,
+    version_changed: bool,
+}
+
 #[tauri::command]
-fn get_migration_report(state: State<Mutex<AppState>>) -> Option<String> {
+fn get_migration_report(state: State<Mutex<AppState>>) -> MigrationInfo {
     let state = state.lock().unwrap();
     let report = state.migration_report.lock().unwrap().take();
-    report
+    let version_changed = *state.migration_version_changed.lock().unwrap();
+    
+    // Reset version changed flag after reading? Or keep it?
+    // Let's keep it simple: just return what we have. Frontend consumes report (take()).
+    // If report is taken, version changed stays true until next restart?
+    // It's safer to clear it or it doesn't matter since report is None next time.
+    
+    MigrationInfo {
+        report,
+        version_changed,
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1526,6 +1544,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     // Manage settings.json file
     let settings_path = app_env_path.join("settings.json");
     let mut migration_report_content = None;
+    let mut migration_version_changed = false;
 
     if !settings_path.exists() {
         // Parse the default settings
@@ -1560,11 +1579,12 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         let default_settings: Value = serde_json::from_str(EMBEDDED_DEFAULT_SETTINGS)
             .map_err(|e| format!("Default settings corrupted: {}", e))?;
 
-        let (merged_settings, report) =
+        let (merged_settings, report, version_changed) =
             settings_migration::compare_and_merge(&existing_settings, &default_settings);
 
         if let Some(rep) = report {
             migration_report_content = Some(rep);
+            migration_version_changed = version_changed;
 
             // Write merged settings
             let new_content = serde_json::to_string_pretty(&merged_settings)
@@ -1608,6 +1628,7 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         animation_speed: Mutex::new(1.0),
         visualize_view_state: Mutex::new(None),
         migration_report: Mutex::new(migration_report_content),
+        migration_version_changed: Mutex::new(migration_version_changed),
     })
 }
 
