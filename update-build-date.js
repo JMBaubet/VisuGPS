@@ -2,6 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { execSync } from 'child_process';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -26,9 +28,17 @@ try {
     const versionArchivage = ref.version_export_circuit || 'Unknown';
     const versionExport = ref.version_export_context || 'Unknown';
 
-    console.log(`Versions found: App=${versionApp}, Arc=${versionArchivage}, Exp=${versionExport}`);
+    // 2. Get Git Checksum
+    let gitHash = 'Unknown';
+    try {
+        gitHash = execSync('git rev-parse HEAD').toString().trim();
+    } catch (e) {
+        console.warn("Could not retrieve git hash:", e.message);
+    }
 
-    // 2. Read Index.md
+    console.log(`Versions found: App=${versionApp}, Arc=${versionArchivage}, Exp=${versionExport}, Git=${gitHash}`);
+
+    // 3. Read Index.md
     if (!fs.existsSync(indexPath)) {
         console.error(`Index file not found at ${indexPath}`);
         process.exit(1);
@@ -36,7 +46,7 @@ try {
 
     let indexContent = fs.readFileSync(indexPath, 'utf8');
 
-    // 3. Update Versions (using Regex to allow updating already replaced values)
+    // 4. Update Versions (using Regex to allow updating already replaced values)
     // Pattern: capture the key part, replacement updates the value part
 
     // Update Application Version
@@ -63,14 +73,14 @@ try {
     indexContent = indexContent.replace('{{versionExport}}', versionExport);
 
 
-    // 4. Update/Append Build Date Footer
+    // 5. Update/Append Build Date Footer
     const now = new Date();
     // Format: JJ/MM/AAAA à HH:MM
     const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-    // Discreet HTML footer
-    const footerLine = `<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le ${dateStr} à ${timeStr}</em></div>`;
+    // Discreet HTML footer with Git Hash
+    const footerLine = `<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le ${dateStr} à ${timeStr} (Commit ${gitHash})</em></div>`;
 
     // Regex to find existing footer line (any of the formats we've used)
     const footerRegex = /(> \*\*Application générée le .*|<div style="text-align: right;.*Généré le .*<\/div>)/;
@@ -83,7 +93,7 @@ try {
         indexContent += `\n${footerLine}\n`;
     }
 
-    // 5. Write back
+    // 6. Write back
     fs.writeFileSync(indexPath, indexContent, 'utf8');
     console.log(`Updated ${indexPath} successfully.`);
 
