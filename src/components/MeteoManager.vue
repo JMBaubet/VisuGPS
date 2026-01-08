@@ -3,9 +3,14 @@
     <v-card>
       <v-card-title class="headline d-flex justify-space-between align-center">
         <span>Gestion Météo : {{ circuit.nom }}</span>
-        <v-btn icon @click="closeDialog">
-          <v-icon>mdi-close</v-icon>
-        </v-btn>
+        <div class="d-flex align-center">
+             <v-btn icon @click="openDoc('/docs/DocUtilisateur/meteo_manager.md')" color="info" class="mr-2" title="Documentation">
+                <v-icon>mdi-book-open-page-variant-outline</v-icon>
+            </v-btn>
+            <v-btn icon @click="closeDialog">
+                <v-icon>mdi-close</v-icon>
+            </v-btn>
+        </div>
       </v-card-title>
 
       <v-card-text>
@@ -135,6 +140,11 @@
         <v-btn color="primary" variant="flat" @click="saveMeteo" :disabled="!hasChanges">Enregistrer</v-btn>
       </v-card-actions>
     </v-card>
+
+  </v-dialog>
+
+  <v-dialog v-model="showDocDialog" max-width="800px" height="80%">
+      <DocDisplay :doc-path="currentDocPath" @close="showDocDialog = false" />
   </v-dialog>
 </template>
 
@@ -145,6 +155,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
 import EditTime from './EditTime.vue';
 import WeatherService from '@/services/WeatherService';
+import DocDisplay from './DocDisplay.vue';
 
 const props = defineProps({
   modelValue: {
@@ -170,7 +181,16 @@ const weatherStatus = ref('Inconnu'); // Legacy, kept if needed, but we use spli
 const weatherFilePresent = ref(false);
 const weatherFileRelativeTime = ref("");
 const weatherFileAgeHours = ref(0);
+
 const isDownloadingWeather = ref(false);
+
+const showDocDialog = ref(false);
+const currentDocPath = ref('');
+
+const openDoc = (path) => {
+  currentDocPath.value = path;
+  showDocDialog.value = true;
+};
 
 const formattedDateLong = computed(() => {
     if (!editedDateDepart.value) return "";
@@ -514,5 +534,10 @@ const checkWeatherStatus = async () => {
 .scenarios-list {
   max-height: 300px;
   overflow-y: auto;
+}
+
+.v-card-title {
+  background-color: rgb(var(--v-theme-primary));
+  color: white;
 }
 </style>

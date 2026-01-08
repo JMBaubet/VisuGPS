@@ -15,6 +15,9 @@
         >
           <v-icon>mdi-alert-circle</v-icon>
         </v-btn>
+        <v-btn icon @click="openDoc('/docs/DocUtilisateur/information_circuit.md')" color="info" class="mr-2" title="Documentation">
+            <v-icon>mdi-book-open-page-variant-outline</v-icon>
+        </v-btn>
         <v-btn icon @click="exportCircuit" color="info" class="mr-2" title="Exporter le circuit">
           <v-icon>mdi-export</v-icon>
         </v-btn>
@@ -202,6 +205,10 @@
     :total-distance-km="circuit.distanceKm"
     @updated="handleDistanceMarkersUpdated"
   />
+
+  <v-dialog v-model="showDocDialog" max-width="800px" height="80%">
+      <DocDisplay :doc-path="currentDocPath" @close="showDocDialog = false" />
+  </v-dialog>
 </template>
 
 <script setup>
@@ -211,7 +218,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
 import DistanceMarkersDialog from './DistanceMarkersDialog.vue';
+
 import MeteoManager from './MeteoManager.vue';
+import DocDisplay from './DocDisplay.vue';
 
 const props = defineProps({
   circuit: {
@@ -241,7 +250,16 @@ const showMeteoDialog = ref(false);
 
 const showErrorsDialog = ref(false);
 const circuitErrors = ref([]);
+
 const showDistanceMarkersDialog = ref(false);
+
+const showDocDialog = ref(false);
+const currentDocPath = ref('');
+
+const openDoc = (path) => {
+  currentDocPath.value = path;
+  showDocDialog.value = true;
+};
 
 const showErrorsModal = async () => {
   try {
