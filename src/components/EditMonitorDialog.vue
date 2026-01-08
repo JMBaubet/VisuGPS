@@ -93,7 +93,7 @@ const loadMonitors = async () => {
     try {
         const availableMonitors = await invoke('get_available_monitors');
         monitors.value = availableMonitors.map(m => ({
-            title: `Ecran ${m.index} : ${m.name} (${m.width}x${m.height})`,
+            title: `Ecran ${m.index} : ${m.name} (${m.widthLogical}x${m.heightLogical} pts - ${m.width}x${m.height} px)`,
             index: m.index
         }));
     } catch (e) {

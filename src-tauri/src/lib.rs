@@ -1,3 +1,5 @@
+#[cfg(target_os = "macos")]
+use tauri::menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu};
 use tauri::{App, AppHandle, Manager, State};
 
 use base64::{engine::general_purpose, Engine as _};
@@ -1801,90 +1803,166 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
             }
         });
 
-        // 1. Handle Monitor Selection (Move & Center Manually)
-        if let Some(monitor_index) = monitor_setting {
-            let index = monitor_index as usize;
-            if let Ok(monitors) = window.available_monitors() {
-                if index < monitors.len() {
-                    let monitor = &monitors[index];
-                    let m_scale = monitor.scale_factor();
+        // ---------------------------------------------------------
+        // WINDOWS IMPLEMENTATION (Manual positioning / clamping)
+        // ---------------------------------------------------------
+        #[cfg(target_os = "windows")]
+        {
+            // 1. Handle Monitor Selection (Move & Center Manually)
+            if let Some(monitor_index) = monitor_setting {
+                let index = monitor_index as usize;
+                if let Ok(monitors) = window.available_monitors() {
+                    if index < monitors.len() {
+                        let monitor = &monitors[index];
+                        let m_scale = monitor.scale_factor();
 
-                    // Coordinates of the monitor in the global physical space
-                    let m_pos = monitor.position(); // Physical
-                    let m_size = monitor.size(); // Physical
+                        // Coordinates of the monitor in the global physical space
+                        let m_pos = monitor.position(); // Physical
+                        let m_size = monitor.size(); // Physical
 
-                    // 1. Get requested Logical size from settings (or default)
-                    let (req_log_w, req_log_h) = target_size.unwrap_or((1024.0, 768.0));
+                        // 1. Get requested Logical size from settings (or default)
+                        let (req_log_w, req_log_h) = target_size.unwrap_or((1024.0, 768.0));
 
-                    // 2. Convert requested Logical size to Physical size for THIS monitor
-                    let req_phy_w = (req_log_w * m_scale) as u32;
-                    let req_phy_h = (req_log_h * m_scale) as u32;
+                        // 2. Convert requested Logical size to Physical size for THIS monitor
+                        let req_phy_w = (req_log_w * m_scale) as u32;
+                        let req_phy_h = (req_log_h * m_scale) as u32;
 
-                    // 3. Check for Maximization Condition
-                    // If requested size covers the full screen (or more), we maximize.
-                    if req_phy_w >= m_size.width && req_phy_h >= m_size.height {
-                        // Move to the target monitor first (Top-Left) so maximize happens there
-                        if let Err(e) = window.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition {
-                                x: m_pos.x,
-                                y: m_pos.y,
-                            },
-                        )) {
-                            eprintln!("Set Window Position for Maximize Error: {}", e);
+                        // 3. Check for Maximization Condition
+                        // If requested size covers the full screen (or more), we maximize.
+                        if req_phy_w >= m_size.width && req_phy_h >= m_size.height {
+                            // Move to the target monitor first (Top-Left) so maximize happens there
+                            if let Err(e) =
+                                window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                                    x: m_pos.x,
+                                    y: m_pos.y,
+                                }))
+                            {
+                                eprintln!("Set Window Position for Maximize Error: {}", e);
+                            }
+
+                            if let Err(e) = window.maximize() {
+                                eprintln!("Maximize Window Error: {}", e);
+                            }
+
+                            let _ = window.set_focus();
+                            return;
                         }
 
-                        if let Err(e) = window.maximize() {
-                            eprintln!("Maximize Window Error: {}", e);
+                        // 4. Standard Case: Windowed Mode (Clamped)
+                        let _ = window.unmaximize();
+
+                        // Clamp Physical size to Monitor Physical size (avoid overflow)
+                        let final_phy_w = std::cmp::min(req_phy_w, m_size.width);
+                        let final_phy_h = std::cmp::min(req_phy_h, m_size.height);
+
+                        // Calculate Physical Center
+                        // Note: coordinates can be negative in multi-monitor setups
+                        let final_phy_x = m_pos.x + (m_size.width as i32 - final_phy_w as i32) / 2;
+                        let final_phy_y = m_pos.y + (m_size.height as i32 - final_phy_h as i32) / 2;
+
+                        // Apply Size (Physical)
+                        if let Err(e) = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                            width: final_phy_w,
+                            height: final_phy_h,
+                        })) {
+                            eprintln!("Set Window Size Error: {}", e);
                         }
 
+                        // Apply Position (Physical)
+                        if let Err(e) =
+                            window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                                x: final_phy_x,
+                                y: final_phy_y,
+                            }))
+                        {
+                            eprintln!("Set Window Position Error: {}", e);
+                        }
+
+                        // Force focus
                         let _ = window.set_focus();
                         return;
                     }
-
-                    // 4. Standard Case: Windowed Mode (Clamped)
-                    let _ = window.unmaximize();
-
-                    // Clamp Physical size to Monitor Physical size (avoid overflow)
-                    let final_phy_w = std::cmp::min(req_phy_w, m_size.width);
-                    let final_phy_h = std::cmp::min(req_phy_h, m_size.height);
-
-                    // Calculate Physical Center
-                    // Note: coordinates can be negative in multi-monitor setups
-                    let final_phy_x = m_pos.x + (m_size.width as i32 - final_phy_w as i32) / 2;
-                    let final_phy_y = m_pos.y + (m_size.height as i32 - final_phy_h as i32) / 2;
-
-                    // Apply Size (Physical)
-                    if let Err(e) = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                        width: final_phy_w,
-                        height: final_phy_h,
-                    })) {
-                        eprintln!("Set Window Size Error: {}", e);
-                    }
-
-                    // Apply Position (Physical)
-                    if let Err(e) =
-                        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-                            x: final_phy_x,
-                            y: final_phy_y,
-                        }))
-                    {
-                        eprintln!("Set Window Position Error: {}", e);
-                    }
-
-                    // Force focus
-                    let _ = window.set_focus();
-                    return;
                 }
+            }
+
+            // 2. Fallback if no monitor selected or monitor not found
+            if let Some((w, h)) = target_size {
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                    width: w,
+                    height: h,
+                }));
+                let _ = window.center();
             }
         }
 
-        // 2. Fallback: No monitor change
-        if let Some((w, h)) = target_size {
-            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-                width: w,
-                height: h,
-            }));
-            let _ = window.center();
+        // ---------------------------------------------------------
+        // MACOS / LINUX IMPLEMENTATION (Native-friendly but Explicit)
+        // ---------------------------------------------------------
+        #[cfg(not(target_os = "windows"))]
+        {
+            // 1. Get requested Global Logical size (defaults to 1024x768)
+            let (req_log_w, req_log_h) = target_size.unwrap_or((1024.0, 768.0));
+
+            // 2. Find target monitor
+            let mut target_monitor = None;
+            if let Some(monitor_index) = monitor_setting {
+                let index = monitor_index as usize;
+                if let Ok(monitors) = window.available_monitors() {
+                    if index < monitors.len() {
+                        target_monitor = Some(monitors[index].clone());
+                    }
+                }
+            }
+
+            // If no specific monitor found/requested, try to get current monitor
+            if target_monitor.is_none() {
+                if let Ok(Some(m)) = window.current_monitor() {
+                    target_monitor = Some(m);
+                }
+            }
+
+            // 3. Apply settings
+            if let Some(monitor) = target_monitor {
+                let m_pos_phys = monitor.position();
+                let m_size_phys = monitor.size();
+                let scale_factor = monitor.scale_factor();
+
+                // Calculate Monitor Logical Properties
+                let m_pos_x_log = m_pos_phys.x as f64;
+                let m_pos_y_log = m_pos_phys.y as f64;
+                
+                let m_width_log = m_size_phys.width as f64 / scale_factor;
+                let m_height_log = m_size_phys.height as f64 / scale_factor;
+
+                // Clamp requested size to monitor logical size
+                let final_w_log = f64::min(req_log_w, m_width_log);
+                let final_h_log = f64::min(req_log_h, m_height_log);
+
+                // Calculate centered position (Logical)
+                let center_x_log = m_pos_x_log + (m_width_log - final_w_log) / 2.0;
+                let center_y_log = m_pos_y_log + (m_height_log - final_h_log) / 2.0;
+
+                // Set Size (Logical)
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                    width: final_w_log,
+                    height: final_h_log,
+                }));
+
+                // Set Position (Logical)
+                let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                    x: center_x_log,
+                    y: center_y_log,
+                }));
+            } else {
+                // Fallback if really nothing is found (unlikely)
+                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                    width: req_log_w,
+                    height: req_log_h,
+                }));
+                let _ = window.center();
+            }
+            
+            let _ = window.set_focus();
         }
     });
 }
@@ -1899,6 +1977,8 @@ pub struct MonitorInfo {
     width: u32,
     height: u32,
     scale_factor: f64,
+    width_logical: u32,
+    height_logical: u32,
 }
 
 #[tauri::command]
@@ -1913,6 +1993,7 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
         for (index, monitor) in monitors.into_iter().enumerate() {
             let size = monitor.size();
             let position = monitor.position();
+            let scale_factor = monitor.scale_factor();
             let name = monitor
                 .name()
                 .map(|n| n.to_string())
@@ -1925,7 +2006,9 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
                 y: position.y,
                 width: size.width,
                 height: size.height,
-                scale_factor: monitor.scale_factor(),
+                scale_factor,
+                width_logical: (size.width as f64 / scale_factor) as u32,
+                height_logical: (size.height as f64 / scale_factor) as u32,
             });
         }
     }
