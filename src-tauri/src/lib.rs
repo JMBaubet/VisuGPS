@@ -1,4 +1,4 @@
-use tauri::{App, AppHandle, Manager, State, menu::{AboutMetadata, Menu, PredefinedMenuItem, Submenu}};
+use tauri::{App, AppHandle, Manager, State};
 
 use base64::{engine::general_purpose, Engine as _};
 use reqwest;
@@ -7,7 +7,6 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
-
 pub mod colors;
 pub mod communes_updater;
 pub mod distance_markers;
@@ -15,6 +14,8 @@ pub mod error_logger;
 pub mod event;
 pub mod geo_processor;
 mod gpx_processor;
+pub mod import_export;
+pub mod network_utils;
 pub mod remote_blacklist;
 pub mod remote_clients;
 pub mod remote_control;
@@ -23,8 +24,6 @@ pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
 pub mod tracking_processor;
-pub mod network_utils;
-pub mod import_export;
 pub mod weather_cache;
 
 use chrono::prelude::*;
@@ -142,8 +141,6 @@ fn read_settings(state: State<Mutex<AppState>>) -> Result<Value, String> {
     Ok(json_content)
 }
 
-
-
 #[tauri::command]
 fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMode>, String> {
     let state = state.lock().unwrap();
@@ -166,9 +163,11 @@ fn list_execution_modes(state: State<Mutex<AppState>>) -> Result<Vec<ExecutionMo
                 let settings_path = path.join("settings.json");
                 if let Ok(content) = fs::read_to_string(settings_path) {
                     if let Ok(json) = serde_json::from_str::<Value>(&content) {
-                        if let Some(desc) = json.get("référence")
+                        if let Some(desc) = json
+                            .get("référence")
                             .and_then(|r| r.get("description"))
-                            .and_then(|d| d.as_str()) {
+                            .and_then(|d| d.as_str())
+                        {
                             description = Some(desc.to_string());
                         }
                     }
@@ -396,12 +395,12 @@ fn get_migration_report(state: State<Mutex<AppState>>) -> MigrationInfo {
     let state = state.lock().unwrap();
     let report = state.migration_report.lock().unwrap().take();
     let version_changed = *state.migration_version_changed.lock().unwrap();
-    
+
     // Reset version changed flag after reading? Or keep it?
     // Let's keep it simple: just return what we have. Frontend consumes report (take()).
     // If report is taken, version changed stays true until next restart?
     // It's safer to clear it or it doesn't matter since report is None next time.
-    
+
     MigrationInfo {
         report,
         version_changed,
@@ -718,7 +717,8 @@ fn update_circuit_traceur(
     circuit_id: String,
     new_traceur: String,
     new_traceur_id: Option<String>,
-) -> Result<String, String> { // Return the confirmed ID
+) -> Result<String, String> {
+    // Return the confirmed ID
     let state = state.lock().unwrap();
     let app_env_path = &state.app_env_path;
 
@@ -730,8 +730,12 @@ fn update_circuit_traceur(
         id
     } else {
         // No ID provided, check if name already exists
-        if let Some(existing) = circuits_file.traceurs.iter().find(|t| t.nom.eq_ignore_ascii_case(&new_traceur)) {
-             existing.id.clone()
+        if let Some(existing) = circuits_file
+            .traceurs
+            .iter()
+            .find(|t| t.nom.eq_ignore_ascii_case(&new_traceur))
+        {
+            existing.id.clone()
         } else {
             // Create new ID
             let max_id = circuits_file
@@ -897,7 +901,7 @@ fn add_traceur(state: State<Mutex<AppState>>, nom: String) -> Result<Traceur, St
         .filter_map(|t| t.id.strip_prefix("tr-").and_then(|s| s.parse::<i32>().ok()))
         .max()
         .unwrap_or(0);
-    
+
     let new_id = format!("tr-{:04}", max_id + 1);
 
     let new_traceur = Traceur {
@@ -1145,7 +1149,7 @@ fn update_reference_field(
     if let Some(reference) = settings.get_mut("référence") {
         if let Some(obj) = reference.as_object_mut() {
             obj.insert(field, new_value);
-            
+
             // Also update revision date
             let now = Utc::now();
             obj.insert(
@@ -1376,9 +1380,13 @@ fn delete_orphans(
     let initial_traceur_len = circuits_file.traceurs.len();
 
     circuits_file.villes.retain(|v| !ville_ids.contains(&v.id));
-    circuits_file.traceurs.retain(|t| !traceur_ids.contains(&t.id));
+    circuits_file
+        .traceurs
+        .retain(|t| !traceur_ids.contains(&t.id));
 
-    if circuits_file.villes.len() != initial_ville_len || circuits_file.traceurs.len() != initial_traceur_len {
+    if circuits_file.villes.len() != initial_ville_len
+        || circuits_file.traceurs.len() != initial_traceur_len
+    {
         write_circuits_file(app_env_path, &circuits_file)?;
     }
 
@@ -1389,7 +1397,7 @@ fn delete_orphans(
         let mut messages: Vec<Message> = serde_json::from_str(&content).unwrap_or_default();
         let initial_msg_len = messages.len();
         messages.retain(|m| !message_ids.contains(&m.id));
-        
+
         if messages.len() != initial_msg_len {
             let new_content = serde_json::to_string_pretty(&messages).map_err(|e| e.to_string())?;
             fs::write(&user_messages_path, new_content).map_err(|e| e.to_string())?;
@@ -1753,11 +1761,10 @@ fn update_animation_state(
 
 // Helper function to apply window settings (size and position)
 fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Value) {
-    
     // Clone data needed for the closure
     let settings_clone = settings.clone();
     let app_handle_clone = app_handle.clone();
-    
+
     // Dispatch to main thread to ensure window operations work on macOS
     let _ = app_handle.run_on_main_thread(move || {
         let window = match app_handle_clone.get_webview_window("main") {
@@ -1769,76 +1776,98 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
 
         // Ensure window is not maximized
         if let Err(e) = window.unmaximize() {
-             eprintln!("Failed to unmaximize: {}", e);
+            eprintln!("Failed to unmaximize: {}", e);
         }
 
-        let size_setting = get_setting_value(&settings_clone, "data.groupes.Système.parametres.tailleFenetre").and_then(|v| v.as_str());
-        let monitor_setting = get_setting_value(&settings_clone, "data.groupes.Système.parametres.ecran").and_then(|v| v.as_u64());
+        let size_setting = get_setting_value(
+            &settings_clone,
+            "data.groupes.Système.parametres.tailleFenetre",
+        )
+        .and_then(|v| v.as_str());
+        let monitor_setting =
+            get_setting_value(&settings_clone, "data.groupes.Système.parametres.ecran")
+                .and_then(|v| v.as_u64());
 
         // Parse target size
         let target_size: Option<(f64, f64)> = size_setting.and_then(|s| {
             let parts: Vec<&str> = s.split('x').collect();
             if parts.len() == 2 {
                 match (parts[0].parse(), parts[1].parse()) {
-                     (Ok(w), Ok(h)) => Some((w, h)),
-                     _ => None
+                    (Ok(w), Ok(h)) => Some((w, h)),
+                    _ => None,
                 }
-            } else { None }
+            } else {
+                None
+            }
         });
 
         // 1. Handle Monitor Selection (Move & Center Manually)
         if let Some(monitor_index) = monitor_setting {
             let index = monitor_index as usize;
             if let Ok(monitors) = window.available_monitors() {
-                 if index < monitors.len() {
-                     let monitor = &monitors[index];
-                     
-                     // Determine dimensions for centering
-                     let (width, height) = if let Some((w, h)) = target_size {
-                         (w, h)
-                     } else {
-                         if let Ok(factor) = window.scale_factor() {
-                             let logical = window.inner_size().unwrap_or_default().to_logical::<f64>(factor);
-                             (logical.width, logical.height)
-                         } else {
-                             (1024.0, 768.0) 
-                         }
-                     };
+                if index < monitors.len() {
+                    let monitor = &monitors[index];
 
-                     // Calculate Center Manually
-                     let m_pos = monitor.position(); 
-                     let m_size = monitor.size();
-                     let m_scale = monitor.scale_factor();
-                     
-                     let m_logical_width = m_size.width as f64 / m_scale;
-                     let m_logical_height = m_size.height as f64 / m_scale;
-                     let m_logical_x = m_pos.x as f64;
-                     let m_logical_y = m_pos.y as f64;
+                    // Determine dimensions for centering
+                    let (width, height) = if let Some((w, h)) = target_size {
+                        (w, h)
+                    } else {
+                        if let Ok(factor) = window.scale_factor() {
+                            let logical = window
+                                .inner_size()
+                                .unwrap_or_default()
+                                .to_logical::<f64>(factor);
+                            (logical.width, logical.height)
+                        } else {
+                            (1024.0, 768.0)
+                        }
+                    };
 
-                     let center_x = m_logical_x + (m_logical_width - width) / 2.0;
-                     let center_y = m_logical_y + (m_logical_height - height) / 2.0;
-                     
-                     // Apply Size
-                     if let Some((w, h)) = target_size {
-                          let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }));
-                     }
-                     
-                     // Apply Position
-                     if let Err(e) = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x: center_x, y: center_y })) {
-                         eprintln!("Set Window Position Error: {}", e);
-                     }
-                     
-                     // Force focus?
-                     let _ = window.set_focus();
-                     return;
-                 }
+                    // Calculate Center Manually
+                    let m_pos = monitor.position();
+                    let m_size = monitor.size();
+                    let m_scale = monitor.scale_factor();
+
+                    let m_logical_width = m_size.width as f64 / m_scale;
+                    let m_logical_height = m_size.height as f64 / m_scale;
+                    let m_logical_x = m_pos.x as f64;
+                    let m_logical_y = m_pos.y as f64;
+
+                    let center_x = m_logical_x + (m_logical_width - width) / 2.0;
+                    let center_y = m_logical_y + (m_logical_height - height) / 2.0;
+
+                    // Apply Size
+                    if let Some((w, h)) = target_size {
+                        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                            width: w,
+                            height: h,
+                        }));
+                    }
+
+                    // Apply Position
+                    if let Err(e) =
+                        window.set_position(tauri::Position::Logical(tauri::LogicalPosition {
+                            x: center_x,
+                            y: center_y,
+                        }))
+                    {
+                        eprintln!("Set Window Position Error: {}", e);
+                    }
+
+                    // Force focus?
+                    let _ = window.set_focus();
+                    return;
+                }
             }
         }
 
         // 2. Fallback: No monitor change
         if let Some((w, h)) = target_size {
-             let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: w, height: h }));
-             let _ = window.center();
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: w,
+                height: h,
+            }));
+            let _ = window.center();
         }
     });
 }
@@ -1858,15 +1887,20 @@ pub struct MonitorInfo {
 #[tauri::command]
 fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, String> {
     let mut monitors_info = Vec::new();
-    let window = app_handle.get_webview_window("main").ok_or("Main window not found")?;
-    
+    let window = app_handle
+        .get_webview_window("main")
+        .ok_or("Main window not found")?;
+
     // We access available monitors through the window instance
     if let Ok(monitors) = window.available_monitors() {
         for (index, monitor) in monitors.into_iter().enumerate() {
             let size = monitor.size();
             let position = monitor.position();
-            let name = monitor.name().map(|n| n.to_string()).unwrap_or_else(|| format!("Monitor {}", index));
-            
+            let name = monitor
+                .name()
+                .map(|n| n.to_string())
+                .unwrap_or_else(|| format!("Monitor {}", index));
+
             monitors_info.push(MonitorInfo {
                 index,
                 name: name.to_string(),
@@ -1878,11 +1912,9 @@ fn get_available_monitors(app_handle: AppHandle) -> Result<Vec<MonitorInfo>, Str
             });
         }
     }
-    
+
     Ok(monitors_info)
 }
-
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DocResponse {
@@ -1891,42 +1923,61 @@ pub struct DocResponse {
 }
 
 #[tauri::command]
-fn get_doc_content(app_handle: AppHandle, state: State<Mutex<AppState>>, path: String) -> Result<DocResponse, String> {
+fn get_doc_content(
+    app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    path: String,
+) -> Result<DocResponse, String> {
     let final_path = if cfg!(debug_assertions) {
         // In DEV, resolve relative to the project root.
         let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
-        let project_root = std::path::Path::new(&manifest_dir).parent().ok_or("Could not get project root")?;
+        let project_root = std::path::Path::new(&manifest_dir)
+            .parent()
+            .ok_or("Could not get project root")?;
         project_root.join(&path)
     } else {
         // In PROD, resolve relative to the resource directory bundled with the app.
         // We handle the case where "docs" might be stripped or flattened.
-        let mut resource_path = app_handle.path().resolve(&path, tauri::path::BaseDirectory::Resource)
+        let mut resource_path = app_handle
+            .path()
+            .resolve(&path, tauri::path::BaseDirectory::Resource)
             .map_err(|e| e.to_string())?;
-        
-        if !resource_path.exists() {
-             // Fallback 1: Check for _up_ prefix (common when bundling parent dirs)
-             let up_path_str = format!("_up_/{}", path);
-             if let Ok(up_path) = app_handle.path().resolve(&up_path_str, tauri::path::BaseDirectory::Resource) {
-                 if up_path.exists() {
-                     resource_path = up_path;
-                 }
-             }
 
-             // Fallback 2: Check for stripped "docs/" prefix (if flattened)
-             if !resource_path.exists() && path.starts_with("docs/") {
-                 let stripped_path = path.strip_prefix("docs/").unwrap_or(&path);
-                 if let Ok(p) = app_handle.path().resolve(stripped_path, tauri::path::BaseDirectory::Resource) {
-                     if p.exists() {
-                         resource_path = p;
-                     }
-                 }
+        if !resource_path.exists() {
+            // Fallback 1: Check for _up_ prefix (common when bundling parent dirs)
+            let up_path_str = format!("_up_/{}", path);
+            if let Ok(up_path) = app_handle
+                .path()
+                .resolve(&up_path_str, tauri::path::BaseDirectory::Resource)
+            {
+                if up_path.exists() {
+                    resource_path = up_path;
+                }
+            }
+
+            // Fallback 2: Check for stripped "docs/" prefix (if flattened)
+            if !resource_path.exists() && path.starts_with("docs/") {
+                let stripped_path = path.strip_prefix("docs/").unwrap_or(&path);
+                if let Ok(p) = app_handle
+                    .path()
+                    .resolve(stripped_path, tauri::path::BaseDirectory::Resource)
+                {
+                    if p.exists() {
+                        resource_path = p;
+                    }
+                }
             }
         }
         resource_path
     };
 
-    let mut content = fs::read_to_string(&final_path)
-        .map_err(|e| format!("Failed to read doc file at '{}': {}", final_path.display(), e))?;
+    let mut content = fs::read_to_string(&final_path).map_err(|e| {
+        format!(
+            "Failed to read doc file at '{}': {}",
+            final_path.display(),
+            e
+        )
+    })?;
 
     // Inject version variables
     let settings = {
@@ -1942,10 +1993,16 @@ fn get_doc_content(app_handle: AppHandle, state: State<Mutex<AppState>>, path: S
         if let Some(v_app) = reference.get("version").and_then(|v| v.as_str()) {
             content = content.replace("{{versionApplication}}", v_app);
         }
-        if let Some(v_cir) = reference.get("version_export_circuit").and_then(|v| v.as_str()) {
+        if let Some(v_cir) = reference
+            .get("version_export_circuit")
+            .and_then(|v| v.as_str())
+        {
             content = content.replace("{{versionArchivage}}", v_cir);
         }
-        if let Some(v_ctx) = reference.get("version_export_context").and_then(|v| v.as_str()) {
+        if let Some(v_ctx) = reference
+            .get("version_export_context")
+            .and_then(|v| v.as_str())
+        {
             content = content.replace("{{versionExport}}", v_ctx);
         }
     }
@@ -1967,11 +2024,13 @@ pub fn run() {
             {
                 let app_handle = app.handle();
                 let name = "VisuGPS";
-                
+
                 let about_metadata = AboutMetadata {
                     name: Some(name.to_string()),
                     version: Some(app_handle.package_info().version.to_string()),
-                    copyright: Some(format!("© 2025 JMBaubet\nWebsite: https://github.com/JMBaubet/VisuGPS")),
+                    copyright: Some(format!(
+                        "© 2025 JMBaubet\nWebsite: https://github.com/JMBaubet/VisuGPS"
+                    )),
                     authors: Some(vec!["JMBaubet".to_string()]),
                     comments: Some("Visualisation 3D de fichiers GPX".to_string()),
                     website: Some("https://github.com/JMBaubet/VisuGPS".to_string()),
@@ -1980,7 +2039,6 @@ pub fn run() {
                     ..Default::default()
                 };
 
-                
                 let menu = Menu::with_items(
                     app_handle,
                     &[
@@ -2018,9 +2076,7 @@ pub fn run() {
                             app_handle,
                             "View",
                             true,
-                            &[
-                                &PredefinedMenuItem::fullscreen(app_handle, None)?,
-                            ],
+                            &[&PredefinedMenuItem::fullscreen(app_handle, None)?],
                         )?,
                         &Submenu::with_items(
                             app_handle,
@@ -2187,4 +2243,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
