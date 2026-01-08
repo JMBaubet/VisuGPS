@@ -35,7 +35,7 @@
                             </div>
 
                             <!-- Rain -->
-                            <div class="d-flex align-center mr-2">
+                            <div v-if="scen.weather.precip > 0" class="d-flex align-center mr-2">
                                 <v-icon size="x-small" :color="precipIconColor" class="mr-1">mdi-water-percent</v-icon>
                                 <span class="text-caption font-weight-bold" :class="precipColorClass">
                                     {{ scen.weather.precipProb }}% ({{ scen.weather.precip }}mm)
@@ -78,7 +78,7 @@
                     </div>
         
                     <!-- Precip -->
-                    <div class="d-flex align-center mr-3">
+                    <div v-if="weatherToDisplay.precip > 0" class="d-flex align-center mr-3">
                         <v-icon size="small" class="mr-1" :color="precipIconColor" :icon="weatherToDisplay.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
                         <span class="font-weight-bold" :class="precipColorClass">
                             {{ weatherToDisplay.precipProb }}% ({{ weatherToDisplay.precip }}mm)
