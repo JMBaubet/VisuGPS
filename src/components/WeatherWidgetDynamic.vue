@@ -45,7 +45,12 @@
                             <!-- Wind -->
                             <div class="d-flex align-center" style="min-width: 40px;">
                                 <v-icon size="x-small" color="grey" class="mr-1" :style="{ transform: `rotate(${scen.weather.windDir + 180}deg)` }">mdi-navigation</v-icon>
-                                <span class="text-caption font-weight-bold">{{ Math.round(scen.weather.windSpeed) }}</span>
+                                <span class="text-caption font-weight-bold">
+                                    {{ Math.round(scen.weather.windSpeed) }}
+                                    <span v-if="scen.weather.windGusts && scen.weather.windGusts > scen.weather.windSpeed" class="text-grey-darken-1" style="font-size: 0.85em;">
+                                        ({{ Math.round(scen.weather.windGusts) }})
+                                    </span>
+                                </span>
                             </div>
                         </div>
                         <div v-else class="text-caption text-disabled text-end flex-grow-1">N/A</div>
@@ -83,7 +88,13 @@
                     <!-- Wind -->
                     <div class="d-flex align-center">
                         <v-icon size="small" class="mr-1" color="grey" :style="{ transform: `rotate(${weatherToDisplay.windDir + 180}deg)` }">mdi-navigation</v-icon>
-                        <span class="font-weight-bold">{{ Math.round(weatherToDisplay.windSpeed) }} <span class="text-caption">km/h</span></span>
+                        <span class="font-weight-bold">
+                            {{ Math.round(weatherToDisplay.windSpeed) }}
+                            <span v-if="weatherToDisplay.windGusts && weatherToDisplay.windGusts > weatherToDisplay.windSpeed" class="text-grey-darken-1" style="font-size: 0.85em;">
+                                ({{ Math.round(weatherToDisplay.windGusts) }})
+                            </span>
+                            <span class="text-caption">km/h</span>
+                        </span>
                     </div>
                 </div>
             </template>
