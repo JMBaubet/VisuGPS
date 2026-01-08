@@ -303,6 +303,7 @@ watch(() => props.modelValue, (val) => {
 // Date Watcher
 watch(editedDateDepart, () => {
     checkWeatherStatus();
+    saveMeteo();
 });
 
 // Computed
