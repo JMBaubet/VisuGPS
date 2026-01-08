@@ -118,6 +118,7 @@ const serviceStatusIcon = computed(() => {
     case 'connected': return 'mdi-web-check';
     case 'disconnected': return 'mdi-web-off';
     case 'mapbox_unreachable': return 'mdi-mapbox';
+    case 'open_meteo_unreachable': return 'mdi-weather-cloudy-alert';
     case 'invalid_token': return 'mdi-key-alert';
     case 'checking':
     default: return 'mdi-sync';
@@ -129,6 +130,7 @@ const serviceStatusColor = computed(() => {
     case 'connected': return 'green';
     case 'disconnected': return 'red';
     case 'mapbox_unreachable': return 'blue';
+    case 'open_meteo_unreachable': return 'warning';
     case 'invalid_token': return 'red';
     case 'checking':
     default: return 'blue';
