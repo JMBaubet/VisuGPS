@@ -52,8 +52,10 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 <small>
 
 
-*   **Version de l'application** : {{versionApplication}}
-*   **Version d'export des circuits** : {{versionArchivage}}
-*   **Version d'export des contextes** : {{versionExport}}
+*   **Version de l'application** : 1.0.0
+*   **Version d'export des circuits** : 1.0.0
+*   **Version d'export des contextes** : 1.0.0
 
 </small>
+
+<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 08/01/2026 à 17:11</em></div>

@@ -4,8 +4,8 @@
   "description": "VisuGPS - Visualisation 3D de fichiers GPX",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node update-build-date.js && vite",
+    "build": "node update-build-date.js && vite build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tauri": "tauri"
   },
