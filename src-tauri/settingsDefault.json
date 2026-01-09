@@ -446,6 +446,40 @@
             "max": 100,
             "unite": "m",
             "doc": "docs/DocParametrage/Importation/denivele_lissage_distance.md"
+          },
+          {
+            "critique": true,
+            "defaut": 5,
+            "description": "Taille de la fenêtre glissante pour le filtre médian de l'altitude (nombre de points). Permet de supprimer les pics aberrants.",
+            "identifiant": "altitude_smoothing_median_window",
+            "libelle": "Filtre Médian Altitude",
+            "type": "entier",
+            "min": 1,
+            "max": 20,
+            "doc": "docs/DocParametrage/Importation/altitude_smoothing_median_window.md"
+          },
+          {
+            "critique": true,
+            "defaut": 5,
+            "description": "Taille de la fenêtre glissante pour le lissage par moyenne de l'altitude (nombre de points).",
+            "identifiant": "altitude_smoothing_avg_window",
+            "libelle": "Lissage Moyenne Altitude",
+            "type": "entier",
+            "min": 1,
+            "max": 20,
+            "doc": "docs/DocParametrage/Importation/altitude_smoothing_avg_window.md"
+          },
+          {
+            "critique": true,
+            "defaut": 30,
+            "description": "Pente maximale autorisée en pourcentage. Les segments dépassant cette pente seront considérés comme suspects.",
+            "identifiant": "max_gradient_percent",
+            "libelle": "Pente Max Autorisée (%)",
+            "type": "entier",
+            "min": 5,
+            "max": 100,
+            "unite": "%",
+            "doc": "docs/DocParametrage/Importation/max_gradient_percent.md"
           }
         ]
       },

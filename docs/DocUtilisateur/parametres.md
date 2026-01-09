@@ -98,6 +98,12 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Dossier d'import](../DocParametrage/Importation/ImportDir.md)
 *   ⚠️ [Distance de lissage du dénivelé](../DocParametrage/Importation/denivele_lissage_distance.md)
 
+### 2.7. Nettoyage Altitude
+**Description** : Algorithmes de correction et de lissage des données GPS brutes pour éliminer les aberrations.
+*   ⚠️ [Pente Maximum Autorisée (%)](../DocParametrage/Importation/Nettoyage/max_gradient_percent.md)
+*   [Fenêtre du Filtre Médian](../DocParametrage/Importation/Nettoyage/altitude_smoothing_median_window.md)
+*   [Fenêtre de Moyenne Glissante](../DocParametrage/Importation/Nettoyage/altitude_smoothing_avg_window.md)
+
 ---
 
 ## 3. 🟠 Édition

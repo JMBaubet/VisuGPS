@@ -238,6 +238,124 @@ struct GpxMetadata {
     link: Option<String>,
 }
 
+    pub fn clean_altitude_data(
+    points: &Vec<Vec<f64>>,
+    median_window: usize,
+    avg_window: usize,
+    max_gradient: f64,
+) -> Vec<Vec<f64>> {
+    if points.is_empty() {
+        return points.clone();
+    }
+
+    let mut elevations: Vec<f64> = points.iter().map(|p| p[2]).collect();
+    let len = elevations.len();
+
+    // 0. Gradient Clamping (Pre-pass)
+    if max_gradient > 0.0 {
+        let mut new_elevations = elevations.clone();
+        for i in 1..len {
+            let p1 = &points[i-1];
+            let p2 = &points[i];
+            
+            // Calculate distance in meters
+            // We use the crate-level haversine_distance (defined later in file, but visible)
+            let dist = haversine_distance(p1[1], p1[0], p2[1], p2[0]);
+            
+            if dist > 0.0 {
+                let max_delta = dist * (max_gradient / 100.0);
+                let current_ele = new_elevations[i];
+                let prev_ele = new_elevations[i-1];
+                
+                let lower_bound = prev_ele - max_delta;
+                let upper_bound = prev_ele + max_delta;
+                
+                if current_ele > upper_bound {
+                    new_elevations[i] = upper_bound;
+                } else if current_ele < lower_bound {
+                    new_elevations[i] = lower_bound;
+                }
+            }
+        }
+        elevations = new_elevations;
+    }
+
+    // 1. Median Filter (remove spikes)
+    if median_window > 1 {
+        let mut new_elevations = elevations.clone();
+        let half_window = median_window / 2;
+        
+        for i in 0..len {
+            let start = if i < half_window { 0 } else { i - half_window };
+            let end = if i + half_window >= len { len } else { i + half_window + 1 };
+            
+            let mut window_slice: Vec<f64> = elevations[start..end].to_vec();
+            window_slice.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+            
+            let mid = window_slice.len() / 2;
+            new_elevations[i] = window_slice[mid];
+        }
+        elevations = new_elevations;
+    }
+
+    // 2. Moving Average (smoothing)
+    if avg_window > 1 {
+        let mut new_elevations = elevations.clone();
+        let half_window = avg_window / 2;
+
+        for i in 0..len {
+             let start = if i < half_window { 0 } else { i - half_window };
+             let end = if i + half_window >= len { len } else { i + half_window + 1 };
+             
+             let sum: f64 = elevations[start..end].iter().sum();
+             new_elevations[i] = sum / (end - start) as f64;
+        }
+        elevations = new_elevations;
+    }
+
+    // 3. Gradient Clamping (Post-pass)
+    if max_gradient > 0.0 {
+        let mut new_elevations = elevations.clone();
+        for i in 1..len {
+            let p1 = &points[i-1];
+            let p2 = &points[i];
+            
+            let dist = haversine_distance(p1[1], p1[0], p2[1], p2[0]);
+            
+            let mut current_ele = new_elevations[i];
+            let prev_ele = new_elevations[i-1];
+
+            if dist <= 0.001 { 
+                 // Vertical jump without distance (or < 1mm) - flatten it to avoid infinite gradient
+                 if (current_ele - prev_ele).abs() > 0.0 {
+                     current_ele = prev_ele;
+                     new_elevations[i] = current_ele;
+                 }
+            } else {
+                let max_delta = dist * (max_gradient / 100.0);
+                
+                let lower_bound = prev_ele - max_delta;
+                let upper_bound = prev_ele + max_delta;
+                
+                if current_ele > upper_bound {
+                    new_elevations[i] = upper_bound;
+                } else if current_ele < lower_bound {
+                    new_elevations[i] = lower_bound;
+                }
+            }
+        }
+        elevations = new_elevations;
+    }
+
+    // Reconstruct points
+    let mut cleaned_points = points.clone();
+    for i in 0..len {
+         cleaned_points[i][2] = elevations[i];
+    }
+    
+    cleaned_points
+}
+
 pub async fn analyze_gpx_file(
     app_handle: &AppHandle,
     filename: &str,
@@ -298,6 +416,40 @@ pub async fn analyze_gpx_file(
             ]
         })
         .collect();
+    
+    // --- Start of new code for altitude cleaning ---
+    let altitude_smoothing_median_window = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.parametres.altitude_smoothing_median_window",
+    )
+    .and_then(|v| v.as_u64())
+    .unwrap_or(5) as usize;
+
+    let altitude_smoothing_avg_window = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.parametres.altitude_smoothing_avg_window",
+    )
+    .and_then(|v| v.as_u64())
+    .unwrap_or(5) as usize;
+
+     let max_gradient_percent = super::get_setting_value(
+        &settings,
+        "data.groupes.Importation.parametres.max_gradient_percent",
+    )
+    .and_then(|v| v.as_f64())
+    .unwrap_or(30.0);
+
+    let cleaned_track_points = clean_altitude_data(
+        &rounded_track_points,
+        altitude_smoothing_median_window,
+        altitude_smoothing_avg_window,
+        max_gradient_percent
+    );
+     // --- End of new code for altitude cleaning ---
+
+     // Use cleaned_track_points instead of rounded_track_points for the rest
+    let rounded_track_points = cleaned_track_points; 
+
 
     let editor_name = identify_editor_from_creator(metadata.creator.as_deref().unwrap_or_default());
 
@@ -1179,3 +1331,5 @@ pub fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
 
     r * c
 }
+
+
