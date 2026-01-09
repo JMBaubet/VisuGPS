@@ -18,6 +18,16 @@
             <p>Circuit ID: {{ circuitId }}</p>
             <v-switch v-model="showTrace" label="Afficher la trace GPX"></v-switch>
             <v-switch v-model="showCaps" label="Afficher les caps"></v-switch>
+            
+            <v-divider class="my-4"></v-divider>
+            <p class="font-weight-bold">Layers de trace:</p>
+            <v-radio-group v-model="selectedTraceLayer" density="compact">
+              <v-radio label="Trace complète" value="complete"></v-radio>
+              <v-radio label="Overlay Aller" value="aller"></v-radio>
+              <v-radio label="Overlay Retour" value="retour"></v-radio>
+              <v-radio label="Tous" value="all"></v-radio>
+            </v-radio-group>
+
             <v-divider class="my-4"></v-divider>
             <p>Point: {{ currentIndex + 1 }} / {{ trackingPoints.length }}</p>
             <div class="caption mt-4">
@@ -63,6 +73,13 @@ const lissageCap = ref(15);
 
 const showTrace = ref(true);
 const showCaps = ref(true);
+const selectedTraceLayer = ref('all');
+const layerGradients = ref({
+    complete: null,
+    aller: null,
+    retour: null
+});
+const coloredSegmentsGeoJson = ref(null);
 
 let map = null;
 
@@ -85,6 +102,28 @@ watch(mapboxToken, (newToken) => {
   }
 }, { immediate: true });
 
+
+function toHex(value) {
+  if (!value) return '#FF0000';
+  if (typeof value === 'string') {
+    if (value.startsWith('#') || value.startsWith('rgb')) return value;
+    // Map basic color names commonly used
+    const colors = {
+        'red': '#FF0000',
+        'blue': '#0000FF',
+        'green': '#008000',
+        'yellow': '#FFFF00',
+        'white': '#FFFFFF',
+        'black': '#000000',
+        'gray': '#808080',
+        'light-blue': '#ADD8E6',
+        'orange': '#FFA500'
+    };
+    return colors[value] || value; // fallback to value if not found (might fail if unknown name)
+  }
+  return '#FF0000';
+}
+
 async function loadNonMapData() {
   const lissageCapValue = await getSettingValue('Importation/Tracking/LissageCap');
   lissageCap.value = lissageCapValue || 15;
@@ -93,6 +132,32 @@ async function loadNonMapData() {
     const data = await invoke('get_debug_data', { circuitId: circuitId.value });
     lineString.value = data.line_string;
     trackingPoints.value = data.tracking_points;
+
+    // Charger les gradients comme dans VisualizeView
+    const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment') || 20;
+    try {
+        const slopeColors = {
+            TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+            Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+            Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+            Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+            Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+            Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
+        };
+
+        const geoJson = await invoke('get_colored_segments_geojson', {
+            circuitId: circuitId.value,
+            slopeColors: slopeColors,
+            segmentLength: segmentLength,
+        });
+
+        if (geoJson) {
+            coloredSegmentsGeoJson.value = geoJson;
+            console.log('[Debug] Colored Segments GeoJSON loaded');
+        }
+    } catch (e) {
+        console.error("Error getting colored segments:", e);
+    }
 
     if (mapboxToken.value && !map) {
       mapboxgl.accessToken = mapboxToken.value;
@@ -122,7 +187,6 @@ function initializeMap() {
 }
 
 function setupLayers() {
-  // Initial data for point 0
   const initialPointData = trackingPoints.value[0];
   const initialCoords = initialPointData.coordonnee;
   const initialBearing = initialPointData.cap;
@@ -135,15 +199,72 @@ function setupLayers() {
   const initialLastCalcCoord = initialCalcCoords.length > 0 ? initialCalcCoords[initialCalcCoords.length - 1] : null;
 
 
-  // Source and Layer for the main GPX trace
-  map.addSource('gpx-trace', { type: 'geojson', data: lineString.value });
-  map.addLayer({
-    id: 'gpx-trace-layer',
-    type: 'line',
-    source: 'gpx-trace',
-    layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: { 'line-color': '#0000FF', 'line-width': 4, 'line-opacity': 0.5 },
-  });
+  // Source for the colored segments (Detailed FeatureCollection)
+  if (coloredSegmentsGeoJson.value && !map.getSource('colored-segments')) {
+    map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson.value });
+
+    // Layer 1: Trace complète (Gris sur overlaps, couleur ailleurs)
+    // Filter: Tous les segments
+    if (!map.getLayer('gpx-trace-complete')) {
+        map.addLayer({
+            id: 'gpx-trace-complete',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+            paint: {
+                'line-width': 4,
+                'line-opacity': 1, // Pas de transparence
+                'line-color': [
+                    'case',
+                    ['match', ['get', 'segment_type'], ['aller_overlap', 'retour_overlap'], true, false],
+                    '#808080', // Gris si overlap
+                    ['get', 'color_raw'] // Couleur sinon
+                ]
+            }
+        });
+    }
+
+    // Layer 2: Overlay Aller (Tout SAUF Retour)
+    // Filter: type != 'retour_overlap'
+    if (!map.getLayer('gpx-trace-aller')) {
+        map.addLayer({
+            id: 'gpx-trace-aller',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
+            paint: {
+                'line-width': 4,
+                'line-opacity': 1,
+                'line-color': ['get', 'color_raw']
+            },
+            filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
+        });
+    }
+
+    // Layer 3: Overlay Retour (Tout SAUF Aller)
+    // Filter: type != 'aller_overlap'
+    if (!map.getLayer('gpx-trace-retour')) {
+        map.addLayer({
+            id: 'gpx-trace-retour',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
+            paint: {
+                'line-width': 4,
+                'line-opacity': 1,
+                'line-color': ['get', 'color_raw']
+            },
+            filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
+        });
+    }
+  }
+
+  // Backup: Source for main lineString if colored segments fail (or unused but safe to keep)
+  if (!map.getSource('gpx-trace') && lineString.value) {
+     map.addSource('gpx-trace', { type: 'geojson', data: lineString.value });
+  }
+
+  updateLayerVisibility();
 
   // Source and Layer for the bearing vector (added first to be underneath points)
   map.addSource('bearing-vector', { type: 'geojson', data: turf.lineString([initialVectorStart.geometry.coordinates, initialVectorEnd.geometry.coordinates]) });
@@ -153,6 +274,7 @@ function setupLayers() {
     source: 'bearing-vector',
     paint: { 'line-color': '#FF0000', 'line-width': 5 },
   });
+
 
   // Source and Layer for calculation (yellow) points
   map.addSource('calc-points', { type: 'geojson', data: turf.multiPoint(initialNormalCalcCoords) });
@@ -219,11 +341,31 @@ function updateMapFeatures() {
   });
 }
 
+function updateLayerVisibility() {
+    if (!map) return;
+    
+    const showComplete = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'complete';
+    const showAller = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'aller';
+    const showRetour = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'retour';
+    
+    // Global toggle
+    const globalVisible = showTrace.value;
+
+    if (map.getLayer('gpx-trace-complete')) {
+        map.setLayoutProperty('gpx-trace-complete', 'visibility', globalVisible && showComplete ? 'visible' : 'none');
+    }
+    if (map.getLayer('gpx-trace-aller')) {
+        map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller ? 'visible' : 'none');
+    }
+    if (map.getLayer('gpx-trace-retour')) {
+        map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour ? 'visible' : 'none');
+    }
+}
+
 watch(currentIndex, updateMapFeatures);
 
-watch(showTrace, (visible) => {
-  map.setLayoutProperty('gpx-trace-layer', 'visibility', visible ? 'visible' : 'none');
-});
+watch(showTrace, updateLayerVisibility);
+watch(selectedTraceLayer, updateLayerVisibility);
 
 watch(showCaps, (visible) => {
     const visibility = visible ? 'visible' : 'none';

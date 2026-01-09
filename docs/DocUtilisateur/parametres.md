@@ -70,6 +70,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 **Description** : Paramètres techniques d'analyse de la trace (segmentation et lissage du cap).
 *   ⚠️ [Longueur du segment](../DocParametrage/Importation/Tracking/LongueurSegment.md)
 *   ⚠️ [Lissage du cap](../DocParametrage/Importation/Tracking/LissageCap.md)
+*   ⚠️ [Seuil de détection des superpositions](../DocParametrage/Importation/Tracking/seuilDetectionSuperposition.md)
 
 ### 2.3. Caméra
 **Description** : Valeurs par défaut de la vue 3D lors du premier chargement d'un circuit.

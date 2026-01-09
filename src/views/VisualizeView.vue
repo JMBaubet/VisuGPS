@@ -255,6 +255,16 @@ const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
+const segmentMetadata = ref(null); // Métadonnées des segments superposés
+const currentActiveZone = ref(null); // Zone active actuelle
+
+// Gradients pour les 4 layers de trace
+const layerGradients = ref({
+    main: null,
+    aller: null,
+    retour: null,
+    neutral: null
+});
 
 // Function to send the current state to the backend
 const sendVisualizeViewStateUpdate = async () => {
@@ -459,6 +469,34 @@ async function executeFlytoSequence(flytoData) {
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = distanceTraveled.toFixed(2);
   currentDistanceInMeters.value = distanceTraveled * 1000;
+
+  // Détecter si on est dans une zone de superposition
+  const activeSegment = getCurrentSegmentZone(distanceTraveled, segmentMetadata.value);
+  
+  if (activeSegment) {
+      // On est dans une zone de superposition
+      if (!currentActiveZone.value || 
+          currentActiveZone.value.zoneId !== activeSegment.zone.zoneId ||
+          currentActiveZone.value.direction !== activeSegment.direction) {
+          
+          console.log(`🔄 [Visualize] Zone ${activeSegment.zone.zoneId} - ${activeSegment.direction} (km ${distanceTraveled.toFixed(1)})`);
+          currentActiveZone.value = { 
+              zoneId: activeSegment.zone.zoneId, 
+              direction: activeSegment.direction 
+          };
+          
+          // Phase 5c: Recalculer le gradient pour n'afficher que la pente du segment actif
+          // Appel sans await pour ne pas bloquer l'animation
+          updateTraceGradient(activeSegment.zone.zoneId, activeSegment.direction);
+      }
+  } else if (currentActiveZone.value !== null) {
+      // On sort d'une zone de superposition
+      console.log(`✅ [Visualize] Sortie de zone ${currentActiveZone.value.zoneId}`);
+      currentActiveZone.value = null;
+      
+      // Réinitialiser le gradient complet
+      updateTraceGradient(null, null);
+  }
 
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
@@ -1421,6 +1459,48 @@ const handleKeyUp = (e) => {
     }
 };
 
+// Fonction pour basculer la visibilité des layers selon la zone active
+const updateTraceGradient = async (zoneId, direction) => {
+    if (!map) return;
+
+    // Déterminer la visibilité des overlays
+    const showAllerOverlay = (zoneId !== null && direction === 'aller');
+    const showRetourOverlay = (zoneId !== null && direction === 'retour');
+console.log('[Layer Toggle]', {zoneId, direction, showAller: showAllerOverlay, showRetour: showRetourOverlay});
+    // trace-complete est toujours visible
+    if (map.getLayer('trace-complete')) {
+        map.setLayoutProperty('trace-complete', 'visibility', 'visible');
+    }
+    
+    // Basculer les overlays
+    if (map.getLayer('trace-overlap-aller')) {
+        map.setLayoutProperty('trace-overlap-aller', 'visibility', showAllerOverlay ? 'visible' : 'none');
+    }
+    
+    if (map.getLayer('trace-overlap-retour')) {
+        map.setLayoutProperty('trace-overlap-retour', 'visibility', showRetourOverlay ? 'visible' : 'none');
+    }
+};
+
+// Helper function to detect if current position is in an overlapping zone
+const getCurrentSegmentZone = (currentKm, metadata) => {
+    if (!metadata || !metadata.overlappingZones) return null;
+    
+    for (const zone of metadata.overlappingZones) {
+        // Vérifier si on est sur l'aller
+        if (currentKm >= zone.allerStartKm && currentKm <= zone.allerEndKm) {
+            return { zone, direction: 'aller' };
+        }
+        
+        // Vérifier si on est sur le retour
+        if (currentKm >= zone.retourStartKm && currentKm <= zone.retourEndKm) {
+            return { zone, direction: 'retour' };
+        }
+    }
+    
+    return null;
+};
+
 const initializeMap = async () => {
   if (!settings.value || !mapboxToken.value) {
     return;
@@ -1503,6 +1583,24 @@ const initializeMap = async () => {
         return acc;
     }, []);
 
+    // Charger les métadonnées de segments superposés
+    try {
+        const metadata = await invoke('get_segment_metadata', { circuitId: props.circuitId });
+        segmentMetadata.value = metadata;
+        
+        if (metadata && metadata.overlappingZones && metadata.overlappingZones.length > 0) {
+            console.log(`[Visualize] ${metadata.overlappingZones.length} zone(s) de superposition chargée(s)`);
+            metadata.overlappingZones.forEach(zone => {
+                console.log(`  Zone ${zone.zoneId}: Aller ${zone.allerStartKm.toFixed(1)}-${zone.allerEndKm.toFixed(1)}km, Retour ${zone.retourStartKm.toFixed(1)}-${zone.retourEndKm.toFixed(1)}km`);
+            });
+        } else {
+            console.log('[Visualize] Aucune zone de superposition pour ce circuit');
+        }
+    } catch (err) {
+        console.warn('[Visualize] Pas de métadonnées de segments disponibles:', err);
+        segmentMetadata.value = null;
+    }
+
     if (!trackingDataRef.value[0]) {
         console.error("Initial tracking data point is undefined.");
         return;
@@ -1511,34 +1609,56 @@ const initializeMap = async () => {
     // Initialize Weather
     await initWeather(currentCircuit, trackingPointsWithDistanceRef.value);
 
-    // --- Trace Color Logic ---
-    let finalTraceColor = toHex(traceColor.value);
+    // Helper pour convertir les couleurs (supporte Vuetify + noms CSS)
+    const toHexImproved = (value) => {
+        if (!value) return '#FF0000';
+        // Essayer d'abord la conversion Vuetify
+        const vuetifyHex = toHex(value);
+        if (vuetifyHex && vuetifyHex.startsWith('#')) return vuetifyHex;
+
+        if (typeof value === 'string') {
+            if (value.startsWith('#') || value.startsWith('rgb')) return value;
+            const colors = {
+                'red': '#FF0000', 'blue': '#0000FF', 'green': '#008000',
+                'yellow': '#FFFF00', 'white': '#FFFFFF', 'black': '#000000',
+                'gray': '#808080', 'light-blue': '#ADD8E6', 'orange': '#FFA500'
+            };
+            return colors[value] || value;
+        }
+        return '#FF0000';
+    };
+
+    // --- Trace Color Logic avec 3 layers ---
+    // On charge maintenant une FeatureCollection de segments colorés (backend Refonte Phase 7)
+    let coloredSegmentsGeoJson = null;
+
     if (colorTraceBySlope.value) {
         try {
             const slopeColors = {
-                TrancheNegative: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
+                TrancheNegative: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+                Tranche1: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+                Tranche2: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+                Tranche3: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+                Tranche4: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+                Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
 
-            const colorExpression = await invoke('get_slope_color_expression', {
+            coloredSegmentsGeoJson = await invoke('get_colored_segments_geojson', {
                 circuitId: props.circuitId,
                 slopeColors: slopeColors,
                 segmentLength: segmentLength.value,
             });
-            
-            if (colorExpression && Array.isArray(colorExpression)) {
-                finalTraceColor = colorExpression;
+
+            if (coloredSegmentsGeoJson) {
+                console.log('[Visualize] Segmented GeoJSON loaded');
             } else {
-                console.warn("Failed to generate slope color expression, falling back to single color.");
+                console.warn("Failed to generate segmented GeoJSON.");
             }
         } catch (e) {
-            console.error("Error getting slope color expression:", e);
+            console.error("Error getting colored segments:", e);
         }
     }
+
 
     map = new mapboxgl.Map({
       container: mapContainer.value,
@@ -1566,27 +1686,97 @@ const initializeMap = async () => {
         map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
       }
 
-      const paintProps = {
+      const basePaintProps = {
         'line-width': traceWidth.value,
         'line-opacity': traceOpacity.value
       };
 
-      if (colorTraceBySlope.value && Array.isArray(finalTraceColor)) {
-        paintProps['line-gradient'] = finalTraceColor;
-      } else {
-        paintProps['line-color'] = finalTraceColor;
+      // --- Refonte Phase 7 : Utilisation de Source 'colored-segments' avec Filtres ---
+      
+      // Source for the colored segments (Detailed FeatureCollection)
+      if (coloredSegmentsGeoJson && !map.getSource('colored-segments')) {
+        map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson });
+
+        // Layer 1: Trace complète (Gris sur overlaps, couleur ailleurs)
+        if (!map.getLayer('trace-complete')) {
+            map.addLayer({
+                id: 'trace-complete',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                paint: {
+                    'line-width': 4,
+                    'line-opacity': 1,
+                    'line-color': [
+                        'case',
+                        ['match', ['get', 'segment_type'], ['aller_overlap', 'retour_overlap'], true, false],
+                        '#808080', // Gris si overlap
+                        ['get', 'color_raw'] // Couleur sinon
+                    ]
+                }
+            });
+        }
+
+        // Layer 2: Overlay Aller (Tout SAUF Retour)
+        if (!map.getLayer('trace-overlap-aller')) {
+            map.addLayer({
+                id: 'trace-overlap-aller',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
+                paint: {
+                    'line-width': 4,
+                    'line-opacity': 1,
+                    'line-color': ['get', 'color_raw']
+                },
+                filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
+            });
+        }
+
+        // Layer 3: Overlay Retour (Tout SAUF Aller)
+        if (!map.getLayer('trace-overlap-retour')) {
+            map.addLayer({
+                id: 'trace-overlap-retour',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
+                paint: {
+                    'line-width': 4,
+                    'line-opacity': 1,
+                    'line-color': ['get', 'color_raw']
+                },
+                filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
+            });
+        }
       }
 
-      if (!map.getLayer('trace-background-layer')) {
-        map.addLayer({
-          id: 'trace-background-layer',
-          type: 'line',
-          source: 'trace',
-          paint: paintProps
-        });
+      // Fallback: Si pas de segments colorés (ex: tracking.json manquant ou erreur backend)
+      // On utilise 'trace-complete' avec le lineString simple et une couleur par défaut
+      if (!coloredSegmentsGeoJson && !map.getLayer('trace-complete')) {
+         if (!map.getSource('trace') && lineStringRef.value) {
+            map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
+         }
+         
+         if (map.getSource('trace')) {
+            map.addLayer({
+                id: 'trace-complete',
+                type: 'line',
+                source: 'trace',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                paint: {
+                    'line-width': 4,
+                    'line-opacity': 1,
+                    'line-color': traceColor.value || '#0000FF'
+                }
+            });
+         }
       }
 
-      if (!map.getSource('comet-source')) {
+      // Layers overlays vides pour éviter erreurs si appelés
+      if (!map.getLayer('trace-overlap-aller') && !coloredSegmentsGeoJson) { /* No op fallback logic for overlap if no data */ }
+
+      // Affichage Comète
+      if (lineStringRef.value && !map.getSource('comet-source')) {
         map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
       }
       if (!map.getLayer('comet-layer')) {

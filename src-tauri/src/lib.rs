@@ -22,6 +22,7 @@ pub mod remote_blacklist;
 pub mod remote_clients;
 pub mod remote_control;
 pub mod remote_setup;
+pub mod segment_analyzer;
 pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
@@ -2129,6 +2130,104 @@ fn get_doc_content(
     })
 }
 
+// ========== Segment Analyzer Commands ==========
+
+/// Analyse une trace GPX pour détecter les segments superposés
+#[tauri::command]
+fn analyze_segment_overlaps(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    threshold_meters: f64,
+) -> Result<segment_analyzer::SegmentMetadata, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(&circuit_id);
+    
+    // Utiliser lineString.json qui contient TOUS les points GPS
+    let linestring_path = data_dir.join("lineString.json");
+
+    // Lire le GeoJSON
+    let linestring_content = fs::read_to_string(&linestring_path).map_err(|e| e.to_string())?;
+    let linestring_data: Value = serde_json::from_str(&linestring_content).map_err(|e| e.to_string())?;
+
+    // Extraire les coordonnées du GeoJSON LineString
+    // Format: {"type": "LineString", "coordinates": [[lon, lat, alt], ...]}
+    let coordinates = linestring_data
+        .get("coordinates")
+        .and_then(|c| c.as_array())
+        .ok_or("Invalid GeoJSON format: missing coordinates")?;
+
+    // Convertir en format compatible avec l'analyseur
+    // On crée des points avec distance cumulée approximative
+    let mut tracking_points: Vec<Value> = Vec::new();
+    let mut cumulative_distance = 0.0;
+
+    for (i, coord) in coordinates.iter().enumerate() {
+        let coord_array = coord.as_array().ok_or("Invalid coordinate format")?;
+        let lon = coord_array.get(0).and_then(|v| v.as_f64()).ok_or("Invalid longitude")?;
+        let lat = coord_array.get(1).and_then(|v| v.as_f64()).ok_or("Invalid latitude")?;
+
+        // Calculer la distance depuis le point précédent
+        if i > 0 {
+            if let Some(prev_point) = tracking_points.last() {
+                let prev_coord = prev_point.get("coordonnee").and_then(|c| c.as_array()).unwrap();
+                let prev_lon = prev_coord[0].as_f64().unwrap();
+                let prev_lat = prev_coord[1].as_f64().unwrap();
+                
+                let distance_m = segment_analyzer::haversine_distance(prev_lat, prev_lon, lat, lon);
+                cumulative_distance += distance_m / 1000.0; // Convertir en km
+            }
+        }
+
+        let point = serde_json::json!({
+            "coordonnee": [lon, lat],
+            "distance": cumulative_distance
+        });
+        tracking_points.push(point);
+    }
+
+    // Détecter les superpositions
+    let overlapping_zones =
+        segment_analyzer::detect_overlapping_segments(&tracking_points, threshold_meters)?;
+
+    // Créer les métadonnées
+    let metadata = segment_analyzer::SegmentMetadata {
+        circuit_id: circuit_id.clone(),
+        overlapping_zones,
+        detection_threshold_meters: threshold_meters,
+        total_points: tracking_points.len(),
+        analysis_date: chrono::Utc::now().to_rfc3339(),
+    };
+
+    // Sauvegarder les métadonnées
+    let metadata_path = data_dir.join("segments_metadata.json");
+    let metadata_content =
+        serde_json::to_string_pretty(&metadata).map_err(|e| e.to_string())?;
+    fs::write(&metadata_path, metadata_content).map_err(|e| e.to_string())?;
+
+    Ok(metadata)
+}
+
+/// Récupère les métadonnées de segmentation pour un circuit
+#[tauri::command]
+fn get_segment_metadata(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<Option<segment_analyzer::SegmentMetadata>, String> {
+    let state = state.lock().unwrap();
+    let data_dir = state.app_env_path.join("data").join(&circuit_id);
+    let metadata_path = data_dir.join("segments_metadata.json");
+
+    if !metadata_path.exists() {
+        return Ok(None);
+    }
+
+    let file_content = fs::read_to_string(&metadata_path).map_err(|e| e.to_string())?;
+    let metadata: segment_analyzer::SegmentMetadata =
+        serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+
+    Ok(Some(metadata))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -2322,6 +2421,12 @@ pub fn run() {
             distance_markers::get_distance_markers_defaults,
             // Other commands
             trace_style::get_slope_color_expression,
+            trace_style::get_filtered_slope_expression,
+            trace_style::get_main_segments_expression,
+            trace_style::get_aller_segments_expression,
+            trace_style::get_retour_segments_expression,
+            trace_style::get_neutral_overlap_expression,
+            trace_style::get_colored_segments_geojson,
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
@@ -2354,7 +2459,10 @@ pub fn run() {
             import_export::list_import_files,
             weather_cache::check_weather_cache,
             weather_cache::save_weather_cache,
-            weather_cache::check_weather_cache_metadata
+            weather_cache::check_weather_cache_metadata,
+            // Segment analyzer commands
+            analyze_segment_overlaps,
+            get_segment_metadata
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -236,6 +236,34 @@ async function handleImportSelection(filename) {
                 settings: settings
             });
 
+            // Phase 5: Segment Overlap Analysis
+            try {
+                const threshold = settings?.data?.groupes
+                    ?.find(g => g.libelle === 'Importation')
+                    ?.groupes?.find(g => g.libelle === 'Tracking')
+                    ?.parametres?.find(p => p.identifiant === 'seuilDetectionSuperposition')
+                    ?.surcharge ?? 20;
+
+                console.log(`[Import] Analyse des superpositions avec seuil: ${threshold}m`);
+                
+                const metadata = await invoke('analyze_segment_overlaps', {
+                    circuitId: circuitId,
+                    thresholdMeters: threshold
+                });
+
+                if (metadata.overlappingZones && metadata.overlappingZones.length > 0) {
+                    console.log(`[Import] ✅ ${metadata.overlappingZones.length} zone(s) de superposition détectée(s)`);
+                    metadata.overlappingZones.forEach((zone, idx) => {
+                        console.log(`  Zone ${zone.zoneId}: Aller km ${zone.allerStartKm.toFixed(1)}-${zone.allerEndKm.toFixed(1)}, Retour km ${zone.retourStartKm.toFixed(1)}-${zone.retourEndKm.toFixed(1)}`);
+                    });
+                } else {
+                    console.log('[Import] ℹ️ Aucune zone de superposition détectée');
+                }
+            } catch (segmentError) {
+                console.warn('[Import] ⚠️ Erreur lors de l\'analyse des segments:', segmentError);
+                // Ne pas bloquer l'import si l'analyse échoue
+            }
+
             showSnackbar(`Circuit '${draftCircuit.nom}' importé avec succès.`, 'success');
 
         } else if (importConfig.type === 'vgps') {
