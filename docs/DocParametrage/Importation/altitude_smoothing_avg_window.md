@@ -17,7 +17,7 @@ Le filtre de moyenne glissante calcule, pour chaque point, la moyenne des altitu
 
 -   **Libellé**: Fenêtre Moyenne (Lissage)
 -   **Type**: Entier (Nombre de points)
--   **Valeur par défaut**: 5
+-   **Valeur par défaut**: 20
 -   **Minimum**: 1 (Inactif)
 -   **Unité**: Points
 
@@ -32,5 +32,12 @@ Ce lissage est purement esthétique et ergonomique :
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (5)** : Offre un bon équilibre. La courbe reste fidèle au terrain mais perd son aspect "dent de scie".
--   **Augmenter la valeur** : Si vous voulez un effet très "cinématographique" et fluide, au risque d'arrondir un peu trop les changements de pente brusques (pied d'un col).
+-   **Valeur par défaut (20)** : Lissage assez prononcé pour garantir une excellente fluidité de caméra, même sur des enregistrements "bruyants".
+-   **Augmenter la valeur (max 30)** : Si vous voulez un effet très "cinématographique" et fluide, au risque d'arrondir un peu trop les changements de pente brusques (pied d'un col).
+
+---
+
+> [!NOTE]
+>
+>
+> **En savoir plus sur le traitement de l'altitude** : Consultez le guide technique détaillé dans [Algorithme de Traitement de l'Altitude](../../DocAnnexe/AltitudeAlgo.md).

@@ -17,7 +17,7 @@ Le paramètre `max_gradient_percent` agit comme un "garde-fou" lors de l'importa
 
 -   **Libellé**: Pente Maximum Autorisée
 -   **Type**: Décimal (Pourcentage)
--   **Valeur par défaut**: 30 %
+-   **Valeur par défaut**: 20 %
 -   **Minimum**: 1 %
 -   **Maximum**: 100 %
 -   **Unité**: % (Pourcentage)
@@ -39,3 +39,10 @@ Le paramètre `max_gradient_percent` agit comme un "garde-fou" lors de l'importa
 -   **Cyclisme sur route** : Une valeur de **20%** ou **25%** est recommandée (il est très rare de dépasser 25% sur route).
 -   **VTT / Trail / Randonnée** : Une valeur de **30%** ou **40%** peut être nécessaire pour accepter les passages très raides.
 -   **Valeur trop basse** : Si vous réglez ce paramètre trop bas (ex: 5%), vous risquez d'"écraser" le relief réel de votre sortie et de fausser le dénivelé total.
+
+---
+
+> [!NOTE]
+>
+>
+> **En savoir plus sur le traitement de l'altitude** : Consultez le guide technique détaillé dans [Algorithme de Traitement de l'Altitude](../../DocAnnexe/AltitudeAlgo.md).

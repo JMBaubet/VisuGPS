@@ -44,3 +44,10 @@ Le lissage du dénivelé est essentiel pour obtenir des valeurs de dénivelé po
     -   Si vos traces proviennent d'appareils GPS très précis, vous pouvez réduire cette valeur.
     -   Si vos traces sont issues d'appareils moins précis ou si vous souhaitez un lissage plus agressif, vous pouvez augmenter cette valeur.
 -   **Valeur de 0 m** : Désactive complètement le lissage, ce qui peut entraîner un dénivelé positif très élevé et potentiellement irréaliste.
+
+---
+
+> [!NOTE]
+>
+>
+> **En savoir plus sur le traitement de l'altitude** : Consultez le guide technique détaillé dans [Algorithme de Traitement de l'Altitude](../../DocAnnexe/AltitudeAlgo.md).

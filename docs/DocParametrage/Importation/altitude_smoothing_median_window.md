@@ -18,7 +18,7 @@ Concrètement, si votre GPS enregistre une série d'altitudes comme `[100, 101, 
 
 -   **Libellé**: Fenêtre Médiane (Dégrossissage)
 -   **Type**: Entier (Nombre de points)
--   **Valeur par défaut**: 5
+-   **Valeur par défaut**: 20
 -   **Minimum**: 1 (Inactif)
 -   **Unité**: Points
 
@@ -30,5 +30,12 @@ Contrairement à une moyenne classique qui serait influencée par une erreur én
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (5)** : Regarde 2 points avant et 2 points après. Suffisant pour éliminer un pic isolé de 1 ou 2 points.
--   **Augmenter la valeur (ex: 9 ou 15)** : Si vous avez des séries d'erreurs plus longues (plusieurs secondes de données fausses). Attention, une valeur trop grande peut commencer à "ariser" les sommets pointus de votre parcours.
+-   **Valeur par défaut (20)** : Valeur robuste qui permet de filtrer efficacement le bruit même sur des séries d'erreurs d'une dizaine de points (quelques secondes).
+-   **Augmenter la valeur (max 30)** : Si vous avez des séries d'erreurs très longues. Attention, une valeur trop grande peut commencer à "ariser" les sommets pointus de votre parcours.
+
+---
+
+> [!NOTE]
+>
+>
+> **En savoir plus sur le traitement de l'altitude** : Consultez le guide technique détaillé dans [Algorithme de Traitement de l'Altitude](../../DocAnnexe/AltitudeAlgo.md).
