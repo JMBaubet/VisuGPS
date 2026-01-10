@@ -61,6 +61,8 @@ import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
 import MarkdownIt from 'markdown-it';
+import mermaid from 'mermaid';
+import { nextTick } from 'vue';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -78,8 +80,23 @@ async function loadHighlightTheme(name) {
   }
 }
 
+// Initialize Mermaid
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'loose',
+});
+
 watch(() => theme.global.name.value, (newTheme) => {
   loadHighlightTheme(newTheme);
+  // Update Mermaid theme
+  mermaid.initialize({
+    theme: newTheme === 'dark' ? 'dark' : 'default',
+  });
+  // Re-render diagrams if needed
+  nextTick(() => {
+    renderMermaidDiagrams();
+  });
 }, { immediate: true });
 
 // Register languages
@@ -154,6 +171,9 @@ const md = new MarkdownIt({
   html: true,
   breaks: true,
   highlight: function (str, lang) {
+    if (lang === 'mermaid') {
+      return `<div class="mermaid">${str}</div>`;
+    }
     if (lang && hljs.getLanguage(lang)) {
       try {
         return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang, ignoreIllegals: true }).value}</code></pre>`;
@@ -207,6 +227,21 @@ function normalizePaths(markdown) {
   });
 }
 
+async function renderMermaidDiagrams() {
+  if (!contentRef.value) return;
+  
+  const mermaidDivs = contentRef.value.querySelectorAll('.mermaid');
+  if (mermaidDivs.length === 0) return;
+
+  try {
+    await mermaid.run({
+       nodes: mermaidDivs,
+    });
+  } catch (err) {
+    console.error('Mermaid rendering error:', err);
+  }
+}
+
 const compiledMarkdown = computed(() => {
   let html = md.render(normalizePaths(markdownContent.value));
   
@@ -230,6 +265,11 @@ const compiledMarkdown = computed(() => {
               </p>`;
   });
   
+  // Trigger mermaid render after update
+  nextTick(() => {
+    renderMermaidDiagrams();
+  });
+
   return html;
 });
 
