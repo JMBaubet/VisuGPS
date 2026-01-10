@@ -22,10 +22,9 @@
             <v-divider class="my-4"></v-divider>
             <p class="font-weight-bold">Layers de trace:</p>
             <v-radio-group v-model="selectedTraceLayer" density="compact">
-              <v-radio label="Trace complète" value="complete"></v-radio>
               <v-radio label="Overlay Aller" value="aller"></v-radio>
               <v-radio label="Overlay Retour" value="retour"></v-radio>
-              <v-radio label="Tous" value="all"></v-radio>
+              <v-radio label="Tous (Aller + Retour)" value="all"></v-radio>
             </v-radio-group>
 
             <v-divider class="my-4"></v-divider>
@@ -203,43 +202,24 @@ function setupLayers() {
   if (coloredSegmentsGeoJson.value && !map.getSource('colored-segments')) {
     map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson.value });
 
-    // Layer 1: Trace complète (Gris sur overlaps, couleur ailleurs)
-    // Filter: Tous les segments
-    if (!map.getLayer('gpx-trace-complete')) {
-        map.addLayer({
-            id: 'gpx-trace-complete',
-            type: 'line',
-            source: 'colored-segments',
-            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-            paint: {
-                'line-width': 4,
-                'line-opacity': 1, // Pas de transparence
-                'line-color': [
-                    'case',
-                    ['match', ['get', 'segment_type'], ['aller_overlap', 'retour_overlap'], true, false],
-                    '#808080', // Gris si overlap
-                    ['get', 'color_raw'] // Couleur sinon
-                ]
-            }
-        });
-    }
-
-    // Layer 2: Overlay Aller (Tout SAUF Retour)
-    // Filter: type != 'retour_overlap'
-    if (!map.getLayer('gpx-trace-aller')) {
-        map.addLayer({
-            id: 'gpx-trace-aller',
-            type: 'line',
-            source: 'colored-segments',
-            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
-            paint: {
-                'line-width': 4,
-                'line-opacity': 1,
-                'line-color': ['get', 'color_raw']
-            },
-            filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
-        });
-    }
+        // Layer 1: Trace complète (SUPPRIME - Simplification Phase 8)
+        
+        // Layer 2: Overlay Aller (Tout SAUF Retour)
+        // Filter: type != 'retour_overlap'
+        if (!map.getLayer('gpx-trace-aller')) {
+            map.addLayer({
+                id: 'gpx-trace-aller',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, // Visible par défaut pour "all"
+                paint: {
+                    'line-width': 4,
+                    'line-opacity': 1,
+                    'line-color': ['get', 'color_raw']
+                },
+                filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
+            });
+        }
 
     // Layer 3: Overlay Retour (Tout SAUF Aller)
     // Filter: type != 'aller_overlap'
@@ -344,16 +324,13 @@ function updateMapFeatures() {
 function updateLayerVisibility() {
     if (!map) return;
     
-    const showComplete = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'complete';
+    // 'complete' n'existe plus. 'all' affiche Aller + Retour.
     const showAller = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'aller';
     const showRetour = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'retour';
     
     // Global toggle
     const globalVisible = showTrace.value;
 
-    if (map.getLayer('gpx-trace-complete')) {
-        map.setLayoutProperty('gpx-trace-complete', 'visibility', globalVisible && showComplete ? 'visible' : 'none');
-    }
     if (map.getLayer('gpx-trace-aller')) {
         map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller ? 'visible' : 'none');
     }

@@ -470,32 +470,50 @@ async function executeFlytoSequence(flytoData) {
   distanceDisplay.value = distanceTraveled.toFixed(2);
   currentDistanceInMeters.value = distanceTraveled * 1000;
 
-  // Détecter si on est dans une zone de superposition
-  const activeSegment = getCurrentSegmentZone(distanceTraveled, segmentMetadata.value);
+  // --- Refonte Phase 8 : Bascule Globale Aller -> Retour ---
+  // On ne gère plus des zones individuelles, mais une phase globale.
+  // Tant qu'on n'a pas dépassé le dernier segment "Aller", on affiche le calque Aller.
+  // Ensuite, on bascule sur le calque Retour pour toujours.
   
-  if (activeSegment) {
-      // On est dans une zone de superposition
-      if (!currentActiveZone.value || 
-          currentActiveZone.value.zoneId !== activeSegment.zone.zoneId ||
-          currentActiveZone.value.direction !== activeSegment.direction) {
-          
-          console.log(`🔄 [Visualize] Zone ${activeSegment.zone.zoneId} - ${activeSegment.direction} (km ${distanceTraveled.toFixed(1)})`);
-          currentActiveZone.value = { 
-              zoneId: activeSegment.zone.zoneId, 
-              direction: activeSegment.direction 
-          };
-          
-          // Phase 5c: Recalculer le gradient pour n'afficher que la pente du segment actif
-          // Appel sans await pour ne pas bloquer l'animation
-          updateTraceGradient(activeSegment.zone.zoneId, activeSegment.direction);
-      }
-  } else if (currentActiveZone.value !== null) {
-      // On sort d'une zone de superposition
-      console.log(`✅ [Visualize] Sortie de zone ${currentActiveZone.value.zoneId}`);
-      currentActiveZone.value = null;
+  if (segmentMetadata.value && segmentMetadata.value.overlappingZones && segmentMetadata.value.overlappingZones.length > 0) {
+      // Trouver le point de bascule ultime (le max de tous les aller_end_km)
+      // Correction: On utilise KM et pas Index, car Index Backend (LineString) != Index Frontend (Tracking)
       
-      // Réinitialiser le gradient complet
-      updateTraceGradient(null, null);
+      let maxAllerEndKm = 0;
+      segmentMetadata.value.overlappingZones.forEach(z => {
+          if (z.allerEndKm > maxAllerEndKm) maxAllerEndKm = z.allerEndKm;
+      });
+      
+      const isPhaseRetour = distanceTraveled > maxAllerEndKm;
+      
+      if (map) {
+          if (isPhaseRetour) {
+              // Mode Retour : Afficher uniquement l'overlay retour (qui contient tout sauf aller_overlap)
+              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'none') {
+                  map.setLayoutProperty('trace-overlap-aller', 'visibility', 'none');
+              }
+              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'visible') {
+                  map.setLayoutProperty('trace-overlap-retour', 'visibility', 'visible');
+                  console.log(`🔀 [Visualize] Bascule Phase RETOUR (Km ${distanceTraveled.toFixed(2)} > ${maxAllerEndKm.toFixed(2)})`);
+              }
+          } else {
+              // Mode Aller : Afficher uniquement l'overlay aller (qui contient tout sauf retour_overlap)
+              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'none') {
+                  map.setLayoutProperty('trace-overlap-retour', 'visibility', 'none');
+              }
+              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
+                  map.setLayoutProperty('trace-overlap-aller', 'visibility', 'visible');
+                  // console.log(`🔀 [Visualize] Phase ALLER`);
+              }
+          }
+      }
+  } else {
+      // Pas de metadata (trace simple) : "Aller" par défaut
+      if (map && map.getLayer('trace-overlap-aller')) {
+           if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
+              map.setLayoutProperty('trace-overlap-aller', 'visibility', 'visible');
+           }
+      }
   }
 
   const cometLengthKm = cometLength.value / 1000;
@@ -1697,33 +1715,17 @@ const initializeMap = async () => {
       if (coloredSegmentsGeoJson && !map.getSource('colored-segments')) {
         map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson });
 
-        // Layer 1: Trace complète (Gris sur overlaps, couleur ailleurs)
-        if (!map.getLayer('trace-complete')) {
-            map.addLayer({
-                id: 'trace-complete',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
-                    'line-color': [
-                        'case',
-                        ['match', ['get', 'segment_type'], ['aller_overlap', 'retour_overlap'], true, false],
-                        '#808080', // Gris si overlap
-                        ['get', 'color_raw'] // Couleur sinon
-                    ]
-                }
-            });
-        }
-
+        // Layer 1: Trace complète (SUPPRIME - Simplification Phase 8)
+        // On n'affiche plus de couche grise en dessous.
+        // Seules les couches Aller et Retour s'alternent.
+        
         // Layer 2: Overlay Aller (Tout SAUF Retour)
         if (!map.getLayer('trace-overlap-aller')) {
             map.addLayer({
                 id: 'trace-overlap-aller',
                 type: 'line',
                 source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, // Visible par défaut (Phase Aller)
                 paint: {
                     'line-width': 4,
                     'line-opacity': 1,
