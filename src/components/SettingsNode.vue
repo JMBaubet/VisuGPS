@@ -25,7 +25,7 @@
         class="param-item"
       >
         <template v-slot:prepend>
-          <v-icon :color="param.surcharge != null ? 'yellow' : undefined">mdi-file-cog-outline</v-icon>
+          <v-icon :color="param.surcharge != null ? (param.critique ? 'red' : 'yellow') : undefined">mdi-file-cog-outline</v-icon>
           <v-btn
             v-if="param.doc"
             icon="mdi-book-open-page-variant-outline"
