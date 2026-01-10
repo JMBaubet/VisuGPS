@@ -15,8 +15,8 @@ graph TD
     C -->|3. Moyenne Glissante| D(Lissage Esthétique)
     D -->|4. Écrêtage Final| E[Données Nettoyées]
     
-    style A fill:#ffcccc,stroke:#333
-    style E fill:#ccffcc,stroke:#333
+    style A stroke:#ff0000,stroke-width:2px,fill:none
+    style E stroke:#00ff00,stroke-width:2px,fill:none
 ```
 
 ---
@@ -35,6 +35,7 @@ Le système calcule la pente entre deux points. Si elle dépasse votre paramètr
 Dans cet exemple, le point rouge est une erreur GPS (saut de 10m sur 10m de distance = 100% de pente). Avec une limite à 30%, il est corrigé.
 
 ```mermaid
+%%{init: { 'themeVariables': { 'xyChart': { 'plotColorPalette': '#0055ff, #ff0000' } } } }%%
 xychart-beta
     title "Correction de Pente (Limite 30%)"
     x-axis [0m, 10m, 20m, 30m, 40m]
@@ -42,7 +43,7 @@ xychart-beta
     line [100, 110, 106, 109, 112]
     line [100, 103, 106, 109, 112]
 ```
-*(Légende : Ligne bleue = Brut, Ligne orange = Corrigé. Le pic à 110m est ramené à 103m car 10m de dénivelé sur 10m est interdit).*
+*(Légende : La courbe présentant le pic de 10m est corrigée pour respecter la pente maximale).*
 
 ---
 
@@ -60,6 +61,7 @@ L'algorithme regarde une fenêtre de points autour de la cible (ex: 5 points) et
 Le filtre médian (fenêtre de 3) supprime totalement le pic sans toucher au reste.
 
 ```mermaid
+%%{init: { 'themeVariables': { 'xyChart': { 'plotColorPalette': '#0055ff, #ff0000' } } } }%%
 xychart-beta
     title "Filtre Médian (Suppression de Pic)"
     x-axis [T1, T2, T3-Erreur, T4, T5]
@@ -85,6 +87,7 @@ On fait la moyenne de chaque point avec ses voisins. Cela arrondit les angles et
 Transformation d'une courbe anguleuse en courbe fluide.
 
 ```mermaid
+%%{init: { 'themeVariables': { 'xyChart': { 'plotColorPalette': '#0055ff, #ff0000' } } } }%%
 xychart-beta
     title "Moyenne Glissante (Lissage)"
     x-axis [0, 1, 2, 3, 4, 5, 6]
@@ -117,10 +120,10 @@ graph LR
     F -->|...| G[Point Retour]
     end
     
-    style A fill:#f9f,stroke:#333
-    style B fill:#f9f,stroke:#333
-    style D fill:#ccf,stroke:#333
-    style E fill:#ccf,stroke:#333
+    style A stroke:#ff0000,stroke-width:2px,fill:none
+    style B stroke:#ff0000,stroke-width:2px,fill:none
+    style D stroke:#0000ff,stroke-width:2px,fill:none
+    style E stroke:#0000ff,stroke-width:2px,fill:none
 ```
 
 ---
