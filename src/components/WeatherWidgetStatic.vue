@@ -1,6 +1,6 @@
 <template>
   <div class="weather-matrix-overlay" @click.self="$emit('close')">
-    <v-card class="matrix-card" elevation="10">
+    <v-card class="matrix-card" elevation="10" :style="{ width: cardWidth, maxWidth: '95vw' }">
       <v-card-title class="d-flex align-center justify-space-between py-2 px-4 bg-primary text-white">
         <div class="d-flex align-center">
             <span>Météo pour le</span>
@@ -10,19 +10,6 @@
         </div>
 
         <div class="d-flex align-center">
-             <v-select
-                v-model="selectedStep"
-                :items="[1, 2, 5, 10]"
-                suffix="km"
-                density="compact"
-                variant="outlined"
-                hide-details
-                class="mr-3 text-caption"
-                style="max-width: 110px;"
-                bg-color="transparent"
-                base-color="white"
-                color="white"
-            ></v-select>
             <v-btn icon variant="text" color="white" @click="$emit('close')">
               <v-icon>mdi-close</v-icon>
             </v-btn>
@@ -33,7 +20,19 @@
         <table class="matrix-table">
           <thead>
             <tr>
-              <th class="sticky-col text-center">Distance</th>
+              <th class="sticky-col text-center pa-1">
+                  <v-btn
+                    variant="text"
+                    size="small"
+                    class="text-none px-1"
+                    color="on-surface"
+                    @click="cycleStep"
+                    title="Cliquer pour changer l'échelle (1, 2, 5, 10 km)"
+                  >
+                     Distance ({{ selectedStep }} km)
+                     <v-icon end size="small">mdi-refresh</v-icon>
+                  </v-btn>
+              </th>
               <th v-for="(scen, idx) in localScenarios" :key="idx" class="text-center" style="min-width: 100px;">
                 <div class="d-flex flex-column align-center">
                    <div class="text-caption font-weight-bold mb-1">{{ scen.nom || `Groupe ${idx + 1}` }}</div>
@@ -120,6 +119,12 @@ const props = defineProps({
 });
 
 const selectedStep = ref(5);
+const cycleStep = () => {
+    const steps = [1, 2, 5, 10];
+    const idx = steps.indexOf(selectedStep.value);
+    const nextIdx = (idx + 1) % steps.length;
+    selectedStep.value = steps[nextIdx];
+};
 const localScenarios = ref([]);
 
 watch(() => props.scenarios, (newVal) => {
@@ -155,7 +160,7 @@ const matrixRows = computed(() => {
     // Sort by increment just in case
     const sortedMatrix = [...props.weatherMatrix].sort((a,b) => a.increment - b.increment);
 
-    const filtered = sortedMatrix.filter(p => p.increment % selectedStep.value === 0);
+    const filtered = sortedMatrix.filter(p => p.increment % (selectedStep.value * 10) === 0);
 
     return filtered.map(point => {
         const increment = point.increment;
@@ -247,6 +252,16 @@ const matrixRows = computed(() => {
         };
     });
 });
+
+const cardWidth = computed(() => {
+    // Distance col ~200px (header with button), Group cols ~280px.
+    // Title bar needs min ~900px.
+    const needed = 200 + localScenarios.value.length * 280;
+    const min = 900;
+    const max = 1800; // Cap
+    const val = Math.max(min, needed);
+    return Math.min(val, max) + 'px';
+});
 </script>
 
 <style scoped>
@@ -265,8 +280,6 @@ const matrixRows = computed(() => {
 }
 
 .matrix-card {
-  width: 95%;
-  max-width: 1200px;
   height: 85vh;
   display: flex;
   flex-direction: column;

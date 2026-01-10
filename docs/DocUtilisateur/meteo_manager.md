@@ -40,6 +40,7 @@ Parmi vos groupes, l'un d'eux doit être désigné comme **Référence**.
 
 -   **Mettre à jour** : Enregistre votre configuration (Date + Groupes) dans le fichier du circuit.
 -   **Télécharger Météo** : Cette action force la récupération des données météo depuis le serveur pour la date choisie.
+-   **Visualiser Météo** : Ouvre un tableau détaillé des prévisions météo pour chaque groupe tout au long du parcours. Cette option n'est disponible que si les données météo sont présentes.
 
 ---
 

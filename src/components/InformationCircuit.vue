@@ -101,14 +101,14 @@
             <!-- Weather Configuration -->
             <v-divider class="my-3"></v-divider>
             <div class="d-flex justify-space-between align-center px-2">
-                <div class="text-subtitle-2">Météo & Scénarios</div>
+                <div class="text-subtitle-2">Météo & Groupes</div>
                 <v-btn
                     color="primary"
                     variant="tonal"
                     prepend-icon="mdi-sun-thermometer"
                     @click="showMeteoDialog = true"
                 >
-                    Gestion Météo
+                    Météo et Groupes
                 </v-btn>
             </div>
             

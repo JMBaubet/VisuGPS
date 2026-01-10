@@ -42,8 +42,19 @@
                             class="text-caption mr-2 text-right font-weight-bold" 
                             :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
                         >
-                            Le fichier météo pour le {{ formattedDateLong }} est présent. Il a été mis à jour {{ weatherFileRelativeTime }}.
+                            Le fichier météo pour le {{ formattedDateLong }} a été mis à jour {{ weatherFileRelativeTime }}.
                         </div>
+                        <v-btn
+                            size="small"
+                            color="info"
+                            variant="flat"
+                            class="mr-2"
+                            @click="loadAndShowWeather"
+                            prepend-icon="mdi-eye"
+                            :disabled="!isValid"
+                        >
+                            Voir
+                        </v-btn>
                         <v-btn
                             size="small"
                             color="warning"
@@ -81,7 +92,7 @@
 
         <!-- Groups Management -->
         <div class="d-flex justify-space-between align-center mb-2">
-            <div class="text-subtitle-1 font-weight-bold">Groupes & Scénarios</div>
+            <div class="text-subtitle-1 font-weight-bold">Groupes</div>
             <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addGroup">
                 Ajouter Groupe
             </v-btn>
@@ -146,6 +157,17 @@
   <v-dialog v-model="showDocDialog" max-width="800px" height="80%">
       <DocDisplay :doc-path="currentDocPath" @close="showDocDialog = false" />
   </v-dialog>
+
+  <Teleport to="body">
+    <WeatherWidgetStatic 
+        v-if="showWeatherWidget"
+        :weather-matrix="weatherMatrix"
+        :scenarios="editedScenarios"
+        :date="weatherDate"
+        @close="showWeatherWidget = false"
+        style="z-index: 2500;"
+    />
+  </Teleport>
 </template>
 
 <script setup>
@@ -156,6 +178,7 @@ import { useSettings } from '@/composables/useSettings';
 import EditTime from './EditTime.vue';
 import WeatherService from '@/services/WeatherService';
 import DocDisplay from './DocDisplay.vue';
+import WeatherWidgetStatic from './WeatherWidgetStatic.vue';
 
 const props = defineProps({
   modelValue: {
@@ -459,6 +482,35 @@ const downloadWeather = async () => {
         showSnackbar("Erreur téléchargement météo: " + e.message, 'error');
     } finally {
         isDownloadingWeather.value = false;
+    }
+};
+
+// Weather Widget Display Logic
+const showWeatherWidget = ref(false);
+const weatherMatrix = ref([]);
+const weatherDate = ref(null);
+
+const loadAndShowWeather = async () => {
+    if (!props.circuit?.circuitId || !editedDateDepart.value) return;
+    
+    const filename = getFilenameForDate(editedDateDepart.value);
+    try {
+        const cacheContent = await invoke('check_weather_cache', { 
+            circuitId: props.circuit.circuitId, 
+            filename 
+        });
+        
+        if (cacheContent) {
+            weatherMatrix.value = JSON.parse(cacheContent);
+            const [y, m, d] = editedDateDepart.value.split('-').map(Number);
+            weatherDate.value = new Date(y, m - 1, d);
+            showWeatherWidget.value = true;
+        } else {
+            showSnackbar("Aucun fichier météo trouvé pour cette date.", "warning");
+        }
+    } catch (e) {
+        console.error("Failed to load weather:", e);
+        showSnackbar("Erreur lors du chargement de la météo.", "error");
     }
 };
 

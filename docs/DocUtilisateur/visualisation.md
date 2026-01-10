@@ -69,7 +69,6 @@ Vous pouvez piloter intégralement votre visualisation depuis votre smartphone (
 | **D** | Afficher / Masquer le Widget Distance |
 | **C** | Afficher / Masquer le Widget Commune |
 | **M** | Afficher / Masquer l'Information Météo |
-| **Ctrl + M** | Afficher / Masquer le Tableau Météo |
 | **B** | Afficher / Masquer la Boussole |
 | **Shift + B** | Changer le mode d'orientation de la boussole |
 | **R** | Recommencer depuis le début (Reset) |
