@@ -34,6 +34,8 @@ Cette détection permet d'afficher correctement la pente sur les segments aller 
 - Les segments qui passent à 15-20m l'un de l'autre ne seront pas détectés
 - La pente du retour écrasera celle de l'aller
 
+> **Note** : Une valeur plus faible peut être nécessaire pour des tracés spécifiques de montagne avec des lacets très serrés (ex : **lacets du Mont Vernier** N 45.317578, E 6.33768), où la route se replie sur elle-même sur de très courtes distances.
+
 ### Valeur optimale (15-25m)
 
 ✅ **Recommandé** pour la plupart des cas
