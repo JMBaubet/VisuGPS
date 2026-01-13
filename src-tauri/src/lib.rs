@@ -27,6 +27,7 @@ pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
 pub mod tracking_processor;
+pub mod variant_processor;
 pub mod weather_cache;
 
 use chrono::prelude::*;
@@ -486,15 +487,7 @@ fn read_line_string_file(
     Ok(json_content)
 }
 
-#[tauri::command]
-fn read_tracking_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Value, String> {
-    let state = state.lock().unwrap();
-    let data_dir = state.app_env_path.join("data").join(circuit_id);
-    let tracking_path = data_dir.join("tracking.json");
-    let file_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
-    let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
-    Ok(json_content)
-}
+
 
 #[tauri::command]
 fn read_errors_file(
@@ -587,6 +580,7 @@ pub struct CircuitForDisplay {
     has_errors: bool,
     #[serde(rename = "meteoConfig")]
     meteo_config: Option<gpx_processor::CircuitMeteoConfig>,
+    pub variant_count: usize,
 }
 
 #[tauri::command]
@@ -648,6 +642,23 @@ fn get_circuits_for_display(
                 avancement_communes: circuit.avancement_communes,
                 has_errors,
                 meteo_config: circuit.meteo_config.clone(),
+                variant_count: {
+                    let circuit_data_dir = state.app_env_path.join("data").join(&circuit.circuit_id);
+                    if circuit_data_dir.exists() {
+                        fs::read_dir(circuit_data_dir)
+                            .map(|entries| {
+                                entries.filter_map(|e| e.ok())
+                                    .filter(|e| {
+                                        let filename = e.file_name().to_string_lossy().into_owned();
+                                        filename.starts_with("archive_") && filename.ends_with(".json")
+                                    })
+                                    .count()
+                            })
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    }
+                },
             }
         })
         .collect();
@@ -2386,7 +2397,6 @@ pub fn run() {
             get_thumbnail_as_base64,
             get_qrcode_as_base64,
             read_line_string_file,
-            read_tracking_file,
             read_errors_file,
             save_tracking_file,
             convert_vuetify_color,
@@ -2462,7 +2472,12 @@ pub fn run() {
             weather_cache::check_weather_cache_metadata,
             // Segment analyzer commands
             analyze_segment_overlaps,
-            get_segment_metadata
+            get_segment_metadata,
+            variant_processor::create_variant_files,
+            variant_processor::calculate_route,
+            variant_processor::get_variants,
+            variant_processor::delete_variant,
+            tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

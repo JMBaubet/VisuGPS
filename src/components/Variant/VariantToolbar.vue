@@ -1,0 +1,101 @@
+<template>
+  <v-toolbar density="compact" class="transition-swing">
+    <v-btn icon @click="$emit('close')" class="ml-2 mr-2">
+      <v-icon>mdi-home</v-icon>
+    </v-btn>
+
+    <v-toolbar-title class="font-weight-bold">
+      {{ circuitName }}
+    </v-toolbar-title>
+
+    <v-spacer></v-spacer>
+
+    <v-btn-toggle
+      v-model="internalMode"
+      mandatory
+      rounded="lg"
+      class="mr-4"
+      variant="tonal"
+      density="compact"
+    >
+      <v-btn value="DEPART" color="success">
+        <v-icon start>mdi-map-marker-minus</v-icon>
+        Départ
+      </v-btn>
+
+      <v-btn value="SEGMENT" color="primary">
+        <v-icon start>mdi-bezier-curve</v-icon>
+        Segment
+      </v-btn>
+
+      <v-btn value="ARRIVEE" color="error">
+        <v-icon start>mdi-map-marker-plus</v-icon>
+        Arrivée
+      </v-btn>
+    </v-btn-toggle>
+
+    <v-spacer></v-spacer>
+
+    <!-- Routing Profile Toggle -->
+    <v-btn-toggle
+      v-model="internalProfile"
+      mandatory
+      rounded="lg"
+      class="mr-4"
+      variant="outlined"
+      density="compact"
+      color="primary"
+    >
+      <v-btn value="car" title="Voiture (sans autoroutes)">
+        <v-icon>mdi-car</v-icon>
+      </v-btn>
+      <v-btn value="racingbike" title="Vélo de route">
+        <v-icon>mdi-bicycle-electric</v-icon>
+      </v-btn>
+      <v-btn value="bike" title="VTT / Chemin">
+        <v-icon>mdi-bike</v-icon>
+      </v-btn>
+    </v-btn-toggle>
+
+  </v-toolbar>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { useTheme } from 'vuetify';
+
+const props = defineProps({
+  mode: {
+    type: String,
+    required: true,
+    validator: v => ['DEPART', 'SEGMENT', 'ARRIVEE'].includes(v)
+  },
+  profile: {
+    type: String,
+    default: 'bike'
+  },
+  circuitName: {
+    type: String,
+    default: ''
+  }
+});
+
+const emit = defineEmits(['update:mode', 'update:profile', 'save', 'close']);
+const theme = useTheme();
+
+const internalMode = computed({
+  get: () => props.mode,
+  set: (val) => emit('update:mode', val)
+});
+
+const internalProfile = computed({
+  get: () => props.profile,
+  set: (val) => emit('update:profile', val)
+});
+</script>
+
+<style scoped>
+.transition-swing {
+  transition: background-color 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
+}
+</style>

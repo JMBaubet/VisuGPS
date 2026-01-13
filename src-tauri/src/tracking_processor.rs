@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use tauri::Manager;
 use geo::{
     Point,
     prelude::*,
@@ -29,6 +30,7 @@ pub fn generate_tracking_file(
     circuit_id: &str,
     track_points: &Vec<Vec<f64>>,
     settings: &serde_json::Value,
+    output_filename: Option<&str>,
 ) -> Result<usize, String> {
     let segment_length = super::get_setting_value(settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
         .and_then(|v| v.as_f64())
@@ -119,12 +121,36 @@ pub fn generate_tracking_file(
 
     let data_dir = app_env_path.join("data");
     let circuit_data_dir = data_dir.join(circuit_id);
-    let tracking_path = circuit_data_dir.join("tracking.json");
+    let tracking_filename = output_filename.unwrap_or("tracking.json");
+    let tracking_path = circuit_data_dir.join(tracking_filename);
 
     let tracking_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
     fs::write(&tracking_path, tracking_content).map_err(|e| e.to_string())?; 
 
     Ok(tracking_points.len())
+}
+
+
+#[tauri::command]
+pub fn read_tracking_file(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+) -> Result<String, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let data_dir = app_env_path.join("data");
+    let circuit_data_dir = data_dir.join(circuit_id);
+    let tracking_path = circuit_data_dir.join("tracking.json");
+
+    if !tracking_path.exists() {
+        return Err("Tracking file not found".to_string());
+    }
+
+    fs::read_to_string(tracking_path).map_err(|e| e.to_string())
 }
 
 fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, window_size: usize) -> f64 {

@@ -1185,6 +1185,99 @@
         ]
       },
       {
+        "libelle": "Variante",
+        "parametres": [
+          {
+            "identifiant": "originalColor",
+            "libelle": "Couleur trace maîtresse",
+            "description": "Couleur de la trace originale lors de l'édition d'une variante.",
+            "type": "couleur",
+            "defaut": "#BDBDBD",
+            "materialDesign": false,
+            "doc": "docs/DocParametrage/Variante/originalColor.md"
+          },
+          {
+            "identifiant": "previewColor",
+            "libelle": "Couleur trace aperçu",
+            "description": "Couleur du segment en cours de création.",
+            "type": "couleur",
+            "defaut": "#651FFF",
+            "materialDesign": false,
+            "doc": "docs/DocParametrage/Variante/previewColor.md"
+          },
+          {
+            "identifiant": "nodeColor",
+            "libelle": "Couleur des nœuds",
+            "description": "Couleur des points d'ancrage affichés sur la trace maîtresse.",
+            "type": "couleur",
+            "defaut": "#FFFFFF",
+            "materialDesign": false,
+            "doc": "docs/DocParametrage/Variante/nodeColor.md"
+          },
+          {
+            "identifiant": "routingService",
+            "libelle": "Service de routage",
+            "description": "Service utilisé pour calculer l'itinéraire entre les points.",
+            "type": "list",
+            "defaut": "GraphHopper",
+            "valeurs": [
+              "GraphHopper",
+              "OpenRouteService"
+            ],
+            "doc": "docs/DocParametrage/Variante/routingService.md"
+          },
+          {
+            "identifiant": "routingApiKey",
+            "libelle": "Clé API Routage",
+            "description": "Clé API pour le service de routage (GraphHopper ou OpenRouteService).",
+            "type": "string",
+            "defaut": "",
+            "doc": "docs/DocParametrage/Variante/routingApiKey.md"
+          },
+          {
+            "identifiant": "routingType",
+            "libelle": "Profil de routage",
+            "description": "Profil de véhicule utilisé par défaut pour le calcul d'itinéraire (bike, mtb, racingbike, car, foot).",
+            "type": "list",
+            "defaut": "bike",
+            "valeurs": [
+              "bike",
+              "mtb",
+              "racingbike",
+              "car",
+              "foot"
+            ],
+            "doc": "docs/DocParametrage/Variante/routingType.md"
+          },
+          {
+            "identifiant": "mapStyle",
+            "libelle": "Style de carte",
+            "description": "Style de carte Mapbox utilisé pour l'édition des variantes (Standard, Satellite, Outdoors).",
+            "type": "list",
+            "defaut": "mapbox://styles/mapbox/standard",
+            "valeurs": [
+              "mapbox://styles/mapbox/standard",
+              "mapbox://styles/mapbox/outdoors-v12",
+              "mapbox://styles/mapbox/satellite-v9",
+              "mapbox://styles/mapbox/streets-v11",
+              "mapbox://styles/mapbox/light-v10",
+              "mapbox://styles/mapbox/dark-v10"
+            ],
+            "doc": "docs/DocParametrage/Variante/mapStyle.md"
+          },
+          {
+            "identifiant": "zoomVisuNode",
+            "libelle": "Zoom visibilité nœuds",
+            "description": "Niveau de zoom minimum pour afficher les points d'ancrage sur la trace maîtresse.",
+            "type": "entier",
+            "defaut": 13,
+            "min": 10,
+            "max": 20,
+            "doc": "docs/DocParametrage/Variante/zoomVisuNode.md"
+          }
+        ]
+      },
+      {
         "libelle": "Visualisation",
         "groupes": [
           {

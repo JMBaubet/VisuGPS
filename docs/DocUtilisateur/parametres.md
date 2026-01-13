@@ -223,17 +223,38 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ---
 
-## 4. 🟡 Visualisation
+## 4. 🟣 Variante
+**Description** : Configuration de l'interface de création de traces alternatives (déviations, nouveaux départs/arrivées).
+
+### 4.1. Couleurs et Visibilité
+**Description** : Réglages graphiques pour distinguer la trace originale de la variante en cours d'édition.
+*   [Couleur trace maîtresse](../DocParametrage/Variante/originalColor.md)
+*   [Couleur trace aperçu](../DocParametrage/Variante/previewColor.md)
+*   [Couleur des nœuds](../DocParametrage/Variante/nodeColor.md)
+*   [Zoom visibilité nœuds](../DocParametrage/Variante/zoomVisuNode.md)
+
+### 4.2. Routage
+**Description** : Configuration du moteur de calcul d'itinéraire (GPS) utilisé pour tracer vos variantes.
+| Paramètre | Description |
+|---|---|
+| [Service de routage](../DocParametrage/Variante/routingService.md) | Choix du service (GraphHopper, ORS). |
+| [Clé API Routage](../DocParametrage/Variante/routingApiKey.md) | Clé d'authentification pour le service de routage. |
+| [Style de carte](../DocParametrage/Variante/mapStyle.md) | Choix du fond de carte (Standard, Satellite, etc.). |
+| [Profil de routage](../DocParametrage/Variante/routingType.md) | Profil par défaut (vélo, piéton, etc.). |
+
+---
+
+## 5. 🟡 Visualisation
 **Description** : Réglages de l'expérience de vol finale, où l'animation est lancée en plein écran.
 
-### 4.1. Vue 3D
+### 5.1. Vue 3D
 **Description** : Rendu visuel global de la carte et du parcours pendant la lecture.
 
-#### 4.1.1. Carte
+#### 5.1.1. Carte
 **Description** : Style de carte (Satellite, Outdoor, etc.).
 *   [Style de la carte](../DocParametrage/Visualisation/Vue%203D/Carte/styleVisualisation.md)
 
-#### 4.1.2. Trace
+#### 5.1.2. Trace
 **Description** : Personnalisation visuelle du parcours et de la "comète" qui guide l'œil.
 *   [Colorer la trace selon la pente](../DocParametrage/Visualisation/Vue%203D/Trace/colorerSelonPente.md)
 *   [Couleur de la trace](../DocParametrage/Visualisation/Vue%203D/Trace/couleurTrace.md)
@@ -244,14 +265,14 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Opacité de la comète](../DocParametrage/Visualisation/Vue%203D/Trace/opaciteComete.md)
 *   [Longueur de la comète (m)](../DocParametrage/Visualisation/Vue%203D/Trace/longueurComete.md)
 
-### 4.2. Widgets
+### 5.2. Widgets
 **Description** : État initial (visible ou masqué) des indicateurs d'interface au lancement de l'animation.
 *   [Distance](../DocParametrage/Visualisation/Widgets/distance.md)
 *   [Communes](../DocParametrage/Visualisation/Widgets/communes.md)
 *   [Altitude](../DocParametrage/Visualisation/Widgets/altitude.md)
 *   [Commandes](../DocParametrage/Visualisation/Widgets/commandes.md)
 
-### 4.3. Lancement
+### 5.3. Lancement
 **Description** : Séquence d'introduction cinématographique (Plongée depuis l'espace vers le circuit).
 *   [Style de la carte au lancement](../DocParametrage/Visualisation/Lancement/styleLancement.md)
 *   [Centre initial](../DocParametrage/Visualisation/Lancement/centerEurope.md)
@@ -261,21 +282,21 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Durée vers le départ](../DocParametrage/Visualisation/Lancement/durationTraceToStart.md)
 *   [Durée de la pause au Km 0](../DocParametrage/Visualisation/Lancement/pauseAuKm0.md)
 
-### 4.4. Lecture
+### 5.4. Lecture
 **Description** : Paramètres de contrôle de la vitesse et comportement dynamique pendant le mouvement.
 
-#### 4.4.1. Vitesse
+#### 5.4.1. Vitesse
 **Description** : Bornes de vitesse et réglages du curseur de contrôle.
 *   [Vitesse minimale (x)](../DocParametrage/Visualisation/Lecture/Vitesse/min_value.md)
 *   [Vitesse maximale (x)](../DocParametrage/Visualisation/Lecture/Vitesse/max_value.md)
 *   [Vitesse par défaut (x)](../DocParametrage/Visualisation/Lecture/Vitesse/default_value.md)
 *   [Pas du slider (x)](../DocParametrage/Visualisation/Lecture/Vitesse/slider_step.md)
 
-#### 4.4.2. ZoomDynamique
+#### 5.4.2. ZoomDynamique
 **Description** : Système de zoom intelligent qui s'adapte à la vitesse de vol.
 *   [Intensité du zoom dynamique](../DocParametrage/Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique.md)
 
-#### 4.4.3. Comportement
+#### 5.4.3. Comportement
 **Description** : Réglages d'ergonomie et aides visuelles en cours de lecture.
 *   [Vitesse de l'animation (ms/km)](../DocParametrage/Visualisation/Lecture/vitesse.md)
 *   [Durée de la reprise après pause (ms)](../DocParametrage/Visualisation/Lecture/timerReprisePause.md)
@@ -284,7 +305,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Couleur de la croix centrale](../DocParametrage/Visualisation/Lecture/couleurCroixCentrale.md)
 *   [Zoom Minimum](../DocParametrage/Visualisation/Lecture/zoomMinimum.md)
 
-### 4.5. Finalisation
+### 5.5. Finalisation
 **Description** : Actions automatiques déclenchées lorsque le marqueur atteint l'arrivée.
 *   [Durée de la pause à l'arrivée](../DocParametrage/Visualisation/Finalisation/delayAfterAnimationEnd.md)
 *   [Durée vers la trace à l'arrivée](../DocParametrage/Visualisation/Finalisation/flyToGlobalDuration.md)
@@ -292,10 +313,10 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Reprise automatique](../DocParametrage/Visualisation/Finalisation/repriseAutomatique.md)
 *   [Durée de la pause avant reprise auto](../DocParametrage/Visualisation/Finalisation/pauseAvantReprise.md)
 
-### 4.6. Profil Altitude
+### 5.6. Profil Altitude
 **Description** : Configuration graphique de la vue en coupe du terrain.
 
-#### 4.6.1. Graphe
+#### 5.6.1. Graphe
 **Description** : Échelles des axes et fréquence des annotations de distance/altitude.
 *   [Echelle des abscisses](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/Abscisse.md)
 *   [Echelle des ordonnées](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/Ordonnee.md)
@@ -304,7 +325,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Position du curseur](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/CurseurPositionKm.md)
 *   [Aspect curseur lié à la comète](../DocParametrage/Visualisation/Profil%20Altitude/Graphe/aspectCurseurLieComete.md)
 
-#### 4.6.2. Couleurs de pente
+#### 5.6.2. Couleurs de pente
 **Description** : Attribution des couleurs selon le pourcentage d'inclinaison.
 *   [Pente <= 0%](../DocParametrage/Visualisation/Profil%20Altitude/Couleurs/TrancheNegative.md)
 *   [0% < Pente < 3%](../DocParametrage/Visualisation/Profil%20Altitude/Couleurs/Tranche1.md)
@@ -313,13 +334,13 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [9% <= Pente < 12%](../DocParametrage/Visualisation/Profil%20Altitude/Couleurs/Tranche4.md)
 *   [Pente >= 12%](../DocParametrage/Visualisation/Profil%20Altitude/Couleurs/Tranche5.md)
 
-### 4.7. Taille des Messages
+### 5.7. Taille des Messages
 **Description** : Réglages de la lisibilité des bulles de texte sur la carte.
 *   ⚠️ [Taille de police de base](../DocParametrage/Visualisation/Taille%20des%20Messages/baseFontSize.md)
 *   ⚠️ [Coefficient largeur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefLargeurMessage.md)
 *   ⚠️ [Coefficient réducteur message](../DocParametrage/Visualisation/Taille%20des%20Messages/coefReducteurMessage.md)
 
-### 4.8. Météo
+### 5.8. Météo
 **Description** : Gestion des données météorologiques et de l'orientation sur le parcours.
 *   [Activer la météo](../DocParametrage/Visualisation/Meteo/meteoActif.md)
 *   [Heure de départ par défaut](../DocParametrage/Visualisation/Meteo/heureDepart.md)
@@ -327,7 +348,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Heure de fin de journée](../DocParametrage/Visualisation/Meteo/heureFinJournee.md)
 *   [Vitesse moyenne par défaut (km/h)](../DocParametrage/Visualisation/Meteo/vitesseMoyenne.md)
 
-#### 4.8.1. Widgets
+#### 5.8.1. Widgets
 **Description** : Gadgets visuels pour la météo et la navigation.
 *   [Information Météo](../DocParametrage/Visualisation/Meteo/Widgets/informationMeteo.md)
 *   [Boussole](../DocParametrage/Visualisation/Meteo/Widgets/boussole.md)
@@ -335,20 +356,20 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 
 ---
 
-## 5. ⚙️ Système
+## 6. ⚙️ Système
 **Description** : Paramètres internes, gestion du matériel et services de communication.
 
-### 5.1. Fenêtre et Écran
+### 6.1. Fenêtre et Écran
 **Description** : Configuration de l'affichage de l'application sur votre poste de travail.
 *   [Taille fenêtre](../DocParametrage/Systeme/tailleFenetre.md)
 *   [Ecran](../DocParametrage/Systeme/ecran.md)
 
-### 5.2. Timers et Tokens
+### 6.2. Timers et Tokens
 **Description** : Paramètres réseau et clés d'accès aux services cartographiques.
 *   ⚠️ [Interval de vérification du réseau](../DocAnnexe/polling_timer_documentation.md)
 *   ⚠️ [Token Mapbox](../DocAnnexe/obtenir_token_mapbox.md)
 
-### 5.3. Télécommande
+### 6.3. Télécommande
 **Description** : Configuration du serveur de communication et sensibilité des contrôles mobiles.
 *   ⚠️ [Port du serveur](../DocParametrage/Systeme/Telecommande/Port.md)
 *   [Sensibilité du point de vue (X)](../DocParametrage/Systeme/Telecommande/sensibilitePointDeVueX.md)

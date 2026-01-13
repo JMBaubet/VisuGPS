@@ -16,8 +16,19 @@
           <span class="mx-1">|</span>
           Dénivelé : {{ circuit.deniveleM }} m
         </div>
-        <div v-if="circuit.sommet">
+        <div v-if="circuit.sommet" class="d-flex align-center justify-space-between mt-1">
           <span class="text-caption">Sommet : {{ circuit.sommet.altitudeM }} m à {{ circuit.sommet.km }} km</span>
+          <v-chip
+            size="x-small"
+            :color="circuit.variantCount > 0 ? 'blue' : 'grey-darken-1'"
+            variant="flat"
+            class="text-caption clickable-chip"
+            @click.stop="editVariants"
+            :prepend-icon="circuit.variantCount === 0 ? 'mdi-plus' : 'mdi-source-branch'"
+            :title="circuit.variantCount === 0 ? 'Créer une nouvelle variante' : 'Ouvrir l\'éditeur de variantes'"
+          >
+            {{ variantLabel }}
+          </v-chip>
         </div>
       </v-col>
 
@@ -95,6 +106,8 @@
             @update-circuit="handleCircuitUpdate"
           />
         </v-dialog>
+
+
 
         <v-btn icon="mdi-pencil" variant="text" @click.stop="editTracking" :color="editButtonColor" title="Éditer le tracking"></v-btn>
         
@@ -185,6 +198,12 @@ const vignettePlaceholderStyle = computed(() => {
 
 const isView3dDisabled = computed(() => {
   return serviceStatus.value !== 'connected';
+});
+
+const variantLabel = computed(() => {
+  if (props.circuit.variantCount === 0) return 'Variante';
+  if (props.circuit.variantCount === 1) return '1 Variante';
+  return `${props.circuit.variantCount} Variantes`;
 });
 
 // Weather Status Logic
@@ -308,6 +327,10 @@ const editTracking = () => {
   router.push({ name: 'EditView', params: { circuitId: props.circuit.circuitId } });
 };
 
+const editVariants = () => {
+  router.push({ name: 'VariantTraceView', params: { circuitId: props.circuit.circuitId } });
+};
+
 const openMeteo = () => {
   emit('open-meteo', props.circuit);
 };
@@ -377,5 +400,12 @@ watch(appEnvPath, () => {
 <style scoped>
 .v-list-item {
   border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+.clickable-chip {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.clickable-chip:hover {
+  opacity: 0.8;
 }
 </style>

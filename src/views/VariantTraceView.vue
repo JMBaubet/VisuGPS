@@ -1,0 +1,646 @@
+<template>
+  <div class="d-flex flex-row fill-height overflow-hidden" style="height: 100vh; width: 100vw;">
+    <!-- Main Content Area (Toolbar + Map) -->
+    <div class="d-flex flex-column flex-grow-1" style="min-width: 0;">
+       <VariantToolbar
+         v-model:mode="currentMode"
+         v-model:profile="variantConfig.routingProfile"
+         :circuit-name="circuitName"
+         @save="saveVariant"
+         @close="goHome"
+       />
+
+       <div class="flex-grow-1 w-100 position-relative">
+         <div id="map-container" class="fill-height w-100"></div>
+         
+         <v-overlay
+           v-model="isLoading"
+           contained
+           class="align-center justify-center"
+         >
+           <v-progress-circular indeterminate color="primary"></v-progress-circular>
+         </v-overlay>
+       </div>
+    </div>
+
+    <!-- Sidebar Area (Full Height) -->
+    <div 
+      v-if="showSidebar" 
+      class="fill-height border-s bg-white" 
+      style="width: 400px; flex: 0 0 400px;"
+    >
+      <VariantSidebar
+        :active-mode="currentMode"
+        v-model:config="variantConfig"
+        :modifications="modifications"
+        :saved-variants="savedVariants"
+        :can-generate-preview="canGeneratePreview"
+        :is-valid="isValid"
+        @generate="generatePreview"
+        @save="saveVariant"
+        @delete-point="handleDeletePoint"
+        @delete-mod="handleDeleteMod"
+        @finalize-mod="finalizeMod"
+        @delete-saved-variant="handleDeleteSavedVariant"
+        @reset="resetPoints"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { invoke } from '@tauri-apps/api/core';
+import VariantToolbar from '../components/Variant/VariantToolbar.vue';
+import VariantSidebar from '../components/Variant/VariantSidebar.vue';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import * as turf from '@turf/turf';
+
+import { useSettings } from '../composables/useSettings';
+import { useVuetifyColors } from '../composables/useVuetifyColors';
+import { useSnackbar } from '../composables/useSnackbar';
+
+const props = defineProps({
+  circuitId: {
+    type: String,
+    required: true
+  }
+});
+
+const router = useRouter();
+const { getSettingValue, initSettings } = useSettings();
+const { toHex } = useVuetifyColors();
+const { showSnackbar } = useSnackbar();
+
+const currentMode = ref('SEGMENT'); 
+const showSidebar = ref(true);
+const isLoading = ref(true);
+
+const variantConfig = ref({
+  routingService: 'GraphHopper',
+  routingProfile: 'bike'
+});
+
+const circuitName = ref('');
+
+const map = ref(null);
+const masterTraceGeojson = ref(null);
+const trackingPoints = ref([]);
+const modifications = ref([]);
+const savedVariants = ref([]);
+const previewGeojson = ref(null);
+const canGeneratePreview = computed(() => {
+  return modifications.value.some(m => m.points.length >= 2);
+});
+
+const isValid = computed(() => {
+  return modifications.value.length > 0 && modifications.value.every(m => m.finalized);
+});
+
+// watch(currentMode, () => {
+//     resetPoints();
+// });
+
+const resetPoints = () => {
+    modifications.value = [];
+    previewGeojson.value = null;
+    if (map.value && map.value.getSource('preview-source')) {
+        map.value.getSource('preview-source').setData({type: 'FeatureCollection', features: []});
+    }
+    if (map.value && map.value.getSource('markers-source')) {
+        map.value.getSource('markers-source').setData({type: 'FeatureCollection', features: []});
+    }
+};
+
+// Helper to ensure Mapbox gets a valid hex color
+const resolveColor = (colorValue, fallback) => {
+    if (!colorValue) return fallback;
+    // Attempt to convert Vuetify name to hex
+    const hex = toHex(colorValue);
+    // If toHex returned a valid hex string, use it. Otherwise uses fallback.
+    // Note: toHex returns input if not found in palette. So we check for # again.
+    return hex.startsWith('#') ? hex : fallback;
+};
+
+const initMap = async () => {
+  try {
+    await initSettings(); // Ensure settings are loaded
+    
+    // Retrieve token via composable
+    const token = getSettingValue('Système/Tokens/mapbox');
+    if (!token) {
+        console.error("Mapbox token not found in settings");
+        isLoading.value = false;
+        return;
+    }
+    
+    // Load behavior settings
+    variantConfig.value.routingService = getSettingValue('Variante/routingService') || 'GraphHopper';
+    console.log(`[Init] Using routing service: ${variantConfig.value.routingService}`);
+
+    mapboxgl.accessToken = token;
+
+    map.value = new mapboxgl.Map({
+      container: 'map-container',
+      style: getSettingValue('Variante/mapStyle') || 'mapbox://styles/mapbox/outdoors-v12',
+      center: [2.2137, 46.2276],
+      zoom: 5
+    });
+
+    map.value.on('load', async () => {
+        try {
+            const circuitData = await invoke('get_circuit_data', { circuitId: props.circuitId });
+            circuitName.value = circuitData.nom;
+        } catch (err) {
+            console.error("Error fetching circuit name:", err);
+        }
+
+       await loadCircuitTrace();
+       await loadSavedVariants();
+       isLoading.value = false;
+       
+       map.value.on('click', handleMapClick);
+       
+       // Resolve colors with fallbacks
+       const previewColor = resolveColor(getSettingValue('Variante/previewColor'), '#651FFF');
+              map.value.addSource('preview-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        map.value.addLayer({
+            id: 'preview-layer',
+            type: 'line',
+            source: 'preview-source',
+            paint: {
+                'line-color': [
+                    'match',
+                    ['get', 'type'],
+                    'DEPART', '#4CAF50', // Green
+                    'ARRIVEE', '#F44336',  // Red
+                    '#2196F3'             // Blue for segments
+                ],
+                'line-width': 4,
+                'line-dasharray': [
+                    'case',
+                    ['boolean', ['get', 'finalized'], false],
+                    ['literal', [1]],         // Solid
+                    ['literal', [2, 1]]       // Dashed
+                ]
+            }
+        });
+
+
+
+       const nodeColor = resolveColor(getSettingValue('Variante/nodeColor'), '#FF9800');
+       
+       // Tracking Points Layer
+       try {
+            const trackingJsonStr = await invoke('read_tracking_file', { circuitId: props.circuitId });
+            const trackingData = JSON.parse(trackingJsonStr);
+            console.log(`[Init] Loaded ${trackingData.length} tracking points for circuit ${props.circuitId}`);
+            trackingPoints.value = trackingData;
+            const trackingFeatures = trackingData.map(p => ({
+                type: 'Feature',
+                geometry: {
+                    type: 'Point',
+                    coordinates: p.coordonnee
+                },
+                properties: {
+                    increment: p.increment,
+                    altitude: p.altitude
+                }
+            }));
+            
+            map.value.addSource('tracking-source', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: trackingFeatures }
+            });
+
+            const zoomVisuNode = getSettingValue('Variante/zoomVisuNode') || 13;
+
+            map.value.addLayer({
+                id: 'tracking-layer',
+                type: 'circle',
+                source: 'tracking-source',
+                minzoom: zoomVisuNode,
+                paint: {
+                    'circle-radius': 4,
+                    'circle-color': nodeColor,
+                    'circle-opacity': 0.6
+                }
+            });
+       } catch (err) {
+            console.warn("Could not load tracking points:", err);
+       }
+              map.value.addSource('markers-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+        
+        // Finalized Pins Layer (Start/End)
+        map.value.addLayer({
+            id: 'pins-layer',
+            type: 'circle',
+            source: 'markers-source',
+            filter: ['match', ['get', 'type'], ['START_PIN', 'END_PIN'], true, false],
+            paint: {
+                'circle-radius': 6,
+                'circle-color': [
+                    'match',
+                    ['get', 'type'],
+                    'START_PIN', '#4CAF50', // Green
+                    'END_PIN', '#F44336',   // Red
+                    '#000000'
+                ],
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ffffff'
+            }
+        });
+
+        // Standard Markers Layer (excluding pins)
+        map.value.addLayer({
+            id: 'markers-layer',
+            type: 'circle',
+            source: 'markers-source',
+            filter: ['match', ['get', 'type'], ['START_PIN', 'END_PIN'], false, true],
+            paint: {
+                'circle-radius': 4,
+                'circle-color': [
+                    'match',
+                    ['get', 'type'],
+                    'ANCHOR', '#ffffff',
+                    'WAYPOINT', '#FFEB3B', 
+                    '#2196F3'
+                ],
+                'circle-stroke-width': [
+                    'case',
+                    ['boolean', ['get', 'finalized'], false],
+                    1,
+                    1.5
+                ],
+                'circle-stroke-color': '#000000'
+            }
+        });
+    });
+
+  } catch (e) {
+    console.error("Map init error", e);
+    isLoading.value = false;
+  }
+};
+
+const loadCircuitTrace = async () => {
+  try {
+     const geojson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+     masterTraceGeojson.value = geojson;
+     console.log(`[Init] Master trace loaded: ${geojson.coordinates.length} points`);
+     
+     const originalColor = resolveColor(getSettingValue('Variante/originalColor'), '#BDBDBD');
+     
+     if(map.value.getSource('trace-source')) {
+         map.value.getSource('trace-source').setData(geojson);
+     } else {
+         map.value.addSource('trace-source', {
+             type: 'geojson',
+             data: geojson
+         });
+         
+         map.value.addLayer({
+             id: 'trace-layer',
+             type: 'line',
+             source: 'trace-source',
+             layout: {
+                 'line-join': 'round',
+                 'line-cap': 'round'
+             },
+             paint: {
+                 'line-color': originalColor,
+                 'line-width': 4
+             }
+         });
+         
+         // Fit bounds
+         const coords = geojson.coordinates;
+         const bounds = new mapboxgl.LngLatBounds(coords[0], coords[0]);
+         for (const coord of coords) {
+             bounds.extend(coord);
+         }
+         map.value.fitBounds(bounds, { padding: 50 });
+     }
+  } catch (e) {
+      console.error("Failed to load trace", e);
+  }
+};
+
+const handleMapClick = (e) => {
+    if (!masterTraceGeojson.value) return;
+
+    const clickPoint = turf.point([e.lngLat.lng, e.lngLat.lat]);
+    
+    let isSnap = false;
+    let newPoint = null;
+
+    // Snapping logic
+    if (trackingPoints.value.length > 0) {
+        let minInfo = { dist: Infinity, point: null };
+        for (const p of trackingPoints.value) {
+            const pt = turf.point(p.coordonnee);
+            const d = turf.distance(clickPoint, pt, { units: 'meters' });
+            if (d < minInfo.dist) { minInfo = { dist: d, point: p }; }
+        }
+        if (minInfo.dist < 30) {
+            isSnap = true;
+            newPoint = { coords: minInfo.point.coordonnee, type: 'ANCHOR', index: minInfo.point.increment };
+        }
+    }
+
+    if (!isSnap && masterTraceGeojson.value) {
+        const snapped = turf.nearestPointOnLine(masterTraceGeojson.value, clickPoint);
+        const distMeters = turf.distance(clickPoint, snapped, { units: 'meters' });
+        if (distMeters < 30) {
+            isSnap = true;
+            newPoint = { coords: snapped.geometry.coordinates, type: 'ANCHOR', index: snapped.properties.index };
+        }
+    }
+
+    // Find an active (non-finalized) modification of the current type
+    let activeMod = modifications.value.find(m => m.type === currentMode.value && !m.finalized);
+
+    if (!isSnap) {
+        // Validation: Every mod MUST start with an anchor on the trace
+        if (!activeMod || activeMod.points.length === 0) {
+            const typeLabels = {
+                'DEPART': 'Un départ',
+                'ARRIVEE': 'Une arrivée',
+                'SEGMENT': 'Un segment'
+            };
+            const label = typeLabels[currentMode.value] || 'Une modification';
+            showSnackbar(`${label} doit impérativement commencer par un point d'ancrage sur la trace.`, "error");
+            return;
+        }
+        
+        newPoint = { coords: [e.lngLat.lng, e.lngLat.lat], type: 'WAYPOINT' };
+    } else {
+        // Validation: DEPART and ARRIVEE only allowed one anchor
+        if (activeMod && (currentMode.value === 'DEPART' || currentMode.value === 'ARRIVEE')) {
+            const hasAnchor = activeMod.points.some(p => p.type === 'ANCHOR');
+            if (hasAnchor) {
+                showSnackbar("Un seul point d'ancrage est autorisé pour un départ ou une arrivée.", "error");
+                return;
+            }
+        }
+    }
+
+    // Create new group if none found for this mode that is active
+    if (!activeMod) {
+        activeMod = { type: currentMode.value, points: [], preview: null, finalized: false };
+        modifications.value.push(activeMod);
+    }
+
+    // Add point to active group
+    activeMod.points.push(newPoint);
+
+    // Auto-finalize SEGMENT if it has 2 anchors
+    if (activeMod.type === 'SEGMENT' && activeMod.points.filter(p => p.type === 'ANCHOR').length >= 2) {
+        activeMod.finalized = true;
+    }
+
+    updateMarkers();
+    if (activeMod.points.length >= 2) {
+        const modIndex = modifications.value.indexOf(activeMod);
+        generatePreviewForMod(modIndex);
+    }
+};
+
+const finalizeMod = (modIndex) => {
+    if (modifications.value[modIndex]) {
+        modifications.value[modIndex].finalized = true;
+        updateMarkers();
+        updatePreviewSource();
+    }
+};
+
+const handleDeletePoint = (modIndex, pIndex) => {
+    modifications.value[modIndex].points.splice(pIndex, 1);
+    if (modifications.value[modIndex].points.length < 2) {
+        modifications.value[modIndex].preview = null;
+    } else {
+        generatePreviewForMod(modIndex);
+    }
+    updateMarkers();
+    updatePreviewSource();
+};
+
+const handleDeleteMod = (modIndex) => {
+    modifications.value.splice(modIndex, 1);
+    updateMarkers();
+    updatePreviewSource();
+};
+
+const updateMarkers = () => {
+    const features = [];
+    modifications.value.forEach(mod => {
+        mod.points.forEach(p => {
+            let type = p.type;
+            // For markers-layer, we use START_PIN/END_PIN even if not finalized to distinguish visually? 
+            // Actually user wants GREEN/RED *after* validation. 
+            // So keep ANCHOR/WAYPOINT before.
+            
+            if (mod.finalized) {
+                if (mod.type === 'DEPART') type = 'START_PIN';
+                else if (mod.type === 'ARRIVEE') type = 'END_PIN';
+            }
+            
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: p.coords },
+                properties: { 
+                    type: type, 
+                    modType: mod.type,
+                    finalized: mod.finalized 
+                }
+            });
+        });
+    });
+    if (map.value && map.value.getSource('markers-source')) {
+        map.value.getSource('markers-source').setData({ type: 'FeatureCollection', features });
+    }
+};
+
+const generatePreviewForMod = async (modIndex) => {
+    const mod = modifications.value[modIndex];
+    if (mod.points.length < 2) return;
+
+    isLoading.value = true;
+    try {
+        let coords = mod.points.map(p => p.coords);
+        if (mod.type === 'DEPART') {
+            coords = [...mod.points].reverse().map(p => p.coords);
+        }
+
+        const geojsonStr = await invoke('calculate_route', {
+            service: variantConfig.value.routingService,
+            profile: variantConfig.value.routingProfile,
+            points: coords
+        });
+
+        mod.preview = JSON.parse(geojsonStr);
+        updatePreviewSource();
+    } catch (e) {
+        console.error("Routing error for mod", modIndex, e);
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const updatePreviewSource = () => {
+    const allFeatures = [];
+    modifications.value.forEach(mod => {
+        if (mod.preview) {
+             allFeatures.push({
+                 type: 'Feature',
+                 geometry: mod.preview,
+                 properties: { 
+                     type: mod.type,
+                     finalized: mod.finalized
+                 }
+             });
+        }
+    });
+    if (map.value && map.value.getSource('preview-source')) {
+        map.value.getSource('preview-source').setData({ type: 'FeatureCollection', features: allFeatures });
+    }
+};
+
+const generatePreview = async () => {
+    // Regenerate all previews? Or just update source?
+    for (let i = 0; i < modifications.value.length; i++) {
+        await generatePreviewForMod(i);
+    }
+};
+
+const saveVariant = async () => {
+    if (modifications.value.length === 0) return;
+    
+    try {
+        const mods = modifications.value.map(mod => {
+            const anchors = mod.points.filter(p => p.type === 'ANCHOR');
+            
+            // Format points for backend (VariantPoint: lat, lon, type)
+            // Use preview geometry if available, otherwise raw points
+            let coords = [];
+            if (mod.preview && mod.preview.coordinates) {
+                coords = mod.preview.coordinates;
+            } else {
+                coords = mod.points.map(p => p.coords);
+            }
+            
+            const variantPoints = coords.map(c => ({
+                lat: c[1],
+                lon: c[0],
+                type: 'waypoint' // Default
+            }));
+
+            // Calc length in km
+            let longueur = 0;
+            console.log(`[SaveVariant] Mod ${mod.type}, points: ${mod.points.length}, coords: ${coords.length}`);
+            if (coords && Array.isArray(coords) && coords.length >= 2) {
+                try {
+                    const line = turf.lineString(coords);
+                    longueur = turf.length(line, { units: 'kilometers' });
+                } catch (err) {
+                    console.error("[SaveVariant] Turf error:", err, "with coords:", JSON.stringify(coords));
+                    throw new Error(`Erreur lors du calcul de la distance: ${err.message}`);
+                }
+            } else {
+                console.log("[SaveVariant] Skipping length calculation (single point or empty)");
+            }
+            
+            if (mod.type === 'SEGMENT') {
+                return {
+                    type: 'SEGMENT_DEVIATION',
+                    anchor_start: { index: anchors[0].index, coords: anchors[0].coords },
+                    anchor_end: { index: anchors[anchors.length-1].index, coords: anchors[anchors.length-1].coords },
+                    waypoints: variantPoints,
+                    longueur: longueur
+                };
+            } else if (mod.type === 'DEPART') {
+                return {
+                    type: 'DEPART_DEPORTE',
+                    anchor_index_on_master: anchors[0].index,
+                    points: variantPoints,
+                    longueur: longueur
+                };
+            } else if (mod.type === 'ARRIVEE') {
+                return {
+                    type: 'ARRIVEE_REPORTEE',
+                    anchor_index_on_master: anchors[0].index,
+                    points: variantPoints,
+                    longueur: longueur
+                };
+            }
+        });
+
+        const metadata = {
+            id: `var_${crypto.randomUUID()}`,
+            name: `Variante ${new Date().toLocaleTimeString()}`,
+            description: `Créée le ${new Date().toLocaleDateString()}`,
+            creationDate: new Date().toISOString(),
+            color: '#651fff',
+            stats: { 
+                totalDistance: mods.reduce((sum, m) => sum + (m.longueur || 0), 0),
+                totalAscent: 0.0 
+            }
+        };
+
+        await invoke('create_variant_files', {
+            request: {
+                circuitId: props.circuitId,
+                metadata: metadata,
+                modifications: mods
+            }
+        });
+        
+        alert("Variante sauvegardée !");
+        resetPoints();
+        await loadSavedVariants();
+        
+    } catch (e) {
+        console.error("Save failed", e);
+        alert("Erreur lors de la sauvegarde: " + e);
+    }
+};
+
+const loadSavedVariants = async () => {
+    try {
+        savedVariants.value = await invoke('get_variants', { circuitId: props.circuitId });
+    } catch (e) {
+        console.error("Failed to load variants", e);
+    }
+};
+
+const handleDeleteSavedVariant = async (variantId) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette variante ?")) return;
+    try {
+        await invoke('delete_variant', { circuitId: props.circuitId, variantId });
+        await loadSavedVariants();
+    } catch (e) {
+        alert("Erreur lors de la suppression: " + e);
+    }
+};
+
+const goHome = () => {
+  router.push('/');
+};
+
+onMounted(() => {
+  initMap();
+});
+
+onUnmounted(() => {
+    if (map.value) map.value.remove();
+});
+</script>
+
+<style scoped>
+#map-container {
+  width: 100%;
+  height: 100%;
+}
+</style>
