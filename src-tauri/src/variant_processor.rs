@@ -15,27 +15,34 @@ pub struct VariantPoint {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "type")]
 pub enum VariantModification {
-    #[serde(rename = "DEPART_DEPORTE")]
+    #[serde(rename = "DEPART_DEPORTE", rename_all = "camelCase")]
     DepartDeporte {
+        #[serde(alias = "anchor_index_on_master")]
         anchor_index_on_master: usize,
         points: Vec<VariantPoint>, // Raw editing points
+        #[serde(alias = "full_geometry")]
         full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
         name: Option<String>,
     },
-    #[serde(rename = "ARRIVEE_REPORTEE")]
+    #[serde(rename = "ARRIVEE_REPORTEE", rename_all = "camelCase")]
     ArriveeReportee {
+        #[serde(alias = "anchor_index_on_master")]
         anchor_index_on_master: usize,
         points: Vec<VariantPoint>, // Raw editing points
+        #[serde(alias = "full_geometry")]
         full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
         name: Option<String>,
     },
-    #[serde(rename = "SEGMENT_DEVIATION")]
+    #[serde(rename = "SEGMENT_DEVIATION", rename_all = "camelCase")]
     SegmentDeviation {
+        #[serde(alias = "anchor_start")]
         anchor_start: AnchorPoint,
+        #[serde(alias = "anchor_end")]
         anchor_end: AnchorPoint,
         waypoints: Vec<VariantPoint>, // Intermediate editing points
+        #[serde(alias = "full_geometry")]
         full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
         name: Option<String>,
@@ -52,7 +59,9 @@ pub struct AnchorPoint {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantStats {
+    #[serde(alias = "total_distance")]
     total_distance: f64,
+    #[serde(alias = "total_ascent")]
     total_ascent: f64,
 }
 
@@ -62,6 +71,7 @@ pub struct VariantMetadata {
     id: String,
     name: String,
     description: String,
+    #[serde(alias = "creation_date")]
     creation_date: String,
     color: String,
     stats: VariantStats,

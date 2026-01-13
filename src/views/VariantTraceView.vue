@@ -839,28 +839,28 @@ const confirmSaveVariant = async () => {
 
                 return {
                     type: 'SEGMENT_DEVIATION',
-                    anchor_start: { index: anchors[0].index, coords: anchors[0].coords },
-                    anchor_end: { index: anchors[anchors.length-1].index, coords: anchors[anchors.length-1].coords },
+                    anchorStart: { index: anchors[0].index, coords: anchors[0].coords },
+                    anchorEnd: { index: anchors[anchors.length-1].index, coords: anchors[anchors.length-1].coords },
                     waypoints: waypoints,
-                    full_geometry: fullGeometry,
+                    fullGeometry: fullGeometry,
                     longueur: longueur,
                     name: mod.name
                 };
             } else if (mod.type === 'DEPART') {
                 return {
                     type: 'DEPART_DEPORTE',
-                    anchor_index_on_master: anchors[0].index,
+                    anchorIndexOnMaster: anchors[0].index,
                     points: rawPoints(),
-                    full_geometry: fullGeometry,
+                    fullGeometry: fullGeometry,
                     longueur: longueur,
                     name: mod.name
                 };
             } else if (mod.type === 'ARRIVEE') {
                 return {
                     type: 'ARRIVEE_REPORTEE',
-                    anchor_index_on_master: anchors[0].index,
+                    anchorIndexOnMaster: anchors[0].index,
                     points: rawPoints(),
-                    full_geometry: fullGeometry,
+                    fullGeometry: fullGeometry,
                     longueur: longueur,
                     name: mod.name
                 };
