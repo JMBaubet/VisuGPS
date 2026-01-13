@@ -42,6 +42,7 @@
         @delete-mod="handleDeleteMod"
         @finalize-mod="finalizeMod"
         @rename-mod="handleRenameMod"
+        @flyto-mod="handleFlyToMod"
         @delete-saved-variant="handleDeleteSavedVariant"
         @reset="resetPoints"
       />
@@ -462,6 +463,34 @@ const handleRenameMod = (modIndex) => {
     renameIndex.value = modIndex;
     renameValue.value = mod.name || (mod.type === 'SEGMENT' ? `Segment ${modIndex + 1}` : mod.type);
     showRenameDialog.value = true;
+};
+
+const handleFlyToMod = (modIndex) => {
+    const mod = modifications.value[modIndex];
+    if (!mod || !map.value) return;
+
+    let coords = [];
+    
+    // If we have a calculated geometry/preview, use it for better accuracy
+    if (mod.preview && mod.preview.coordinates) {
+        coords = mod.preview.coordinates;
+    } else {
+        // Fallback to raw points if preview not yet generated
+        coords = mod.points.map(p => p.coords);
+    }
+
+    if (coords.length === 0) return;
+
+    // Use turf to get the bounding box
+    // If it's just one point (started but not previewed), we create a fake segment for bbox
+    const line = turf.lineString(coords.length === 1 ? [coords[0], coords[0]] : coords);
+    const bbox = turf.bbox(line);
+
+    map.value.fitBounds(bbox, {
+        padding: 80,
+        duration: 2000,
+        maxZoom: 16
+    });
 };
 
 const confirmRename = () => {

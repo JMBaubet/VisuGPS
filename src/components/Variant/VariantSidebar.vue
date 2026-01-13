@@ -8,7 +8,7 @@
       <!-- Modifications Section -->
       <div class="px-2 py-2 d-flex justify-space-between align-center">
         <div class="text-caption font-weight-bold uppercase">Points d'édition</div>
-        <v-btn icon="mdi-refresh" variant="text" size="x-small" @click="$emit('reset')" title="Tout réinitialiser"></v-btn>
+        <v-btn icon="mdi-delete" variant="text" size="x-small" color="error" @click="$emit('reset')" title="Tout réinitialiser"></v-btn>
       </div>
       
       <div class="flex-grow-1 overflow-y-auto">
@@ -43,6 +43,15 @@
                       class="mr-1"
                       @click.stop.prevent="$emit('rename-mod', mod.originalIndex)"
                       title="Renommer ce segment"
+                    ></v-btn>
+                    <v-btn
+                      icon="mdi-eye"
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      class="mr-1"
+                      @click.stop="$emit('flyto-mod', mod.originalIndex)"
+                      title="Centrer sur ce segment"
                     ></v-btn>
                     <v-btn 
                       v-if="!mod.finalized && (mod.type === 'DEPART' || mod.type === 'ARRIVEE')"
@@ -152,7 +161,7 @@ const props = defineProps({
   isValid: Boolean
 });
 
-const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'delete-saved-variant', 'reset']);
+const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'flyto-mod', 'delete-saved-variant', 'reset']);
 
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
