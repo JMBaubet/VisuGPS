@@ -240,7 +240,7 @@ const initMap = async () => {
             source: 'markers-source',
             filter: ['match', ['get', 'type'], ['START_PIN', 'END_PIN'], true, false],
             paint: {
-                'circle-radius': 6,
+                'circle-radius': 7,
                 'circle-color': [
                     'match',
                     ['get', 'type'],
@@ -248,7 +248,7 @@ const initMap = async () => {
                     'END_PIN', '#F44336',   // Red
                     '#000000'
                 ],
-                'circle-stroke-width': 2,
+                'circle-stroke-width': 1.5,
                 'circle-stroke-color': '#ffffff'
             }
         });
@@ -359,7 +359,17 @@ const handleMapClick = (e) => {
         }
     }
 
-    // Find an active (non-finalized) modification of the current type
+    // Check if a modification of this type is already finalized
+    if (currentMode.value === 'DEPART' || currentMode.value === 'ARRIVEE') {
+        const finalizedExists = modifications.value.some(m => m.type === currentMode.value && m.finalized);
+        if (finalizedExists) {
+            const label = currentMode.value === 'DEPART' ? "un départ" : "une arrivée";
+            showSnackbar(`Vous avez déjà validé ${label} pour cette variante.`, "warning");
+            return;
+        }
+    }
+
+    // Find an active (non-finalized) modification of the current type (redundant now for DEPART/ARRIVEE but kept for logic)
     let activeMod = modifications.value.find(m => m.type === currentMode.value && !m.finalized);
 
     if (!isSnap) {
@@ -436,13 +446,11 @@ const handleDeleteMod = (modIndex) => {
 const updateMarkers = () => {
     const features = [];
     modifications.value.forEach(mod => {
-        mod.points.forEach(p => {
+        mod.points.forEach((p, pIndex) => {
             let type = p.type;
-            // For markers-layer, we use START_PIN/END_PIN even if not finalized to distinguish visually? 
-            // Actually user wants GREEN/RED *after* validation. 
-            // So keep ANCHOR/WAYPOINT before.
             
-            if (mod.finalized) {
+            // Only the LAST point of a finalized DEPART/ARRIVEE becomes a PIN
+            if (mod.finalized && pIndex === mod.points.length - 1) {
                 if (mod.type === 'DEPART') type = 'START_PIN';
                 else if (mod.type === 'ARRIVEE') type = 'END_PIN';
             }
