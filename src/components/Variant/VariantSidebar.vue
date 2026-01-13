@@ -12,26 +12,38 @@
       </div>
       
       <div class="flex-grow-1 overflow-y-auto">
-        <v-list density="compact" open-strategy="multiple" class="pa-0">
+        <v-list density="compact" open-strategy="single" class="pa-0">
           <div v-if="modifications.length === 0" class="text-center py-8 text-grey text-caption">
             Cliquez sur la carte <br> pour ajouter des points
           </div>
           
           <v-list-group
-            v-for="(mod, modIndex) in modifications"
-            :key="modIndex"
-            :value="modIndex"
+            v-for="mod in sortedModifications"
+            :key="mod.originalIndex"
+            :value="mod.originalIndex"
             color="primary"
           >
             <template v-slot:activator="{ props: groupProps }">
               <v-list-item
                 v-bind="groupProps"
-                :prepend-icon="getModIcon(mod.type)"
-                :title="getModTitle(mod, modIndex)"
+                :title="getModTitle(mod, mod.originalIndex)"
                 class="bg-grey-lighten-5"
                 :class="{ 'border-s-4 border-primary': !mod.finalized && mod.type === activeMode }"
               >
+                <template v-slot:prepend>
+                  <v-icon :color="getModColor(mod.type)" class="mr-2">{{ getModIcon(mod.type) }}</v-icon>
+                </template>
                 <template v-slot:append>
+                    <v-btn 
+                      v-if="mod.type === 'SEGMENT'"
+                      icon="mdi-pencil" 
+                      size="x-small" 
+                      variant="text" 
+                      color="primary" 
+                      class="mr-1"
+                      @click.stop.prevent="$emit('rename-mod', mod.originalIndex)"
+                      title="Renommer ce segment"
+                    ></v-btn>
                     <v-btn 
                       v-if="!mod.finalized && (mod.type === 'DEPART' || mod.type === 'ARRIVEE')"
                       icon="mdi-check-circle-outline" 
@@ -39,10 +51,11 @@
                       variant="text" 
                       color="primary" 
                       class="mr-1"
-                      @click.stop="$emit('finalize-mod', modIndex)"
+                      @click.stop="$emit('finalize-mod', mod.originalIndex)"
                       title="Terminer cette modification"
                     ></v-btn>
-                    <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-mod', modIndex)"></v-btn>
+                    <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-mod', mod.originalIndex)"></v-btn>
+                    <v-icon size="small" color="grey">{{ groupProps.appendIcon }}</v-icon>
                 </template>
               </v-list-item>
             </template>
@@ -54,16 +67,16 @@
               :title="getPointTitle(point, pIndex)"
               :subtitle="formatCoords(point.coords)"
               class="pl-8"
-              :disabled="mod.finalized"
             >
               <template v-slot:append>
                 <v-btn
-                  v-if="!mod.finalized"
+                  v-if="point.type !== 'ANCHOR'"
                   icon="mdi-delete"
                   size="x-small"
                   variant="text"
                   color="grey"
-                  @click.stop="$emit('delete-point', modIndex, pIndex)"
+                  @click.stop="$emit('delete-point', mod.originalIndex, pIndex)"
+                  title="Supprimer ce point"
                 ></v-btn>
               </template>
             </v-list-item>
@@ -139,7 +152,7 @@ const props = defineProps({
   isValid: Boolean
 });
 
-const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'delete-saved-variant', 'reset']);
+const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'delete-saved-variant', 'reset']);
 
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
@@ -149,13 +162,29 @@ const proxyRoutingProfile = computed({
   set: (val) => emit('update:config', { ...props.config, routingProfile: val })
 });
 
+const sortedModifications = computed(() => {
+  return [...props.modifications]
+    .map((mod, index) => ({ ...mod, originalIndex: index }))
+    .sort((a, b) => {
+      const order = { 'DEPART': 0, 'SEGMENT': 1, 'ARRIVEE': 2 };
+      return order[a.type] - order[b.type];
+    });
+});
+
 const getModIcon = (type) => {
     if (type === 'DEPART') return 'mdi-ray-start-arrow';
     if (type === 'ARRIVEE') return 'mdi-ray-end-arrow';
     return 'mdi-vector-polyline';
 };
 
+const getModColor = (type) => {
+    if (type === 'DEPART') return 'success';
+    if (type === 'ARRIVEE') return 'error';
+    return 'primary';
+};
+
 const getModTitle = (mod, index) => {
+    if (mod.name) return mod.name;
     if (mod.type === 'DEPART') return 'Départ';
     if (mod.type === 'ARRIVEE') return 'Arrivée';
     return `Segment ${index + 1}`;

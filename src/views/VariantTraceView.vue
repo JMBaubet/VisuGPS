@@ -41,10 +41,34 @@
         @delete-point="handleDeletePoint"
         @delete-mod="handleDeleteMod"
         @finalize-mod="finalizeMod"
+        @rename-mod="handleRenameMod"
         @delete-saved-variant="handleDeleteSavedVariant"
         @reset="resetPoints"
       />
     </div>
+
+    <!-- Renaming Dialog -->
+    <v-dialog v-model="showRenameDialog" max-width="400px">
+      <v-card>
+        <v-card-title class="bg-primary text-white px-4 py-2">
+          Renommer le segment
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <v-text-field
+            v-model="renameValue"
+            label="Nom du segment"
+            hide-details
+            autofocus
+            @keyup.enter="confirmRename"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showRenameDialog = false">Annuler</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmRename">Valider</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -77,6 +101,11 @@ const { showSnackbar } = useSnackbar();
 const currentMode = ref('SEGMENT'); 
 const showSidebar = ref(true);
 const isLoading = ref(true);
+
+// Renaming Dialog State
+const showRenameDialog = ref(false);
+const renameValue = ref('');
+const renameIndex = ref(-1);
 
 const variantConfig = ref({
   routingService: 'GraphHopper',
@@ -424,6 +453,22 @@ const finalizeMod = (modIndex) => {
         updateMarkers();
         updatePreviewSource();
     }
+};
+
+const handleRenameMod = (modIndex) => {
+    const mod = modifications.value[modIndex];
+    if (!mod) return;
+    
+    renameIndex.value = modIndex;
+    renameValue.value = mod.name || (mod.type === 'SEGMENT' ? `Segment ${modIndex + 1}` : mod.type);
+    showRenameDialog.value = true;
+};
+
+const confirmRename = () => {
+    if (renameIndex.value !== -1 && renameValue.value.trim() !== "") {
+        modifications.value[renameIndex.value].name = renameValue.value.trim();
+    }
+    showRenameDialog.value = false;
 };
 
 const handleDeletePoint = (modIndex, pIndex) => {
