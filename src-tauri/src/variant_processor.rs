@@ -18,21 +18,27 @@ pub enum VariantModification {
     #[serde(rename = "DEPART_DEPORTE")]
     DepartDeporte {
         anchor_index_on_master: usize,
-        points: Vec<VariantPoint>,
+        points: Vec<VariantPoint>, // Raw editing points
+        full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
+        name: Option<String>,
     },
     #[serde(rename = "ARRIVEE_REPORTEE")]
     ArriveeReportee {
         anchor_index_on_master: usize,
-        points: Vec<VariantPoint>,
+        points: Vec<VariantPoint>, // Raw editing points
+        full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
+        name: Option<String>,
     },
     #[serde(rename = "SEGMENT_DEVIATION")]
     SegmentDeviation {
         anchor_start: AnchorPoint,
         anchor_end: AnchorPoint,
-        waypoints: Vec<VariantPoint>,
+        waypoints: Vec<VariantPoint>, // Intermediate editing points
+        full_geometry: Vec<VariantPoint>, // Detailed route
         longueur: f64,
+        name: Option<String>,
     },
 }
 
@@ -161,26 +167,13 @@ pub async fn create_variant_files(
 
     // Process each modification
     for (index, modification) in request.modifications.iter().enumerate() {
-        let (suffix, points_2d) = match modification {
-            VariantModification::DepartDeporte { points, .. } => ("DEPART", points),
-            VariantModification::ArriveeReportee { points, .. } => ("ARRIVEE", points),
-            VariantModification::SegmentDeviation { waypoints, .. } => {
-                // For segment, we construct the full path: Start -> Waypoints -> End
-                // Actually, the 'waypoints' in struct might just be the intermediate points.
-                // We need to form a single chain for the LineString.
-                // TODO: Verify if 'waypoints' includes anchors or not. Assuming it DOES NOT.
-                // So list = [anchor_start] + waypoints + [anchor_end]
-                // But AnchorPoint struct has coords.
-                // Let's create a temporary vec for processing
-                // Wait, map matching or routing logic should have already happened in frontend?
-                // The prompt says: "Récupération des altitudes (API) ... Appel à generate_tracking_file"
-                // The frontend sends "waypoints".
-                // Let's assume 'points' in the variant mod are the ordered list of coordinates for that segment.
-                ("SEGMENT", waypoints)
-            }
+        let (suffix, points_raw) = match modification {
+            VariantModification::DepartDeporte { full_geometry, .. } => ("DEPART", full_geometry),
+            VariantModification::ArriveeReportee { full_geometry, .. } => ("ARRIVEE", full_geometry),
+            VariantModification::SegmentDeviation { full_geometry, .. } => ("SEGMENT", full_geometry)
         };
 
-        if points_2d.is_empty() {
+        if points_raw.is_empty() {
              continue;
         }
         
@@ -189,27 +182,7 @@ pub async fn create_variant_files(
              _ => suffix.to_string() 
         };
 
-        // If it's a segment, we might need to prepend start/end anchors to the geometry?
-        // The implementation_plan says: "Construction de la LineString complète."
-        // Let's assume the frontend sends the COMPLETE geometry in `points` or `waypoints` including connections.
-        // Checking VariantModification struct...
-        // SegmentDeviation has anchor_start, anchor_end, AND waypoints.
-        let mut full_points: Vec<[f64; 2]> = Vec::new();
-        
-        match modification {
-             VariantModification::SegmentDeviation { anchor_start, anchor_end, waypoints, .. } => {
-                 full_points.push(anchor_start.coords);
-                 for p in waypoints {
-                     full_points.push([p.lon, p.lat]);
-                 }
-                 full_points.push(anchor_end.coords);
-             },
-             VariantModification::DepartDeporte { points, .. } | VariantModification::ArriveeReportee { points, .. } => {
-                 for p in points {
-                     full_points.push([p.lon, p.lat]);
-                 }
-             }
-        }
+        let mut full_points: Vec<[f64; 2]> = points_raw.iter().map(|p| [p.lon, p.lat]).collect();
         
         // 1. Fetch Altitudes
         let altitudes = fetch_altitudes(&full_points).await.map_err(|e| format!("Altitude fetch failed: {}", e))?;
@@ -303,6 +276,32 @@ pub async fn get_variants(
 }
 
 #[tauri::command]
+pub async fn get_variant_details(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<Archive, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let archive_path = app_env_path.join("data")
+        .join(&circuit_id)
+        .join(format!("archive_{}.json", variant_id));
+
+    if !archive_path.exists() {
+        return Err("Archive non trouvé".to_string());
+    }
+
+    let content = fs::read_to_string(&archive_path).map_err(|e| e.to_string())?;
+    let archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    Ok(archive)
+}
+
+#[tauri::command]
 pub async fn delete_variant(
     app_handle: tauri::AppHandle,
     circuit_id: String,
@@ -330,6 +329,38 @@ pub async fn delete_variant(
             fs::remove_file(entry.path()).map_err(|e| e.to_string())?;
         }
     }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rename_variant(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+    new_name: String,
+) -> Result<(), String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let archive_path = app_env_path.join("data")
+        .join(&circuit_id)
+        .join(format!("archive_{}.json", variant_id));
+
+    if !archive_path.exists() {
+        return Err("Archive non trouvé".to_string());
+    }
+
+    let content = fs::read_to_string(&archive_path).map_err(|e| e.to_string())?;
+    let mut archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    archive.metadata.name = new_name;
+    
+    let updated_content = serde_json::to_string_pretty(&archive).map_err(|e| e.to_string())?;
+    fs::write(&archive_path, updated_content).map_err(|e| e.to_string())?;
 
     Ok(())
 }

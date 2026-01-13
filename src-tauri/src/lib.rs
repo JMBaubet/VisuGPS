@@ -2476,7 +2476,9 @@ pub fn run() {
             variant_processor::create_variant_files,
             variant_processor::calculate_route,
             variant_processor::get_variants,
+            variant_processor::get_variant_details,
             variant_processor::delete_variant,
+            variant_processor::rename_variant,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

@@ -36,6 +36,10 @@
         :saved-variants="savedVariants"
         :can-generate-preview="canGeneratePreview"
         :is-valid="isValid"
+        :is-editing="!!loadedVariantId"
+        :is-modified="isModified"
+        :variant-name="loadedVariantName"
+        @update:config="variantConfig = $event"
         @generate="generatePreview"
         @save="saveVariant"
         @delete-point="handleDeletePoint"
@@ -43,7 +47,9 @@
         @finalize-mod="finalizeMod"
         @rename-mod="handleRenameMod"
         @flyto-mod="handleFlyToMod"
+        @load-variant="handleLoadVariant"
         @delete-saved-variant="handleDeleteSavedVariant"
+        @rename-saved-variant="handleRenameSavedVariant"
         @reset="resetPoints"
       />
     </div>
@@ -67,6 +73,71 @@
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="showRenameDialog = false">Annuler</v-btn>
           <v-btn color="primary" variant="flat" @click="confirmRename">Valider</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Variant Save Dialog -->
+    <v-dialog v-model="showSaveDialog" max-width="400px">
+      <v-card>
+        <v-card-title class="bg-success text-white px-4 py-2">
+          Enregistrer la variante
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <v-text-field
+            v-model="variantName"
+            label="Nom de la variante"
+            hide-details
+            autofocus
+            @keyup.enter="confirmSaveVariant"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showSaveDialog = false">Annuler</v-btn>
+          <v-btn color="success" variant="flat" @click="confirmSaveVariant">Enregistrer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <v-dialog v-model="showDeleteDialog" max-width="400px">
+      <v-card>
+        <v-card-title class="bg-error text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-alert-circle-outline"></v-icon>
+          Supprimer la variante ?
+        </v-card-title>
+        <v-card-text class="pa-4">
+          Êtes-vous sûr de vouloir supprimer définitivement cette variante ? Cette action est irréversible.
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showDeleteDialog = false">Annuler</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDeleteSavedVariant">Supprimer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Rename Saved Variant Dialog -->
+    <v-dialog v-model="showVariantRenameDialog" max-width="500">
+      <v-card>
+        <v-card-title class="bg-primary text-white px-4 py-2">
+          Renommer la variante
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <v-text-field
+            v-model="variantRenameValue"
+            label="Nouveau nom"
+            variant="outlined"
+            hide-details
+            autofocus
+            @keyup.enter="confirmVariantRename"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showVariantRenameDialog = false">Annuler</v-btn>
+          <v-btn color="primary" variant="flat" @click="confirmVariantRename">Renommer</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -108,10 +179,27 @@ const showRenameDialog = ref(false);
 const renameValue = ref('');
 const renameIndex = ref(-1);
 
+// Save Variant Dialog State
+const showSaveDialog = ref(false);
+const variantName = ref('');
+
+// Rename Saved Variant State
+const showVariantRenameDialog = ref(false);
+const variantRenameValue = ref('');
+const variantToRenameId = ref(null);
+
+// Delete Confirmation Dialog State
+const showDeleteDialog = ref(false);
+const variantToDelete = ref(null);
+
 const variantConfig = ref({
   routingService: 'GraphHopper',
   routingProfile: 'bike'
 });
+
+const isModified = ref(false);
+const loadedVariantId = ref(null);
+const loadedVariantName = ref('');
 
 const circuitName = ref('');
 
@@ -136,6 +224,9 @@ const isValid = computed(() => {
 const resetPoints = () => {
     modifications.value = [];
     previewGeojson.value = null;
+    isModified.value = false;
+    loadedVariantId.value = null;
+    loadedVariantName.value = '';
     if (map.value && map.value.getSource('preview-source')) {
         map.value.getSource('preview-source').setData({type: 'FeatureCollection', features: []});
     }
@@ -435,6 +526,7 @@ const handleMapClick = (e) => {
 
     // Add point to active group
     activeMod.points.push(newPoint);
+    isModified.value = true;
 
     // Auto-finalize SEGMENT if it has 2 anchors
     if (activeMod.type === 'SEGMENT' && activeMod.points.filter(p => p.type === 'ANCHOR').length >= 2) {
@@ -449,10 +541,12 @@ const handleMapClick = (e) => {
 };
 
 const finalizeMod = (modIndex) => {
-    if (modifications.value[modIndex]) {
-        modifications.value[modIndex].finalized = true;
+    const mod = modifications.value[modIndex];
+    if (mod) {
+        mod.finalized = true;
+        isModified.value = true;
+        generatePreviewForMod(modIndex);
         updateMarkers();
-        updatePreviewSource();
     }
 };
 
@@ -493,15 +587,92 @@ const handleFlyToMod = (modIndex) => {
     });
 };
 
+const handleLoadVariant = async (variantId) => {
+    isLoading.value = true;
+    try {
+        const archive = await invoke('get_variant_details', { circuitId: props.circuitId, variantId });
+        
+        // Clear current work
+        modifications.value = [];
+        
+        // Map back
+        for (const rm of archive.modifications) {
+            let mod = {
+                type: '',
+                points: [],
+                finalized: true,
+                preview: null,
+                name: rm.name || null
+            };
+
+            if (rm.type === 'SEGMENT_DEVIATION') {
+                mod.type = 'SEGMENT';
+                // Add start anchor
+                mod.points.push({
+                    coords: rm.anchorStart.coords,
+                    index: rm.anchorStart.index,
+                    type: 'ANCHOR'
+                });
+                // Add waypoints
+                for (const p of rm.waypoints) {
+                    mod.points.push({
+                        coords: [p.lon, p.lat],
+                        type: 'WAYPOINT'
+                    });
+                }
+                // Add end anchor
+                mod.points.push({
+                    coords: rm.anchorEnd.coords,
+                    index: rm.anchorEnd.index,
+                    type: 'ANCHOR'
+                });
+            } else {
+                mod.type = (rm.type === 'DEPART_DEPORTE') ? 'DEPART' : 'ARRIVEE';
+                const anchorIndex = rm.anchorIndexOnMaster;
+                for (let i = 0; i < rm.points.length; i++) {
+                    const p = rm.points[i];
+                    mod.points.push({
+                        coords: [p.lon, p.lat],
+                        index: (i === 0 && p.type === 'anchor') ? anchorIndex : (p.index || null),
+                        type: p.type === 'anchor' ? 'ANCHOR' : 'WAYPOINT'
+                    });
+                }
+            }
+            
+            modifications.value.push(mod);
+        }
+        
+        // Regenerate all previews and update map
+        await generatePreview();
+        updateMarkers();
+        updatePreviewSource();
+        
+        // Mark as NOT modified since it's just loaded
+        loadedVariantId.value = variantId;
+        loadedVariantName.value = archive.metadata.name;
+        isModified.value = false;
+        
+        showSnackbar("Variant chargé pour édition.", "success");
+        
+    } catch (e) {
+        console.error("Load failed", e);
+        showSnackbar("Erreur lors du chargement: " + e, "error");
+    } finally {
+        isLoading.value = false;
+    }
+};
+
 const confirmRename = () => {
     if (renameIndex.value !== -1 && renameValue.value.trim() !== "") {
         modifications.value[renameIndex.value].name = renameValue.value.trim();
+        isModified.value = true;
     }
     showRenameDialog.value = false;
 };
 
 const handleDeletePoint = (modIndex, pIndex) => {
     modifications.value[modIndex].points.splice(pIndex, 1);
+    isModified.value = true;
     if (modifications.value[modIndex].points.length < 2) {
         modifications.value[modIndex].preview = null;
     } else {
@@ -513,6 +684,7 @@ const handleDeletePoint = (modIndex, pIndex) => {
 
 const handleDeleteMod = (modIndex) => {
     modifications.value.splice(modIndex, 1);
+    isModified.value = true;
     updateMarkers();
     updatePreviewSource();
 };
@@ -597,30 +769,52 @@ const generatePreview = async () => {
     }
 };
 
-const saveVariant = async () => {
+const saveVariant = () => {
     if (modifications.value.length === 0) return;
+    if (!isValid.value) {
+        showSnackbar("Toutes les modifications doivent être finalisées avant l'enregistrement.", "warning");
+        return;
+    }
+    
+    // If it's a loaded variant, we just overwrite (no name prompt)
+    if (loadedVariantId.value) {
+        confirmSaveVariant();
+        return;
+    }
+
+    variantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    showSaveDialog.value = true;
+};
+
+const confirmSaveVariant = async () => {
+    const finalName = loadedVariantId.value ? loadedVariantName.value : variantName.value.trim();
+    
+    if (!finalName) {
+        showSnackbar("Veuillez saisir un nom pour la variante.", "warning");
+        return;
+    }
+
+    showSaveDialog.value = false;
+    isLoading.value = true;
     
     try {
         const mods = modifications.value.map(mod => {
             const anchors = mod.points.filter(p => p.type === 'ANCHOR');
             
-            // Format points for backend (VariantPoint: lat, lon, type)
-            // Use preview geometry if available, otherwise raw points
-            let coords = [];
-            if (mod.preview && mod.preview.coordinates) {
-                coords = mod.preview.coordinates;
-            } else {
-                coords = mod.points.map(p => p.coords);
-            }
-            
-            const variantPoints = coords.map(c => ({
-                lat: c[1],
-                lon: c[0],
-                type: 'waypoint' // Default
-            }));
+            // For the archive, we save RAW editing points (clicks), not the full geometry
+            const rawPoints = (modType) => {
+                return mod.points.map(p => ({
+                    lat: p.coords[1],
+                    lon: p.coords[0],
+                    type: p.type === 'ANCHOR' ? 'anchor' : 'waypoint',
+                    index: p.index
+                }));
+            };
 
-            // Calc length in km
+            // Calc length in km (we still use preview if available for accurate distance)
             let longueur = 0;
+            let coords = (mod.preview && mod.preview.coordinates) ? mod.preview.coordinates : mod.points.map(p => p.coords);
+
             console.log(`[SaveVariant] Mod ${mod.type}, points: ${mod.points.length}, coords: ${coords.length}`);
             if (coords && Array.isArray(coords) && coords.length >= 2) {
                 try {
@@ -630,38 +824,52 @@ const saveVariant = async () => {
                     console.error("[SaveVariant] Turf error:", err, "with coords:", JSON.stringify(coords));
                     throw new Error(`Erreur lors du calcul de la distance: ${err.message}`);
                 }
-            } else {
-                console.log("[SaveVariant] Skipping length calculation (single point or empty)");
             }
             
+            // Preparation de la géométrie complète (pour les fichiers permanents)
+            const fullGeometry = (mod.preview && mod.preview.coordinates) 
+                ? mod.preview.coordinates.map(c => ({ lat: c[1], lon: c[0] }))
+                : mod.points.map(p => ({ lat: p.coords[1], lon: p.coords[0] }));
+
             if (mod.type === 'SEGMENT') {
+                // For segment, waypoints = intermediate points between anchors
+                const waypoints = mod.points
+                    .filter(p => p.type !== 'ANCHOR')
+                    .map(p => ({ lat: p.coords[1], lon: p.coords[0], type: 'waypoint' }));
+
                 return {
                     type: 'SEGMENT_DEVIATION',
                     anchor_start: { index: anchors[0].index, coords: anchors[0].coords },
                     anchor_end: { index: anchors[anchors.length-1].index, coords: anchors[anchors.length-1].coords },
-                    waypoints: variantPoints,
-                    longueur: longueur
+                    waypoints: waypoints,
+                    full_geometry: fullGeometry,
+                    longueur: longueur,
+                    name: mod.name
                 };
             } else if (mod.type === 'DEPART') {
                 return {
                     type: 'DEPART_DEPORTE',
                     anchor_index_on_master: anchors[0].index,
-                    points: variantPoints,
-                    longueur: longueur
+                    points: rawPoints(),
+                    full_geometry: fullGeometry,
+                    longueur: longueur,
+                    name: mod.name
                 };
             } else if (mod.type === 'ARRIVEE') {
                 return {
                     type: 'ARRIVEE_REPORTEE',
                     anchor_index_on_master: anchors[0].index,
-                    points: variantPoints,
-                    longueur: longueur
+                    points: rawPoints(),
+                    full_geometry: fullGeometry,
+                    longueur: longueur,
+                    name: mod.name
                 };
             }
         });
 
         const metadata = {
-            id: `var_${crypto.randomUUID()}`,
-            name: `Variante ${new Date().toLocaleTimeString()}`,
+            id: loadedVariantId.value || `var_${crypto.randomUUID()}`,
+            name: finalName,
             description: `Créée le ${new Date().toLocaleDateString()}`,
             creationDate: new Date().toISOString(),
             color: '#651fff',
@@ -679,13 +887,18 @@ const saveVariant = async () => {
             }
         });
         
-        alert("Variante sauvegardée !");
+        showSnackbar("Variante sauvegardée !", "success");
         resetPoints();
         await loadSavedVariants();
         
+        // Reset dirty state after successful save
+        isModified.value = false;
+        
     } catch (e) {
         console.error("Save failed", e);
-        alert("Erreur lors de la sauvegarde: " + e);
+        showSnackbar("Erreur lors de la sauvegarde: " + e, "error");
+    } finally {
+        isLoading.value = false;
     }
 };
 
@@ -697,13 +910,54 @@ const loadSavedVariants = async () => {
     }
 };
 
-const handleDeleteSavedVariant = async (variantId) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette variante ?")) return;
+const handleDeleteSavedVariant = (variantId) => {
+    variantToDelete.value = variantId;
+    showDeleteDialog.value = true;
+};
+
+const confirmDeleteSavedVariant = async () => {
+    if (!variantToDelete.value) return;
+    
+    showDeleteDialog.value = false;
+    isLoading.value = true;
     try {
-        await invoke('delete_variant', { circuitId: props.circuitId, variantId });
+        await invoke('delete_variant', { circuitId: props.circuitId, variantId: variantToDelete.value });
+        showSnackbar("Variante supprimée.", "success");
         await loadSavedVariants();
     } catch (e) {
-        alert("Erreur lors de la suppression: " + e);
+        showSnackbar("Erreur lors de la suppression: " + e, "error");
+    } finally {
+        isLoading.value = false;
+        variantToDelete.value = null;
+    }
+};
+
+const handleRenameSavedVariant = (id, currentName) => {
+    variantToRenameId.value = id;
+    variantRenameValue.value = currentName;
+    showVariantRenameDialog.value = true;
+};
+
+const confirmVariantRename = async () => {
+    if (!variantToRenameId.value || variantRenameValue.value.trim() === "") return;
+    
+    try {
+        await invoke('rename_variant', {
+            circuitId: props.circuitId,
+            variantId: variantToRenameId.value,
+            newName: variantRenameValue.value.trim()
+        });
+        
+        // If we were editing this specific variant, update the title in sidebar
+        if (loadedVariantId.value === variantToRenameId.value) {
+            loadedVariantName.value = variantRenameValue.value.trim();
+        }
+        
+        showVariantRenameDialog.value = false;
+        await loadSavedVariants();
+        showSnackbar("Variante renommée.", "success");
+    } catch (e) {
+        showSnackbar("Erreur lors du renommage: " + e, "error");
     }
 };
 

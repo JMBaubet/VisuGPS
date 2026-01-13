@@ -1,20 +1,39 @@
 <template>
   <v-card class="fill-height" elevation="0" border>
     <v-card-text class="pa-0 d-flex flex-column" style="height: 100%;">
-      <div class="px-2 py-1 bg-grey-lighten-4 border-b text-caption text-center text-grey-darken-1 font-weight-bold">
-        Points d'édition
-      </div>
 
       <!-- Modifications Section -->
       <div class="px-2 py-2 d-flex justify-space-between align-center">
-        <div class="text-caption font-weight-bold uppercase">Points d'édition</div>
-        <v-btn icon="mdi-delete" variant="text" size="x-small" color="error" @click="$emit('reset')" title="Tout réinitialiser"></v-btn>
+        <div class="text-caption font-weight-bold uppercase text-truncate" style="max-width: 250px;">
+          {{ isEditing ? `Modification de ${variantName}` : "Points d'édition" }}
+        </div>
+        <div class="d-flex align-center">
+          <v-btn 
+            v-if="isEditing"
+            icon="mdi-close" 
+            variant="text" 
+            size="x-small" 
+            color="grey-darken-1" 
+            class="mr-1"
+            @click="$emit('reset')" 
+            title="Fermer l'édition"
+          ></v-btn>
+          <v-btn 
+            v-if="!isEditing"
+            icon="mdi-delete" 
+            variant="text" 
+            size="x-small" 
+            color="error" 
+            @click="$emit('reset')" 
+            title="Tout réinitialiser"
+          ></v-btn>
+        </div>
       </div>
       
       <div class="flex-grow-1 overflow-y-auto">
         <v-list density="compact" open-strategy="single" class="pa-0">
           <div v-if="modifications.length === 0" class="text-center py-8 text-grey text-caption">
-            Cliquez sur la carte <br> pour ajouter des points
+            {{ isEditing ? 'Chargement...' : 'Cliquez sur la carte pour ajouter des points' }}
           </div>
           
           <v-list-group
@@ -23,6 +42,7 @@
             :value="mod.originalIndex"
             color="primary"
           >
+            <!-- ... list content remains same ... -->
             <template v-slot:activator="{ props: groupProps }">
               <v-list-item
                 v-bind="groupProps"
@@ -34,6 +54,16 @@
                   <v-icon :color="getModColor(mod.type)" class="mr-2">{{ getModIcon(mod.type) }}</v-icon>
                 </template>
                 <template v-slot:append>
+                    <v-btn 
+                      v-if="!mod.finalized && (mod.type === 'DEPART' || mod.type === 'ARRIVEE')"
+                      icon="mdi-check-circle-outline" 
+                      size="x-small" 
+                      variant="text" 
+                      color="primary" 
+                      class="mr-1"
+                      @click.stop="$emit('finalize-mod', mod.originalIndex)"
+                      title="Terminer cette modification"
+                    ></v-btn>
                     <v-btn 
                       v-if="mod.type === 'SEGMENT'"
                       icon="mdi-pencil" 
@@ -52,16 +82,6 @@
                       class="mr-1"
                       @click.stop="$emit('flyto-mod', mod.originalIndex)"
                       title="Centrer sur ce segment"
-                    ></v-btn>
-                    <v-btn 
-                      v-if="!mod.finalized && (mod.type === 'DEPART' || mod.type === 'ARRIVEE')"
-                      icon="mdi-check-circle-outline" 
-                      size="x-small" 
-                      variant="text" 
-                      color="primary" 
-                      class="mr-1"
-                      @click.stop="$emit('finalize-mod', mod.originalIndex)"
-                      title="Terminer cette modification"
                     ></v-btn>
                     <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-mod', mod.originalIndex)"></v-btn>
                     <v-icon size="small" color="grey">{{ groupProps.appendIcon }}</v-icon>
@@ -92,17 +112,17 @@
           </v-list-group>
         </v-list>
 
-        <!-- Save Button moved here -->
+        <!-- Save Button -->
         <div class="pa-4" v-if="modifications.length > 0">
           <v-btn
             block
             variant="flat"
             color="success"
-            :disabled="!isValid"
+            :disabled="!isValid || (isEditing && !isModified)"
             @click="$emit('save')"
           >
             <v-icon start>mdi-content-save</v-icon>
-            Enregistrer Variante
+            {{ isEditing ? 'Mettre à jour' : 'Enregistrer Variante' }}
           </v-btn>
         </div>
       </div>
@@ -123,6 +143,25 @@
                 class="border-b last-child-border-0"
             >
                 <template v-slot:append>
+                    <v-btn
+                      icon="mdi-eye"
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      class="mr-1"
+                      :disabled="isValid && (!isEditing || isModified)"
+                      @click.stop="$emit('load-variant', v.id)"
+                      title="Charger cette variante pour édition"
+                    ></v-btn>
+                     <v-btn
+                      icon="mdi-pencil"
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      class="mr-1"
+                      @click.stop="$emit('rename-saved-variant', v.id, v.name)"
+                      title="Renommer cette variante"
+                    ></v-btn>
                     <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-saved-variant', v.id)"></v-btn>
                 </template>
             </v-list-item>
@@ -158,10 +197,13 @@ const props = defineProps({
     default: () => []
   },
   canGeneratePreview: Boolean,
-  isValid: Boolean
+  isValid: Boolean,
+  isEditing: Boolean,
+  isModified: Boolean,
+  variantName: String
 });
 
-const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'flyto-mod', 'delete-saved-variant', 'reset']);
+const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'flyto-mod', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
 
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
