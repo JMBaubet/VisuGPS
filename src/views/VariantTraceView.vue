@@ -1004,6 +1004,10 @@ const confirmDeleteSavedVariant = async () => {
     showDeleteDialog.value = false;
     isLoading.value = true;
     try {
+        if (loadedVariantId.value === variantToDelete.value.id) {
+            resetPoints();
+        }
+
         await invoke('delete_variant', { circuitId: props.circuitId, variantId: variantToDelete.value.id });
         showSnackbar("Variante supprimée.", "success");
         await loadSavedVariants();
