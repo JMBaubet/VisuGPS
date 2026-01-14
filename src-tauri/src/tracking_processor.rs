@@ -135,7 +135,7 @@ pub fn generate_tracking_file(
 pub fn read_tracking_file(
     app_handle: tauri::AppHandle,
     circuit_id: String,
-) -> Result<String, String> {
+) -> Result<serde_json::Value, String> {
     let app_env_path = {
         let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
         let app_state = state_mutex.lock().unwrap();
@@ -150,7 +150,9 @@ pub fn read_tracking_file(
         return Err("Tracking file not found".to_string());
     }
 
-    fs::read_to_string(tracking_path).map_err(|e| e.to_string())
+    let file_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
+    let json_content: serde_json::Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    Ok(json_content)
 }
 
 fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, window_size: usize) -> f64 {

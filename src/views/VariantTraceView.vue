@@ -316,8 +316,7 @@ const initMap = async () => {
        
        // Tracking Points Layer
        try {
-            const trackingJsonStr = await invoke('read_tracking_file', { circuitId: props.circuitId });
-            const trackingData = JSON.parse(trackingJsonStr);
+            const trackingData = await invoke('read_tracking_file', { circuitId: props.circuitId });
             console.log(`[Init] Loaded ${trackingData.length} tracking points for circuit ${props.circuitId}`);
             trackingPoints.value = trackingData;
             const trackingFeatures = trackingData.map(p => ({
