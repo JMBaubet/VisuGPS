@@ -327,7 +327,8 @@ const initMap = async () => {
                 },
                 properties: {
                     increment: p.increment,
-                    altitude: p.altitude
+                    altitude: p.altitude,
+                    pointDeControl: p.pointDeControl
                 }
             }));
             
@@ -344,9 +345,19 @@ const initMap = async () => {
                 source: 'tracking-source',
                 minzoom: zoomVisuNode,
                 paint: {
-                    'circle-radius': 4,
-                    'circle-color': nodeColor,
-                    'circle-opacity': 0.6
+                    'circle-radius': [
+                        'case',
+                        ['boolean', ['get', 'pointDeControl'], false],
+                        6,
+                        4
+                    ],
+                    'circle-color': [
+                        'case',
+                        ['boolean', ['get', 'pointDeControl'], false],
+                        '#FF9800', // Orange for control points
+                        nodeColor  // Default node color
+                    ],
+                    'circle-opacity': 0.8
                 }
             });
        } catch (err) {
