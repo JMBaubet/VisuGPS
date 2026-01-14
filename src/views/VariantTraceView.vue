@@ -6,6 +6,7 @@
          v-model:mode="currentMode"
          v-model:profile="variantConfig.routingProfile"
          :circuit-name="circuitName"
+         :error-profile="routingErrorProfile"
          @save="saveVariant"
          @close="goHome"
          @open-doc="isDocDialogVisible = true"
@@ -182,6 +183,7 @@ const currentMode = ref('SEGMENT');
 const showSidebar = ref(true);
 const isLoading = ref(true);
 const isDocDialogVisible = ref(false);
+const routingErrorProfile = ref(null);
 
 // Renaming Dialog State
 const showRenameDialog = ref(false);
@@ -282,6 +284,11 @@ const initMap = async () => {
     
     console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.value.routingProfile}"`);
     console.log(`[Init] Using routing service: ${variantConfig.value.routingService}`);
+
+    // Watch for profile changes to reset error state
+    watch(() => variantConfig.value.routingProfile, () => {
+        routingErrorProfile.value = null;
+    });
 
     mapboxgl.accessToken = token;
 
@@ -796,6 +803,24 @@ const generatePreviewForMod = async (modIndex) => {
         updatePreviewSource();
     } catch (e) {
         console.error("Routing error for mod", modIndex, e);
+        
+        let msg = "Erreur routage : Tracé direct utilisé.";
+        if (variantConfig.value.routingProfile === 'racingbike') {
+             msg += " Essayez le profil 'VTT' ou 'Route + Pistes'.";
+             routingErrorProfile.value = 'racingbike';
+        }
+        showSnackbar(msg, "warning");
+        
+        // Fallback: Create straight line
+        const fallbackCoords = mod.points.map(p => p.coords);
+         if (mod.type === 'DEPART') {
+            fallbackCoords.reverse();
+        }
+        mod.preview = {
+            type: 'LineString',
+            coordinates: fallbackCoords
+        };
+        updatePreviewSource();
     } finally {
         isLoading.value = false;
     }

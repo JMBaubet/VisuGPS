@@ -44,7 +44,7 @@
       class="mr-4"
       variant="outlined"
       density="compact"
-      color="primary"
+      :color="toggleColor"
     >
       <v-btn value="car" title="Route + Pistes cyclables">
         <v-icon>mdi-bike</v-icon>
@@ -81,6 +81,10 @@ const props = defineProps({
   circuitName: {
     type: String,
     default: ''
+  },
+  errorProfile: {
+    type: String,
+    default: null
   }
 });
 
@@ -95,6 +99,10 @@ const internalMode = computed({
 const internalProfile = computed({
   get: () => props.profile,
   set: (val) => emit('update:profile', val)
+});
+
+const toggleColor = computed(() => {
+  return (props.errorProfile && props.errorProfile === internalProfile.value) ? 'error' : 'primary';
 });
 </script>
 
