@@ -162,7 +162,7 @@
                       @click.stop="$emit('rename-saved-variant', v.id, v.name)"
                       title="Renommer cette variante"
                     ></v-btn>
-                    <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-saved-variant', v.id)"></v-btn>
+                    <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-saved-variant', v.id, v.name)"></v-btn>
                 </template>
             </v-list-item>
         </v-list>

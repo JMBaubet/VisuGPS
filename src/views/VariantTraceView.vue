@@ -108,7 +108,8 @@
           Supprimer la variante ?
         </v-card-title>
         <v-card-text class="pa-4">
-          Êtes-vous sûr de vouloir supprimer définitivement cette variante ? Cette action est irréversible.
+          Êtes-vous sûr de vouloir supprimer définitivement la variante <strong>{{ variantToDelete?.name }}</strong> ?<br><br>
+          Cette action est irréversible.
         </v-card-text>
         <v-card-actions class="pa-4 pt-0">
           <v-spacer></v-spacer>
@@ -916,8 +917,8 @@ const loadSavedVariants = async () => {
     }
 };
 
-const handleDeleteSavedVariant = (variantId) => {
-    variantToDelete.value = variantId;
+const handleDeleteSavedVariant = (variantId, variantName) => {
+    variantToDelete.value = { id: variantId, name: variantName };
     showDeleteDialog.value = true;
 };
 
@@ -927,7 +928,7 @@ const confirmDeleteSavedVariant = async () => {
     showDeleteDialog.value = false;
     isLoading.value = true;
     try {
-        await invoke('delete_variant', { circuitId: props.circuitId, variantId: variantToDelete.value });
+        await invoke('delete_variant', { circuitId: props.circuitId, variantId: variantToDelete.value.id });
         showSnackbar("Variante supprimée.", "success");
         await loadSavedVariants();
     } catch (e) {
