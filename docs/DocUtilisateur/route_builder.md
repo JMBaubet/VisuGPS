@@ -34,9 +34,10 @@ C'est votre espace de dessin principal :
 ### La Barre Latérale
 
 Elle regroupe tout l'historique de votre travail :
-*   **Modifications** : Affiche les tronçons que vous êtes en train de créer.
+*   **Points d'édition** : Affiche les tronçons que vous êtes en train de créer.
     *   *Traces en pointillés* : Indique une modification en cours d'édition (non finalisée).
     *   *Traces en trait plein* : Indique une modification validée et finalisée.
+    *   *Dépliable* : Cliquez sur un segment (Départ, Déviation, Arrivée) pour voir la liste détaillée des points qui le composent.
 *   **Variantes enregistrées** : Permet de consulter, renommer ou supprimer vos variantes existantes.
 *   **Icône Info** <img src="https://api.iconify.design/mdi/information-outline.svg?color=blue&width=18" style="vertical-align: middle;"> : Affiche le comparatif Distance/D+ entre le circuit maître et votre variante.
 
@@ -44,24 +45,27 @@ Elle regroupe tout l'historique de votre travail :
 
 ## 🎯 Les Points de Référence
 
-Lors de l'édition, vous manipulerez différents types de points qui ont des rôles bien distincts :
+Lors de l'édition, vous manipulerez différents types de points :
 
-### 1. Les Ancrages (Sur la trace)
-Ce sont des points de connexion **obligatoires** situés sur la trace maîtresse.
-*   **Rôle** : Ils définissent où votre variante quitte ou rejoint le parcours original.
-*   **Visuel** : Représentés par des points blancs cerclés de noir.
-*   **Contrainte** : Tout segment doit commencer et finir par une ancre (sauf Départ/Arrivée qui n'en ont qu'une).
+### 1. Les Jalons (Tous les 100m)
+Ce sont des points de repère présents sur la trace maîtresse tous les **100 mètres**.
+*   **Visuel** : Cercles **blancs** par défaut, visibles uniquement en zoomant sur la carte.
+*   **Rôle** : Servent de points d'**ancrage obligatoires** pour connecter vos variantes (aimantation/snapping à moins de 30m).
 
-### 2. Les Points de passage (Libres)
-Ce sont les points que vous créez librement sur la carte pour dessiner votre nouveau chemin.
-*   **Rôle** : Ils guident le calculateur d'itinéraire (GraphHopper) pour forcer le passage par des routes spécifiques.
-*   **Visuel** : Représentés par des points jaunes.
+### 2. Les Points de référence Caméra (Points oranges)
+ces points de contrôle sont des repères pour la caméra.
+*   **Visuel** : Cercles **oranges** par défaut, visibles uniquement en zoomant sur la carte.
+*   **Rôle** : Définissent le comportement exact de la caméra (point de vue) à cet endroit précis. Entre deux points, une **interpolation linéaire** (Zoom, Cap, Pitch) est appliquée pour une transition fluide.
 
-### 3. Les Points de Contrôle (Jalons 100m)
-Ce sont des marqueurs pré-calculés présents sur la trace maîtresse tous les 100 mètres.
-*   **Rôle** : Ils servent de repères de distance et facilitent la sélection précise lors de la pose d'une ancre.
-*   **Visuel** : Représentés par des cercles **oranges** sur la trace maîtresse.
-*   **Astuce** : Le curseur "aimante" la sélection sur ces points si vous cliquez à moins de 30 mètres (snapping).
+### 3. Les Points d'Ancrage (Points de connexion)
+Ce sont les points effectifs où votre variante se connecte à la trace maîtresse.
+*   **Visuel** : Points **blancs cerclés de noir**.
+*   **Rôle** : Matérialisent le début ou la fin d'un segment de variante. Ils sont créés lorsque vous cliquez sur la trace maîtresse (ou sur un Jalon).
+
+### 4. Les Points de passage (Points jaunes)
+Ce sont les points que vous créez manuellement pour dessiner votre variante.
+*   **Visuel** : Représentés par de petits cercles sur le tracé en cours.
+*   **Rôle** : Jalonnent votre nouveau parcours hors de la trace maîtresse et guident le calculateur d'itinéraire (GraphHopper).
 
 ---
 
@@ -94,7 +98,7 @@ Permet de remplacer un morceau de la trace originale par un autre chemin (contou
 
 ---
 
-## Fonctionnement du Routage Magnétique
+## Fonctionnement du Routage 
 
 Par défaut, l'application utilise un moteur de routage (GraphHopper) qui "colle" automatiquement votre tracé aux routes et chemins existants.
 
@@ -108,12 +112,13 @@ Par défaut, l'application utilise un moteur de routage (GraphHopper) qui "colle
 Toutes vos modifications apparaissent dans la barre latérale droite.
 
 ### Actions sur les segments
-- **Renommer** : Cliquez sur le titre d'un segment pour lui donner un nom (ex: "Contournement Col").
+- **Renommer** : Cliquez sur le crayon <img src="https://api.iconify.design/mdi/pencil.svg?color=blue&width=18" style="vertical-align: middle;"> pour donner un nom à la modification (ex: "Contournement Col").
+- **Visualiser** : Cliquez sur l'œil <img src="https://api.iconify.design/mdi/eye.svg?color=blue&width=18" style="vertical-align: middle;"> pour centrer la vue sur cette modification.
+- **Finaliser** (Départ/Arrivée) : Cliquez sur la coche <img src="https://api.iconify.design/mdi/check-circle-outline.svg?color=blue&width=18" style="vertical-align: middle;"> pour valider et figer le point.
 - **Supprimer** : Utilisez l'icône poubelle <img src="https://api.iconify.design/mdi/delete.svg?color=red&width=18" style="vertical-align: middle;"> pour annuler une modification.
-- **Finaliser** : Un segment doit être "fermé" (ancré) pour être valide.
 
 ### Enregistrement de la variante
-Une fois vos modifications terminées, cliquez sur le bouton **Enregistrer Variante** <img src="https://api.iconify.design/mdi/content-save.svg?color=green&width=18" style="vertical-align: middle;">.
+Une fois vos modifications terminées, cliquez sur le bouton <span style="background-color: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><img src="https://api.iconify.design/mdi/content-save.svg?color=white&width=16" style="vertical-align: middle;"> Enregistrer Variante</span>.
 - Donnez un nom à votre variante (ex: "Parcours 2024 - Option Longue").
 - La variante sera alors listée en bas de la barre latérale.
 
