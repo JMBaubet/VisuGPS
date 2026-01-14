@@ -30,6 +30,7 @@
       style="width: 400px; flex: 0 0 400px;"
     >
       <VariantSidebar
+        :circuit-name="circuitName"
         :active-mode="currentMode"
         v-model:config="variantConfig"
         :modifications="modifications"

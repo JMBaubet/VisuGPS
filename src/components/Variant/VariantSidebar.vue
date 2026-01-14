@@ -188,40 +188,31 @@
         Détails de la variante
       </v-card-title>
       <v-card-text class="pa-4">
-        <div class="text-h6 mb-3">{{ selectedVariant.name }}</div>
-        
-        <v-table density="compact" class="stats-table mb-4 border">
-          <thead>
-            <tr>
-              <th class="text-left font-weight-bold">Statistique</th>
-              <th class="text-right font-weight-bold text-grey">Maître</th>
-              <th class="text-right font-weight-bold">Var.</th>
-              <th class="text-right font-weight-bold">Delta</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="text-caption">Distance (km)</td>
-              <td class="text-right text-caption text-grey">{{ selectedVariant.stats?.masterDistance?.toFixed(1) || '0.0' }}</td>
-              <td class="text-right font-weight-bold ">{{ selectedVariant.stats?.totalDistance?.toFixed(1) || '0.0' }}</td>
-              <td class="text-right font-weight-bold" :class="getDeltaColor(selectedVariant.stats?.totalDistance - selectedVariant.stats?.masterDistance, true)">
-                {{ formatDelta(selectedVariant.stats?.totalDistance - selectedVariant.stats?.masterDistance, 1) }}
-              </td>
-            </tr>
-            <tr>
-              <td class="text-caption">Dénivelé (D+)</td>
-              <td class="text-right text-caption text-grey">{{ selectedVariant.stats?.masterAscent?.toFixed(0) || '0' }}m</td>
-              <td class="text-right font-weight-bold text-success">{{ selectedVariant.stats?.totalAscent?.toFixed(0) || '0' }}m</td>
-              <td class="text-right font-weight-bold" :class="getDeltaColor(selectedVariant.stats?.totalAscent - selectedVariant.stats?.masterAscent, true)">
-                {{ formatDelta(selectedVariant.stats?.totalAscent - selectedVariant.stats?.masterAscent, 0) }}m
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+        <div v-if="selectedVariant" class="mb-4">
+          <div class="d-grid" style="grid-template-columns: 1fr auto; gap: 16px; align-items: baseline;">
+            <!-- Ligne Circuit (Style léger) -->
+            <div class="text-caption text-grey-darken-1 text-truncate" :title="circuitName">
+              {{ circuitName }} :
+            </div>
+            <div class="text-caption text-grey-darken-1 text-right">
+              Distance : {{ selectedVariant.stats?.masterDistance?.toFixed(1) || '0.0' }} km, 
+              d+ : {{ selectedVariant.stats?.masterAscent?.toFixed(0) || '0' }} m
+            </div>
+            
+            <!-- Ligne Variante (Style gras) -->
+            <div class="text-body-2 font-weight-bold text-black text-truncate" :title="selectedVariant.name">
+              {{ selectedVariant.name }} :
+            </div>
+            <div class="text-body-2 font-weight-bold text-black text-right">
+              Distance : {{ selectedVariant.stats?.totalDistance?.toFixed(1) || '0.0' }} km, 
+              d+ : {{ selectedVariant.stats?.totalAscent?.toFixed(0) || '0' }} m
+            </div>
+          </div>
+        </div>
         
         <v-divider class="mb-4"></v-divider>
         
-        <div class="d-flex justify-space-between text-caption text-grey">
+        <div v-if="selectedVariant" class="d-flex justify-space-between text-caption text-grey">
             <span>Créée le :</span>
             <span>{{ new Date(selectedVariant.creationDate).toLocaleDateString() }} à {{ new Date(selectedVariant.creationDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
         </div>
@@ -260,6 +251,7 @@ const formatDelta = (delta, decimals = 1) => {
 };
 
 const props = defineProps({
+  circuitName: String,
   activeMode: String,
   config: Object,
   modifications: {
