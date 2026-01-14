@@ -10,8 +10,8 @@ Le paramètre `routingType` définit le profil de véhicule ou de déplacement u
 
 -   **Libellé**: Profil de routage
 -   **Type**: Liste de choix
--   **Valeur par défaut**: `bike`
--   **Options**: `bike`, `mtb`, `racingbike`, `car`, `foot`
+-   **Valeur par défaut**: `Route uniquement`
+-   **Options**: `Route + Pistes cyclables`, `Route uniquement`, `VTT / Chemin`
 
 ## ⚖️ Justification : Pourquoi choisir le bon profil ?
 
@@ -19,10 +19,9 @@ Le profil influence directement les chemins empruntés par le calculateur d'itin
 
 ### 1. 🌲 Adaptation au terrain
 
--   **bike** : Touring/VTC, évite les gros dénivelés et les chemins trop techniques.
--   **mtb** : VTT, accepte les sentiers, les pentes raides et les surfaces non pavées.
--   **racingbike** : Vélo de route, reste strictement sur l'asphalte et les surfaces lisses.
--   **foot** : Piéton, permet d'emprunter des escaliers, des passages étroits et des sens interdits.
+-   **Route + Pistes cyclables** : Profil polyvalent (type VTC), emprunte les routes et les aménagements cyclables, évite les difficultés techniques majeures.
+-   **Route uniquement** : Profil Vélo de route, privilégie strictement l'asphalte et les surfaces lisses, optimisé pour la vitesse.
+-   **VTT / Chemin** : Profil VTT, accepte les sentiers, les chemins de terre, les pentes plus raides et les surfaces techniques.
 
 ---
 

@@ -47,7 +47,6 @@
               <v-list-item
                 v-bind="groupProps"
                 :title="getModTitle(mod, mod.originalIndex)"
-                class="bg-grey-lighten-5"
                 :class="{ 'border-s-4 border-primary': !mod.finalized && mod.type === activeMode }"
               >
                 <template v-slot:prepend>
@@ -127,10 +126,10 @@
         </div>
       </div>
 
-      <div class="pa-2 border-t bg-white">
+      <div class="pa-2 border-t bg-surface">
         <!-- New Saved Variants Section -->
-        <div class="text-caption font-weight-bold mb-1 uppercase text-grey-darken-1">Variantes enregistrées</div>
-        <v-list density="compact" class="pa-0 mb-4 bg-grey-lighten-4 rounded" style="max-height: 150px; overflow-y: auto;">
+        <div class="text-caption font-weight-bold mb-1 uppercase text-disabled">Variantes enregistrées</div>
+        <v-list density="compact" class="pa-0 mb-4 rounded border" style="max-height: 150px; overflow-y: auto;">
             <v-list-item v-if="savedVariants.length === 0" class="text-caption text-center py-2 text-grey">
                 Aucune variante
             </v-list-item>
@@ -200,10 +199,10 @@
             </div>
             
             <!-- Ligne Variante (Style gras) -->
-            <div class="text-body-2 font-weight-bold text-black text-truncate" :title="selectedVariant.name">
+            <div class="text-body-2 font-weight-bold text-truncate" :title="selectedVariant.name">
               {{ selectedVariant.name }} :
             </div>
-            <div class="text-body-2 font-weight-bold text-black text-right">
+            <div class="text-body-2 font-weight-bold text-right">
               Distance : {{ selectedVariant.stats?.totalDistance?.toFixed(1) || '0.0' }} km, 
               d+ : {{ selectedVariant.stats?.totalAscent?.toFixed(0) || '0' }} m
             </div>

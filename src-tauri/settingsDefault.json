@@ -1237,15 +1237,13 @@
           {
             "identifiant": "routingType",
             "libelle": "Profil de routage",
-            "description": "Profil de véhicule utilisé par défaut pour le calcul d'itinéraire (bike, mtb, racingbike, car, foot).",
+            "description": "Profil de véhicule utilisé par défaut pour le calcul d'itinéraire.",
             "type": "list",
-            "defaut": "bike",
+            "defaut": "Route uniquement",
             "valeurs": [
-              "bike",
-              "mtb",
-              "racingbike",
-              "car",
-              "foot"
+              "Route + Pistes cyclables",
+              "Route uniquement",
+              "VTT / Chemin"
             ],
             "doc": "docs/DocParametrage/Variante/routingType.md"
           },

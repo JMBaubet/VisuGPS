@@ -270,6 +270,17 @@ const initMap = async () => {
     
     // Load behavior settings
     variantConfig.value.routingService = getSettingValue('Variante/routingService') || 'GraphHopper';
+    
+    // Mapping French labels from settings to technical keys for Toolbar/API
+    const profileLabel = getSettingValue('Variante/routingType') || 'Route uniquement';
+    const profileMap = {
+        'Route + Pistes cyclables': 'car',
+        'Route uniquement': 'racingbike',
+        'VTT / Chemin': 'bike'
+    };
+    variantConfig.value.routingProfile = profileMap[profileLabel] || 'racingbike';
+    
+    console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.value.routingProfile}"`);
     console.log(`[Init] Using routing service: ${variantConfig.value.routingService}`);
 
     mapboxgl.accessToken = token;
@@ -281,7 +292,19 @@ const initMap = async () => {
       zoom: 5
     });
 
+    // Add navigation control (the compass)
+    map.value.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+
     map.value.on('load', async () => {
+        // Add 3D Terrain
+        map.value.addSource('mapbox-dem', {
+            'type': 'raster-dem',
+            'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+            'tileSize': 512,
+            'maxzoom': 14
+        });
+        map.value.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1.5 });
+
         try {
             const circuitData = await invoke('get_circuit_data', { circuitId: props.circuitId });
             circuitName.value = circuitData.nom;

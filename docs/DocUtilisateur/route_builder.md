@@ -42,6 +42,29 @@ Elle regroupe tout l'historique de votre travail :
 
 ---
 
+## 🎯 Les Points de Référence
+
+Lors de l'édition, vous manipulerez différents types de points qui ont des rôles bien distincts :
+
+### 1. Les Ancrages (Sur la trace)
+Ce sont des points de connexion **obligatoires** situés sur la trace maîtresse.
+*   **Rôle** : Ils définissent où votre variante quitte ou rejoint le parcours original.
+*   **Visuel** : Représentés par des points blancs cerclés de noir.
+*   **Contrainte** : Tout segment doit commencer et finir par une ancre (sauf Départ/Arrivée qui n'en ont qu'une).
+
+### 2. Les Points de passage (Libres)
+Ce sont les points que vous créez librement sur la carte pour dessiner votre nouveau chemin.
+*   **Rôle** : Ils guident le calculateur d'itinéraire (GraphHopper) pour forcer le passage par des routes spécifiques.
+*   **Visuel** : Représentés par des points jaunes.
+
+### 3. Les Points de Contrôle (Jalons 100m)
+Ce sont des marqueurs pré-calculés présents sur la trace maîtresse tous les 100 mètres.
+*   **Rôle** : Ils servent de repères de distance et facilitent la sélection précise lors de la pose d'une ancre.
+*   **Visuel** : Représentés par des cercles **oranges** sur la trace maîtresse.
+*   **Astuce** : Le curseur "aimante" la sélection sur ces points si vous cliquez à moins de 30 mètres (snapping).
+
+---
+
 ## Les 3 modes de modification
 
 Vous pouvez choisir le mode de modification dans la barre d'outils supérieure :
