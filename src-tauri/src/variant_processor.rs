@@ -202,7 +202,7 @@ pub async fn create_variant_files(
              _ => suffix.to_string() 
         };
 
-        let mut full_points: Vec<[f64; 2]> = points_raw.iter().map(|p| [p.lon, p.lat]).collect();
+        let full_points: Vec<[f64; 2]> = points_raw.iter().map(|p| [p.lon, p.lat]).collect();
         
         // 1. Fetch Altitudes
         let altitudes = fetch_altitudes(&full_points).await.map_err(|e| format!("Altitude fetch failed: {}", e))?;
