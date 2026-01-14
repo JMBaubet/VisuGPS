@@ -175,6 +175,11 @@ pub async fn create_variant_files(
         return Err("Circuit directory not found".to_string());
     }
 
+    // Load master tracking.json to copy anchor point data
+    let tracking_master_path = circuit_data_dir.join("tracking.json");
+    let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
+    let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
+
     // Process each modification
     for (index, modification) in request.modifications.iter().enumerate() {
         let (suffix, points_raw_opt) = match modification {
@@ -217,14 +222,32 @@ pub async fn create_variant_files(
         fs::write(&linestring_path, serde_json::to_string_pretty(&linestring_json).unwrap())
             .map_err(|e| e.to_string())?;
 
-        // 4. Generate Tracking file (Resampling 100m)
+        // 4. Determine overrides from master tracking
+        let (override_first, override_last) = match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
+                (None, tracking_master.get(*anchor_index_on_master).cloned())
+            },
+            VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
+                (tracking_master.get(*anchor_index_on_master).cloned(), None)
+            },
+            VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
+                (
+                    tracking_master.get(anchor_start.index).cloned(),
+                    tracking_master.get(anchor_end.index).cloned()
+                )
+            }
+        };
+
+        // 5. Generate Tracking file (Resampling 100m)
         let tracking_filename = format!("tracking_{}_{}.json", request.metadata.id, suffix_full);
         crate::tracking_processor::generate_tracking_file(
             &app_env_path,
             &request.circuit_id,
             &track_points_3d,
             &settings,
-            Some(&tracking_filename)
+            Some(&tracking_filename),
+            override_first,
+            override_last
         )?;
     }
 

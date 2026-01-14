@@ -18,11 +18,14 @@ struct TrackingPoint {
     coordonnee: [f64; 2],
     altitude: f64,
     commune: Option<String>,
-    cap: u32,
-    zoom: u32,
-    pitch: u32,
+    cap: f64,
+    zoom: f64,
+    pitch: f64,
     coordonnee_camera: Vec<f64>,
-    altitude_camera: u32,
+    altitude_camera: f64,
+    edited_zoom: Option<f64>,
+    edited_pitch: Option<f64>,
+    edited_cap: Option<f64>,
 }
 
 pub fn generate_tracking_file(
@@ -31,6 +34,8 @@ pub fn generate_tracking_file(
     track_points: &Vec<Vec<f64>>,
     settings: &serde_json::Value,
     output_filename: Option<&str>,
+    override_first: Option<serde_json::Value>,
+    override_last: Option<serde_json::Value>,
 ) -> Result<usize, String> {
     let segment_length = super::get_setting_value(settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
         .and_then(|v| v.as_f64())
@@ -103,20 +108,35 @@ pub fn generate_tracking_file(
     for (i, (point, altitude)) in calculated_points.iter().enumerate() {
         let cap = calculate_smoothed_bearing(i, &points_only, bearing_smoothing);
 
-        let tracking_point = TrackingPoint {
+        let mut tp = TrackingPoint {
             increment: i as u32,
-            point_de_control: i == 0,
+            point_de_control: i == 0 || i == calculated_points.len() - 1,
             nbr_segment: 0,
             coordonnee: [(point.x() * 100000.0).round() / 100000.0, (point.y() * 100000.0).round() / 100000.0],
             altitude: (altitude * 10.0).round() / 10.0,
             commune: None,
-            cap: cap.round() as u32,
-            zoom: default_zoom,
-            pitch: default_pitch,
+            cap: (cap * 10.0).round() / 10.0,
+            zoom: default_zoom as f64,
+            pitch: default_pitch as f64,
             coordonnee_camera: vec![],
-            altitude_camera: 0,
+            altitude_camera: 0.0,
+            edited_zoom: None,
+            edited_pitch: None,
+            edited_cap: None,
         };
-        tracking_points.push(tracking_point);
+
+        if i == 0 {
+            if let Some(ref ovr) = override_first {
+                apply_override_to_tp(&mut tp, ovr);
+            }
+        }
+        if i == calculated_points.len() - 1 {
+            if let Some(ref ovr) = override_last {
+                apply_override_to_tp(&mut tp, ovr);
+            }
+        }
+
+        tracking_points.push(tp);
     }
 
     let data_dir = app_env_path.join("data");
@@ -208,4 +228,43 @@ fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, wi
     }
     
     avg_bearing
+}
+
+fn apply_override_to_tp(tp: &mut TrackingPoint, ovr: &serde_json::Value) {
+    if let Some(alt) = ovr.get("altitude").and_then(|v| v.as_f64()) {
+        tp.altitude = alt;
+    }
+    if let Some(pdc) = ovr.get("pointDeControl").and_then(|v| v.as_bool()) {
+        tp.point_de_control = pdc;
+    }
+    if let Some(nbr) = ovr.get("nbrSegment").and_then(|v| v.as_u64()) {
+        tp.nbr_segment = nbr as u32;
+    }
+    if let Some(commune) = ovr.get("commune").and_then(|v| v.as_str()) {
+        tp.commune = Some(commune.to_string());
+    }
+    if let Some(cap) = ovr.get("cap").and_then(|v| v.as_f64()) {
+        tp.cap = cap;
+    }
+    if let Some(zoom) = ovr.get("zoom").and_then(|v| v.as_f64()) {
+        tp.zoom = zoom;
+    }
+    if let Some(pitch) = ovr.get("pitch").and_then(|v| v.as_f64()) {
+        tp.pitch = pitch;
+    }
+    if let Some(coords_cam) = ovr.get("coordonneeCamera").and_then(|v| v.as_array()) {
+        tp.coordonnee_camera = coords_cam.iter().filter_map(|v| v.as_f64()).collect();
+    }
+    if let Some(alt_cam) = ovr.get("altitudeCamera").and_then(|v| v.as_f64()) {
+        tp.altitude_camera = alt_cam;
+    }
+    if let Some(zoom) = ovr.get("editedZoom").and_then(|v| v.as_f64()) {
+        tp.edited_zoom = Some(zoom);
+    }
+    if let Some(pitch) = ovr.get("editedPitch").and_then(|v| v.as_f64()) {
+        tp.edited_pitch = Some(pitch);
+    }
+    if let Some(cap) = ovr.get("editedCap").and_then(|v| v.as_f64()) {
+        tp.edited_cap = Some(cap);
+    }
 }

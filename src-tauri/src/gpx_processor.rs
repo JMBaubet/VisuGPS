@@ -660,6 +660,8 @@ pub fn commit_new_circuit(
         &draft.track_points,
         &settings,
         None,
+        None,
+        None,
     )?;
 
     // Auto-add distance markers if setting is true
