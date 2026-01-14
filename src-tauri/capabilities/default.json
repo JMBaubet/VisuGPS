@@ -12,6 +12,13 @@
     "shell:allow-open",
     "process:allow-restart",
     {
+      "identifier": "fs:allow-read",
+      "scope": [
+        "../docs/**",
+        "$RESOURCE/docs/**"
+      ]
+    },
+    {
       "identifier": "core:event:allow-listen",
       "scope": {
         "event": [

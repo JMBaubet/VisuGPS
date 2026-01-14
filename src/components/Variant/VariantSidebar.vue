@@ -138,7 +138,7 @@
                 v-for="v in savedVariants"
                 :key="v.id"
                 :title="v.name"
-                :subtitle="new Date(v.creationDate).toLocaleDateString()"
+                :subtitle="`${v.stats?.totalDistance?.toFixed(1) || '0.0'} km; d+ ${v.stats?.totalAscent?.toFixed(0) || '0'}m`"
                 lines="one"
                 class="border-b last-child-border-0"
             >
@@ -291,7 +291,7 @@ const sortedModifications = computed(() => {
 const getModIcon = (type) => {
     if (type === 'DEPART') return 'mdi-ray-start-arrow';
     if (type === 'ARRIVEE') return 'mdi-ray-end-arrow';
-    return 'mdi-vector-polyline';
+    return 'mdi-source-branch';
 };
 
 const getModColor = (type) => {

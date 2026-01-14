@@ -20,18 +20,20 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost https://asset.localhost https://api.iconify.design data:; connect-src 'self' http://ipc.localhost https://api.mapbox.com https://events.mapbox.com https://api.open-meteo.com http://connectivitycheck.gstatic.com;",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "../docs/**",
+          "$RESOURCE/docs/**"
+        ]
+      }
     }
   },
   "plugins": {
     "process": {
       "allowlist": [
         "relaunch"
-      ]
-    },
-    "fs": {
-      "scope": [
-        "$APPDATA/com.visugps.app/VisuGPS/**"
       ]
     }
   },

@@ -8,6 +8,7 @@
          :circuit-name="circuitName"
          @save="saveVariant"
          @close="goHome"
+         @open-doc="isDocDialogVisible = true"
        />
 
        <div class="flex-grow-1 w-100 position-relative">
@@ -143,6 +144,10 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!-- Documentation Dialog -->
+    <v-dialog v-model="isDocDialogVisible" max-width="900px">
+      <DocDisplay doc-path="docs/DocUtilisateur/route_builder.md" @close="isDocDialogVisible = false" />
+    </v-dialog>
   </div>
 </template>
 
@@ -152,6 +157,7 @@ import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import VariantToolbar from '../components/Variant/VariantToolbar.vue';
 import VariantSidebar from '../components/Variant/VariantSidebar.vue';
+import DocDisplay from '../components/DocDisplay.vue';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
@@ -175,6 +181,7 @@ const { showSnackbar } = useSnackbar();
 const currentMode = ref('SEGMENT'); 
 const showSidebar = ref(true);
 const isLoading = ref(true);
+const isDocDialogVisible = ref(false);
 
 // Renaming Dialog State
 const showRenameDialog = ref(false);

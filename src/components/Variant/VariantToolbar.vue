@@ -19,7 +19,7 @@
       density="compact"
     >
       <v-btn value="DEPART" color="success">
-        <v-icon start>mdi-map-marker-minus</v-icon>
+        <v-icon start>mdi-ray-start-arrow</v-icon>
         Départ
       </v-btn>
 
@@ -29,7 +29,7 @@
       </v-btn>
 
       <v-btn value="ARRIVEE" color="error">
-        <v-icon start>mdi-map-marker-plus</v-icon>
+        <v-icon start>mdi-ray-end-arrow</v-icon>
         Arrivée
       </v-btn>
     </v-btn-toggle>
@@ -57,6 +57,10 @@
       </v-btn>
     </v-btn-toggle>
 
+    <v-btn icon @click="$emit('open-doc')" title="Documentation Route Builder" color="blue">
+      <v-icon>mdi-book-open-page-variant-outline</v-icon>
+    </v-btn>
+
   </v-toolbar>
 </template>
 
@@ -80,7 +84,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:mode', 'update:profile', 'save', 'close']);
+const emit = defineEmits(['update:mode', 'update:profile', 'save', 'close', 'open-doc']);
 const theme = useTheme();
 
 const internalMode = computed({

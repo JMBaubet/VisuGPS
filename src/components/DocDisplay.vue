@@ -60,6 +60,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import MarkdownIt from 'markdown-it';
 import mermaid from 'mermaid';
 import { nextTick } from 'vue';
@@ -113,6 +114,7 @@ const markdownContent = ref('');
 const loading = ref(false);
 const error = ref(null);
 const currentDocPath = ref(''); 
+const currentAbsoluteDocPath = ref(''); 
 
 // Gestion de l'historique de navigation
 const history = ref([]);
@@ -167,6 +169,32 @@ function resolvePath(basePath, relativePath) {
   return stack.join('/');
 }
 
+// Fonction pour résoudre les chemins absolus (système de fichiers) pour les images
+function resolveAbsolutePath(baseAbsolutePath, relativePath) {
+  // Normaliser les séparateurs (Windows vs Unix) pour le traitement JS
+  const normalizedBase = baseAbsolutePath.replace(/\\/g, '/');
+  
+  const stack = normalizedBase.split('/');
+  // Retirer le nom du fichier actuel
+  stack.pop();
+  
+  const parts = relativePath.split('/');
+  for (const part of parts) {
+    if (part === '.') continue;
+    if (part === '..') {
+      if (stack.length > 0) stack.pop();
+    } else {
+      stack.push(part);
+    }
+  }
+  
+  // Reconstruire le chemin. Sur Windows convertFileSrc gère les slashs ou on peut laisser comme ça.
+  // Idéalement on garde le style unix pour convertFileSrc qui supporte les deux souvent, 
+  // mais si on est sur windows le root pourrait être "C:".
+  const result = stack.join('/');
+  return result;
+}
+
 const md = new MarkdownIt({
   html: true,
   breaks: true,
@@ -195,21 +223,19 @@ md.renderer.rules.image = function (tokens, idx, options, env, self) {
     const src = token.attrs[srcIndex][1];
     // Si c'est un chemin relatif (ne commence pas par / ou http), on le résout
     if (!src.startsWith('/') && !src.startsWith('http')) {
-        // En dev, on assume que les images sont servies depuis /docs/ si elles sont référencées dans la doc
-        // Mais attention, "resolvePath" donne un chemin absolu par rapport à la racine "docs" du backend
-        // Pour l'affichage frontend (<img>), il faut un chemin accessible par le navigateur.
-        // Si on est en dev, `npm run tauri dev` serv le dossier `public` à la racine.
-        // Mes docs sont dans /docs/...
-        
-        let resolved = resolvePath(currentDocPath.value, src);
-        
-        // Si le path résolu ne commence pas par /, on l'ajoute.
-        // On suppose que resolvePath retourne un chemin basé sur la racine du serveur de dev
-        // Ex: current = /docs/DocUtilisateur/index.md, src = ../images/logo.png
-        // resolved = /docs/images/logo.png
-        // Cela devrait fonctionner directement en dev car /docs est servi.
-        
-        token.attrs[srcIndex][1] = resolved;
+        if (currentAbsoluteDocPath.value) {
+            // Résolution basée sur le chemin absolu du fichier doc
+            const resolvedAbs = resolveAbsolutePath(currentAbsoluteDocPath.value, src);
+            console.log('Resolving Image Path:', { src, base: currentAbsoluteDocPath.value, resolved: resolvedAbs });
+            // Conversion en URL asset:// (ou http://asset.localhost sur Mac) via Tauri
+            const assetUrl = convertFileSrc(resolvedAbs);
+            console.log('Converted URI:', assetUrl);
+            token.attrs[srcIndex][1] = assetUrl;
+        } else {
+             // Fallback dev (path manipulation simple si backend path manquant)
+             let resolved = resolvePath(currentDocPath.value, src);
+             token.attrs[srcIndex][1] = resolved;
+        }
     }
   }
   return defaultImageRender(tokens, idx, options, env, self);
@@ -220,6 +246,10 @@ function normalizePaths(markdown) {
   // Regex pour attraper les src="..." dans les balises img
   return markdown.replace(/<img\s+[^>]*src="([^"]+)"[^>]*>/g, (match, src) => {
     if (!src.startsWith('/') && !src.startsWith('http')) {
+         if (currentAbsoluteDocPath.value) {
+             const resolvedAbs = resolveAbsolutePath(currentAbsoluteDocPath.value, src);
+             return match.replace(src, convertFileSrc(resolvedAbs));
+         }
          const resolved = resolvePath(currentDocPath.value, src);
          return match.replace(src, resolved);
     }
@@ -298,6 +328,7 @@ async function fetchDocumentation(path, isHistoryAction = false, anchor = null) 
     const relativePath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     const response = await invoke('get_doc_content', { path: relativePath });
     markdownContent.value = response.content;
+    currentAbsoluteDocPath.value = response.path;
   } catch (e) {
     error.value = e;
   } finally {
