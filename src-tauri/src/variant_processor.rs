@@ -5,10 +5,11 @@ use tauri::Manager;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantPoint {
-    lat: f64,
-    lon: f64,
+    pub lat: f64,
+    pub lon: f64,
+    pub alt: Option<f64>,
     #[serde(rename = "type")]
-    point_type: Option<String>, // "start_point", "end_point", "waypoint"
+    pub point_type: Option<String>, // "start_point", "end_point", "waypoint"
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -49,6 +50,16 @@ pub enum VariantModification {
     },
 }
 
+impl VariantModification {
+    pub fn get_start_anchor_index(&self) -> usize {
+        match self {
+            VariantModification::DepartDeporte { anchor_index_on_master: _, .. } => 0, // Virtual index 0 for start
+            VariantModification::ArriveeReportee { anchor_index_on_master, .. } => *anchor_index_on_master,
+            VariantModification::SegmentDeviation { anchor_start, .. } => anchor_start.index,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AnchorPoint {
@@ -59,22 +70,24 @@ pub struct AnchorPoint {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantStats {
-    #[serde(alias = "total_distance")]
-    total_distance: f64,
-    #[serde(alias = "total_ascent")]
-    total_ascent: f64,
+    pub total_distance: f64,
+    pub total_ascent: f64,
+    #[serde(alias = "master_distance", default)]
+    pub master_distance: f64,
+    #[serde(alias = "master_ascent", default)]
+    pub master_ascent: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantMetadata {
-    id: String,
-    name: String,
-    description: String,
+    pub id: String,
+    pub name: String,
+    pub description: String,
     #[serde(alias = "creation_date")]
-    creation_date: String,
-    color: String,
-    stats: VariantStats,
+    pub creation_date: String,
+    pub color: String,
+    pub stats: VariantStats,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -92,74 +105,38 @@ pub struct CreateVariantRequest {
     modifications: Vec<VariantModification>,
 }
 
-// Function placeholders
-const IGN_API_URL: &str = "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json";
+// Elevation fetching is now handled by crate::elevation_provider
 
-#[derive(Deserialize, Debug)]
-struct IgnElevationResponse {
-    #[allow(dead_code)]
-    elevations: Vec<IgnElevationPoint>,
-}
 
-#[derive(Deserialize, Debug)]
-struct IgnElevationPoint {
-    #[allow(dead_code)]
-    z: f64,
-}
+async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<Vec<Vec<f64>>, String> {
+    let mut final_3d = Vec::new();
+    let mut missing_alt_indices = Vec::new();
+    let mut coords_for_fetch = Vec::new();
 
-async fn fetch_altitudes(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
-    if points.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let client = reqwest::Client::new();
-    let mut altitudes = Vec::new();
-    
-    // Chunk requests to avoid URL length limits or API payload limits (e.g. 50 points per request)
-    for chunk in points.chunks(50) {
-        let lons: Vec<String> = chunk.iter().map(|p| p[0].to_string()).collect();
-        let lats: Vec<String> = chunk.iter().map(|p| p[1].to_string()).collect();
-        
-        let url = format!(
-            "{}?lon={}&lat={}&resource=ign_rge_alti_wld&delimiter=|&indent=false&zonly=true",
-            IGN_API_URL,
-            lons.join("|"),
-            lats.join("|")
-        );
-
-        let resp = client.get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-
-        if !resp.status().is_success() {
-             return Err(format!("IGN API Error: {}", resp.status()));
-        }
-
-        let json: serde_json::Value = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
-        
-        // Handle "elevations": [z1, z2, ...] response format when zonly=true
-        if let Some(elevations_array) = json.get("elevations").and_then(|v| v.as_array()) {
-            for val in elevations_array {
-                altitudes.push(val.as_f64().unwrap_or(0.0));
-            }
+    for (i, p) in points_raw.iter().enumerate() {
+        if let Some(alt) = p.alt {
+            final_3d.push(vec![p.lon, p.lat, alt]);
         } else {
-             return Err("Invalid API response format".to_string());
+            final_3d.push(vec![p.lon, p.lat, 0.0]); // Placeholder
+            missing_alt_indices.push(i);
+            coords_for_fetch.push([p.lon, p.lat]);
         }
     }
 
-    if altitudes.len() != points.len() {
-        return Err(format!("Mismatch in altitude count: expected {}, got {}", points.len(), altitudes.len()));
+    if !coords_for_fetch.is_empty() {
+        let fetched_alts = crate::elevation_provider::fetch_altitudes(&coords_for_fetch).await?;
+        for (i, alt) in missing_alt_indices.iter().zip(fetched_alts.iter()) {
+            final_3d[*i][2] = *alt;
+        }
     }
-
-    Ok(altitudes)
+    Ok(final_3d)
 }
 
 #[tauri::command]
 pub async fn create_variant_files(
     app_handle: tauri::AppHandle,
     request: CreateVariantRequest,
-) -> Result<String, String> {
+) -> Result<(), String> {
     let app_env_path = {
         let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
         let app_state = state_mutex.lock().unwrap();
@@ -180,108 +157,151 @@ pub async fn create_variant_files(
     let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
     let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
 
-    // Process each modification
+    // Process each modification for individual files
     for (index, modification) in request.modifications.iter().enumerate() {
+        // Validation: Backwards segments are not allowed
+        if let VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } = modification {
+            if anchor_end.index <= anchor_start.index {
+                return Err(format!("Le segment {} est invalide : l'ancre de fin (index {}) doit être après l'ancre de départ (index {})", 
+                    index + 1, anchor_end.index, anchor_start.index));
+            }
+        }
+
         let (suffix, points_raw_opt) = match modification {
             VariantModification::DepartDeporte { full_geometry, .. } => ("DEPART", full_geometry),
             VariantModification::ArriveeReportee { full_geometry, .. } => ("ARRIVEE", full_geometry),
             VariantModification::SegmentDeviation { full_geometry, .. } => ("SEGMENT", full_geometry)
         };
 
-        let points_raw = match points_raw_opt {
-            Some(p) => p,
-            None => continue,
-        };
+        if let Some(points_raw) = points_raw_opt {
+            if !points_raw.is_empty() {
+                let suffix_full = match modification {
+                    VariantModification::SegmentDeviation { .. } => format!("{}_{}", suffix, index),
+                    _ => suffix.to_string() 
+                };
 
-        if points_raw.is_empty() {
-             continue;
-        }
-        
-        let suffix_full = match modification {
-             VariantModification::SegmentDeviation { .. } => format!("{}_{}", suffix, index),
-             _ => suffix.to_string() 
-        };
+                let track_points_3d = prepare_points_3d(points_raw).await?;
 
-        let full_points: Vec<[f64; 2]> = points_raw.iter().map(|p| [p.lon, p.lat]).collect();
-        
-        // 1. Fetch Altitudes
-        let altitudes = fetch_altitudes(&full_points).await.map_err(|e| format!("Altitude fetch failed: {}", e))?;
-        
-        // 2. Merge into [lon, lat, ele]
-        let track_points_3d: Vec<Vec<f64>> = full_points.iter().zip(altitudes.iter()).map(|(p, alt)| {
-             vec![p[0], p[1], *alt]
-        }).collect();
+                // Write LineString file
+                let linestring_filename = format!("lineString_{}_{}.json", request.metadata.id, suffix_full);
+                let linestring_path = circuit_data_dir.join(&linestring_filename);
+                let linestring_json = serde_json::json!({
+                    "type": "LineString",
+                    "coordinates": track_points_3d
+                });
+                fs::write(&linestring_path, serde_json::to_string_pretty(&linestring_json).unwrap()).map_err(|e| e.to_string())?;
 
-        // 3. Write LineString file
-        let linestring_filename = format!("lineString_{}_{}.json", request.metadata.id, suffix_full);
-        let linestring_path = circuit_data_dir.join(&linestring_filename);
-        let linestring_json = serde_json::json!({
-            "type": "LineString",
-            "coordinates": track_points_3d
-        });
-        fs::write(&linestring_path, serde_json::to_string_pretty(&linestring_json).unwrap())
-            .map_err(|e| e.to_string())?;
+                // Overrides from master tracking
+                let (override_first, override_last) = match modification {
+                    VariantModification::DepartDeporte { anchor_index_on_master, .. } => (None, tracking_master.get(*anchor_index_on_master).cloned()),
+                    VariantModification::ArriveeReportee { anchor_index_on_master, .. } => (tracking_master.get(*anchor_index_on_master).cloned(), None),
+                    VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => (tracking_master.get(anchor_start.index).cloned(), tracking_master.get(anchor_end.index).cloned())
+                };
 
-        // 4. Determine overrides from master tracking
-        let (override_first, override_last) = match modification {
-            VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
-                (None, tracking_master.get(*anchor_index_on_master).cloned())
-            },
-            VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
-                (tracking_master.get(*anchor_index_on_master).cloned(), None)
-            },
-            VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
-                (
-                    tracking_master.get(anchor_start.index).cloned(),
-                    tracking_master.get(anchor_end.index).cloned()
-                )
+                // Generate Tracking file
+                let tracking_filename = format!("tracking_{}_{}.json", request.metadata.id, suffix_full);
+                crate::tracking_processor::generate_tracking_file(&app_env_path, &request.circuit_id, &track_points_3d, &settings, Some(&tracking_filename), override_first, override_last)?;
             }
-        };
-
-        // 5. Generate Tracking file (Resampling 100m)
-        let tracking_filename = format!("tracking_{}_{}.json", request.metadata.id, suffix_full);
-        crate::tracking_processor::generate_tracking_file(
-            &app_env_path,
-            &request.circuit_id,
-            &track_points_3d,
-            &settings,
-            Some(&tracking_filename),
-            override_first,
-            override_last
-        )?;
+        }
     }
 
-    // 5. Save Archive file
-    // Use the sanitized name from metadata or a default
-    // Using simple alphanumeric replacement for safety
-    let safe_name = request.metadata.name.chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-        .collect::<String>();
-        
-    let _archive_filename = format!("archive_var_{}.json", safe_name); 
-    // The plan says "archive_[nom].json". Let's use ID if name is unsafe? 
-    // Metadata has ID "var_...". Let's use that.
-    let archive_filename = format!("archive_{}.json", request.metadata.id);
-    let archive_path = circuit_data_dir.join(&archive_filename);
+    // --- Statistics Calculation (Full Trace Reconstruction) ---
+    let master_ls_path = circuit_data_dir.join("lineString.json");
+    let master_ls_content = fs::read_to_string(&master_ls_path).map_err(|e| format!("Failed to read lineString.json: {}", e))?;
+    let master_ls: serde_json::Value = serde_json::from_str(&master_ls_content).map_err(|e| format!("Failed to parse lineString.json: {}", e))?;
+    let master_coords = master_ls["coordinates"].as_array().ok_or("Invalid lineString format")?;
+    let master_points_high_res: Vec<Vec<f64>> = master_coords.iter().map(|c| c.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect()).collect();
+
+    let find_closest_high_res_idx = |lon: f64, lat: f64, start_from: usize| -> usize {
+        let mut min_dist = f64::MAX;
+        let mut closest_idx = start_from;
+        for i in start_from..master_points_high_res.len() {
+            let mp = &master_points_high_res[i];
+            let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
+            if d < min_dist { min_dist = d; closest_idx = i; }
+            if d < 1.0 && i > start_from + 1 {
+                 let prev_d = crate::gpx_processor::haversine_distance(lat, lon, master_points_high_res[i-1][1], master_points_high_res[i-1][0]);
+                 if d > prev_d { break; }
+            }
+        }
+        closest_idx
+    };
+
+    let mut final_points: Vec<Vec<f64>> = Vec::new();
+    let mut current_master_idx = 0;
+    let mut sorted_mods = request.modifications.clone();
+    sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
+    let mut has_arrivee_reportee = false;
+
+    for modification in &sorted_mods {
+        match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                if let Some(geom) = full_geometry {
+                    final_points.extend(prepare_points_3d(geom).await?);
+                }
+                let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                current_master_idx = find_closest_high_res_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), 0);
+            },
+            VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
+                let start_idx = find_closest_high_res_idx(anchor_start.coords[0], anchor_start.coords[1], current_master_idx);
+                while current_master_idx <= start_idx && current_master_idx < master_points_high_res.len() {
+                    final_points.push(master_points_high_res[current_master_idx].clone());
+                    current_master_idx += 1;
+                }
+                if let Some(geom) = full_geometry {
+                    final_points.extend(prepare_points_3d(geom).await?);
+                }
+                current_master_idx = find_closest_high_res_idx(anchor_end.coords[0], anchor_end.coords[1], start_idx);
+                if current_master_idx <= start_idx { current_master_idx = start_idx + 1; }
+            },
+            VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
+                has_arrivee_reportee = true;
+                let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                let arrivee_idx = find_closest_high_res_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), current_master_idx);
+                while current_master_idx <= arrivee_idx && current_master_idx < master_points_high_res.len() {
+                    final_points.push(master_points_high_res[current_master_idx].clone());
+                    current_master_idx += 1;
+                }
+                if let Some(geom) = full_geometry {
+                    final_points.extend(prepare_points_3d(geom).await?);
+                }
+                current_master_idx = master_points_high_res.len();
+            }
+        }
+    }
+
+    if !has_arrivee_reportee {
+        while current_master_idx < master_points_high_res.len() {
+            final_points.push(master_points_high_res[current_master_idx].clone());
+            current_master_idx += 1;
+        }
+    }
+
+    let median_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_median_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+    let avg_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_avg_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+    let max_gradient = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.max_gradient_percent").and_then(|v| v.as_f64()).unwrap_or(40.0);
+    let lissage_dist = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.denivele_lissage_distance").and_then(|v| v.as_f64()).unwrap_or(10.0);
     
+    let cleaned_points = crate::gpx_processor::clean_altitude_data(&final_points, median_window, avg_window, max_gradient);
+    let circuits_file = crate::read_circuits_file(&app_env_path)?;
+    let master_circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == request.circuit_id).ok_or_else(|| format!("Master circuit {} not found", request.circuit_id))?;
+    let variant_stats = crate::gpx_processor::calculate_track_stats(&cleaned_points, lissage_dist);
+
+    let mut metadata = request.metadata;
+    metadata.stats.total_distance = variant_stats.total_distance_km;
+    metadata.stats.total_ascent = variant_stats.positive_elevation_m as f64;
+    metadata.stats.master_distance = master_circuit.distance_km;
+    metadata.stats.master_ascent = master_circuit.denivele_m as f64;
+
+    let archive_path = circuit_data_dir.join(format!("archive_{}.json", metadata.id));
     let mut modifications = request.modifications;
     for m in modifications.iter_mut() {
         match m {
-            VariantModification::DepartDeporte { full_geometry, .. } => *full_geometry = None,
-            VariantModification::ArriveeReportee { full_geometry, .. } => *full_geometry = None,
-            VariantModification::SegmentDeviation { full_geometry, .. } => *full_geometry = None,
+            VariantModification::DepartDeporte { full_geometry, .. } | VariantModification::ArriveeReportee { full_geometry, .. } | VariantModification::SegmentDeviation { full_geometry, .. } => *full_geometry = None,
         }
     }
-
-    let archive = Archive {
-        metadata: request.metadata,
-        modifications,
-    };
-    
-    fs::write(&archive_path, serde_json::to_string_pretty(&archive).unwrap())
-        .map_err(|e| e.to_string())?;
-
-    Ok("Variante créée avec succès".to_string())
+    fs::write(&archive_path, serde_json::to_string_pretty(&Archive { metadata, modifications }).unwrap()).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -367,6 +387,7 @@ pub async fn get_variant_details(
                                     full_geom.push(VariantPoint {
                                         lat: arr[1].as_f64().unwrap_or(0.0),
                                         lon: arr[0].as_f64().unwrap_or(0.0),
+                                        alt: (arr.len() >= 3).then(|| arr[2].as_f64().unwrap_or(0.0)),
                                         point_type: None,
                                     });
                                 }
@@ -505,7 +526,7 @@ pub async fn calculate_route(
         // GET /route?point=...&point=...&profile=...&key=...&points_encoded=false
         
         let client = reqwest::Client::new();
-        let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=false", api_key, profile);
+        let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=true", api_key, profile);
         
         for p in points {
             url.push_str(&format!("&point={},{}", p[1], p[0])); // Lat,Lon

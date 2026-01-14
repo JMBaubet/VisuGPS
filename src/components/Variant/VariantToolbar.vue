@@ -49,7 +49,7 @@
       <v-btn value="car" title="Route + Pistes cyclables">
         <v-icon>mdi-bike</v-icon>
       </v-btn>
-      <v-btn value="racingbike" title="Vélo de route">
+      <v-btn value="racingbike" title="Route uniquement">
         <v-icon>mdi-bike-fast</v-icon>
       </v-btn>
       <v-btn value="bike" title="VTT / Chemin">

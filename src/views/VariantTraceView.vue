@@ -538,6 +538,14 @@ const handleMapClick = (e) => {
     }
 
     // Add point to active group
+    if (isSnap && activeMod && activeMod.type === 'SEGMENT' && activeMod.points.length === 1) {
+        const startAnchor = activeMod.points[0];
+        if (newPoint.index <= startAnchor.index) {
+            showSnackbar("L'ancre de fin doit se situer après l'ancre de départ sur le tracé.", "error");
+            return;
+        }
+    }
+
     activeMod.points.push(newPoint);
     isModified.value = true;
 
@@ -847,7 +855,7 @@ const confirmSaveVariant = async () => {
             
             // Preparation de la géométrie complète (pour les fichiers permanents)
             const fullGeometry = (mod.preview && mod.preview.coordinates) 
-                ? mod.preview.coordinates.map(c => ({ lat: c[1], lon: c[0] }))
+                ? mod.preview.coordinates.map(c => ({ lat: c[1], lon: c[0], alt: c[2] }))
                 : mod.points.map(p => ({ lat: p.coords[1], lon: p.coords[0] }));
 
             if (mod.type === 'SEGMENT') {

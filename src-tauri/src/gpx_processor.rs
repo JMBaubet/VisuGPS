@@ -78,11 +78,12 @@ pub struct DraftCircuit {
 }
 
 // Struct to hold calculation results
-struct TrackStats {
-    total_distance_km: f64,
-    positive_elevation_m: i32,
-    summit_altitude_m: i32,
-    summit_distance_km: f64,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrackStats {
+    pub total_distance_km: f64,
+    pub positive_elevation_m: i32,
+    pub summit_altitude_m: i32,
+    pub summit_distance_km: f64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -1218,7 +1219,8 @@ fn create_line_string_file(
     fs::write(&linestring_path, linestring_content).map_err(|e| e.to_string())
 }
 
-fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64) -> TrackStats {
+pub fn calculate_track_stats(
+track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64) -> TrackStats {
     if track_points.len() < 2 {
         return TrackStats {
             total_distance_km: 0.0,

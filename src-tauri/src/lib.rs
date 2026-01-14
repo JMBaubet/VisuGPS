@@ -11,6 +11,7 @@ use std::path::PathBuf;
 
 pub mod colors;
 pub mod communes_updater;
+pub mod elevation_provider;
 pub mod distance_markers;
 pub mod error_logger;
 pub mod event;

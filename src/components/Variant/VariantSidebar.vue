@@ -142,6 +142,16 @@
                 lines="one"
                 class="border-b last-child-border-0"
             >
+                <template v-slot:prepend>
+                    <v-btn
+                      icon="mdi-information-outline"
+                      size="x-small"
+                      variant="text"
+                      color="info"
+                      @click.stop="openInfoDialog(v)"
+                      title="Détails de la variante"
+                    ></v-btn>
+                </template>
                 <template v-slot:append>
                     <v-btn
                       icon="mdi-eye"
@@ -169,10 +179,85 @@
       </div>
     </v-card-text>
   </v-card>
+
+  <!-- Info Dialog for Variant Stats -->
+  <v-dialog v-model="infoDialog" max-width="400">
+    <v-card v-if="selectedVariant">
+      <v-card-title class="bg-blue-darken-3 text-white d-flex align-center">
+        <v-icon start>mdi-information</v-icon>
+        Détails de la variante
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <div class="text-h6 mb-3">{{ selectedVariant.name }}</div>
+        
+        <v-table density="compact" class="stats-table mb-4 border">
+          <thead>
+            <tr>
+              <th class="text-left font-weight-bold">Statistique</th>
+              <th class="text-right font-weight-bold text-grey">Maître</th>
+              <th class="text-right font-weight-bold">Var.</th>
+              <th class="text-right font-weight-bold">Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-caption">Distance (km)</td>
+              <td class="text-right text-caption text-grey">{{ selectedVariant.stats?.masterDistance?.toFixed(1) || '0.0' }}</td>
+              <td class="text-right font-weight-bold ">{{ selectedVariant.stats?.totalDistance?.toFixed(1) || '0.0' }}</td>
+              <td class="text-right font-weight-bold" :class="getDeltaColor(selectedVariant.stats?.totalDistance - selectedVariant.stats?.masterDistance, true)">
+                {{ formatDelta(selectedVariant.stats?.totalDistance - selectedVariant.stats?.masterDistance, 1) }}
+              </td>
+            </tr>
+            <tr>
+              <td class="text-caption">Dénivelé (D+)</td>
+              <td class="text-right text-caption text-grey">{{ selectedVariant.stats?.masterAscent?.toFixed(0) || '0' }}m</td>
+              <td class="text-right font-weight-bold text-success">{{ selectedVariant.stats?.totalAscent?.toFixed(0) || '0' }}m</td>
+              <td class="text-right font-weight-bold" :class="getDeltaColor(selectedVariant.stats?.totalAscent - selectedVariant.stats?.masterAscent, true)">
+                {{ formatDelta(selectedVariant.stats?.totalAscent - selectedVariant.stats?.masterAscent, 0) }}m
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+        
+        <v-divider class="mb-4"></v-divider>
+        
+        <div class="d-flex justify-space-between text-caption text-grey">
+            <span>Créée le :</span>
+            <span>{{ new Date(selectedVariant.creationDate).toLocaleDateString() }} à {{ new Date(selectedVariant.creationDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
+        </div>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="primary" variant="text" @click="infoDialog = false">Fermer</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
+
+const infoDialog = ref(false);
+const selectedVariant = ref(null);
+
+const openInfoDialog = (variant) => {
+    selectedVariant.value = variant;
+    infoDialog.value = true;
+};
+
+const getDeltaColor = (delta, lowerIsBetter = true) => {
+    if (!delta || Math.abs(delta) < 0.01) return 'text-grey';
+    if (lowerIsBetter) {
+        return delta < 0 ? 'text-success' : 'text-error';
+    }
+    return delta > 0 ? 'text-success' : 'text-error';
+};
+
+const formatDelta = (delta, decimals = 1) => {
+    if (!delta || Math.abs(delta) < 0.01) return '--';
+    const sign = delta > 0 ? '+' : '';
+    return `${sign}${delta.toFixed(decimals)}`;
+};
 
 const props = defineProps({
   activeMode: String,
