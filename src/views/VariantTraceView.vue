@@ -218,9 +218,11 @@ const isValid = computed(() => {
   return modifications.value.length > 0 && modifications.value.every(m => m.finalized);
 });
 
-// watch(currentMode, () => {
-//     resetPoints();
-// });
+watch(() => variantConfig.value.routingProfile, () => {
+    if (modifications.value.length > 0) {
+        generatePreview();
+    }
+});
 
 const resetPoints = () => {
     modifications.value = [];

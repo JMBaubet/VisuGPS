@@ -24,7 +24,7 @@
       </v-btn>
 
       <v-btn value="SEGMENT" color="primary">
-        <v-icon start>mdi-bezier-curve</v-icon>
+        <v-icon start>mdi-source-branch</v-icon>
         Segment
       </v-btn>
 

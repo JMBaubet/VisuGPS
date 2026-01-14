@@ -159,24 +159,13 @@
                       variant="text"
                       color="primary"
                       class="mr-1"
-                      @click.stop="$emit('rename-saved-variant', v.id, v.name)"
+                      @click.stop.prevent="$emit('rename-saved-variant', v.id, v.name)"
                       title="Renommer cette variante"
                     ></v-btn>
                     <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-saved-variant', v.id, v.name)"></v-btn>
                 </template>
             </v-list-item>
         </v-list>
-
-        <v-btn
-          block
-          variant="tonal"
-          color="primary"
-          :disabled="!canGeneratePreview"
-          @click="$emit('generate')"
-        >
-          <v-icon start>mdi-play</v-icon>
-          Prévisualiser tout
-        </v-btn>
       </div>
     </v-card-text>
   </v-card>
