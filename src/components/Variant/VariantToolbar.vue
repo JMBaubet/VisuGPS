@@ -46,14 +46,14 @@
       density="compact"
       color="primary"
     >
-      <v-btn value="car" title="Voiture (sans autoroutes)">
-        <v-icon>mdi-car</v-icon>
+      <v-btn value="car" title="Route + Pistes cyclables">
+        <v-icon>mdi-bike</v-icon>
       </v-btn>
       <v-btn value="racingbike" title="Vélo de route">
-        <v-icon>mdi-bicycle-electric</v-icon>
+        <v-icon>mdi-bike-fast</v-icon>
       </v-btn>
       <v-btn value="bike" title="VTT / Chemin">
-        <v-icon>mdi-bike</v-icon>
+        <v-icon>mdi-image-filter-hdr</v-icon>
       </v-btn>
     </v-btn-toggle>
 
