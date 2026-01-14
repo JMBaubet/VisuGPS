@@ -639,11 +639,17 @@ const handleLoadVariant = async (variantId) => {
                 }
             }
             
+            if (rm.fullGeometry && Array.isArray(rm.fullGeometry)) {
+                mod.preview = {
+                    type: 'LineString',
+                    coordinates: rm.fullGeometry.map(p => [p.lon, p.lat])
+                };
+            }
+            
             modifications.value.push(mod);
         }
         
-        // Regenerate all previews and update map
-        await generatePreview();
+        // Update map immediately with loaded geometry
         updateMarkers();
         updatePreviewSource();
         

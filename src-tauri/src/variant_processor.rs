@@ -20,8 +20,8 @@ pub enum VariantModification {
         #[serde(alias = "anchor_index_on_master")]
         anchor_index_on_master: usize,
         points: Vec<VariantPoint>, // Raw editing points
-        #[serde(alias = "full_geometry")]
-        full_geometry: Vec<VariantPoint>, // Detailed route
+        #[serde(alias = "full_geometry", skip_serializing_if = "Option::is_none")]
+        full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
     },
@@ -30,8 +30,8 @@ pub enum VariantModification {
         #[serde(alias = "anchor_index_on_master")]
         anchor_index_on_master: usize,
         points: Vec<VariantPoint>, // Raw editing points
-        #[serde(alias = "full_geometry")]
-        full_geometry: Vec<VariantPoint>, // Detailed route
+        #[serde(alias = "full_geometry", skip_serializing_if = "Option::is_none")]
+        full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
     },
@@ -42,8 +42,8 @@ pub enum VariantModification {
         #[serde(alias = "anchor_end")]
         anchor_end: AnchorPoint,
         waypoints: Vec<VariantPoint>, // Intermediate editing points
-        #[serde(alias = "full_geometry")]
-        full_geometry: Vec<VariantPoint>, // Detailed route
+        #[serde(alias = "full_geometry", skip_serializing_if = "Option::is_none")]
+        full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
     },
@@ -177,10 +177,15 @@ pub async fn create_variant_files(
 
     // Process each modification
     for (index, modification) in request.modifications.iter().enumerate() {
-        let (suffix, points_raw) = match modification {
+        let (suffix, points_raw_opt) = match modification {
             VariantModification::DepartDeporte { full_geometry, .. } => ("DEPART", full_geometry),
             VariantModification::ArriveeReportee { full_geometry, .. } => ("ARRIVEE", full_geometry),
             VariantModification::SegmentDeviation { full_geometry, .. } => ("SEGMENT", full_geometry)
+        };
+
+        let points_raw = match points_raw_opt {
+            Some(p) => p,
+            None => continue,
         };
 
         if points_raw.is_empty() {
@@ -236,9 +241,18 @@ pub async fn create_variant_files(
     let archive_filename = format!("archive_{}.json", request.metadata.id);
     let archive_path = circuit_data_dir.join(&archive_filename);
     
+    let mut modifications = request.modifications;
+    for m in modifications.iter_mut() {
+        match m {
+            VariantModification::DepartDeporte { full_geometry, .. } => *full_geometry = None,
+            VariantModification::ArriveeReportee { full_geometry, .. } => *full_geometry = None,
+            VariantModification::SegmentDeviation { full_geometry, .. } => *full_geometry = None,
+        }
+    }
+
     let archive = Archive {
         metadata: request.metadata,
-        modifications: request.modifications,
+        modifications,
     };
     
     fs::write(&archive_path, serde_json::to_string_pretty(&archive).unwrap())
@@ -306,7 +320,45 @@ pub async fn get_variant_details(
     }
 
     let content = fs::read_to_string(&archive_path).map_err(|e| e.to_string())?;
-    let archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let mut archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    // Re-hydrate full_geometry from LineString files
+    for (index, modification) in archive.modifications.iter_mut().enumerate() {
+        let suffix = match modification {
+            VariantModification::DepartDeporte { .. } => "DEPART".to_string(),
+            VariantModification::ArriveeReportee { .. } => "ARRIVEE".to_string(),
+            VariantModification::SegmentDeviation { .. } => format!("SEGMENT_{}", index),
+        };
+
+        let linestring_filename = format!("lineString_{}_{}.json", archive.metadata.id, suffix);
+        let linestring_path = app_env_path.join("data").join(&circuit_id).join(&linestring_filename);
+
+        if linestring_path.exists() {
+            if let Ok(ls_content) = fs::read_to_string(&linestring_path) {
+                if let Ok(ls_json) = serde_json::from_str::<serde_json::Value>(&ls_content) {
+                    if let Some(coords) = ls_json.get("coordinates").and_then(|c| c.as_array()) {
+                        let mut full_geom = Vec::new();
+                        for coord in coords {
+                            if let Some(arr) = coord.as_array() {
+                                if arr.len() >= 2 {
+                                    full_geom.push(VariantPoint {
+                                        lat: arr[1].as_f64().unwrap_or(0.0),
+                                        lon: arr[0].as_f64().unwrap_or(0.0),
+                                        point_type: None,
+                                    });
+                                }
+                            }
+                        }
+                        match modification {
+                            VariantModification::DepartDeporte { full_geometry, .. } => *full_geometry = Some(full_geom),
+                            VariantModification::ArriveeReportee { full_geometry, .. } => *full_geometry = Some(full_geom),
+                            VariantModification::SegmentDeviation { full_geometry, .. } => *full_geometry = Some(full_geom),
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Ok(archive)
 }
