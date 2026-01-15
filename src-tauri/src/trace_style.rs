@@ -1,4 +1,4 @@
-use serde::Deserialize;
+
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Mutex;
@@ -6,10 +6,11 @@ use tauri::State;
 use geo::algorithm::haversine_distance::HaversineDistance;
 use geo::Point;
 
-#[derive(Deserialize, Debug)]
-struct TrackingPoint {
-    altitude: f64,
-    coordonnee: [f64; 2],
+#[derive(serde::Deserialize, Debug)]
+
+pub struct TrackingPoint {
+    pub altitude: f64,
+    pub coordonnee: [f64; 2],
 }
 
 fn get_slope_color(slope: f64, slope_colors: &HashMap<String, String>) -> String {
@@ -37,27 +38,32 @@ pub async fn get_slope_color_expression(
     state: State<'_, Mutex<crate::AppState>>,
     circuit_id: String,
     slope_colors: HashMap<String, String>,
-    segment_length: f64,
+    _segment_length: f64,
     filename: Option<String>,
+    tracking_data: Option<Vec<TrackingPoint>>,
 ) -> Result<serde_json::Value, String> {
     let app_state = state.lock().unwrap();
     let data_dir = &app_state.app_env_path;
 
-    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
-    let tracking_path = data_dir
-        .join("data")
-        .join(&circuit_id)
-        .join(target_filename);
-    if !tracking_path.exists() {
-        return Err(format!(
-            "Tracking file not found at {:?}",
-            tracking_path
-        ));
-    }
+    let tracking_points = if let Some(data) = tracking_data {
+        data
+    } else {
+        let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
+        let tracking_path = data_dir
+            .join("data")
+            .join(&circuit_id)
+            .join(&target_filename); // Warning: check if target_filename has .json
 
-    let tracking_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
-    let tracking_points: Vec<TrackingPoint> =
-        serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
+        if !tracking_path.exists() {
+            return Err(format!(
+                "Tracking file not found at {:?}",
+                tracking_path
+            ));
+        }
+
+        let tracking_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?
+    };
 
     if tracking_points.len() < 2 {
         return Ok(serde_json::json!(slope_colors
@@ -66,28 +72,32 @@ pub async fn get_slope_color_expression(
             .unwrap_or_else(|| "#FFFFFF".to_string())));
     }
 
-    let mut slopes = Vec::new();
+    let mut segments = Vec::new();
+    let mut cumulative_dist = 0.0;
+
     for i in 1..tracking_points.len() {
         let p1 = &tracking_points[i - 1];
         let p2 = &tracking_points[i];
-        let altitude_change = p2.altitude - p1.altitude;
-        let slope = if segment_length > 0.0 {
-            (altitude_change / segment_length) * 100.0
-        } else {
-            0.0
-        };
-        slopes.push(slope);
+        
+        let point1 = Point::new(p1.coordonnee[0], p1.coordonnee[1]);
+        let point2 = Point::new(p2.coordonnee[0], p2.coordonnee[1]);
+        let dist = point1.haversine_distance(&point2);
+
+        // Ignore tiny segments to verify monotonicity/avoid div/0
+        if dist > 0.01 { 
+            let altitude_change = p2.altitude - p1.altitude;
+            let slope = (altitude_change / dist) * 100.0;
+            
+            cumulative_dist += dist;
+            segments.push((cumulative_dist, get_slope_color(slope, &slope_colors)));
+        }
     }
 
-    let colors: Vec<String> = slopes
-        .iter()
-        .map(|&s| get_slope_color(s, &slope_colors))
-        .collect();
-
-    let total_distance = (tracking_points.len() - 1) as f64 * segment_length;
+    let total_distance = cumulative_dist;
+    
     if total_distance <= 0.0 {
-        return Ok(serde_json::json!(colors
-            .first()
+        return Ok(serde_json::json!(slope_colors
+            .get("Tranche1")
             .cloned()
             .unwrap_or_else(|| "#FFFFFF".to_string())));
     }
@@ -98,36 +108,48 @@ pub async fn get_slope_color_expression(
         vec!["line-progress"].into(),
     ];
 
-    let transition_length = 25.0; // 25m
+    // Build gradient with strictly ascending steps
+    // Small epsilon for hard transitions
+    let epsilon = 0.000001; 
+    let mut last_val = 0.0;
 
-    // Start with color of first segment
+    // Start
     expression.push(0.0.into());
-    expression.push(colors[0].clone().into());
+    let start_color = if !segments.is_empty() { segments[0].1.clone() } else { "#FFFFFF".to_string() };
+    expression.push(start_color.into());
 
-    for i in 1..colors.len() {
-        let junction_dist = i as f64 * segment_length;
-        let color_before = &colors[i - 1];
-        let color_after = &colors[i];
+    for i in 0..segments.len() - 1 {
+        let (end_dist, current_color) = &segments[i];
+        let next_color = &segments[i+1].1;
+        
+        // Only insert transition if color changes
+        if current_color != next_color {
+            let junction_ratio = end_dist / total_distance;
+            
+            // Stop for current color (end of block)
+            let mut stop1 = junction_ratio;
+            if stop1 <= last_val { stop1 = last_val + epsilon; }
+            if stop1 >= 1.0 { break; }
+            
+            expression.push(stop1.into());
+            expression.push(current_color.clone().into());
+            last_val = stop1;
+            
+            // Stop for next color (start of next block)
+            let mut stop2 = junction_ratio + epsilon; // Hard transition
+             if stop2 <= last_val { stop2 = last_val + epsilon; }
+            if stop2 >= 1.0 { break; }
 
-        if color_before != color_after {
-            let transition_start_dist = junction_dist - transition_length;
-            let transition_end_dist = junction_dist + transition_length;
-
-            if transition_start_dist > 0.0 {
-                expression.push((transition_start_dist / total_distance).into());
-                expression.push(color_before.clone().into());
-            }
-
-            if transition_end_dist < total_distance {
-                expression.push((transition_end_dist / total_distance).into());
-                expression.push(color_after.clone().into());
-            }
+            expression.push(stop2.into());
+            expression.push(next_color.clone().into());
+            last_val = stop2;
         }
     }
 
-    // Ensure the line is fully colored to the end
+    // End
     expression.push(1.0.into());
-    expression.push(colors.last().unwrap().clone().into());
+    let end_color = if !segments.is_empty() { segments.last().unwrap().1.clone() } else { "#FFFFFF".to_string() };
+    expression.push(end_color.into());
 
     Ok(serde_json::to_value(expression).unwrap())
 }
@@ -145,7 +167,7 @@ pub async fn get_filtered_slope_expression(
 ) -> Result<serde_json::Value, String> {
     // Si pas de zone active, retourner l'expression normale
     if zone_id.is_none() || show_direction.is_none() {
-        return get_slope_color_expression(state, circuit_id.clone(), slope_colors, segment_length, None).await;
+        return get_slope_color_expression(state, circuit_id.clone(), slope_colors, segment_length, None, None).await;
     }
 
     let (_data_dir, metadata_path, tracking_path) = {
@@ -164,7 +186,7 @@ pub async fn get_filtered_slope_expression(
     
     if !metadata_path.exists() {
         // Pas de métadonnées, retourner l'expression normale
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None, None).await;
     }
 
     let metadata_content = fs::read_to_string(metadata_path).map_err(|e| e.to_string())?;
@@ -178,7 +200,7 @@ pub async fn get_filtered_slope_expression(
         .find(|z| z.zone_id == zone_id.unwrap());
 
     if active_zone.is_none() {
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None, None).await;
     }
 
     let zone = active_zone.unwrap();
@@ -312,7 +334,7 @@ pub async fn get_main_segments_expression(
 
     // Si pas de métadonnées, retourner gradient complet
     if !metadata_path.exists() {
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None, None).await;
     }
 
     let metadata_content = fs::read_to_string(metadata_path).map_err(|e| e.to_string())?;

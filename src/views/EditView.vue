@@ -14,6 +14,15 @@
           </div>
           <v-divider vertical class="mx-2" v-if="circuitName"></v-divider>
 
+          <!-- Global Progress (Main or Variant) -->
+          <div class="d-flex flex-column align-center mx-2">
+             <span class="widget-text">
+                 {{ globalCurrent.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;">/ {{ globalTotal.toFixed(2) }} km</span>
+             </span>
+             <span class="widget-label">Progression TOTALE</span>
+          </div>
+          <v-divider vertical class="mx-2"></v-divider>
+
           <!-- Variant Selection / Back to Main Trace -->
           <template v-if="!currentVariantId">
               <v-menu v-if="variants.length > 0">
@@ -71,14 +80,16 @@
              <span class="widget-label">Segment</span>
           </div>
 
-          <!-- Progression -->
-          <v-divider vertical class="mx-2"></v-divider>
-          <div class="d-flex flex-column align-center mx-2">
-             <span class="widget-text">
-                 {{ currentProgressDistance.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;">/ {{ totalLineLength.toFixed(2) }} km</span>
-             </span>
-             <span class="widget-label">Progression</span>
-          </div>
+          <!-- Progression (Segment) -->
+          <template v-if="currentSegmentType">
+            <v-divider vertical class="mx-2"></v-divider>
+            <div class="d-flex flex-column align-center mx-2">
+               <span class="widget-text">
+                   {{ currentProgressDistance.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;">/ {{ totalLineLength.toFixed(2) }} km</span>
+               </span>
+               <span class="widget-label">Prog. Segment</span>
+            </div>
+          </template>
       </div>
     </div>
 
@@ -320,6 +331,94 @@ const fetchVariants = async () => {
   }
 };
 
+
+const getAnchorIndex = (mod, isStart) => {
+    if (mod.type === 'DEPART_DEPORTE') return 0;
+    if (mod.type === 'ARRIVEE_REPORTEE') return mod.anchorIndexOnMaster;
+    if (mod.type === 'SEGMENT_DEVIATION') {
+         return isStart ? (mod.anchorStart ? mod.anchorStart.index : 0) : (mod.anchorEnd ? mod.anchorEnd.index : 0);
+    }
+    return 0;
+};
+
+const calculateMainDistance = (startIdx, endIdx) => {
+    if (startIdx >= endIdx || !backgroundLineStringCoordinates.value || backgroundLineStringCoordinates.value.length === 0) return 0;
+    // turf.lineSlice or length calculation
+    // Since coordinates are just array of points, we can subset and measure.
+    // However, turf.lineString needs valid geometry.
+    // Slicing huge array might be slow but length is usually efficient.
+    const slice = backgroundLineStringCoordinates.value.slice(startIdx, endIdx + 1);
+    if (slice.length < 2) return 0;
+    try {
+        const line = turf.lineString(slice);
+        return turf.length(line, { units: 'kilometers' });
+    } catch (e) {
+        console.error("Error calculating main distance", e);
+        return 0;
+    }
+};
+
+const variantCompositeStats = computed(() => {
+    if (!selectedVariant.value || !selectedVariant.value.details) return { total: 0, current: 0 };
+    
+    // If we are not editing a specific segment (currentSegmentIndex is null), we are "at the start"?
+    // Or maybe we want "Current position in the variant view"?
+    // If not editing a segment, currentProgressDistance is likely 0.
+    
+    const mods = selectedVariant.value.details.modifications;
+    let total = 0;
+    let current = 0;
+    let lastMainIndex = 0;
+
+    mods.forEach((mod, index) => {
+        const startIdx = getAnchorIndex(mod, true);
+        
+        // Add Main Trace part before this segment
+        // Ensure startIdx >= lastMainIndex
+        if (startIdx > lastMainIndex) {
+             const mainPart = calculateMainDistance(lastMainIndex, startIdx);
+             total += mainPart;
+             if (currentSegmentIndex.value !== null && index < currentSegmentIndex.value) {
+                current += mainPart;
+             } else if (currentSegmentIndex.value === index) {
+                current += mainPart; // Add the main part leading to this segment
+             } else if (currentSegmentIndex.value === null) {
+                // If not editing any segment, what is "current"?
+                // Maybe 0? Or do we assume we are at the beginning?
+                // Let's keep 0 if no match.
+             }
+        }
+        
+        // Add Segment part
+        total += mod.longueur || 0;
+        if (currentSegmentIndex.value !== null && index < currentSegmentIndex.value) {
+            current += mod.longueur || 0;
+        } else if (currentSegmentIndex.value === index) {
+            current += currentProgressDistance.value; // Add current progress inside segment
+        }
+
+        // Update lastMainIndex
+        if (mod.type === 'DEPART_DEPORTE') {
+             lastMainIndex = mod.anchorIndexOnMaster;
+        } else if (mod.type === 'ARRIVEE_REPORTEE') {
+             lastMainIndex = backgroundLineStringCoordinates.value ? backgroundLineStringCoordinates.value.length - 1 : 0; 
+        } else {
+             lastMainIndex = mod.anchorEnd ? mod.anchorEnd.index : lastMainIndex;
+        }
+    });
+
+    // Add final main trace tail
+    if (backgroundLineStringCoordinates.value && lastMainIndex < backgroundLineStringCoordinates.value.length - 1) {
+        const tail = calculateMainDistance(lastMainIndex, backgroundLineStringCoordinates.value.length - 1);
+        total += tail;
+    }
+    
+    return { total, current };
+});
+
+const globalCurrent = computed(() => currentVariantId.value ? variantCompositeStats.value.current : currentProgressDistance.value);
+const globalTotal = computed(() => currentVariantId.value ? variantCompositeStats.value.total : totalLineLength.value);
+
 const shouldShowGraphs = computed(() => {
     return true;
 });
@@ -461,21 +560,16 @@ const loadVariantSegment = async (variantId, modification, index) => {
                         Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
                         Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
                     };
-                    const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment');
+                    const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
                     
                     const colorExpression = await invoke('get_slope_color_expression', {
                         circuitId: circuitId,
                         slopeColors: slopeColors,
                         segmentLength: segmentLength,
-                        // Note: slope calculation depends on the tracking data. 
-                        // Is get_slope_color_expression using the file on disk or the trackingPoints passed?
-                        // It reads the tracking file from disk. We just updated it in step 2.
-                        // However, we used a CUSTOM filename for tracking file.
-                        // The backend command 'get_slope_color_expression' uses 'read_tracking_file' which defaults to 'tracking.json' if not specified.
-                        // I NEED TO UPDATE get_slope_color_expression to accept filename!
-                        // Or pass the tracking points directly.
-                        // Checking get_slope_color_expression signature in lib.rs?
+                        trackingData: trackingPoints.value
                     });
+                    
+                    map.setPaintProperty('circuit-line', 'line-gradient', colorExpression);
                     
                     // If get_slope_color_expression reads 'tracking.json', it will read the MASTER trace, not the variant.
                     // I MUST checking backend for get_slope_color_expression.
@@ -598,11 +692,12 @@ const loadMainTrace = async () => {
                 Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
                 Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
-            const segmentLength = await getSettingValue('Importation/Traitement/LongueurSegment') || 100;
+            const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
             const expression = await invoke('get_slope_color_expression', {
                 circuitId: circuitId,
                 slopeColors: slopeColors,
                 segmentLength: segmentLength,
+                trackingData: trackingPoints.value
             });
             map.setPaintProperty('circuit-line', 'line-gradient', expression);
         }
@@ -1826,6 +1921,12 @@ onMounted(async () => {
     }
     mapboxgl.accessToken = mapboxToken;
 
+    const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
+    // 1. Initial Load of Master Trace
+    const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
+    // Initialize background coordinates for variants
+    backgroundLineStringCoordinates.value = rawLineStringData.coordinates;
+
     const styleVisualisation = await getSettingValue('Edition/Vue 3D/Carte/styleVisualisation');
     const colorTraceBySlope = await getSettingValue('Edition/Vue 3D/Trace/colorerSelonPente');
     const traceWidth = await getSettingValue('Edition/Vue 3D/Trace/epaisseur');
@@ -1842,12 +1943,13 @@ onMounted(async () => {
                 Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
                 Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
-            const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment');
+            const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
 
             const colorExpression = await invoke('get_slope_color_expression', {
                 circuitId: circuitId,
                 slopeColors: slopeColors,
                 segmentLength: segmentLength,
+                trackingData: rawTrackingData,
             });
 
             if (colorExpression && Array.isArray(colorExpression)) {
@@ -1927,11 +2029,8 @@ onMounted(async () => {
     colorOriginePitch.value = toHex(rawGraphPitchColor);
     colorEditedPitch.value = toHex(rawGraphEditedPitchColor);
 
-    const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
-    // 1. Initial Load of Master Trace
-    const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
-    // Initialize background coordinates for variants
-    backgroundLineStringCoordinates.value = rawLineStringData.coordinates;
+    // The second rawTrackingData and rawLineStringData fetch is removed as it's redundant.
+    // The first one is now correctly placed before the slope color check.
 
     // Update background trace source if map is already initialized
     if (map && map.getSource('background-trace')) {
