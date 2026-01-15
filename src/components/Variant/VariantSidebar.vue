@@ -93,7 +93,7 @@
               :key="pIndex"
               :prepend-icon="point.type === 'ANCHOR' ? 'mdi-anchor' : 'mdi-map-marker'"
               :title="getPointTitle(point, pIndex)"
-              :subtitle="formatCoords(point.coords)"
+              :subtitle="getPointSubtitle(point)"
               class="pl-8"
             >
               <template v-slot:append>
@@ -271,7 +271,15 @@ const props = defineProps({
   isValid: Boolean,
   isEditing: Boolean,
   isModified: Boolean,
-  variantName: String
+  variantName: String,
+  trackingPoints: {
+    type: Array,
+    default: () => []
+  },
+  segmentLength: {
+    type: Number,
+    default: 100
+  }
 });
 
 const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'flyto-mod', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
@@ -317,7 +325,15 @@ const getPointTitle = (point, pIndex) => {
     return `Point via ${pIndex}`;
 };
 
-const formatCoords = (coords) => {
-    return `${coords[1].toFixed(4)}, ${coords[0].toFixed(4)}`;
+const getPointSubtitle = (point) => {
+    // New points use 'index', loaded/saved points use 'index_on_master'
+    const masterIdx = point.index ?? point.index_on_master;
+
+    if (point.type === 'ANCHOR' && masterIdx !== undefined) {
+        // Calculate distance from master increment: dist = (idx * segmentLength) / 1000
+        const distKm = (Number(masterIdx) * props.segmentLength) / 1000.0;
+        return `Position : ${distKm.toFixed(1)} km`;
+    }
+    return ''; 
 };
 </script>

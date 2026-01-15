@@ -42,6 +42,8 @@
         :is-editing="!!loadedVariantId"
         :is-modified="isModified"
         :variant-name="loadedVariantName"
+        :trackingPoints="trackingPoints"
+        :segment-length="trackingSegmentLength"
         @update:config="variantConfig = $event"
         @generate="generatePreview"
         @save="saveVariant"
@@ -222,6 +224,10 @@ const savedVariants = ref([]);
 const previewGeojson = ref(null);
 const canGeneratePreview = computed(() => {
   return modifications.value.some(m => m.points.length >= 2);
+});
+
+const trackingSegmentLength = computed(() => {
+    return getSettingValue('Importation/Tracking/LongueurSegment') || 100;
 });
 
 const isValid = computed(() => {
