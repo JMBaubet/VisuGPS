@@ -98,7 +98,7 @@
             >
               <template v-slot:append>
                 <v-btn
-                  v-if="point.type !== 'ANCHOR'"
+                  v-if="point.type !== 'ANCHOR' || (mod.type === 'SEGMENT' && pIndex > 0)"
                   icon="mdi-delete"
                   size="x-small"
                   variant="text"

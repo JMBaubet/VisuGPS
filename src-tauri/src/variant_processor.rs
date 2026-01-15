@@ -108,7 +108,7 @@ pub struct CreateVariantRequest {
 // Elevation fetching is now handled by crate::elevation_provider
 
 
-async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<Vec<Vec<f64>>, String> {
+async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<(Vec<Vec<f64>>, Option<String>), String> {
     let mut final_3d = Vec::new();
     let mut missing_alt_indices = Vec::new();
     let mut coords_for_fetch = Vec::new();
@@ -123,20 +123,32 @@ async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<Vec<Vec<f64
         }
     }
 
+    let mut warning = None;
+
     if !coords_for_fetch.is_empty() {
-        let fetched_alts = crate::elevation_provider::fetch_altitudes(&coords_for_fetch).await?;
-        for (i, alt) in missing_alt_indices.iter().zip(fetched_alts.iter()) {
-            final_3d[*i][2] = *alt;
+        match crate::elevation_provider::fetch_altitudes(&coords_for_fetch).await {
+            Ok(fetched_alts) => {
+                for (i, alt) in missing_alt_indices.iter().zip(fetched_alts.iter()) {
+                    final_3d[*i][2] = *alt;
+                }
+            },
+            Err(e) => {
+                // FALLBACK: If elevation service is down, we proceed with 0.0 altitude to allow saving.
+                let msg = format!("Attention: Échec de la récupération d'altitude ({}) -> 0.0 utilisé.", e);
+                println!("{}", msg);
+                warning = Some(msg);
+                // We don't return an error, we just keep the 0.0 placeholders.
+            }
         }
     }
-    Ok(final_3d)
+    Ok((final_3d, warning))
 }
 
 #[tauri::command]
 pub async fn create_variant_files(
     app_handle: tauri::AppHandle,
     request: CreateVariantRequest,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let app_env_path = {
         let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
         let app_state = state_mutex.lock().unwrap();
@@ -156,6 +168,8 @@ pub async fn create_variant_files(
     let tracking_master_path = circuit_data_dir.join("tracking.json");
     let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
     let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
+
+    let mut global_warning: Option<String> = None;
 
     // Process each modification for individual files
     for (index, modification) in request.modifications.iter().enumerate() {
@@ -180,7 +194,11 @@ pub async fn create_variant_files(
                     _ => suffix.to_string() 
                 };
 
-                let track_points_3d = prepare_points_3d(points_raw).await?;
+                let (track_points_3d, warning) = prepare_points_3d(points_raw).await?;
+                
+                if let Some(w) = warning {
+                    global_warning = Some(w);
+                }
 
                 // Write LineString file
                 let linestring_filename = format!("lineString_{}_{}.json", request.metadata.id, suffix_full);
@@ -237,7 +255,9 @@ pub async fn create_variant_files(
         match modification {
             VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
                 if let Some(geom) = full_geometry {
-                    final_points.extend(prepare_points_3d(geom).await?);
+                    let (pts, w) = prepare_points_3d(geom).await?;
+                    if let Some(msg) = w { global_warning = Some(msg); }
+                    final_points.extend(pts);
                 }
                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
                 current_master_idx = find_closest_high_res_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), 0);
@@ -249,7 +269,9 @@ pub async fn create_variant_files(
                     current_master_idx += 1;
                 }
                 if let Some(geom) = full_geometry {
-                    final_points.extend(prepare_points_3d(geom).await?);
+                    let (pts, w) = prepare_points_3d(geom).await?;
+                    if let Some(msg) = w { global_warning = Some(msg); }
+                    final_points.extend(pts);
                 }
                 current_master_idx = find_closest_high_res_idx(anchor_end.coords[0], anchor_end.coords[1], start_idx);
                 if current_master_idx <= start_idx { current_master_idx = start_idx + 1; }
@@ -263,7 +285,9 @@ pub async fn create_variant_files(
                     current_master_idx += 1;
                 }
                 if let Some(geom) = full_geometry {
-                    final_points.extend(prepare_points_3d(geom).await?);
+                    let (pts, w) = prepare_points_3d(geom).await?;
+                    if let Some(msg) = w { global_warning = Some(msg); }
+                    final_points.extend(pts);
                 }
                 current_master_idx = master_points_high_res.len();
             }
@@ -301,7 +325,7 @@ pub async fn create_variant_files(
         }
     }
     fs::write(&archive_path, serde_json::to_string_pretty(&Archive { metadata, modifications }).unwrap()).map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(global_warning)
 }
 
 #[tauri::command]
@@ -521,37 +545,70 @@ pub async fn calculate_route(
         if api_key.is_empty() {
              return Err("Clé API GraphHopper manquante dans les paramètres.".to_string());
         }
+
+        let max_points_per_request = 5;
+        let mut all_coordinates: Vec<Vec<f64>> = Vec::new();
         
-        // https://docs.graphhopper.com/#tag/Routing-API/operation/getRoute
-        // GET /route?point=...&point=...&profile=...&key=...&points_encoded=false
-        
-        let client = reqwest::Client::new();
-        let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=true", api_key, profile);
-        
-        for p in points {
-            url.push_str(&format!("&point={},{}", p[1], p[0])); // Lat,Lon
-        }
-
-        let resp = client.get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
-
-        if !resp.status().is_success() {
-             return Err(format!("GraphHopper API Error: {}", resp.status()));
-        }
-
-        let gh_resp: GraphHopperResponse = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
-
-        if let Some(path) = gh_resp.paths.first() {
-             let geojson = serde_json::json!({
-                 "type": "LineString",
-                 "coordinates": path.points.coordinates
-             });
-             return Ok(serde_json::to_string(&geojson).unwrap());
+        // Chunking logic
+        let chunks: Vec<Vec<[f64; 2]>> = if points.len() > max_points_per_request {
+            let mut result = Vec::new();
+            let mut start_idx = 0;
+            while start_idx < points.len() - 1 {
+                let end_idx = (start_idx + max_points_per_request).min(points.len());
+                // Ensure we have at least 2 points
+                if end_idx - start_idx < 2 {
+                     // Should not happen with well-formed overlapping, but safety check
+                     break; 
+                }
+                result.push(points[start_idx..end_idx].to_vec());
+                start_idx = end_idx - 1; // Overlap: last point becomes first of next chunk
+            }
+            result
         } else {
-             return Err("Aucun chemin trouvé.".to_string());
+            vec![points]
+        };
+
+        for (i, chunk_points) in chunks.iter().enumerate() {
+            if i > 0 {
+                // Add a small delay to avoid rate limiting
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            }
+
+            let client = reqwest::Client::new();
+            let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=true", api_key, profile);
+            
+            for p in chunk_points {
+                url.push_str(&format!("&point={},{}", p[1], p[0])); // Lat,Lon
+            }
+
+            let resp = client.get(&url)
+                .send()
+                .await
+                .map_err(|e| format!("Request failed for chunk {}: {}", i, e))?;
+
+            if !resp.status().is_success() {
+                 return Err(format!("GraphHopper API Error on chunk {}: {}", i, resp.status()));
+            }
+
+            let gh_resp: GraphHopperResponse = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
+
+            if let Some(path) = gh_resp.paths.first() {
+                // If it's not the first chunk, remove the first point to avoid duplicate with previous chunk's last point
+                let mut coords = path.points.coordinates.clone();
+                if i > 0 && !coords.is_empty() {
+                    coords.remove(0);
+                }
+                all_coordinates.extend(coords);
+            } else {
+                 return Err(format!("Aucun chemin trouvé pour le tronçon {}.", i+1));
+            }
         }
+        
+        let geojson = serde_json::json!({
+             "type": "LineString",
+             "coordinates": all_coordinates
+         });
+         return Ok(serde_json::to_string(&geojson).unwrap());
 
     } else if service == "OpenRouteService" {
         return Err("OpenRouteService non implémenté pour le moment.".to_string());

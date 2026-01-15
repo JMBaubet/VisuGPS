@@ -522,14 +522,8 @@ const handleMapClick = (e) => {
         }
     }
 
-    if (!isSnap && masterTraceGeojson.value) {
-        const snapped = turf.nearestPointOnLine(masterTraceGeojson.value, clickPoint);
-        const distMeters = turf.distance(clickPoint, snapped, { units: 'meters' });
-        if (distMeters < 30) {
-            isSnap = true;
-            newPoint = { coords: snapped.geometry.coordinates, type: 'ANCHOR', index: snapped.properties.index };
-        }
-    }
+    // Fallback snapping to lineString is REMOVED as per user request (Phase 23)
+    // We only want to snap to points present in tracking.json
 
     // Check if a modification of this type is already finalized
     if (currentMode.value === 'DEPART' || currentMode.value === 'ARRIVEE') {
@@ -736,7 +730,14 @@ const confirmRename = () => {
 };
 
 const handleDeletePoint = (modIndex, pIndex) => {
+    // If we are deleting an anchor that finalized the segment, un-finalize it
+    // Note: pIndex === 1 check assumes the structure [AnchorStart, ...Waypoints, AnchorEnd]
+    // But since we splice, we just check if it was finalized.
+    // Actually, logic is simpler: if we modify points of a finalized segment, it becomes un-finalized.
+    
+    modifications.value[modIndex].finalized = false;
     modifications.value[modIndex].points.splice(pIndex, 1);
+    
     isModified.value = true;
     if (modifications.value[modIndex].points.length < 2) {
         modifications.value[modIndex].preview = null;
@@ -962,7 +963,7 @@ const confirmSaveVariant = async () => {
             }
         };
 
-        await invoke('create_variant_files', {
+        const warning = await invoke('create_variant_files', {
             request: {
                 circuitId: props.circuitId,
                 metadata: metadata,
@@ -970,7 +971,12 @@ const confirmSaveVariant = async () => {
             }
         });
         
-        showSnackbar("Variante sauvegardée !", "success");
+        if (warning) {
+            showSnackbar(warning, "warning");
+        } else {
+            showSnackbar("Variante sauvegardée !", "success");
+        }
+        
         resetPoints();
         await loadSavedVariants();
         

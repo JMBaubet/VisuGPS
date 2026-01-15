@@ -127,7 +127,29 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
             lons.join(",")
         );
 
-        let resp = client.get(&url).send().await.map_err(|e| format!("Open-Meteo Request failed: {}", e))?;
+        let mut attempts = 0;
+        let max_attempts = 3;
+        let mut loop_resp = None;
+
+        while attempts < max_attempts {
+            attempts += 1;
+            match client.get(&url).send().await {
+                Ok(resp) => {
+                    loop_resp = Some(resp);
+                    break;
+                },
+                Err(e) => {
+                    println!("Open-Meteo Request failed (attempt {}/{}): {}", attempts, max_attempts, e);
+                    if attempts < max_attempts {
+                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    } else {
+                         return Err(format!("Open-Meteo Request failed after {} attempts: {}", max_attempts, e));
+                    }
+                }
+            }
+        }
+
+        let resp = loop_resp.unwrap();
 
         if !resp.status().is_success() {
             return Err(format!("Open-Meteo API Error: {}", resp.status()));
