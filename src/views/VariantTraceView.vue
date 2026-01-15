@@ -432,12 +432,20 @@ const initMap = async () => {
             source: 'markers-source',
             filter: ['match', ['get', 'type'], ['START_PIN', 'END_PIN'], false, true],
             paint: {
-                'circle-radius': 4,
+                'circle-radius': [
+                    'match',
+                    ['get', 'type'],
+                    'SEGMENT_START', 5,
+                    'SEGMENT_END', 5,
+                    4 // Default for others
+                ],
                 'circle-color': [
                     'match',
                     ['get', 'type'],
                     'ANCHOR', '#ffffff',
                     'WAYPOINT', '#FFEB3B', 
+                    'SEGMENT_START', '#43A047', // Green 600
+                    'SEGMENT_END', '#E53935',   // Red 600
                     '#2196F3'
                 ],
                 'circle-stroke-width': [
@@ -761,10 +769,14 @@ const updateMarkers = () => {
         mod.points.forEach((p, pIndex) => {
             let type = p.type;
             
-            // Only the LAST point of a finalized DEPART/ARRIVEE becomes a PIN
-            if (mod.finalized && pIndex === mod.points.length - 1) {
+            // Specialized pins for Depart/Arrivee when finalized (last point)
+            if (mod.finalized && (mod.type === 'DEPART' || mod.type === 'ARRIVEE') && pIndex === mod.points.length - 1) {
                 if (mod.type === 'DEPART') type = 'START_PIN';
                 else if (mod.type === 'ARRIVEE') type = 'END_PIN';
+            } else if (mod.type === 'SEGMENT' && p.type === 'ANCHOR') {
+                 // Color coding for Segment Direction
+                 if (pIndex === 0) type = 'SEGMENT_START';
+                 else if (pIndex > 0) type = 'SEGMENT_END';
             }
             
             features.push({
