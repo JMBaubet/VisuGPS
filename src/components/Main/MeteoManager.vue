@@ -175,10 +175,10 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
-import EditTime from './EditTime.vue';
+import EditTime from '@/components/Settings/EditTime.vue';
 import WeatherService from '@/services/WeatherService';
-import DocDisplay from './DocDisplay.vue';
-import WeatherWidgetStatic from './WeatherWidgetStatic.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
+import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 
 const props = defineProps({
   modelValue: {

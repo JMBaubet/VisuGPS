@@ -126,7 +126,7 @@
 import { ref, watch, onMounted, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import MessageEditDialog from './MessageEditDialog.vue';
-import ConfirmationDialog from './ConfirmationDialog.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useMessages } from '@/composables/useMessages'; // Import useMessages
 

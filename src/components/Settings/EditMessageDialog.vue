@@ -85,8 +85,9 @@
 import { ref, watch, computed, defineProps, defineEmits, onMounted } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useMessages } from '@/composables/useMessages';
-import MessageLibraryModal from './MessageLibraryModal.vue';
-import DocDisplay from './DocDisplay.vue';
+import MessageLibraryModal from '@/components/Edit/MessageLibraryModal.vue';
+import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 
 const props = defineProps({
   show: Boolean,

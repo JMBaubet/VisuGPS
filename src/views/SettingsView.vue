@@ -19,10 +19,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import SettingsToolbar from '@/components/SettingsToolbar.vue';
-import SettingsTree from '@/components/SettingsTree.vue';
-import ExeMode from '@/components/ExeMode.vue';
-import LightDarkSwitch from '@/components/LightDarkSwitch.vue';
+import SettingsToolbar from '@/components/Settings/SettingsToolbar.vue';
+import SettingsTree from '@/components/Settings/SettingsTree.vue';
+import ExeMode from '@/components/Settings/ExeMode.vue';
+import LightDarkSwitch from '@/components/Settings/LightDarkSwitch.vue';
 import DocDisplay from '@/components/DocDisplay.vue';
 
 const showExeModeDialog = ref(false);

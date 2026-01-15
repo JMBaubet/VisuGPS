@@ -118,11 +118,11 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
-import AltitudeSVG from '@/components/AltitudeSVG.vue';
+import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
 
-import WeatherWidgetDynamic from '@/components/WeatherWidgetDynamic.vue';
-import WeatherWidgetStatic from '@/components/WeatherWidgetStatic.vue';
+import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
+import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
 
 

@@ -144,7 +144,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { exit } from '@tauri-apps/plugin-process';
-import ImportDialog from './ImportDialog.vue'; // Import generic dialog
+import ImportDialog from '@/components/Main/ImportDialog.vue'; // Import generic dialog
 
 
 
@@ -155,8 +155,8 @@ const importingModeName = ref(null); // To store which mode name we are importin
 
 
 import RestartConfirmationDialog from './RestartConfirmationDialog.vue';
-import ConfirmationDialog from './ConfirmationDialog.vue';
-import DocDisplay from './DocDisplay.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 
 const props = defineProps({
   modelValue: Boolean,

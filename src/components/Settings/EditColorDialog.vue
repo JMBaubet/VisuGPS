@@ -74,7 +74,7 @@
 import { ref, watch, computed, defineProps, defineEmits } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
-import DocDisplay from './DocDisplay.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 
 const props = defineProps({
   show: Boolean,

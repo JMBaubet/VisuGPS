@@ -58,17 +58,17 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, watch, ref } from 'vue';
-import { useEnvironment } from '../composables/useEnvironment';
-import { useServiceStatus } from '../composables/useServiceStatus';
-import { useSettings } from '../composables/useSettings';
+import { useEnvironment } from '@/composables/useEnvironment';
+import { useServiceStatus } from '@/composables/useServiceStatus';
+import { useSettings } from '@/composables/useSettings';
 import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 import MajCommunesInfo from './MajCommunesInfo.vue';
 import RemoteControlDialog from './RemoteControlDialog.vue';
-import DocDisplay from './DocDisplay.vue'; // Added this import
+import DocDisplay from '@/components/DocDisplay.vue'; // Added this import
 import { invoke } from '@tauri-apps/api/core';
 import { confirm } from '@tauri-apps/plugin-dialog';
-import { useSnackbar } from '../composables/useSnackbar';
+import { useSnackbar } from '@/composables/useSnackbar';
 
 const emit = defineEmits(['open-import-dialog', 'circuit-imported']);
 const { showSnackbar } = useSnackbar();

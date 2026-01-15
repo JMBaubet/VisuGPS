@@ -217,10 +217,10 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
-import DistanceMarkersDialog from './DistanceMarkersDialog.vue';
+import DistanceMarkersDialog from '@/components/Edit/DistanceMarkersDialog.vue';
 
 import MeteoManager from './MeteoManager.vue';
-import DocDisplay from './DocDisplay.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 
 const props = defineProps({
   circuit: {

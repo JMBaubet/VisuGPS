@@ -165,9 +165,9 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 
-import { useSettings } from '../composables/useSettings';
-import { useVuetifyColors } from '../composables/useVuetifyColors';
-import { useSnackbar } from '../composables/useSnackbar';
+import { useSettings } from '@/composables/useSettings';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { useSnackbar } from '@/composables/useSnackbar';
 
 const props = defineProps({
   circuitId: {

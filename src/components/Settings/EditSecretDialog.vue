@@ -17,17 +17,30 @@
             <v-col cols="12">
               <v-row class="ma-0" align="start">
                 <v-col cols="12" class="pa-0">
-                  <v-label class="text-caption font-weight-light mb-1 text-white">Valeur par défaut :&nbsp;</v-label>
-                  <span class="text-caption font-weight-light text-white">{{ parameter.defaut }}</span>
+                  <v-label class="text-caption font-weight-light mb-1 text-white">Valeur par défault :&nbsp</v-label>
+                  <span class="text-caption font-weight-light text-white">{{ parameter.defaut === '' ? '""' : '******' }}</span>
                 </v-col>
                 <v-col cols="11" class="pa-0">
-                  <v-select
+                  <v-text-field
                     label="Valeur"
                     v-model="editableValue"
-                    :items="parameter.valeurs || []"
+                    :type="showPassword ? 'text' : 'password'"
+                    :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                    @click:append-inner="showPassword = !showPassword"
                     required
                     autofocus
-                  ></v-select>
+                  ></v-text-field>
+                  <v-row v-if="parameter.min || parameter.max" class="align-center">
+                    <v-col cols="4" class="py-0 text-left">
+                      <span v-if="parameter.min" class="text-white text-caption font-weight-light">Long. min : {{ parameter.min || 0 }}</span>
+                    </v-col>
+                    <v-col cols="4" class="py-0 text-center">
+                      <span v-if="currentLength > 0" :class="currentLengthColor" class="text-caption font-weight-light">Long. actuelle : {{ currentLength }}</span>
+                    </v-col>
+                    <v-col cols="4" class="py-0 text-right">
+                      <span v-if="parameter.max" class="text-white text-caption font-weight-light">Long. max : {{ parameter.max || '∞' }}</span>
+                    </v-col>
+                  </v-row>
                 </v-col>
                 <v-col cols="1" class="d-flex justify-center mt-3">
                   <v-icon v-if="isModified" @click="revertChanges" title="Annuler les modifications" color="info">mdi-undo</v-icon>
@@ -57,10 +70,10 @@
 <script setup>
 import { ref, watch, computed, defineProps, defineEmits } from 'vue';
 import { useSettings } from '@/composables/useSettings';
-import DocDisplay from './DocDisplay.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 
 const showDocDialog = ref(false);
-const surchargeRemoved = ref(false);
+const showPassword = ref(false);
 
 const props = defineProps({
   show: Boolean,
@@ -73,30 +86,41 @@ const emit = defineEmits(['update:show']);
 const { updateSetting } = useSettings();
 
 const editableValue = ref('');
+const initialValue = ref('');
 
-const hasSurcharge = computed(() => props.parameter && props.parameter.surcharge != null && props.parameter.surcharge !== '');
-const isModified = computed(() => {
-    if (surchargeRemoved.value) return true;
-    const currentEffective = props.parameter?.surcharge ?? props.parameter?.defaut;
-    return editableValue.value !== currentEffective;
+const hasSurcharge = computed(() => props.parameter.surcharge != null && props.parameter.surcharge !== '');
+const isModified = computed(() => editableValue.value !== initialValue.value);
+
+const currentLength = computed(() => editableValue.value.length);
+
+const currentLengthColor = computed(() => {
+  const len = currentLength.value;
+  const min = props.parameter.min;
+  const max = props.parameter.max;
+
+  if (len === 0) return 'text-info';
+
+  const isWithinMin = min === undefined || len >= min;
+  const isWithinMax = max === undefined || len <= max;
+
+  return (isWithinMin && isWithinMax) ? 'text-success' : 'text-error';
 });
 
 watch(() => props.show, (isVisible) => {
   if (isVisible && props.parameter) {
-    const effectiveValue = props.parameter.surcharge != null ? props.parameter.surcharge : props.parameter.defaut;
-    editableValue.value = effectiveValue;
-    surchargeRemoved.value = false;
+    const value = props.parameter.surcharge != null ? props.parameter.surcharge : '';
+    editableValue.value = value;
+    initialValue.value = value;
+    showPassword.value = false; // Reset visibility on open
   }
 }, { immediate: true });
 
 const revertChanges = () => {
-    editableValue.value = props.parameter.surcharge != null ? props.parameter.surcharge : props.parameter.defaut;
-    surchargeRemoved.value = false;
+  editableValue.value = initialValue.value;
 };
 
 const removeSurcharge = () => {
-  editableValue.value = props.parameter.defaut;
-  surchargeRemoved.value = true;
+  editableValue.value = '';
 };
 
 const closeDialog = () => {
@@ -105,7 +129,7 @@ const closeDialog = () => {
 
 const save = async () => {
   try {
-    const valueToSave = surchargeRemoved.value ? null : editableValue.value;
+    const valueToSave = editableValue.value === '' ? null : editableValue.value;
     await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
     closeDialog();
   } catch (error) {
@@ -113,7 +137,3 @@ const save = async () => {
   }
 };
 </script>
-
-<style scoped>
-/* Same styles as EditStringDialog */
-</style>

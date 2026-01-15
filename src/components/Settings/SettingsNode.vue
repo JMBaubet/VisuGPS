@@ -197,7 +197,7 @@ import EditMonitorDialog from './EditMonitorDialog.vue';
 import EditDirectoryDialog from './EditDirectoryDialog.vue';
 import EditMessageDialog from './EditMessageDialog.vue';
 import EditTimeDialog from './EditTimeDialog.vue';
-import DocDisplay from './DocDisplay.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 import { useMessages } from '@/composables/useMessages'; // Import useMessages
 
 const { updateSetting } = useSettings();

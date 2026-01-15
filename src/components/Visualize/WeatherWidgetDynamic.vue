@@ -123,7 +123,7 @@
 import { computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { getWeatherInfo } from '@/services/WeatherIcons';
-import CompassWidget from '@/components/CompassWidget.vue';
+import CompassWidget from './CompassWidget.vue';
 
 const props = defineProps({
   weather: {

@@ -451,8 +451,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import CameraSyncModeSelector from './CameraSyncModeSelector.vue';
-import DocDisplay from './DocDisplay.vue';
+import CameraSyncModeSelector from '@/components/Edit/CameraSyncModeSelector.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 
 const { toHex, getContrastColor } = useVuetifyColors();

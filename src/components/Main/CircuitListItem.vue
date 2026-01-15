@@ -155,7 +155,7 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
 import { useServiceStatus } from '@/composables/useServiceStatus';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import InformationCircuit from '@/components/InformationCircuit.vue';
+import InformationCircuit from './InformationCircuit.vue';
 
 const props = defineProps({
   circuit: {

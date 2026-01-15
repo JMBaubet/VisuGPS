@@ -16,8 +16,8 @@
 
 <script setup>
 import { ref } from 'vue';
-import ExeMode from '@/components/ExeMode.vue';
-import LightDarkSwitch from '@/components/LightDarkSwitch.vue';
+import ExeMode from './ExeMode.vue';
+import LightDarkSwitch from './LightDarkSwitch.vue';
 
 const emit = defineEmits(['open-exe-mode', 'open-doc']);
 

@@ -63,7 +63,7 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted, nextTick, defineProps, defineEmits } from 'vue';
 import { useSettings } from '@/composables/useSettings';
-import DocDisplay from './DocDisplay.vue';
+import DocDisplay from '@/components/DocDisplay.vue';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
