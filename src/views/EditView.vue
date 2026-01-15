@@ -32,7 +32,7 @@
               </v-menu>
           </template>
           <template v-else>
-               <v-btn icon="mdi-refresh" variant="text" density="compact" title="Retour à la trace maîtresse" @click="loadMainTrace"></v-btn>
+               <v-btn icon="mdi-location-exit" variant="text" density="compact" title="Retour à la trace maîtresse" @click="loadMainTrace" style="transform: rotate(180deg);"></v-btn>
           </template>
     
           <!-- Divider -->
