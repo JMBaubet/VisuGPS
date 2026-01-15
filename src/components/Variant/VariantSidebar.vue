@@ -128,7 +128,13 @@
 
       <div class="pa-2 border-t bg-surface">
         <!-- New Saved Variants Section -->
-        <div class="text-caption font-weight-bold mb-1 uppercase text-disabled">Variantes enregistrées</div>
+        <div class="text-caption font-weight-bold mb-1 uppercase text-disabled">
+            <span v-if="savedVariants.length === 0">Aucune variante enregistrée</span>
+            <span v-else>
+                Variante{{ savedVariants.length > 1 ? 's' : '' }} enregistrée{{ savedVariants.length > 1 ? 's' : '' }} : 
+                <span :class="savedVariants.length > 3 ? 'text-error font-weight-black' : ''">{{ savedVariants.length }}</span>
+            </span>
+        </div>
         <v-list density="compact" class="pa-0 mb-4 rounded border" style="max-height: 150px; overflow-y: auto;">
             <v-list-item v-if="savedVariants.length === 0" class="text-caption text-center py-2 text-grey">
                 Aucune variante
