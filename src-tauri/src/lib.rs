@@ -1733,7 +1733,12 @@ fn update_tracking_km(
         .iter_mut()
         .find(|c| c.circuit_id == circuit_id)
     {
-        circuit.tracking_km = (tracking_km * 10.0).round() / 10.0;
+        let new_tracking_km = (tracking_km * 10.0).round() / 10.0;
+        if new_tracking_km > circuit.distance_km {
+             circuit.tracking_km = circuit.distance_km;
+        } else {
+             circuit.tracking_km = new_tracking_km;
+        }
     } else {
         return Err(format!("Circuit with ID '{}' not found.", circuit_id));
     }

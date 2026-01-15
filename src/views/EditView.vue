@@ -1521,13 +1521,23 @@ onMounted(async () => {
     }
 
     const segmentLengthKm = 0.1;
-    const processedTrackingPoints = rawTrackingData.map((point, index) => ({
-      ...point,
-      distance: parseFloat((index * segmentLengthKm).toFixed(2)),
-      editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
-      editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
-      editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
-    }));
+    const processedTrackingPoints = rawTrackingData.map((point, index) => {
+      let distance = parseFloat((index * segmentLengthKm).toFixed(2));
+      // Fix: Ensure the last point matches the total line length
+      // This handles cases where the last segment is shorter than segmentLengthKm
+      if (index === rawTrackingData.length - 1 && totalLineLength.value > 0) {
+          // Use the calculated total length for the last point to avoid exceeding 100%
+          distance = parseFloat(totalLineLength.value.toFixed(2));
+      }
+
+      return {
+        ...point,
+        distance,
+        editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
+        editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
+        editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
+      };
+    });
     trackingPoints.value = processedTrackingPoints;
 
     const events = await invoke('get_events', { circuitId: circuitId });
