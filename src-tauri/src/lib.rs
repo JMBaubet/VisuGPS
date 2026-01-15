@@ -479,10 +479,12 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
 fn read_line_string_file(
     state: State<Mutex<AppState>>,
     circuit_id: String,
+    filename: Option<String>,
 ) -> Result<Value, String> {
     let state = state.lock().unwrap();
     let data_dir = state.app_env_path.join("data").join(circuit_id);
-    let line_string_path = data_dir.join("lineString.json");
+    let target_filename = filename.unwrap_or_else(|| "lineString.json".to_string());
+    let line_string_path = data_dir.join(target_filename);
     let file_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
     let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
     Ok(json_content)
@@ -1358,7 +1360,7 @@ fn get_orphans(app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<O
 
     let mut used_message_ids = std::collections::HashSet::new();
     for circuit in &circuits_file.circuits {
-        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id, None) {
             for re in events.range_events {
                 if let Some(msg_id) = re.message_id {
                     used_message_ids.insert(msg_id);
@@ -1436,7 +1438,7 @@ fn check_message_usage(
     let mut using_circuits = Vec::new();
 
     for circuit in circuits_file.circuits {
-        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id, None) {
             for re in events.range_events {
                 if let Some(mid) = re.message_id {
                     if mid == message_id {
@@ -1507,13 +1509,15 @@ fn save_tracking_file(
     state: State<Mutex<AppState>>,
     circuit_id: String,
     tracking_data: Value,
+    filename: Option<String>,
 ) -> Result<(), String> {
     let state = state.lock().unwrap();
+    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
     let tracking_path = state
         .app_env_path
         .join("data")
         .join(circuit_id)
-        .join("tracking.json");
+        .join(target_filename);
 
     let new_content = serde_json::to_string_pretty(&tracking_data)
         .map_err(|e| format!("Failed to serialize tracking data: {}", e))?;

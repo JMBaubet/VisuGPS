@@ -277,7 +277,7 @@ pub fn generate_distance_markers(
     crate::write_circuits_file(&state.lock().unwrap().app_env_path, &circuits_file)?;
 
     // Read current events
-    let mut events_file = crate::event::read_events(&app_handle, &circuit_id)?;
+    let mut events_file = crate::event::read_events(&app_handle, &circuit_id, None)?;
 
     // Remove existing distance markers
     remove_distance_markers_from_events(&mut events_file);
@@ -295,7 +295,7 @@ pub fn generate_distance_markers(
     events_file.range_events.extend(new_markers);
 
     // Write events file
-    crate::event::write_events(&app_handle, &circuit_id, &events_file)?;
+    crate::event::write_events(&app_handle, &circuit_id, None, &events_file)?;
 
     // Return hydrated events
     crate::event::hydrate_events(&app_handle, events_file, &circuit_id)
@@ -322,13 +322,13 @@ pub fn remove_distance_markers(
     crate::write_circuits_file(&state.lock().unwrap().app_env_path, &circuits_file)?;
 
     // Read current events
-    let mut events_file = crate::event::read_events(&app_handle, &circuit_id)?;
+    let mut events_file = crate::event::read_events(&app_handle, &circuit_id, None)?;
 
     // Remove all distance markers
     remove_distance_markers_from_events(&mut events_file);
 
     // Write events file
-    crate::event::write_events(&app_handle, &circuit_id, &events_file)?;
+    crate::event::write_events(&app_handle, &circuit_id, None, &events_file)?;
 
     // Return hydrated events
     crate::event::hydrate_events(&app_handle, events_file, &circuit_id)

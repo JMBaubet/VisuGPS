@@ -722,9 +722,9 @@ pub fn commit_new_circuit(
         super::write_circuits_file(&app_env_path, &circuits_file)?;
 
         // Read current events file, extend with generated events, and write back
-        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+        let mut events_file = event::read_events(app_handle, &new_circuit_id, None)?;
         events_file.range_events.extend(generated_dm_events);
-        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+        event::write_events(app_handle, &new_circuit_id, None, &events_file)?;
     }
 
     // --- Start of new code for auto-add Start/Arrival messages ---
@@ -743,7 +743,7 @@ pub fn commit_new_circuit(
     .unwrap_or(true);
 
     if afficher_depart || afficher_arrivee {
-        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+        let mut events_file = event::read_events(app_handle, &new_circuit_id, None)?;
 
         if afficher_depart {
              let message_depart = super::get_setting_value(
@@ -826,7 +826,7 @@ pub fn commit_new_circuit(
             }
         }
 
-        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+        event::write_events(app_handle, &new_circuit_id, None, &events_file)?;
     }
     // --- End of new code for auto-add Start/Arrival messages ---
 

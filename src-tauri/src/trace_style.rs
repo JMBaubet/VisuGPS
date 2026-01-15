@@ -38,18 +38,20 @@ pub async fn get_slope_color_expression(
     circuit_id: String,
     slope_colors: HashMap<String, String>,
     segment_length: f64,
+    filename: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let app_state = state.lock().unwrap();
     let data_dir = &app_state.app_env_path;
 
+    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
     let tracking_path = data_dir
         .join("data")
         .join(&circuit_id)
-        .join("tracking.json");
+        .join(target_filename);
     if !tracking_path.exists() {
         return Err(format!(
-            "tracking.json not found for circuit {}",
-            circuit_id
+            "Tracking file not found at {:?}",
+            tracking_path
         ));
     }
 
@@ -143,7 +145,7 @@ pub async fn get_filtered_slope_expression(
 ) -> Result<serde_json::Value, String> {
     // Si pas de zone active, retourner l'expression normale
     if zone_id.is_none() || show_direction.is_none() {
-        return get_slope_color_expression(state, circuit_id.clone(), slope_colors, segment_length).await;
+        return get_slope_color_expression(state, circuit_id.clone(), slope_colors, segment_length, None).await;
     }
 
     let (_data_dir, metadata_path, tracking_path) = {
@@ -162,7 +164,7 @@ pub async fn get_filtered_slope_expression(
     
     if !metadata_path.exists() {
         // Pas de métadonnées, retourner l'expression normale
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
     }
 
     let metadata_content = fs::read_to_string(metadata_path).map_err(|e| e.to_string())?;
@@ -176,7 +178,7 @@ pub async fn get_filtered_slope_expression(
         .find(|z| z.zone_id == zone_id.unwrap());
 
     if active_zone.is_none() {
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
     }
 
     let zone = active_zone.unwrap();
@@ -310,7 +312,7 @@ pub async fn get_main_segments_expression(
 
     // Si pas de métadonnées, retourner gradient complet
     if !metadata_path.exists() {
-        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length).await;
+        return get_slope_color_expression(state, circuit_id, slope_colors, segment_length, None).await;
     }
 
     let metadata_content = fs::read_to_string(metadata_path).map_err(|e| e.to_string())?;

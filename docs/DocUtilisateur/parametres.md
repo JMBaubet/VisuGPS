@@ -226,21 +226,18 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 ## 4. 🟣 Variante
 **Description** : Configuration de l'interface de création de traces alternatives (déviations, nouveaux départs/arrivées).
 
-### 4.1. Couleurs et Visibilité
-**Description** : Réglages graphiques pour distinguer la trace originale de la variante en cours d'édition.
-*   [Couleur trace maîtresse](../DocParametrage/Variante/originalColor.md)
-*   [Couleur trace aperçu](../DocParametrage/Variante/previewColor.md)
-*   [Couleur des nœuds](../DocParametrage/Variante/nodeColor.md)
-*   [Zoom visibilité nœuds](../DocParametrage/Variante/zoomVisuNode.md)
+### 4.1. Edition
+**Description** : Réglages graphiques pour la trace de la variante en cours d'édition.
 
-### 4.2. Routage
-**Description** : Configuration du moteur de calcul d'itinéraire (GPS) utilisé pour tracer vos variantes.
-| Paramètre | Description |
-|---|---|
-| [Service de routage](../DocParametrage/Variante/routingService.md) | Choix du service (GraphHopper, ORS). |
-| [Clé API Routage](../DocParametrage/Variante/routingApiKey.md) | Clé d'authentification pour le service de routage. |
-| [Style de carte](../DocParametrage/Variante/mapStyle.md) | Choix du fond de carte (Standard, Satellite, etc.). |
-| [Profil de routage](../DocParametrage/Variante/routingType.md) | Profil par défaut (vélo, piéton, etc.). |
+#### 4.1.1. Trace
+**Description** : Apparence visuelle de la trace de variante.
+*   [Couleur de la trace](../DocParametrage/Variante/Edition/Trace/couleur.md)
+*   [Largeur de la trace](../DocParametrage/Variante/Edition/Trace/largeur.md)
+*   [Colorer selon la pente](../DocParametrage/Variante/Edition/Trace/colorerSelonPente.md)
+
+### 4.2. Parametres
+**Description** : Configuration des services externes pour les variantes.
+*   [Clé API GraphHopper](../DocParametrage/Variante/Parametres/routingApiKey.md)
 
 ---
 

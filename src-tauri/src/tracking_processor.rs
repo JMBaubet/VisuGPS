@@ -155,6 +155,7 @@ pub fn generate_tracking_file(
 pub fn read_tracking_file(
     app_handle: tauri::AppHandle,
     circuit_id: String,
+    filename: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let app_env_path = {
         let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
@@ -164,7 +165,8 @@ pub fn read_tracking_file(
 
     let data_dir = app_env_path.join("data");
     let circuit_data_dir = data_dir.join(circuit_id);
-    let tracking_path = circuit_data_dir.join("tracking.json");
+    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
+    let tracking_path = circuit_data_dir.join(target_filename);
 
     if !tracking_path.exists() {
         return Err("Tracking file not found".to_string());

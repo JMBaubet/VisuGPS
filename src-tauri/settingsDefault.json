@@ -1186,6 +1186,96 @@
       },
       {
         "libelle": "Variante",
+        "groupes": [
+          {
+            "libelle": "Edition",
+            "groupes": [
+              {
+                "libelle": "Trace",
+                "parametres": [
+                  {
+                    "identifiant": "couleur",
+                    "libelle": "Couleur de la trace",
+                    "description": "Couleur de la trace de la variante (si coloration par pente désactivée).",
+                    "type": "couleur",
+                    "defaut": "light-blue",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Variante/Edition/Trace/couleur.md"
+                  },
+                  {
+                    "identifiant": "largeur",
+                    "libelle": "Largeur de la trace",
+                    "description": "Largeur de la trace de la variante en pixels.",
+                    "type": "entier",
+                    "defaut": 4,
+                    "min": 1,
+                    "max": 10,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Variante/Edition/Trace/largeur.md"
+                  },
+                  {
+                    "identifiant": "colorerSelonPente",
+                    "libelle": "Colorer selon la pente",
+                    "description": "Si activé, la trace de la variante est colorée selon la pente. Sinon, la couleur unie est utilisée.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Variante/Edition/Trace/colorerSelonPente.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "Trace Maîtresse",
+                "parametres": [
+                  {
+                    "identifiant": "couleur",
+                    "libelle": "Couleur de fond",
+                    "description": "Couleur de la trace principale affichée en arrière-plan lors de l'édition d'une variante.",
+                    "type": "couleur",
+                    "defaut": "grey-darken-3",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Variante/Edition/TraceMaitresse/couleur.md"
+                  },
+                  {
+                    "identifiant": "largeur",
+                    "libelle": "Largeur de fond",
+                    "description": "Largeur de la trace principale en arrière-plan (px).",
+                    "type": "entier",
+                    "defaut": 4,
+                    "min": 1,
+                    "max": 10,
+                    "unite": "px",
+                    "doc": "docs/DocParametrage/Variante/Edition/TraceMaitresse/largeur.md"
+                  },
+                  {
+                    "identifiant": "opacite",
+                    "libelle": "Opacité de fond",
+                    "description": "Opacité de la trace principale en arrière-plan (0.0 - 1.0).",
+                    "type": "reel",
+                    "defaut": 0.3,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "pas": 0.1,
+                    "decimales": 1,
+                    "doc": "docs/DocParametrage/Variante/Edition/TraceMaitresse/opacite.md"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "libelle": "Parametres",
+            "parametres": [
+              {
+                "identifiant": "routingApiKey",
+                "libelle": "Clé API GraphHopper",
+                "description": "Clé API pour le service de routage GraphHopper.",
+                "type": "secret",
+                "defaut": "",
+                "doc": "docs/DocParametrage/Variante/Parametres/routingApiKey.md"
+              }
+            ]
+          }
+        ],
         "parametres": [
           {
             "identifiant": "originalColor",
