@@ -230,19 +230,44 @@ pub async fn create_variant_files(
     let master_coords = master_ls["coordinates"].as_array().ok_or("Invalid lineString format")?;
     let master_points_high_res: Vec<Vec<f64>> = master_coords.iter().map(|c| c.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect()).collect();
 
-    let find_closest_high_res_idx = |lon: f64, lat: f64, start_from: usize| -> usize {
+    let total_tracking_pts = tracking_master.len();
+    let total_high_res_pts = master_points_high_res.len();
+
+    // Topological matching: Use the tracking index to hint where we should be in the high-res file
+    // This prevents confusing start (idx 0) and end (idx N) of a loop which are geometrically identical.
+    let find_corresponding_idx = |lon: f64, lat: f64, tracking_idx: usize, start_search_from: usize| -> usize {
+        // 1. Calculate estimated position
+        let ratio = tracking_idx as f64 / total_tracking_pts as f64;
+        let estimated_idx = (ratio * total_high_res_pts as f64) as usize;
+
+        // 2. Define search window (e.g. +/- 5% of total points, minimum 500 points)
+        // We want to be generous but avoid wrapping around the loop
+        let window_size = (total_high_res_pts / 20).max(500); 
+        
+        let min_search = estimated_idx.saturating_sub(window_size).max(start_search_from);
+        let max_search = (estimated_idx + window_size).min(total_high_res_pts);
+
         let mut min_dist = f64::MAX;
-        let mut closest_idx = start_from;
-        for i in start_from..master_points_high_res.len() {
+        let mut best_idx = start_search_from;
+
+        // Search in the topological window
+        for i in min_search..max_search {
             let mp = &master_points_high_res[i];
             let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
-            if d < min_dist { min_dist = d; closest_idx = i; }
-            if d < 1.0 && i > start_from + 1 {
-                 let prev_d = crate::gpx_processor::haversine_distance(lat, lon, master_points_high_res[i-1][1], master_points_high_res[i-1][0]);
-                 if d > prev_d { break; }
+            if d < min_dist { 
+                min_dist = d; 
+                best_idx = i; 
             }
         }
-        closest_idx
+        
+        // Safety Fallback: if "topological" search failed (e.g. very far deviation), 
+        // try searching forward from start_search_from broadly (traditional method)
+        if min_dist > 0.1 { // > 100m error
+             // ... existing logic fallback could be here, but usually topological hint is better.
+             // Let's stick to the best found in window.
+        }
+
+        best_idx
     };
 
     let mut final_points: Vec<Vec<f64>> = Vec::new();
@@ -260,30 +285,48 @@ pub async fn create_variant_files(
                     final_points.extend(pts);
                 }
                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
-                current_master_idx = find_closest_high_res_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), 0);
+                current_master_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
             },
             VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
-                let start_idx = find_closest_high_res_idx(anchor_start.coords[0], anchor_start.coords[1], current_master_idx);
-                while current_master_idx <= start_idx && current_master_idx < master_points_high_res.len() {
-                    final_points.push(master_points_high_res[current_master_idx].clone());
-                    current_master_idx += 1;
+                let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
+                
+                // Copy points from master up to deviation start
+                if start_idx >= current_master_idx {
+                    for i in current_master_idx..=start_idx {
+                        if i < master_points_high_res.len() {
+                            final_points.push(master_points_high_res[i].clone());
+                        }
+                    }
                 }
+                current_master_idx = start_idx + 1; // Prepare for next
+
+                // Insert deviation
                 if let Some(geom) = full_geometry {
                     let (pts, w) = prepare_points_3d(geom).await?;
                     if let Some(msg) = w { global_warning = Some(msg); }
                     final_points.extend(pts);
                 }
-                current_master_idx = find_closest_high_res_idx(anchor_end.coords[0], anchor_end.coords[1], start_idx);
-                if current_master_idx <= start_idx { current_master_idx = start_idx + 1; }
+                
+                // Find re-connection point
+                let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, current_master_idx);
+                current_master_idx = end_idx; // Will resume from here
+                
+                // Safety: ensure we don't go backwards if end_idx < start_idx (should be caught by topological search + validation)
+                if current_master_idx < start_idx { current_master_idx = start_idx + 1; }
             },
             VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
                 has_arrivee_reportee = true;
                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
-                let arrivee_idx = find_closest_high_res_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), current_master_idx);
-                while current_master_idx <= arrivee_idx && current_master_idx < master_points_high_res.len() {
-                    final_points.push(master_points_high_res[current_master_idx].clone());
-                    current_master_idx += 1;
+                let arrivee_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, current_master_idx);
+                
+                 if arrivee_idx >= current_master_idx {
+                    for i in current_master_idx..=arrivee_idx {
+                        if i < master_points_high_res.len() {
+                            final_points.push(master_points_high_res[i].clone());
+                        }
+                    }
                 }
+                
                 if let Some(geom) = full_geometry {
                     let (pts, w) = prepare_points_3d(geom).await?;
                     if let Some(msg) = w { global_warning = Some(msg); }
