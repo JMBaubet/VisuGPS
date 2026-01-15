@@ -18,17 +18,23 @@
         </div>
         <div v-if="circuit.sommet" class="d-flex align-center justify-space-between mt-1">
           <span class="text-caption">Sommet : {{ circuit.sommet.altitudeM }} m à {{ circuit.sommet.km }} km</span>
-          <v-chip
-            size="x-small"
-            :color="circuit.variantCount > 0 ? 'blue' : 'grey-darken-1'"
-            variant="flat"
-            class="text-caption clickable-chip"
-            @click.stop="editVariants"
-            :prepend-icon="circuit.variantCount === 0 ? 'mdi-plus' : 'mdi-source-branch'"
-            :title="circuit.variantCount === 0 ? 'Créer une nouvelle variante' : 'Ouvrir l\'éditeur de variantes'"
-          >
-            {{ variantLabel }}
-          </v-chip>
+          <v-tooltip location="top" :text="variantTooltipText" :disabled="!variantTooltipText">
+            <template v-slot:activator="{ props }">
+              <div v-bind="props" class="d-inline-block">
+                <v-chip
+                  size="x-small"
+                  :color="circuit.variantCount > 0 ? 'blue' : 'grey-darken-1'"
+                  variant="flat"
+                  class="text-caption clickable-chip"
+                  @click.stop="editVariants"
+                  :prepend-icon="circuit.variantCount === 0 ? 'mdi-plus' : 'mdi-source-branch'"
+                  :disabled="isVariantDisabled"
+                >
+                  {{ variantLabel }}
+                </v-chip>
+              </div>
+            </template>
+          </v-tooltip>
         </div>
       </v-col>
 
@@ -204,6 +210,17 @@ const variantLabel = computed(() => {
   if (props.circuit.variantCount === 0) return 'Variante';
   if (props.circuit.variantCount === 1) return '1 Variante';
   return `${props.circuit.variantCount} Variantes`;
+});
+
+const isVariantDisabled = computed(() => {
+  return props.circuit.variantCount === 0 && trackingProgress.value < 99.9;
+});
+
+const variantTooltipText = computed(() => {
+  if (isVariantDisabled.value) {
+    return "Finalisez l'édition de la caméra (100%) pour activer la création de variantes.";
+  }
+  return null;
 });
 
 // Weather Status Logic
