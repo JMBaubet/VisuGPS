@@ -59,7 +59,7 @@ pub fn get_best_provider(points: &[[f64; 2]]) -> ElevationProvider {
 // Centralizing them here is cleaner.
 
 const IGN_API_URL: &str = "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json";
-const OPEN_METEO_URL: &str = "https://elevation-api.open-meteo.com/v1/elevation";
+const OPEN_METEO_URL: &str = "https://api.open-meteo.com/v1/elevation";
 
 pub async fn fetch_altitudes(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
     if points.is_empty() {
