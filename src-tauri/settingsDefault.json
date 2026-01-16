@@ -1260,6 +1260,24 @@
                   }
                 ]
               }
+            ],
+            "parametres": []
+          },
+          {
+            "libelle": "Visualisation",
+            "parametres": [
+              {
+                "identifiant": "dureeFlytoSegment",
+                "libelle": "Durée du flyto vers le segment",
+                "description": "Durée en secondes du déplacement de la caméra vers le premier point du segment sélectionné.",
+                "type": "reel",
+                "defaut": 2,
+                "min": 0,
+                "max": 10,
+                "decimales": 1,
+                "unite": "s",
+                "doc": "docs/DocParametrage/Variante/Visualisation/dureeFlytoSegment.md"
+              }
             ]
           },
           {

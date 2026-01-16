@@ -235,7 +235,11 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Largeur de la trace](../DocParametrage/Variante/Edition/Trace/largeur.md)
 *   [Colorer selon la pente](../DocParametrage/Variante/Edition/Trace/colorerSelonPente.md)
 
-### 4.2. Parametres
+### 4.2. Visualisation
+**Description** : Réglages du comportement de la caméra lors de visualisation de variantes.
+*   [Durée du flyto vers le segment](../DocParametrage/Variante/Visualisation/dureeFlytoSegment.md)
+
+### 4.3. Parametres
 **Description** : Configuration des services externes pour les variantes.
 *   [Clé API GraphHopper](../DocParametrage/Variante/Parametres/routingApiKey.md)
 

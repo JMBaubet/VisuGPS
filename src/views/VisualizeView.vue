@@ -421,10 +421,32 @@ const loadVariantSegment = async (variantId, modification, index) => {
     else if (modification.type === 'ARRIVEE_REPORTEE') suffix = "ARRIVEE";
     else if (modification.type === 'SEGMENT_DEVIATION') suffix = `SEGMENT_${index}`;
 
-    const lineStringFilename = `lineString_${variantId}_${suffix}.json`;
-    console.log(`Chargement du segment: ${lineStringFilename}`);
+    const trackingFilename = `tracking_${variantId}_${suffix}.json`;
+    console.log(`Chargement du segment: ${trackingFilename}`);
     
-    // Future implementation: Logic to actually load the segment...
+    try {
+        const rawTrackingData = await invoke('read_tracking_file', { circuitId: props.circuitId, filename: trackingFilename });
+        
+        if (rawTrackingData && rawTrackingData.length > 0) {
+            const startPoint = rawTrackingData[0];
+            if (startPoint && startPoint.coordonnee) {
+                // Get duration from settings
+                const flyToDuration = await getSettingValue('Variante/Visualisation/dureeFlytoSegment') || 2.0;
+
+                await flyToPromise(map, {
+                     center: startPoint.coordonnee,
+                     zoom: 17,
+                     pitch: 60,
+                     bearing: startPoint.editedCap || startPoint.cap || 0,
+                     speed: 1.2,
+                     curve: 1,
+                     duration: flyToDuration * 1000 // constant duration if set, otherwise mapbox logic if using speed/curve
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Failed to load tracking for segment flyto", e);
+    }
 };
 
 const loadMainTrace = () => {
