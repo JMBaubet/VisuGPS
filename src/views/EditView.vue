@@ -118,8 +118,8 @@
                  <!-- Case: Segment Selected -->
                  <div v-if="currentSegmentType" class="d-flex align-center">
                     <v-icon size="small" class="mr-1">mdi-menu</v-icon>
-                    <span class="widget-text" :style="{ color: getSegmentColor({ type: currentSegmentType }) }">
-                        {{ getSegmentTitle({ type: currentSegmentType }, currentSegmentIndex) }}
+                    <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
+                        {{ getSegmentTitle({ type: currentSegmentType, originalIndex: currentSegmentIndex }) }}
                     </span>
                  </div>
                  <!-- Case: No Segment Selected (Prompt) -->
@@ -134,18 +134,18 @@
                <v-list-item 
                   v-for="(mod, index) in getVariantSegments(selectedVariant)" 
                   :key="index"
-                  :title="getSegmentTitle(mod)"
                   @click="loadVariantSegment(selectedVariant.id, mod, mod.originalIndex)"
                 >
                  <template v-slot:prepend>
                     <v-icon :color="getSegmentColor(mod)" class="mr-2">{{ getModIcon(mod) }}</v-icon>
                  </template>
+                 <v-list-item-title :class="'text-' + getSegmentColor(mod)">{{ getSegmentTitle(mod) }}</v-list-item-title>
                 </v-list-item>
             </v-list>
           </v-menu>
           <!-- Static Segment Name (Single Segment) -->
           <div v-else-if="currentSegmentType" class="d-flex flex-column align-center mx-1">
-             <span class="widget-text" :style="{ color: getSegmentColor({ type: currentSegmentType }) }">
+             <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
                  {{ getSegmentTitle({ type: currentSegmentType, originalIndex: currentSegmentIndex }) }}
              </span>
              <span class="widget-label">Segment</span>
@@ -155,8 +155,13 @@
           <template v-if="currentSegmentType">
             <v-divider vertical class="mx-2"></v-divider>
             <div class="d-flex flex-column align-center mx-2">
-               <span class="widget-text">
-                   {{ currentProgressDistance.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;">/ {{ totalLineLength.toFixed(2) }} km</span>
+               <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
+                   <template v-if="activeModification && (activeModification.longueur === undefined || activeModification.longueur < 0.001)">
+                       Point fixe
+                   </template>
+                   <template v-else>
+                       {{ currentProgressDistance.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;" class="text-white">/ {{ totalLineLength.toFixed(2) }} km</span>
+                   </template>
                </span>
                <span class="widget-label">Prog. Segment</span>
             </div>
@@ -427,8 +432,17 @@ const variantCompositeStats = computed(() => {
     
     // Sort mods by anchor index to ensure chronological processing
     mods.sort((a, b) => {
-        const idxA = a.anchorIndexOnMaster || (a.anchorStart ? a.anchorStart.index : 0) || 0;
-        const idxB = b.anchorIndexOnMaster || (b.anchorStart ? b.anchorStart.index : 0) || 0;
+        // Force DEPART to be first, ARRIVEE to be last
+        let idxA = 0;
+        if (a.type === 'DEPART_DEPORTE') idxA = -1;
+        else if (a.type === 'ARRIVEE_REPORTEE') idxA = Number.MAX_SAFE_INTEGER;
+        else idxA = a.anchorStart ? a.anchorStart.index : 0;
+
+        let idxB = 0;
+        if (b.type === 'DEPART_DEPORTE') idxB = -1;
+        else if (b.type === 'ARRIVEE_REPORTEE') idxB = Number.MAX_SAFE_INTEGER;
+        else idxB = b.anchorStart ? b.anchorStart.index : 0;
+
         return idxA - idxB;
     });
 
@@ -529,8 +543,17 @@ const getVariantSegments = (variant) => {
 
     // Sort modifications by position on master trace
     return modsWithIndex.sort((a, b) => {
-        const idxA = a.anchorIndexOnMaster || (a.anchorStart ? a.anchorStart.index : 0) || 0;
-        const idxB = b.anchorIndexOnMaster || (b.anchorStart ? b.anchorStart.index : 0) || 0;
+        // Force DEPART to be first, ARRIVEE to be last
+        let idxA = 0;
+        if (a.type === 'DEPART_DEPORTE') idxA = -1;
+        else if (a.type === 'ARRIVEE_REPORTEE') idxA = Number.MAX_SAFE_INTEGER;
+        else idxA = a.anchorStart ? a.anchorStart.index : 0;
+
+        let idxB = 0;
+        if (b.type === 'DEPART_DEPORTE') idxB = -1;
+        else if (b.type === 'ARRIVEE_REPORTEE') idxB = Number.MAX_SAFE_INTEGER;
+        else idxB = b.anchorStart ? b.anchorStart.index : 0;
+
         return idxA - idxB;
     });
 };
@@ -559,6 +582,11 @@ const getSegmentColor = (mod) => {
 };
 
 const selectedVariant = computed(() => variants.value.find(v => v.id === currentVariantId.value));
+
+const activeModification = computed(() => {
+    if (!selectedVariant.value || !selectedVariant.value.details || currentSegmentIndex.value === null) return null;
+    return selectedVariant.value.details.modifications.find((m, i) => i === currentSegmentIndex.value);
+});
 
 const handleSelectVariant = (variant) => {
     const segments = getVariantSegments(variant);
