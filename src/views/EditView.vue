@@ -349,14 +349,20 @@ const variantCompositeStats = computed(() => {
     // We still check BG Trace just to ensure data is loaded, though logic is arithmetic
     if (!backgroundLineStringCoordinates.value && !totalLineLength.value) return { total: 0, current: 0 };
 
-    const mods = selectedVariant.value.details.modifications;
+    // Map mods with original index to match currentSegmentIndex (which comes from UI/Unsorted list)
+    const mods = selectedVariant.value.details.modifications.map((m, i) => ({...m, originalIndex: i}));
+    
+    // Sort mods by anchor index to ensure chronological processing
+    mods.sort((a, b) => {
+        const idxA = a.anchorIndexOnMaster || (a.anchorStart ? a.anchorStart.index : 0) || 0;
+        const idxB = b.anchorIndexOnMaster || (b.anchorStart ? b.anchorStart.index : 0) || 0;
+        return idxA - idxB;
+    });
+
     let total = 0;
     let current = 0;
     
     // Base Total: Use the Geometric Length of BG Trace (LineString) as the trusted "Full Length" reference.
-    // Or should we use (MaxTrackingIndex * 0.1)?
-    // User seems to trust 122.2km (geometry is 122.174). Close enough.
-    // Let's use geometry length if available, else 0.
     const fullBGLength = backgroundLineStringCoordinates.value && backgroundLineStringCoordinates.value.length > 1
         ? turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' })
         : 0;
@@ -364,6 +370,7 @@ const variantCompositeStats = computed(() => {
     total = fullBGLength;
 
     let accumulatedOffset = 0; // Track shifts for current position calculation
+    let activeSegmentFound = false;
 
     mods.forEach((mod, index) => {
         // Calculate Cut Length (on Main Trace)
@@ -395,23 +402,22 @@ const variantCompositeStats = computed(() => {
 
         const variantLength = mod.longueur || 0;
         
+        // console.log(`[DEBUG] Mod ${index} (${mod.type}): StartIdx=${startIndex} EndIdx=${endIndex} CutLen=${cutLength.toFixed(3)} VarLen=${variantLength.toFixed(3)}`);
+        
         // Update Total
         total = total - cutLength + variantLength;
+        // console.log(`[DEBUG] Running Total: ${total.toFixed(3)}`);
 
         // Update Current (Progress)
+        // Update Current (Progress)
         if (currentSegmentIndex.value !== null) {
-            if (index < currentSegmentIndex.value) {
-                // Passed this segment entirely
-                accumulatedOffset += (variantLength - cutLength);
-            } else if (currentSegmentIndex.value === index) {
-                // Inside this segment
-                // Original Main Trace Start for this segment context
-                let startOfMainBeforeCut = 0;
+            // Check if this is the active segment using originalIndex (because currentSegmentIndex comes from unsorted UI list)
+            if (mod.originalIndex === currentSegmentIndex.value) {
+                // This IS the active segment
+                activeSegmentFound = true;
                 
+                let startOfMainBeforeCut = 0;
                 if (mod.type === 'DEPART_DEPORTE') {
-                     // If we are editing the Start Offset "segment" (which is usually instant or very short logic)
-                     // The "Start" relative to original 0 is 0.
-                     // But we are "inside" the variant part.
                      startOfMainBeforeCut = 0; 
                 } else if (mod.type === 'ARRIVEE_REPORTEE') {
                      startOfMainBeforeCut = startIndex * segmentLengthRef.value;
@@ -419,10 +425,18 @@ const variantCompositeStats = computed(() => {
                      startOfMainBeforeCut = startIndex * segmentLengthRef.value;
                 }
 
-                // Add any accumulated offset from previous variants
+                // Add accumulated offset from PREVIOUS variants (since we are sorted chronologically, accumulatedOffset is correct up to here)
                 const positionAtStartOfSegment = startOfMainBeforeCut + accumulatedOffset;
                 
+                // console.log(`[DEBUG] Inside Mod ${index} (Orig ${mod.originalIndex}): StartMain=${startOfMainBeforeCut} AccOffset=${accumulatedOffset} PosStart=${positionAtStartOfSegment} Progress=${currentProgressDistance.value}`);
+
                 current = positionAtStartOfSegment + currentProgressDistance.value;
+                
+            } else if (!activeSegmentFound) {
+                 // This segment is BEFORE the active segment (chronologically)
+                 // We accumulate its offset to shift the active segment's starting position correctly.
+                 accumulatedOffset += (variantLength - cutLength);
+                 // console.log(`[DEBUG] Passed Mod ${index} (Orig ${mod.originalIndex}): Added AccOffset ${variantLength-cutLength} -> New Acc ${accumulatedOffset}`);
             }
         }
     });
