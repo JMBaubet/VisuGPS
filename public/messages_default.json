@@ -158,5 +158,21 @@
       "backgroundColor": "blue",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Départ_annexe_green",
+    "text": "⏱️ Départ annexe",
+    "style": {
+      "backgroundColor": "green",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Arrivée_annexe_red",
+    "text": "🏁 Arrivée annexe",
+    "style": {
+      "backgroundColor": "red",
+      "textColor": "white"
+    }
   }
 ]
