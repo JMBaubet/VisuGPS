@@ -341,101 +341,92 @@ const getAnchorIndex = (mod, isStart) => {
     return 0;
 };
 
-const getGeoJSONIndex = (coord) => {
-    if (!coord || !backgroundLineStringCoordinates.value) return 0;
-    try {
-        const line = turf.lineString(backgroundLineStringCoordinates.value);
-        const pt = turf.point(coord);
-        const snapped = turf.nearestPointOnLine(line, pt);
-        return snapped.properties.index;
-    } catch (e) {
-        console.error("Error finding index", e);
-        return 0;
-    }
-};
-
-const calculateDistanceByIdx = (startIdx, endIdx) => {
-     if (!backgroundLineStringCoordinates.value || startIdx >= endIdx) return 0;
-     const slice = backgroundLineStringCoordinates.value.slice(startIdx, endIdx + 1);
-     if (slice.length < 2) return 0;
-     return turf.length(turf.lineString(slice), { units: 'kilometers' });
-};
+// Arithmetic approach for Total Progress
+const segmentLengthRef = ref(0.1); // Default 100m, updated from settings
 
 const variantCompositeStats = computed(() => {
     if (!selectedVariant.value || !selectedVariant.value.details) return { total: 0, current: 0 };
-    if (!backgroundLineStringCoordinates.value || backgroundLineStringCoordinates.value.length < 2) return { total: 0, current: 0 };
+    // We still check BG Trace just to ensure data is loaded, though logic is arithmetic
+    if (!backgroundLineStringCoordinates.value && !totalLineLength.value) return { total: 0, current: 0 };
 
     const mods = selectedVariant.value.details.modifications;
     let total = 0;
     let current = 0;
     
-    // Start at Index 0
-    let lastMainIndex = 0; 
+    // Base Total: Use the Geometric Length of BG Trace (LineString) as the trusted "Full Length" reference.
+    // Or should we use (MaxTrackingIndex * 0.1)?
+    // User seems to trust 122.2km (geometry is 122.174). Close enough.
+    // Let's use geometry length if available, else 0.
+    const fullBGLength = backgroundLineStringCoordinates.value && backgroundLineStringCoordinates.value.length > 1
+        ? turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' })
+        : 0;
+        
+    total = fullBGLength;
 
-    // Debugging Total Length
-    // const fullBGLength = turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' });
-    // console.log(`[DEBUG] Full BG Trace Length: ${fullBGLength.toFixed(3)} km`);
+    let accumulatedOffset = 0; // Track shifts for current position calculation
 
     mods.forEach((mod, index) => {
-        let modStartIdx = 0;
-        
-        if (mod.type === 'DEPART_DEPORTE' && mod.anchorStart) {
-             modStartIdx = getGeoJSONIndex(mod.anchorStart.coords);
-        } else if (mod.anchorStart) {
-             modStartIdx = getGeoJSONIndex(mod.anchorStart.coords);
+        // Calculate Cut Length (on Main Trace)
+        let startIndex = 0;
+        let endIndex = 0;
+        let cutLength = 0;
+
+        if (mod.type === 'DEPART_DEPORTE') {
+             // Removes everything from 0 to Anchor
+             startIndex = 0;
+             endIndex = mod.anchorIndexOnMaster || 0;
+             cutLength = (endIndex - startIndex) * segmentLengthRef.value;
+        } else if (mod.type === 'ARRIVEE_REPORTEE') {
+             // Removes everything from Anchor to End
+             startIndex = mod.anchorIndexOnMaster || 0;
+             // Estimate Max Index from Full Length (best available approximation in this view)
+             const estimatedMaxIndex = Math.floor(fullBGLength / segmentLengthRef.value);
+             endIndex = estimatedMaxIndex;
+             // Should we use full length - start length? simpler.
+             // cutLength = FullLength - (startIndex * segmentLength)
+             // But consistency with "cutLength" variable:
+             cutLength = Math.max(0, fullBGLength - (startIndex * segmentLengthRef.value));
+        } else {
+             // Normal Segment
+             startIndex = mod.anchorStart ? mod.anchorStart.index : 0;
+             endIndex = mod.anchorEnd ? mod.anchorEnd.index : 0;
+             cutLength = (endIndex - startIndex) * segmentLengthRef.value;
         }
 
-        // Add Main Trace part (lastMainIndex -> modStartIdx)
-        if (modStartIdx > lastMainIndex) {
-             const mainPart = calculateDistanceByIdx(lastMainIndex, modStartIdx);
-             total += mainPart;
-             
-             if (currentSegmentIndex.value !== null) {
-                 if (index < currentSegmentIndex.value) {
-                    current += mainPart;
-                 } else if (currentSegmentIndex.value === index) {
-                    current += mainPart; 
-                 }
-             }
-        }
+        const variantLength = mod.longueur || 0;
         
-        // Add Segment part
-        total += mod.longueur || 0;
-        
+        // Update Total
+        total = total - cutLength + variantLength;
+
+        // Update Current (Progress)
         if (currentSegmentIndex.value !== null) {
             if (index < currentSegmentIndex.value) {
-                current += mod.longueur || 0;
+                // Passed this segment entirely
+                accumulatedOffset += (variantLength - cutLength);
             } else if (currentSegmentIndex.value === index) {
-                current += currentProgressDistance.value; 
+                // Inside this segment
+                // Original Main Trace Start for this segment context
+                let startOfMainBeforeCut = 0;
+                
+                if (mod.type === 'DEPART_DEPORTE') {
+                     // If we are editing the Start Offset "segment" (which is usually instant or very short logic)
+                     // The "Start" relative to original 0 is 0.
+                     // But we are "inside" the variant part.
+                     startOfMainBeforeCut = 0; 
+                } else if (mod.type === 'ARRIVEE_REPORTEE') {
+                     startOfMainBeforeCut = startIndex * segmentLengthRef.value;
+                } else {
+                     startOfMainBeforeCut = startIndex * segmentLengthRef.value;
+                }
+
+                // Add any accumulated offset from previous variants
+                const positionAtStartOfSegment = startOfMainBeforeCut + accumulatedOffset;
+                
+                current = positionAtStartOfSegment + currentProgressDistance.value;
             }
         }
-
-        // Determine End Index for next iteration
-        let modEndIdx = lastMainIndex; // Fallback
-        if (mod.type === 'ARRIVEE_REPORTEE') {
-             modEndIdx = backgroundLineStringCoordinates.value.length - 1;
-        } else if (mod.anchorEnd) {
-             modEndIdx = getGeoJSONIndex(mod.anchorEnd.coords);
-        }
-        
-        // If End index < Start index, it's weird (backtracking or loop start).
-        // But we trust the geometry of the Cut Part corresponds to [Start, End].
-        // Debug Cut Part
-        if (modEndIdx > modStartIdx) {
-            // const cutPart = calculateDistanceByIdx(modStartIdx, modEndIdx);
-        } else {
-             // console.warn(`[DEBUG] Inverted Cut Part Indices: ${modStartIdx}->${modEndIdx}`);
-        }
-
-        lastMainIndex = modEndIdx;
     });
 
-    // Add final main trace tail
-    if (lastMainIndex < backgroundLineStringCoordinates.value.length - 1) {
-        const tail = calculateDistanceByIdx(lastMainIndex, backgroundLineStringCoordinates.value.length - 1);
-        total += tail;
-    }
-    
     return { total, current };
 });
 
@@ -1967,6 +1958,7 @@ onMounted(async () => {
                 Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
             const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
+            segmentLengthRef.value = segmentLength / 1000.0; // Convert Main Trace segment length to km for calculations
 
             const colorExpression = await invoke('get_slope_color_expression', {
                 circuitId: circuitId,
