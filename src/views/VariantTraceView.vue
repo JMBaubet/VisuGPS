@@ -575,6 +575,100 @@ const handleMapClick = (e) => {
                 return;
             }
         }
+
+        // --- NEW CONSISTENCY CHECKS ---
+        const anchorIndex = newPoint.index;
+        const finalizedMods = modifications.value.filter(m => m.finalized);
+
+        // 1. General Overlap Check: Cannot anchor inside an existing finalized Segment
+        for (const mod of finalizedMods) {
+            if (mod.type === 'SEGMENT') {
+                const anchors = mod.points.filter(p => p.type === 'ANCHOR');
+                if (anchors.length >= 2) {
+                    const idx1 = anchors[0].index;
+                    const idx2 = anchors[anchors.length - 1].index;
+                    const minIdx = Math.min(idx1, idx2);
+                    const maxIdx = Math.max(idx1, idx2);
+                    
+                    if (anchorIndex > minIdx && anchorIndex < maxIdx) {
+                         showSnackbar("Impossible d'ancrer dans une zone déjà segmentée par une autre variante.", "error");
+                         return;
+                    }
+                }
+            }
+        }
+
+        // 2. DEPART Constraints
+        if (currentMode.value === 'DEPART') {
+            // Must be BEFORE any finalized Segment
+            for (const mod of finalizedMods) {
+                if (mod.type === 'SEGMENT') {
+                     const validAnchors = mod.points.filter(p => p.type === 'ANCHOR');
+                     if (validAnchors.length > 0) {
+                         // A segment typically starts at its first anchor index (min)
+                         const segMin = Math.min(...validAnchors.map(a => a.index));
+                         if (anchorIndex >= segMin) {
+                             showSnackbar("Le départ doit être placé AVANT le début du premier segment.", "error");
+                             return;
+                         }
+                     }
+                }
+                if (mod.type === 'ARRIVEE') {
+                     const arrAnchor = mod.points.find(p => p.type === 'ANCHOR');
+                     if (arrAnchor && anchorIndex >= arrAnchor.index) {
+                          showSnackbar("Le départ doit être placé AVANT l'arrivée.", "error");
+                          return;
+                     }
+                }
+            }
+        }
+
+        // 3. ARRIVEE Constraints
+        if (currentMode.value === 'ARRIVEE') {
+             // Must be AFTER any finalized Segment
+            for (const mod of finalizedMods) {
+                if (mod.type === 'SEGMENT') {
+                     const validAnchors = mod.points.filter(p => p.type === 'ANCHOR');
+                     if (validAnchors.length > 0) {
+                         const segMax = Math.max(...validAnchors.map(a => a.index));
+                         if (anchorIndex <= segMax) {
+                             showSnackbar("L'arrivée doit être placée APRÈS la fin du dernier segment.", "error");
+                             return;
+                         }
+                     }
+                }
+                if (mod.type === 'DEPART') {
+                     const depAnchor = mod.points.find(p => p.type === 'ANCHOR');
+                     if (depAnchor && anchorIndex <= depAnchor.index) {
+                          showSnackbar("L'arrivée doit être placée APRÈS le départ.", "error");
+                          return;
+                     }
+                }
+            }
+        }
+
+        // 4. SEGMENT Constraints
+        if (currentMode.value === 'SEGMENT') {
+            // Must be AFTER any finalized DEPART
+            const departMod = finalizedMods.find(m => m.type === 'DEPART');
+            if (departMod) {
+                const depAnchor = departMod.points.find(p => p.type === 'ANCHOR');
+                if (depAnchor && anchorIndex <= depAnchor.index) {
+                    showSnackbar("Tout segment doit commencer APRÈS le point de départ défini.", "error");
+                    return;
+                }
+            }
+
+            // Must be BEFORE any finalized ARRIVEE
+            const arriveeMod = finalizedMods.find(m => m.type === 'ARRIVEE');
+            if (arriveeMod) {
+                const arrAnchor = arriveeMod.points.find(p => p.type === 'ANCHOR');
+                if (arrAnchor && anchorIndex >= arrAnchor.index) {
+                     showSnackbar("Tout segment doit finir AVANT le point d'arrivée défini.", "error");
+                     return;
+                }
+            }
+        }
     }
 
     // Create new group if none found for this mode that is active
