@@ -615,6 +615,7 @@ const loadVariantSegment = async (variantId, modification, index) => {
     const lineStringFilename = `lineString_${variantId}_${suffix}.json`;
     const variantIdForEvents = `${variantId}_${suffix}`;
     currentVariantIdForEvents.value = variantIdForEvents; // Set the global ref
+    currentTrackingFilename.value = trackingFilename; // Set tracking filename ref
 
     try {
         // 1. Load LineString for Active Trace Layer
@@ -764,6 +765,7 @@ const loadMainTrace = async () => {
     currentSegmentType.value = null;
     currentSegmentIndex.value = null;
     currentVariantIdForEvents.value = null; // Reset for main trace
+    currentTrackingFilename.value = null; // Reset tracking filename
     isVariantSelectionOpen.value = false;
     
     try {
@@ -1104,6 +1106,7 @@ const cameraSyncMode = ref('edited'); // 'off', 'edited'
 const showCenterMarker = ref(false);
 // const currentSegmentIndex = ref(null); // REMOVED DUPLICATE
 const currentVariantIdForEvents = ref(null); // New ref for event variant ID
+const currentTrackingFilename = ref(null); // New ref for tracking filename
 const trackProgress = ref(0);
 const eventsFile = ref({ pointEvents: {}, rangeEvents: [] });
 const messageLibrary = ref([]); // New ref for message library
@@ -1395,6 +1398,7 @@ const applyZoomDepart = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom de départ appliqué.', 'success');
   } catch (error) {
@@ -1429,6 +1433,7 @@ const removeZoomDepart = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom de départ supprimé.', 'info');
   } catch (error) {
@@ -1493,6 +1498,7 @@ const applyZoomArrivee = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom d\'arrivée appliqué.', 'success');
   } catch (error) {
@@ -1526,6 +1532,7 @@ const removeZoomArrivee = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom d\'arrivée supprimé.', 'info');
   } catch (error) {
@@ -1711,6 +1718,7 @@ const saveControlPoint = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
 
@@ -1788,6 +1796,7 @@ const deleteControlPoint = async () => {
       invoke('save_tracking_file', {
         circuitId: circuitId,
         trackingData: trackingPoints.value,
+        filename: currentTrackingFilename.value // Use ref
       }),
       invoke('update_tracking_km', {
         circuitId: circuitId,

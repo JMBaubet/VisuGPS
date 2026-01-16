@@ -142,5 +142,21 @@
       "backgroundColor": "blue",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Retour_sur_trace_blue",
+    "text": "🧭 Retour sur trace",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Variante_blue",
+    "text": "🧭 Variante",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
   }
 ]
