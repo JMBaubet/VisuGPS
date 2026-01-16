@@ -90,11 +90,46 @@ async fn fetch_ign(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
             lats.join("|")
         );
 
-        let resp = client.get(&url).send().await.map_err(|e| format!("IGN Request failed: {}", e))?;
+        let mut attempts = 0;
+        let max_attempts = 3;
+        let mut loop_resp = None;
 
-        if !resp.status().is_success() {
-            return Err(format!("IGN API Error: {}", resp.status()));
+        while attempts < max_attempts {
+            attempts += 1;
+            match client.get(&url).send().await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_success() {
+                        loop_resp = Some(resp);
+                        break;
+                    } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS 
+                           || status == reqwest::StatusCode::INTERNAL_SERVER_ERROR
+                           || status == reqwest::StatusCode::SERVICE_UNAVAILABLE {
+                        println!("IGN API Error {} (attempt {}/{}). Retrying...", status, attempts, max_attempts);
+                        if attempts < max_attempts {
+                            let wait_time = std::time::Duration::from_millis(1000 * 2_u64.pow(attempts as u32 - 1));
+                            tokio::time::sleep(wait_time).await;
+                        }
+                    } else {
+                        // Other errors (400, 404, etc.) are likely fatal
+                        return Err(format!("IGN API Error: {}", status));
+                    }
+                },
+                Err(e) => {
+                    println!("IGN Request failed (attempt {}/{}): {}", attempts, max_attempts, e);
+                    if attempts < max_attempts {
+                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    } else {
+                         return Err(format!("IGN Request failed after {} attempts: {}", max_attempts, e));
+                    }
+                }
+            }
         }
+
+        if loop_resp.is_none() {
+             return Err(format!("IGN API failed after {} attempts.", max_attempts));
+        }
+        let resp = loop_resp.unwrap();
 
         let json: serde_json::Value = resp.json().await.map_err(|e| format!("IGN Parse error: {}", e))?;
 
@@ -107,6 +142,9 @@ async fn fetch_ign(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
         } else {
             return Err("Format de réponse IGN invalide".to_string());
         }
+
+        // Throttle - Be nice to the API
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
     }
     
     Ok(altitudes)

@@ -428,15 +428,12 @@ const variantCompositeStats = computed(() => {
                 // Add accumulated offset from PREVIOUS variants (since we are sorted chronologically, accumulatedOffset is correct up to here)
                 const positionAtStartOfSegment = startOfMainBeforeCut + accumulatedOffset;
                 
-                // console.log(`[DEBUG] Inside Mod ${index} (Orig ${mod.originalIndex}): StartMain=${startOfMainBeforeCut} AccOffset=${accumulatedOffset} PosStart=${positionAtStartOfSegment} Progress=${currentProgressDistance.value}`);
-
                 current = positionAtStartOfSegment + currentProgressDistance.value;
                 
             } else if (!activeSegmentFound) {
                  // This segment is BEFORE the active segment (chronologically)
                  // We accumulate its offset to shift the active segment's starting position correctly.
                  accumulatedOffset += (variantLength - cutLength);
-                 // console.log(`[DEBUG] Passed Mod ${index} (Orig ${mod.originalIndex}): Added AccOffset ${variantLength-cutLength} -> New Acc ${accumulatedOffset}`);
             }
         }
     });
