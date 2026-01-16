@@ -341,75 +341,98 @@ const getAnchorIndex = (mod, isStart) => {
     return 0;
 };
 
-const calculateMainDistance = (startIdx, endIdx) => {
-    if (startIdx >= endIdx || !backgroundLineStringCoordinates.value || backgroundLineStringCoordinates.value.length === 0) return 0;
-    // turf.lineSlice or length calculation
-    // Since coordinates are just array of points, we can subset and measure.
-    // However, turf.lineString needs valid geometry.
-    // Slicing huge array might be slow but length is usually efficient.
-    const slice = backgroundLineStringCoordinates.value.slice(startIdx, endIdx + 1);
-    if (slice.length < 2) return 0;
+const getGeoJSONIndex = (coord) => {
+    if (!coord || !backgroundLineStringCoordinates.value) return 0;
     try {
-        const line = turf.lineString(slice);
-        return turf.length(line, { units: 'kilometers' });
+        const line = turf.lineString(backgroundLineStringCoordinates.value);
+        const pt = turf.point(coord);
+        const snapped = turf.nearestPointOnLine(line, pt);
+        return snapped.properties.index;
     } catch (e) {
-        console.error("Error calculating main distance", e);
+        console.error("Error finding index", e);
         return 0;
     }
 };
 
+const calculateDistanceByIdx = (startIdx, endIdx) => {
+     if (!backgroundLineStringCoordinates.value || startIdx >= endIdx) return 0;
+     const slice = backgroundLineStringCoordinates.value.slice(startIdx, endIdx + 1);
+     if (slice.length < 2) return 0;
+     return turf.length(turf.lineString(slice), { units: 'kilometers' });
+};
+
 const variantCompositeStats = computed(() => {
     if (!selectedVariant.value || !selectedVariant.value.details) return { total: 0, current: 0 };
-    
-    // If we are not editing a specific segment (currentSegmentIndex is null), we are "at the start"?
-    // Or maybe we want "Current position in the variant view"?
-    // If not editing a segment, currentProgressDistance is likely 0.
-    
+    if (!backgroundLineStringCoordinates.value || backgroundLineStringCoordinates.value.length < 2) return { total: 0, current: 0 };
+
     const mods = selectedVariant.value.details.modifications;
     let total = 0;
     let current = 0;
-    let lastMainIndex = 0;
+    
+    // Start at Index 0
+    let lastMainIndex = 0; 
+
+    // Debugging Total Length
+    // const fullBGLength = turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' });
+    // console.log(`[DEBUG] Full BG Trace Length: ${fullBGLength.toFixed(3)} km`);
 
     mods.forEach((mod, index) => {
-        const startIdx = getAnchorIndex(mod, true);
+        let modStartIdx = 0;
         
-        // Add Main Trace part before this segment
-        // Ensure startIdx >= lastMainIndex
-        if (startIdx > lastMainIndex) {
-             const mainPart = calculateMainDistance(lastMainIndex, startIdx);
+        if (mod.type === 'DEPART_DEPORTE' && mod.anchorStart) {
+             modStartIdx = getGeoJSONIndex(mod.anchorStart.coords);
+        } else if (mod.anchorStart) {
+             modStartIdx = getGeoJSONIndex(mod.anchorStart.coords);
+        }
+
+        // Add Main Trace part (lastMainIndex -> modStartIdx)
+        if (modStartIdx > lastMainIndex) {
+             const mainPart = calculateDistanceByIdx(lastMainIndex, modStartIdx);
              total += mainPart;
-             if (currentSegmentIndex.value !== null && index < currentSegmentIndex.value) {
-                current += mainPart;
-             } else if (currentSegmentIndex.value === index) {
-                current += mainPart; // Add the main part leading to this segment
-             } else if (currentSegmentIndex.value === null) {
-                // If not editing any segment, what is "current"?
-                // Maybe 0? Or do we assume we are at the beginning?
-                // Let's keep 0 if no match.
+             
+             if (currentSegmentIndex.value !== null) {
+                 if (index < currentSegmentIndex.value) {
+                    current += mainPart;
+                 } else if (currentSegmentIndex.value === index) {
+                    current += mainPart; 
+                 }
              }
         }
         
         // Add Segment part
         total += mod.longueur || 0;
-        if (currentSegmentIndex.value !== null && index < currentSegmentIndex.value) {
-            current += mod.longueur || 0;
-        } else if (currentSegmentIndex.value === index) {
-            current += currentProgressDistance.value; // Add current progress inside segment
+        
+        if (currentSegmentIndex.value !== null) {
+            if (index < currentSegmentIndex.value) {
+                current += mod.longueur || 0;
+            } else if (currentSegmentIndex.value === index) {
+                current += currentProgressDistance.value; 
+            }
         }
 
-        // Update lastMainIndex
-        if (mod.type === 'DEPART_DEPORTE') {
-             lastMainIndex = mod.anchorIndexOnMaster;
-        } else if (mod.type === 'ARRIVEE_REPORTEE') {
-             lastMainIndex = backgroundLineStringCoordinates.value ? backgroundLineStringCoordinates.value.length - 1 : 0; 
-        } else {
-             lastMainIndex = mod.anchorEnd ? mod.anchorEnd.index : lastMainIndex;
+        // Determine End Index for next iteration
+        let modEndIdx = lastMainIndex; // Fallback
+        if (mod.type === 'ARRIVEE_REPORTEE') {
+             modEndIdx = backgroundLineStringCoordinates.value.length - 1;
+        } else if (mod.anchorEnd) {
+             modEndIdx = getGeoJSONIndex(mod.anchorEnd.coords);
         }
+        
+        // If End index < Start index, it's weird (backtracking or loop start).
+        // But we trust the geometry of the Cut Part corresponds to [Start, End].
+        // Debug Cut Part
+        if (modEndIdx > modStartIdx) {
+            // const cutPart = calculateDistanceByIdx(modStartIdx, modEndIdx);
+        } else {
+             // console.warn(`[DEBUG] Inverted Cut Part Indices: ${modStartIdx}->${modEndIdx}`);
+        }
+
+        lastMainIndex = modEndIdx;
     });
 
     // Add final main trace tail
-    if (backgroundLineStringCoordinates.value && lastMainIndex < backgroundLineStringCoordinates.value.length - 1) {
-        const tail = calculateMainDistance(lastMainIndex, backgroundLineStringCoordinates.value.length - 1);
+    if (lastMainIndex < backgroundLineStringCoordinates.value.length - 1) {
+        const tail = calculateDistanceByIdx(lastMainIndex, backgroundLineStringCoordinates.value.length - 1);
         total += tail;
     }
     
