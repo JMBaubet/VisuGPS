@@ -96,6 +96,84 @@
                                 <template v-slot:append>
                                     <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
                                     <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
+                                    <!-- Variant / Segment UI -->
+                                    <template v-if="variants.length > 0">
+                                        <v-divider vertical class="mx-2"></v-divider>
+                                        
+                                        <!-- Case 1: No Variant Selected -->
+                                        <template v-if="!currentVariantId">
+                                            <!-- Multiple Variants: Menu -->
+                                            <v-menu v-if="variants.length > 1">
+                                                <template v-slot:activator="{ props }">
+                                                    <v-btn 
+                                                        v-bind="props"
+                                                        icon="mdi-source-branch" 
+                                                        variant="text" 
+                                                        :disabled="!isPaused" 
+                                                        title="Choisir une variante"
+                                                    ></v-btn>
+                                                </template>
+                                                <v-list density="compact">
+                                                    <v-list-item 
+                                                        v-for="variant in variants" 
+                                                        :key="variant.id" 
+                                                        :title="variant.name" 
+                                                        @click="handleSelectVariant(variant)"
+                                                        prepend-icon="mdi-source-branch"
+                                                    ></v-list-item>
+                                                </v-list>
+                                            </v-menu>
+                                            <!-- Single Variant: Direct Action -->
+                                            <v-btn 
+                                                v-else
+                                                icon="mdi-source-branch" 
+                                                variant="text" 
+                                                :disabled="!isPaused" 
+                                                title="Charger la variante"
+                                                @click="handleSelectVariant(variants[0])"
+                                            ></v-btn>
+                                        </template>
+
+                                        <!-- Case 2: Variant Selected -->
+                                        <template v-else>
+                                             <!-- Back to Main Trace Button -->
+                                             <v-btn 
+                                                icon="mdi-location-exit" 
+                                                variant="text" 
+                                                :disabled="!isPaused" 
+                                                title="Retour à la trace maîtresse" 
+                                                @click="loadMainTrace" 
+                                                style="transform: rotate(180deg);"
+                                                color="warning"
+                                             ></v-btn>
+                                             
+                                             <!-- Segment Selector (If multiple segments) -->
+                                             <v-menu v-if="selectedVariant && getVariantSegments(selectedVariant).length > 1">
+                                                <template v-slot:activator="{ props }">
+                                                    <v-btn
+                                                        v-bind="props"
+                                                        icon="mdi-menu"
+                                                        variant="text"
+                                                        :disabled="!isPaused"
+                                                        :color="currentSegmentType ? getSegmentColor({ type: currentSegmentType }) : ''"
+                                                        title="Changer de segment"
+                                                    ></v-btn>
+                                                </template>
+                                                <v-list density="compact">
+                                                    <v-list-item 
+                                                        v-for="(mod, index) in getVariantSegments(selectedVariant)" 
+                                                        :key="index"
+                                                        @click="loadVariantSegment(selectedVariant.id, mod, mod.originalIndex)"
+                                                    >
+                                                        <template v-slot:prepend>
+                                                            <v-icon :color="getSegmentColor(mod)" class="mr-2">{{ getModIcon(mod) }}</v-icon>
+                                                        </template>
+                                                        <v-list-item-title :class="'text-' + getSegmentColor(mod)">{{ getSegmentTitle(mod) }}</v-list-item-title>
+                                                    </v-list-item>
+                                                </v-list>
+                                             </v-menu>
+                                        </template>
+                                    </template>
                                 </template>
                             </v-slider>          </div>
         </v-card>
@@ -264,6 +342,117 @@ const layerGradients = ref({
     aller: null,
     retour: null,
     neutral: null
+});
+
+// Variants state
+const variants = ref([]);
+const currentVariantId = ref(null);
+const currentSegmentType = ref(null);
+const currentSegmentIndex = ref(null);
+
+// Variant Helper Functions
+const getVariantSegments = (variant) => {
+    if (!variant.details || !variant.details.modifications) return [];
+    
+    // Attach original index to each modification to preserve file mapping reference
+    const modsWithIndex = variant.details.modifications.map((m, i) => ({...m, originalIndex: i}));
+
+    // Sort modifications by position on master trace
+    return modsWithIndex.sort((a, b) => {
+        // Force DEPART to be first, ARRIVEE to be last
+        let idxA = 0;
+        if (a.type === 'DEPART_DEPORTE') idxA = -1;
+        else if (a.type === 'ARRIVEE_REPORTEE') idxA = Number.MAX_SAFE_INTEGER;
+        else idxA = a.anchorStart ? a.anchorStart.index : 0;
+
+        let idxB = 0;
+        if (b.type === 'DEPART_DEPORTE') idxB = -1;
+        else if (b.type === 'ARRIVEE_REPORTEE') idxB = Number.MAX_SAFE_INTEGER;
+        else idxB = b.anchorStart ? b.anchorStart.index : 0;
+
+        return idxA - idxB;
+    });
+};
+
+const getSegmentTitle = (mod) => {
+    if (mod.name) return mod.name;
+    if (mod.type === 'DEPART_DEPORTE') return 'Départ';
+    if (mod.type === 'ARRIVEE_REPORTEE') return 'Arrivée';
+    // Use originalIndex if available, otherwise 0
+    const idx = typeof mod.originalIndex === 'number' ? mod.originalIndex : 0;
+    if (mod.type === 'SEGMENT_DEVIATION') return `Segment ${idx + 1}`;
+    return 'Segment';
+};
+
+const getModIcon = (mod) => {
+    if (mod.type === 'DEPART_DEPORTE') return 'mdi-ray-start-arrow';
+    if (mod.type === 'ARRIVEE_REPORTEE') return 'mdi-ray-end-arrow';
+    return 'mdi-source-branch';
+};
+
+const getSegmentColor = (mod) => {
+    if (mod.type === 'DEPART_DEPORTE') return 'success';
+    if (mod.type === 'ARRIVEE_REPORTEE') return 'error';
+    if (mod.type === 'SEGMENT_DEVIATION') return 'primary';
+    return 'grey';
+};
+
+const selectedVariant = computed(() => variants.value.find(v => v.id === currentVariantId.value));
+
+const handleSelectVariant = (variant) => {
+    const segments = getVariantSegments(variant);
+    if (segments.length === 1) {
+        // Use the originalIndex embedded in the segment object
+        loadVariantSegment(variant.id, segments[0], segments[0].originalIndex);
+    } else {
+        currentVariantId.value = variant.id;
+        currentSegmentType.value = null;
+        currentSegmentIndex.value = null;
+    }
+};
+
+const loadVariantSegment = async (variantId, modification, index) => {
+    currentVariantId.value = variantId;
+    currentSegmentType.value = modification.type;
+    currentSegmentIndex.value = index;
+
+    let suffix = "";
+    if (modification.type === 'DEPART_DEPORTE') suffix = "DEPART";
+    else if (modification.type === 'ARRIVEE_REPORTEE') suffix = "ARRIVEE";
+    else if (modification.type === 'SEGMENT_DEVIATION') suffix = `SEGMENT_${index}`;
+
+    const lineStringFilename = `lineString_${variantId}_${suffix}.json`;
+    console.log(`Chargement du segment: ${lineStringFilename}`);
+    
+    // Future implementation: Logic to actually load the segment...
+};
+
+const loadMainTrace = () => {
+    currentVariantId.value = null;
+    currentSegmentType.value = null;
+    currentSegmentIndex.value = null;
+    console.log("Retour à la trace maîtresse");
+    // Future: Logic to reload main trace
+};
+
+const fetchVariants = async () => {
+  try {
+    const result = await invoke('get_variants', { circuitId: props.circuitId });
+    // Fetch details for each to build the menu (needed for getVariantSegments)
+    const detailsPromises = result.map(v => invoke('get_variant_details', { circuitId: props.circuitId, variantId: v.id }));
+    const detailsResults = await Promise.all(detailsPromises);
+    
+    variants.value = result.map((v, index) => ({
+      ...v,
+      details: detailsResults[index]
+    }));
+  } catch (e) {
+    console.error("Failed to fetch variants", e);
+  }
+};
+
+onMounted(async () => {
+    await fetchVariants();
 });
 
 // Function to send the current state to the backend
