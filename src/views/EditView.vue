@@ -25,11 +25,74 @@
 
           <!-- Variant Selection / Back to Main Trace -->
           <template v-if="!currentVariantId">
-              <v-menu v-if="variants.length > 0">
+              <!-- Single Variant Case: Direct Click -->
+              <v-btn 
+                v-if="variants.length === 1" 
+                icon="mdi-source-branch" 
+                variant="text" 
+                density="compact" 
+                title="Charger la variante"
+                @click="handleSelectVariant(variants[0])"
+              ></v-btn>
+
+              <!-- Multiple Variants Case: Menu -->
+              <template v-else-if="variants.length > 1">
+                  <!-- Static Branch Icon (Toggle) -->
+                  <v-btn 
+                    icon="mdi-source-branch" 
+                    variant="text" 
+                    density="compact" 
+                    title="Variantes disponibles"
+                    @click="isVariantSelectionOpen = !isVariantSelectionOpen"
+                  ></v-btn>
+                  
+                  <div v-if="isVariantSelectionOpen" class="d-flex align-center">
+                      <v-divider vertical class="mx-2"></v-divider>
+
+                      <!-- Variant Selection Prompt -->
+                      <v-menu>
+                        <template v-slot:activator="{ props }">
+                           <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
+                             <div class="d-flex align-center">
+                                <v-icon size="small" class="mr-1">mdi-menu</v-icon>
+                                <span class="widget-label">Sélectionnez une</span>
+                             </div>
+                             <span class="widget-label">Variante</span>
+                           </div>
+                        </template>
+                        <v-list density="compact">
+                          <v-list-item 
+                            v-for="variant in variants" 
+                            :key="variant.id" 
+                            :title="variant.name"
+                            prepend-icon="mdi-source-branch"
+                            @click="handleSelectVariant(variant)"
+                          ></v-list-item>
+                        </v-list>
+                      </v-menu>
+                  </div>
+              </template>
+          </template>
+          <template v-else>
+               <v-btn icon="mdi-location-exit" variant="text" density="compact" title="Retour à la trace maîtresse" @click="loadMainTrace" style="transform: rotate(180deg);"></v-btn>
+          </template>
+    
+          <!-- Divider -->
+          <v-divider vertical class="mx-2" v-if="currentVariantId"></v-divider>
+    
+          <!-- Selected Variant Name (Interactive Menu if > 1, Static if == 1) -->
+          <template v-if="currentVariantId && selectedVariant">
+              <v-menu v-if="variants.length > 1">
                 <template v-slot:activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-source-branch" variant="text" density="compact" title="Sélectionner une variante"></v-btn>
+                   <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
+                     <div class="d-flex align-center">
+                        <v-icon size="small" class="mr-1">mdi-menu</v-icon>
+                        <span class="widget-text">{{ selectedVariant.name }}</span>
+                     </div>
+                     <span class="widget-label">Variante</span>
+                   </div>
                 </template>
-                <v-list>
+                <v-list density="compact">
                   <v-list-item 
                     v-for="variant in variants" 
                     :key="variant.id" 
@@ -39,43 +102,51 @@
                   ></v-list-item>
                 </v-list>
               </v-menu>
-          </template>
-          <template v-else>
-               <v-btn icon="mdi-location-exit" variant="text" density="compact" title="Retour à la trace maîtresse" @click="loadMainTrace" style="transform: rotate(180deg);"></v-btn>
-          </template>
-    
-          <!-- Divider -->
-          <v-divider vertical class="mx-2" v-if="currentVariantId"></v-divider>
-    
-          <!-- Selected Variant Name -->
-          <v-menu v-if="currentVariantId && selectedVariant">
-            <template v-slot:activator="{ props }">
-              <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
+              <div v-else class="d-flex flex-column align-center mx-1">
                  <span class="widget-text">{{ selectedVariant.name }}</span>
                  <span class="widget-label">Variante</span>
               </div>
-            </template>
-            <v-list>
-               <v-list-item 
-                  v-for="(mod, index) in getVariantSegments(selectedVariant)" 
-                  :key="index"
-                  :title="getSegmentTitle(mod, index)"
-                  @click="loadVariantSegment(selectedVariant.id, mod, index)"
-                >
-                 <template v-slot:prepend>
-                    <v-icon :color="getSegmentColor(mod)">mdi-circle-small</v-icon>
-                 </template>
-                </v-list-item>
-            </v-list>
-          </v-menu>
+          </template>
     
           <!-- Divider -->
           <v-divider vertical class="mx-2" v-if="currentSegmentType"></v-divider>
     
-          <!-- Selected Segment Name -->
-          <div v-if="currentSegmentType && variants.find(v => v.id === currentVariantId)" class="d-flex flex-column align-center mx-1">
+          <!-- Segment Selection (Dynamic Menu) -->
+          <v-menu v-if="variants.find(v => v.id === currentVariantId) && getVariantSegments(selectedVariant).length > 1">
+            <template v-slot:activator="{ props }">
+               <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
+                 <!-- Case: Segment Selected -->
+                 <div v-if="currentSegmentType" class="d-flex align-center">
+                    <v-icon size="small" class="mr-1">mdi-menu</v-icon>
+                    <span class="widget-text" :style="{ color: getSegmentColor({ type: currentSegmentType }) }">
+                        {{ getSegmentTitle({ type: currentSegmentType }, currentSegmentIndex) }}
+                    </span>
+                 </div>
+                 <!-- Case: No Segment Selected (Prompt) -->
+                 <div v-else class="d-flex align-center">
+                    <v-icon size="small" class="mr-1">mdi-menu</v-icon>
+                    <span class="widget-label">Sélectionnez un</span>
+                 </div>
+                 <span class="widget-label">Segment</span>
+               </div>
+            </template>
+             <v-list density="compact">
+               <v-list-item 
+                  v-for="(mod, index) in getVariantSegments(selectedVariant)" 
+                  :key="index"
+                  :title="getSegmentTitle(mod)"
+                  @click="loadVariantSegment(selectedVariant.id, mod, mod.originalIndex)"
+                >
+                 <template v-slot:prepend>
+                    <v-icon :color="getSegmentColor(mod)" class="mr-2">{{ getModIcon(mod) }}</v-icon>
+                 </template>
+                </v-list-item>
+            </v-list>
+          </v-menu>
+          <!-- Static Segment Name (Single Segment) -->
+          <div v-else-if="currentSegmentType" class="d-flex flex-column align-center mx-1">
              <span class="widget-text" :style="{ color: getSegmentColor({ type: currentSegmentType }) }">
-                 {{ getSegmentTitle({ type: currentSegmentType }, currentSegmentIndex) }}
+                 {{ getSegmentTitle({ type: currentSegmentType, originalIndex: currentSegmentIndex }) }}
              </span>
              <span class="widget-label">Segment</span>
           </div>
@@ -298,6 +369,7 @@ const zoomDepartDistance = ref(20);
 const zoomDepartIsActive = ref(false);
 
 // Zoom Arrivee Refs
+// Zoom Arrivee Refs
 const zoomArrivee = ref(true);
 const zoomArriveeValeur = ref(18);
 const distanceZoomArrivee = ref(20);
@@ -310,6 +382,7 @@ const lastAppliedZoomArriveeDistance = ref(0);
 // Variants
 const variants = ref([]);
 const currentVariantId = ref(null);
+const isVariantSelectionOpen = ref(false);
 const currentSegmentType = ref(null); // 'DEPART_DEPORTE', 'SEGMENT_DEVIATION', 'ARRIVEE_REPORTEE' or null (Main)
 const mapboxBackgroundTraceColorHex = ref('#000000');
 const backgroundTraceWidth = ref(4);
@@ -450,22 +523,38 @@ const shouldShowGraphs = computed(() => {
 
 const getVariantSegments = (variant) => {
     if (!variant.details || !variant.details.modifications) return [];
-    // Return all modifications. We might want to sort them?
-    // Usually they are stored in order?
-    return variant.details.modifications;
+    
+    // Attach original index to each modification to preserve file mapping reference
+    const modsWithIndex = variant.details.modifications.map((m, i) => ({...m, originalIndex: i}));
+
+    // Sort modifications by position on master trace
+    return modsWithIndex.sort((a, b) => {
+        const idxA = a.anchorIndexOnMaster || (a.anchorStart ? a.anchorStart.index : 0) || 0;
+        const idxB = b.anchorIndexOnMaster || (b.anchorStart ? b.anchorStart.index : 0) || 0;
+        return idxA - idxB;
+    });
 };
 
-const getSegmentTitle = (mod, index) => {
+const getSegmentTitle = (mod) => {
+    if (mod.name) return mod.name;
     if (mod.type === 'DEPART_DEPORTE') return 'Départ';
     if (mod.type === 'ARRIVEE_REPORTEE') return 'Arrivée';
-    if (mod.type === 'SEGMENT_DEVIATION') return `Segment ${index + 1}`; // Or use mod.name if available
+    // Use originalIndex if available (for consistency with file naming), otherwise 0
+    const idx = typeof mod.originalIndex === 'number' ? mod.originalIndex : 0;
+    if (mod.type === 'SEGMENT_DEVIATION') return `Segment ${idx + 1}`;
     return 'Segment';
 };
 
+const getModIcon = (mod) => {
+    if (mod.type === 'DEPART_DEPORTE') return 'mdi-ray-start-arrow';
+    if (mod.type === 'ARRIVEE_REPORTEE') return 'mdi-ray-end-arrow';
+    return 'mdi-source-branch';
+};
+
 const getSegmentColor = (mod) => {
-    if (mod.type === 'DEPART_DEPORTE') return 'green';
-    if (mod.type === 'ARRIVEE_REPORTEE') return 'red';
-    if (mod.type === 'SEGMENT_DEVIATION') return 'blue';
+    if (mod.type === 'DEPART_DEPORTE') return 'success';
+    if (mod.type === 'ARRIVEE_REPORTEE') return 'error';
+    if (mod.type === 'SEGMENT_DEVIATION') return 'primary';
     return 'grey';
 };
 
@@ -474,7 +563,8 @@ const selectedVariant = computed(() => variants.value.find(v => v.id === current
 const handleSelectVariant = (variant) => {
     const segments = getVariantSegments(variant);
     if (segments.length === 1) {
-        loadVariantSegment(variant.id, segments[0], 0);
+        // Use the originalIndex embedded in the segment object
+        loadVariantSegment(variant.id, segments[0], segments[0].originalIndex);
     } else {
         currentVariantId.value = variant.id;
         currentSegmentType.value = null;
@@ -483,7 +573,6 @@ const handleSelectVariant = (variant) => {
 };
 
 const loadVariantSegment = async (variantId, modification, index) => {
-    console.log("Loading variant segment:", variantId, modification.type, index);
     currentVariantId.value = variantId;
     currentSegmentType.value = modification.type;
     currentSegmentIndex.value = index;
@@ -647,6 +736,7 @@ const loadMainTrace = async () => {
     currentSegmentType.value = null;
     currentSegmentIndex.value = null;
     currentVariantIdForEvents.value = null; // Reset for main trace
+    isVariantSelectionOpen.value = false;
     
     try {
         const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
