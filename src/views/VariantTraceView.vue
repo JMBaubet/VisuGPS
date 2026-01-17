@@ -44,6 +44,7 @@
         :variant-name="loadedVariantName"
         :trackingPoints="trackingPoints"
         :segment-length="trackingSegmentLength"
+        :projected-stats="variantProjectedStats"
         @update:config="variantConfig = $event"
         @generate="generatePreview"
         @save="saveVariant"
@@ -228,6 +229,18 @@ const canGeneratePreview = computed(() => {
 
 const trackingSegmentLength = computed(() => {
     return getSettingValue('Importation/Tracking/LongueurSegment') || 100;
+});
+
+import { useVariantCalculator } from '@/composables/useVariantCalculator';
+
+const { calculateVariantStats } = useVariantCalculator();
+
+const variantProjectedStats = computed(() => {
+    return calculateVariantStats(
+        masterTraceGeojson.value ? turf.length(masterTraceGeojson.value, { units: 'kilometers' }) : 0,
+        modifications.value,
+        trackingSegmentLength.value
+    );
 });
 
 const isValid = computed(() => {

@@ -113,6 +113,10 @@
 
         <!-- Save Button -->
         <div class="pa-4" v-if="modifications.length > 0">
+          <div v-if="projectedStats.total > 0" class="text-center text-caption font-weight-bold text-primary mb-3">
+             <v-icon size="small" start>mdi-social-distance</v-icon>
+             Distance projetée : {{ projectedStats.total.toFixed(2) }} km
+          </div>
           <v-btn
             block
             variant="flat"
@@ -279,6 +283,10 @@ const props = defineProps({
   segmentLength: {
     type: Number,
     default: 100
+  },
+  projectedStats: {
+    type: Object,
+    default: () => ({ total: 0, current: 0 })
   }
 });
 

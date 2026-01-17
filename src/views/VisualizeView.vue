@@ -20,7 +20,7 @@
       <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
             <div class="d-flex align-center justify-center fill-height px-4">
               <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
+              <span class="font-weight-bold">{{ globalProgressStats.current.toFixed(2) }}</span> <span class="font-weight-bold">&nbsp;/ {{ globalProgressStats.total.toFixed(2) }} km</span>
             </div>  
       </v-card>
     </transition>
@@ -198,6 +198,10 @@ import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
+import { useVariantCalculator } from '@/composables/useVariantCalculator';
+
+const { calculateVariantStats } = useVariantCalculator();
+const mainTraceTotalDistanceValue = ref(0);
 
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
@@ -302,6 +306,16 @@ watch(orientationBoussole, (newVal) => {
     currentOrientationMode.value = newVal;
 });
 
+const globalProgressStats = computed(() => {
+    return calculateVariantStats(
+        mainTraceTotalDistanceValue.value,
+        selectedVariant.value?.details?.modifications || [],
+        0.1, // segmentLength (estimate or from settings)
+        currentSegmentIndex.value,
+        currentDistanceInMeters.value / 1000
+    );
+});
+
 const currentDistance = computed(() => currentDistanceInMeters.value / 1000);
 const circuitScenarios = computed(() => currentCircuitRef.value?.meteoConfig?.scenarios || []);
 
@@ -335,6 +349,7 @@ const rangeEvents = ref([]);
 const currentDistanceInMeters = ref(0);
 const segmentMetadata = ref(null); // Métadonnées des segments superposés
 const currentActiveZone = ref(null); // Zone active actuelle
+const mainTraceState = ref(null); // Sauvegarde du contexte de la trace maîtresse
 
 // Gradients pour les 4 layers de trace
 const layerGradients = ref({
@@ -412,6 +427,15 @@ const handleSelectVariant = (variant) => {
 };
 
 const loadVariantSegment = async (variantId, modification, index) => {
+    // 1. Sauvegarder la progression actuelle si on est sur la trace maîtresse
+    // On vérifie currentSegmentType car currentVariantId peut avoir été défini par le menu de sélection
+    if (currentSegmentType.value === null && mainTraceState.value) {
+        // On capture la valeur PRECISE du compteur de temps global
+        mainTraceState.value.accumulatedTime = Number(accumulatedTime);
+        mainTraceState.value.isPaused = isPaused.value;
+        console.log(`[STATE SAVE] Main Trace -> Variant: Time=${mainTraceState.value.accumulatedTime}ms, Paused=${isPaused.value}`);
+    }
+
     currentVariantId.value = variantId;
     currentSegmentType.value = modification.type;
     currentSegmentIndex.value = index;
@@ -422,39 +446,173 @@ const loadVariantSegment = async (variantId, modification, index) => {
     else if (modification.type === 'SEGMENT_DEVIATION') suffix = `SEGMENT_${index}`;
 
     const trackingFilename = `tracking_${variantId}_${suffix}.json`;
-    console.log(`Chargement du segment: ${trackingFilename}`);
+    const lineStringFilename = `lineString_${variantId}_${suffix}.json`;
+    const variantIdForEvents = `${variantId}_${suffix}`;
     
     try {
-        const rawTrackingData = await invoke('read_tracking_file', { circuitId: props.circuitId, filename: trackingFilename });
+        isInitializing.value = true;
         
-        if (rawTrackingData && rawTrackingData.length > 0) {
-            const startPoint = rawTrackingData[0];
-            if (startPoint && startPoint.coordonnee) {
-                // Get duration from settings
-                const flyToDuration = await getSettingValue('Variante/Visualisation/dureeFlytoSegment') || 2.0;
+        // 2. Charger les nouvelles données
+        const [rawTrackingData, rawLineStringData, fetchedEvents] = await Promise.all([
+            invoke('read_tracking_file', { circuitId: props.circuitId, filename: trackingFilename }),
+            invoke('read_line_string_file', { circuitId: props.circuitId, filename: lineStringFilename }),
+            invoke('get_events', { circuitId: props.circuitId, variantId: variantIdForEvents })
+        ]);
 
-                await flyToPromise(map, {
-                     center: startPoint.coordonnee,
-                     zoom: 17,
-                     pitch: 60,
-                     bearing: startPoint.editedCap || startPoint.cap || 0,
-                     speed: 1.2,
-                     curve: 1,
-                     duration: flyToDuration * 1000 // constant duration if set, otherwise mapbox logic if using speed/curve
-                });
+        if (!rawTrackingData || rawTrackingData.length < 2) throw new Error("Données de tracking invalides");
+
+        lineStringRef.value = rawLineStringData;
+        
+        const processedData = await invoke('process_tracking_data', {
+            lineStringGeojson: rawLineStringData,
+            trackingPointsJs: rawTrackingData
+        });
+
+        trackingPointsWithDistanceRef.value = processedData.processedPoints;
+        totalDistanceRef.value = processedData.totalDistanceKm;
+        totalDurationAt1xRef.value = totalDistanceRef.value * (animationSpeed?.value || 10);
+
+        // 3. Reset segments/events
+        if (fetchedEvents) {
+            pauseIncrements.value = Object.keys(fetchedEvents.pointEvents || {})
+                .filter(inc => fetchedEvents.pointEvents[inc].some(e => e.type === 'Pause'))
+                .map(Number);
+                
+            const flytos = {};
+            for (const inc in fetchedEvents.pointEvents || {}) {
+                const flytoE = fetchedEvents.pointEvents[inc].find(e => e.type === 'Flyto');
+                if (flytoE) flytos[Number(inc)] = flytoE.data;
             }
+            flytoEvents.value = flytos;
+            rangeEvents.value = fetchedEvents.rangeEvents || [];
         }
+
+        // 4. Reset Animation Engine
+        accumulatedTime = 0;
+        lastTimestamp = 0;
+        currentDistanceInMeters.value = 0;
+        isPaused.value = true;
+        isAnimationFinished.value = false;
+        triggeredPauseIncrement.value = null;
+        triggeredFlytoIncrement.value = null;
+        cameraMovedDuringPause.value = false; // Reset camera movement tracking
+        
+        // Update Map Source
+        if (map && map.getSource('circuit-line')) {
+             map.getSource('circuit-line').setData(lineStringRef.value);
+        }
+        if (map && map.getSource('comet-source')) {
+             map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+        }
+
+        // 5. FlyTo
+        const startPoint = trackingPointsWithDistanceRef.value[0];
+        if (startPoint && startPoint.coordonnee) {
+            const flyToDuration = await getSettingValue('Variante/Visualisation/dureeFlytoSegment') || 2.0;
+            
+            await flyToPromise(map, {
+                 center: startPoint.coordonnee,
+                 zoom: 17,
+                 pitch: 60,
+                 bearing: startPoint.editedCap || startPoint.cap || 0,
+                 duration: flyToDuration * 1000
+            });
+        }
+
+        showSnackbar(`Segment chargé: ${getSegmentTitle(modification)}`, "success");
+
     } catch (e) {
-        console.error("Failed to load tracking for segment flyto", e);
+        console.error("Failed to load variant segment", e);
+        showSnackbar(`Erreur: ${e.message}`, 'error');
+    } finally {
+        isInitializing.value = false;
     }
 };
 
-const loadMainTrace = () => {
-    currentVariantId.value = null;
-    currentSegmentType.value = null;
-    currentSegmentIndex.value = null;
-    console.log("Retour à la trace maîtresse");
-    // Future: Logic to reload main trace
+const loadMainTrace = async () => {
+    if (!mainTraceState.value) return;
+    
+    isInitializing.value = true;
+    try {
+        currentVariantId.value = null;
+        currentSegmentType.value = null;
+        currentSegmentIndex.value = null;
+
+        lineStringRef.value = mainTraceState.value.lineString;
+        trackingPointsWithDistanceRef.value = [...mainTraceState.value.trackingPoints];
+        totalDistanceRef.value = mainTraceState.value.totalDistance;
+        totalDurationAt1xRef.value = mainTraceState.value.totalDuration;
+        pauseIncrements.value = [...mainTraceState.value.pauseIncrements];
+        flytoEvents.value = JSON.parse(JSON.stringify(mainTraceState.value.flytoEvents));
+        rangeEvents.value = [...mainTraceState.value.rangeEvents];
+        
+        // Restaurer le temps et l'état
+        accumulatedTime = Number(mainTraceState.value.accumulatedTime);
+        lastTimestamp = 0;
+        isAnimationFinished.value = false;
+        
+        // CRITIQUE : on désactive la détection de mouvement avant le FlyTo de repositionnement
+        cameraMovedDuringPause.value = false; 
+
+        console.log(`[STATE RESTORE] Back to Main: Time=${accumulatedTime}ms, TotalDist=${totalDistanceRef.value}`);
+
+        // Update Map
+        if (map && map.getSource('circuit-line')) {
+             map.getSource('circuit-line').setData(lineStringRef.value);
+        }
+        
+        // FlyTo position sur la trace maîtresse
+        const currentTotalDur = totalDurationAt1xRef.value || 1;
+        const phase = Math.min(accumulatedTime / currentTotalDur, 1);
+        const dist = totalDistanceRef.value * phase;
+        
+        // Mettre à jour l'affichage de la distance immédiatement
+        distanceDisplay.value = dist.toFixed(2);
+        currentDistanceInMeters.value = dist * 1000;
+        
+        console.log(`[REPOSITIONING] Phase=${phase.toFixed(4)}, Target KM=${dist.toFixed(3)}`);
+
+        let pIdx = 0;
+        if (trackingPointsWithDistanceRef.value.length > 0) {
+            for (let i = trackingPointsWithDistanceRef.value.length - 1; i >= 0; i--) {
+                if (trackingPointsWithDistanceRef.value[i].distance <= dist) {
+                    pIdx = i;
+                    break;
+                }
+            }
+            const p = trackingPointsWithDistanceRef.value[pIdx];
+            if (p) {
+                console.log(`[FLYTO START] Index=${pIdx}, Coord=${p.coordonnee}`);
+                await flyToPromise(map, {
+                    center: p.coordonnee,
+                    zoom: p.editedZoom ?? p.zoom ?? 17,
+                    pitch: p.editedPitch ?? p.pitch ?? 60,
+                    bearing: p.editedCap || p.cap || 0,
+                    duration: 1500
+                });
+                
+                // On force la capture de cette position comme "Position de Pause" officielle
+                pausedCameraOptions.value = {
+                    center: map.getCenter(),
+                    zoom: map.getZoom(),
+                    pitch: map.getPitch(),
+                    bearing: map.getBearing(),
+                };
+                cameraMovedDuringPause.value = false; // On re-confirme que ce n'est pas un mouvement utilisateur
+            }
+        }
+        
+        // Enfin, on restaure l'état de pause
+        isPaused.value = mainTraceState.value.isPaused;
+        console.log(`[RESTORE END] isPaused=${isPaused.value}, final Km=${(totalDistanceRef.value * (accumulatedTime / (totalDurationAt1xRef.value || 1))).toFixed(2)}`);
+        
+        showSnackbar("Retour à la trace maîtresse", "info");
+
+    } catch (e) {
+        console.error("Failed to restore main trace", e);
+    } finally {
+        isInitializing.value = false;
+    }
 };
 
 const fetchVariants = async () => {
@@ -639,7 +797,7 @@ async function executeFlytoSequence(flytoData) {
 }
 
   const animate = (timestamp) => {
-  if (isResuming.value) {
+  if (isInitializing.value || isResuming.value) {
       if (map) map.triggerRepaint();
       animationFrameId = requestAnimationFrame(animate);
       return;
@@ -1372,15 +1530,11 @@ const isResuming = ref(false); // Flag to block animation during flyTo
 let isWatcherActive = true;
 
 const onMapInteraction = () => {
-    if (isPaused.value) {
+    // Ne pas marquer de mouvement si on est en train d'initialiser ou de repositionner
+    if (isInitializing.value || isResuming.value || isFlytoActive.value) return;
+
+    if (isPaused.value && !isResuming.value && !isFlytoActive.value) {
         cameraMovedDuringPause.value = true;
-        // Une fois détecté, on peut supprimer les écouteurs pour optimiser
-        if (map) {
-            map.off('move', onMapInteraction);
-            map.off('zoom', onMapInteraction);
-            map.off('pitch', onMapInteraction);
-            map.off('rotate', onMapInteraction);
-        }
     }
 };
 
@@ -1446,7 +1600,7 @@ watch(isPaused, (paused) => {
         map.off('zoom', handleMapZoom);
 
         // On n'exécute la logique de reprise que si un survol n'est pas en cours.
-        if (!isFlytoActive.value) {
+        if (!isFlytoActive.value && !isInitializing.value) {
             if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
                 isResuming.value = true; // Block animation
                 //showSnackbar('Reprise de la position initiale...', 'info');
@@ -1801,12 +1955,26 @@ const initializeMap = async () => {
 
     trackingPointsWithDistanceRef.value = processedData.processedPoints;
     totalDistanceRef.value = processedData.totalDistanceKm;
+    mainTraceTotalDistanceValue.value = processedData.totalDistanceKm;
     totalDurationAt1xRef.value = totalDistanceRef.value * animationSpeed.value;
 
     controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
         if (p.pointDeControl) acc.push(index);
         return acc;
     }, []);
+
+    // Sauvegarde du contexte de la trace maîtresse pour les variantes
+    mainTraceState.value = {
+        lineString: fetchedLineString,
+        trackingPoints: [...trackingPointsWithDistanceRef.value],
+        totalDistance: processedData.totalDistanceKm,
+        totalDuration: processedData.totalDistanceKm * (animationSpeed?.value || 10), // Fallback if ref not yet up
+        pauseIncrements: [...pauseIncrements.value],
+        flytoEvents: JSON.parse(JSON.stringify(flytoEvents.value)),
+        rangeEvents: [...rangeEvents.value],
+        accumulatedTime: 0,
+        isPaused: true // Par défaut au démarrage
+    };
 
     // Charger les métadonnées de segments superposés
     try {

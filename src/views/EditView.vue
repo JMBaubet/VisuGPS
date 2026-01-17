@@ -331,6 +331,9 @@ import DistanceMarkersDialog from '@/components/Edit/DistanceMarkersDialog.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
+import { useVariantCalculator } from '@/composables/useVariantCalculator';
+
+const { calculateVariantStats } = useVariantCalculator();
 
 const showMissingMessageErrorModal = ref(false);
 const missingMessageErrorDetails = ref({ messageId: '', messageName: '', circuitId: '', increment: 0, eventId: '' });
@@ -410,122 +413,23 @@ const fetchVariants = async () => {
 };
 
 
-const getAnchorIndex = (mod, isStart) => {
-    if (mod.type === 'DEPART_DEPORTE') return 0;
-    if (mod.type === 'ARRIVEE_REPORTEE') return mod.anchorIndexOnMaster;
-    if (mod.type === 'SEGMENT_DEVIATION') {
-         return isStart ? (mod.anchorStart ? mod.anchorStart.index : 0) : (mod.anchorEnd ? mod.anchorEnd.index : 0);
-    }
-    return 0;
-};
-
-// Arithmetic approach for Total Progress
 const segmentLengthRef = ref(0.1); // Default 100m, updated from settings
 
 const variantCompositeStats = computed(() => {
     if (!selectedVariant.value || !selectedVariant.value.details) return { total: 0, current: 0 };
-    // We still check BG Trace just to ensure data is loaded, though logic is arithmetic
     if (!backgroundLineStringCoordinates.value && !totalLineLength.value) return { total: 0, current: 0 };
 
-    // Map mods with original index to match currentSegmentIndex (which comes from UI/Unsorted list)
-    const mods = selectedVariant.value.details.modifications.map((m, i) => ({...m, originalIndex: i}));
-    
-    // Sort mods by anchor index to ensure chronological processing
-    mods.sort((a, b) => {
-        // Force DEPART to be first, ARRIVEE to be last
-        let idxA = 0;
-        if (a.type === 'DEPART_DEPORTE') idxA = -1;
-        else if (a.type === 'ARRIVEE_REPORTEE') idxA = Number.MAX_SAFE_INTEGER;
-        else idxA = a.anchorStart ? a.anchorStart.index : 0;
-
-        let idxB = 0;
-        if (b.type === 'DEPART_DEPORTE') idxB = -1;
-        else if (b.type === 'ARRIVEE_REPORTEE') idxB = Number.MAX_SAFE_INTEGER;
-        else idxB = b.anchorStart ? b.anchorStart.index : 0;
-
-        return idxA - idxB;
-    });
-
-    let total = 0;
-    let current = 0;
-    
-    // Base Total: Use the Geometric Length of BG Trace (LineString) as the trusted "Full Length" reference.
     const fullBGLength = backgroundLineStringCoordinates.value && backgroundLineStringCoordinates.value.length > 1
         ? turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' })
-        : 0;
-        
-    total = fullBGLength;
+        : (totalLineLength.value || 0);
 
-    let accumulatedOffset = 0; // Track shifts for current position calculation
-    let activeSegmentFound = false;
-
-    mods.forEach((mod, index) => {
-        // Calculate Cut Length (on Main Trace)
-        let startIndex = 0;
-        let endIndex = 0;
-        let cutLength = 0;
-
-        if (mod.type === 'DEPART_DEPORTE') {
-             // Removes everything from 0 to Anchor
-             startIndex = 0;
-             endIndex = mod.anchorIndexOnMaster || 0;
-             cutLength = (endIndex - startIndex) * segmentLengthRef.value;
-        } else if (mod.type === 'ARRIVEE_REPORTEE') {
-             // Removes everything from Anchor to End
-             startIndex = mod.anchorIndexOnMaster || 0;
-             // Estimate Max Index from Full Length (best available approximation in this view)
-             const estimatedMaxIndex = Math.floor(fullBGLength / segmentLengthRef.value);
-             endIndex = estimatedMaxIndex;
-             // Should we use full length - start length? simpler.
-             // cutLength = FullLength - (startIndex * segmentLength)
-             // But consistency with "cutLength" variable:
-             cutLength = Math.max(0, fullBGLength - (startIndex * segmentLengthRef.value));
-        } else {
-             // Normal Segment
-             startIndex = mod.anchorStart ? mod.anchorStart.index : 0;
-             endIndex = mod.anchorEnd ? mod.anchorEnd.index : 0;
-             cutLength = (endIndex - startIndex) * segmentLengthRef.value;
-        }
-
-        const variantLength = mod.longueur || 0;
-        
-        // console.log(`[DEBUG] Mod ${index} (${mod.type}): StartIdx=${startIndex} EndIdx=${endIndex} CutLen=${cutLength.toFixed(3)} VarLen=${variantLength.toFixed(3)}`);
-        
-        // Update Total
-        total = total - cutLength + variantLength;
-        // console.log(`[DEBUG] Running Total: ${total.toFixed(3)}`);
-
-        // Update Current (Progress)
-        // Update Current (Progress)
-        if (currentSegmentIndex.value !== null) {
-            // Check if this is the active segment using originalIndex (because currentSegmentIndex comes from unsorted UI list)
-            if (mod.originalIndex === currentSegmentIndex.value) {
-                // This IS the active segment
-                activeSegmentFound = true;
-                
-                let startOfMainBeforeCut = 0;
-                if (mod.type === 'DEPART_DEPORTE') {
-                     startOfMainBeforeCut = 0; 
-                } else if (mod.type === 'ARRIVEE_REPORTEE') {
-                     startOfMainBeforeCut = startIndex * segmentLengthRef.value;
-                } else {
-                     startOfMainBeforeCut = startIndex * segmentLengthRef.value;
-                }
-
-                // Add accumulated offset from PREVIOUS variants (since we are sorted chronologically, accumulatedOffset is correct up to here)
-                const positionAtStartOfSegment = startOfMainBeforeCut + accumulatedOffset;
-                
-                current = positionAtStartOfSegment + currentProgressDistance.value;
-                
-            } else if (!activeSegmentFound) {
-                 // This segment is BEFORE the active segment (chronologically)
-                 // We accumulate its offset to shift the active segment's starting position correctly.
-                 accumulatedOffset += (variantLength - cutLength);
-            }
-        }
-    });
-
-    return { total, current };
+    return calculateVariantStats(
+        fullBGLength,
+        selectedVariant.value.details.modifications,
+        segmentLengthRef.value,
+        currentSegmentIndex.value,
+        currentProgressDistance.value
+    );
 });
 
 const globalCurrent = computed(() => currentVariantId.value ? variantCompositeStats.value.current : currentProgressDistance.value);
