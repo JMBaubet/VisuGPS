@@ -109,8 +109,8 @@
                                                         v-bind="props"
                                                         icon="mdi-source-branch" 
                                                         variant="text" 
-                                                        :disabled="!isPaused" 
                                                         title="Choisir une variante"
+                                                        :disabled="!isPaused"
                                                     ></v-btn>
                                                 </template>
                                                 <v-list density="compact">
@@ -128,8 +128,8 @@
                                                 v-else
                                                 icon="mdi-source-branch" 
                                                 variant="text" 
-                                                :disabled="!isPaused" 
                                                 title="Charger la variante"
+                                                :disabled="!isPaused"
                                                 @click="handleSelectVariant(variants[0])"
                                             ></v-btn>
                                         </template>
@@ -140,7 +140,6 @@
                                              <v-btn 
                                                 icon="mdi-location-exit" 
                                                 variant="text" 
-                                                :disabled="!isPaused" 
                                                 title="Retour à la trace maîtresse" 
                                                 @click="loadMainTrace" 
                                                 style="transform: rotate(180deg);"
@@ -426,6 +425,25 @@ const handleSelectVariant = (variant) => {
     }
 };
 
+// Helper pour convertir les couleurs (supporte Vuetify + noms CSS)
+const toHexImproved = (value) => {
+    if (!value) return '#FF0000';
+    // Essayer d'abord la conversion Vuetify
+    const vuetifyHex = toHex(value);
+    if (vuetifyHex && vuetifyHex.startsWith('#')) return vuetifyHex;
+
+    if (typeof value === 'string') {
+        if (value.startsWith('#') || value.startsWith('rgb')) return value;
+        const colors = {
+            'red': '#FF0000', 'blue': '#0000FF', 'green': '#008000',
+            'yellow': '#FFFF00', 'white': '#FFFFFF', 'black': '#000000',
+            'gray': '#808080', 'light-blue': '#ADD8E6', 'orange': '#FFA500'
+        };
+        return colors[value] || value;
+    }
+    return '#FF0000';
+};
+
 const loadVariantSegment = async (variantId, modification, index) => {
     // 1. Sauvegarder la progression actuelle si on est sur la trace maîtresse
     // On vérifie currentSegmentType car currentVariantId peut avoir été défini par le menu de sélection
@@ -504,25 +522,141 @@ const loadVariantSegment = async (variantId, modification, index) => {
              const originalOpacity = traceOpacity.value ?? 1.0;
              const baseWidth = traceWidth.value ?? 4;
              
-             // Add or Update Variant Layer
+             // Générer le gradient de couleur pour la variante (Lissé)
+             let useSlopeColors = false;
+             let gradientExpression = null;
+
+             if (colorTraceBySlope.value) {
+                 try {
+                     const slopeColors = {
+                        TrancheNegative: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+                        Tranche1: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+                        Tranche2: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+                        Tranche3: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+                        Tranche4: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+                        Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
+                     };
+                     
+                     const points = trackingPointsWithDistanceRef.value;
+                     if (points && points.length > 1) {
+                         const startDist = points[0].distance;
+                         const totalSegmentLen = points[points.length-1].distance - startDist;
+                         
+                         // Construire l'expression 'interpolate' ['line-progress']
+                         const expr = ['interpolate', ['linear'], ['line-progress']];
+                         
+                         // Helper: calculer couleur par pente
+                         const getCol = (p1, p2) => {
+                             const distM = (p2.distance - p1.distance) * 1000;
+                             const elev = (p2.altitude || 0) - (p1.altitude || 0);
+                             const slope = distM > 0 ? (elev / distM) * 100 : 0;
+                             if (slope < 0) return slopeColors.TrancheNegative || '#0000FF';
+                             if (slope < 5) return slopeColors.Tranche1 || '#00FF00';
+                             if (slope < 10) return slopeColors.Tranche2;
+                             if (slope < 15) return slopeColors.Tranche3;
+                             if (slope < 20) return slopeColors.Tranche4;
+                             return slopeColors.Tranche5;
+                         };
+                         
+                         // Point départ
+                         expr.push(0);
+                         let firstColor = getCol(points[0], points[1]);
+                         expr.push(firstColor);
+
+                         const transitionDistKm = 0.025; // 25m transition (comme backend)
+                         let lastRatioAdded = 0;
+
+                         // Parcourir les segments pour les transitions
+                         for (let i = 0; i < points.length - 1; i++) {
+                             const p1 = points[i];
+                             const p2 = points[i+1];
+                             const currentColor = getCol(p1, p2);
+                             
+                             // Regarder le segment suivant
+                             let nextColor = currentColor;
+                             if (i < points.length - 2) {
+                                 nextColor = getCol(points[i+1], points[i+2]);
+                             }
+                             
+                             if (currentColor !== nextColor) {
+                                 const junctionDist = p2.distance - startDist;
+                                 
+                                 // Zone de transition autour de la jonction
+                                 const startTrans = Math.max(0, junctionDist - transitionDistKm);
+                                 const endTrans = Math.min(totalSegmentLen, junctionDist + transitionDistKm);
+                                 
+                                 const ratio1 = startTrans / totalSegmentLen;
+                                 const ratio2 = endTrans / totalSegmentLen;
+                                 
+                                 // Ajout des points de transition si on avance
+                                 if (ratio1 > lastRatioAdded && ratio1 < 1) {
+                                     expr.push(ratio1);
+                                     expr.push(currentColor);
+                                     lastRatioAdded = ratio1;
+                                 }
+                                 
+                                 if (ratio2 > lastRatioAdded && ratio2 < 1) {
+                                     expr.push(ratio2);
+                                     expr.push(nextColor);
+                                     lastRatioAdded = ratio2;
+                                 }
+                             } else if (i === points.length - 2) {
+                                 // Dernier segment (fin de variante)
+                                 expr.push(1);
+                                 expr.push(currentColor);
+                             }
+                         }
+                         
+                         // Fermeture sécurité
+                         if (expr.length > 3 && expr[expr.length-2] < 1) {
+                             expr.push(1);
+                             expr.push(expr[expr.length-1]);
+                         }
+                         
+                         gradientExpression = expr;
+                         useSlopeColors = true;
+                     }
+                 } catch (e) {
+                     console.warn("Client-side slope gradient failed", e);
+                 }
+             }
+
+             // Add or Update Variant Layer (Single Line with Gradient)
              if (map.getSource(variantSourceId)) {
                  map.getSource(variantSourceId).setData(lineStringRef.value);
-             } else {
-                 map.addSource(variantSourceId, { type: 'geojson', data: lineStringRef.value });
                  
-                 // Insert below comet-layer so comet stays on top
+                 // UPDATE STYLE (Gradient) because source data changed
+                 if (useSlopeColors && gradientExpression) {
+                     map.setPaintProperty(variantLayerId, 'line-gradient', gradientExpression);
+                     // S'assurer que line-color ne rentre pas en conflit (bien que gradient soit prioritaire)
+                     map.setPaintProperty(variantLayerId, 'line-color', null); // Reset color
+                 } else {
+                     map.setPaintProperty(variantLayerId, 'line-gradient', null); // Remove gradient
+                     map.setPaintProperty(variantLayerId, 'line-color', '#FF9800');
+                 }
+             } else {
+                 // IMPORTANT: lineMetrics: true requis pour line-gradient
+                 map.addSource(variantSourceId, { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
+                 
                  const beforeId = map.getLayer('comet-layer') ? 'comet-layer' : undefined;
+                 
+                 const paintProps = {
+                     'line-width': baseWidth + 2,
+                     'line-opacity': 1.0
+                 };
+                 
+                 if (useSlopeColors && gradientExpression) {
+                     paintProps['line-gradient'] = gradientExpression;
+                 } else {
+                     paintProps['line-color'] = '#FF9800';
+                 }
                  
                  map.addLayer({
                      id: variantLayerId,
                      type: 'line',
                      source: variantSourceId,
                      layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                     paint: {
-                         'line-color': '#FF9800', 
-                         'line-width': baseWidth + 2,
-                         'line-opacity': 1.0
-                     }
+                     paint: paintProps
                  }, beforeId);
              }
              
@@ -550,6 +684,15 @@ const loadVariantSegment = async (variantId, modification, index) => {
                  bearing: startPoint.editedCap || startPoint.cap || 0,
                  duration: flyToDuration * 1000
             });
+            
+            // Afficher les messages de départ du segment
+            const { atKm0, nearKm0 } = getMessagesForKm0();
+            const messagesStart = [...atKm0, ...nearKm0];
+            if (messagesStart.length > 0) {
+                 console.log(`[Variant] Displaying ${messagesStart.length} messages at start`);
+                 // Petite pause pour laisser la caméra se stabiliser
+                 setTimeout(() => displayMessagesWithFade(messagesStart, 800), 200);
+            }
         }
 
         showSnackbar(`Segment chargé: ${getSegmentTitle(modification)}`, "success");
@@ -902,19 +1045,19 @@ async function executeFlytoSequence(flytoData) {
       if (map) {
           if (isPhaseRetour) {
               // Mode Retour : Afficher uniquement l'overlay retour (qui contient tout sauf aller_overlap)
-              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'none') {
+              if (map.getLayer('trace-overlap-aller') && map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'none') {
                   map.setLayoutProperty('trace-overlap-aller', 'visibility', 'none');
               }
-              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'visible') {
+              if (map.getLayer('trace-overlap-retour') && map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'visible') {
                   map.setLayoutProperty('trace-overlap-retour', 'visibility', 'visible');
                   console.log(`🔀 [Visualize] Bascule Phase RETOUR (Km ${distanceTraveled.toFixed(2)} > ${maxAllerEndKm.toFixed(2)})`);
               }
           } else {
               // Mode Aller : Afficher uniquement l'overlay aller (qui contient tout sauf retour_overlap)
-              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'none') {
+              if (map.getLayer('trace-overlap-retour') && map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'none') {
                   map.setLayoutProperty('trace-overlap-retour', 'visibility', 'none');
               }
-              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
+              if (map.getLayer('trace-overlap-aller') && map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
                   map.setLayoutProperty('trace-overlap-aller', 'visibility', 'visible');
                   // console.log(`🔀 [Visualize] Phase ALLER`);
               }
@@ -932,8 +1075,16 @@ async function executeFlytoSequence(flytoData) {
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
   if (distanceTraveled > startDistance) {
-      const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
-      map.getSource('comet-source').setData(cometSlice);
+      try {
+          // Sécurité : turf.lineSliceAlong peut planter si distanceTraveled > longueur totale réelle
+          // On pourrait calculer turf.length ligne par ligne mais c'est coûteux.
+          // Le try-catch est un bon compromis ici.
+          const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
+          map.getSource('comet-source').setData(cometSlice);
+      } catch (e) {
+          // Si hors bornes (fin de trace), on ignore ou on affiche rien
+          // console.warn("Comet slice error:", e);
+      }
   }
   else {
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
@@ -1032,7 +1183,8 @@ async function executeFlytoSequence(flytoData) {
   let lastPassedControlPointIndex = -1;
   for (let i = controlPointIndicesRef.value.length - 1; i >= 0; i--) {
     const cpIndex = controlPointIndicesRef.value[i];
-    if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled) {
+    const point = trackingPointsWithDistanceRef.value[cpIndex]; // Secure access
+    if (point && point.distance <= distanceTraveled) {
       lastPassedControlPointIndex = cpIndex;
       break;
     }
@@ -1206,7 +1358,12 @@ async function executeFlytoSequence(flytoData) {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
 
-
+    // Si on est sur une variante, on reste sur la fin sans lancer la séquence globale
+    if (currentSegmentType.value !== null) {
+        // Optionnel: afficher un message de fin
+        // showSnackbar('Fin du segment.', 'info');
+        return; 
+    }
 
     // Start finalization sequence
     setTimeout(async () => {
@@ -2046,24 +2203,7 @@ const initializeMap = async () => {
     // Initialize Weather
     await initWeather(currentCircuit, trackingPointsWithDistanceRef.value);
 
-    // Helper pour convertir les couleurs (supporte Vuetify + noms CSS)
-    const toHexImproved = (value) => {
-        if (!value) return '#FF0000';
-        // Essayer d'abord la conversion Vuetify
-        const vuetifyHex = toHex(value);
-        if (vuetifyHex && vuetifyHex.startsWith('#')) return vuetifyHex;
 
-        if (typeof value === 'string') {
-            if (value.startsWith('#') || value.startsWith('rgb')) return value;
-            const colors = {
-                'red': '#FF0000', 'blue': '#0000FF', 'green': '#008000',
-                'yellow': '#FFFF00', 'white': '#FFFFFF', 'black': '#000000',
-                'gray': '#808080', 'light-blue': '#ADD8E6', 'orange': '#FFA500'
-            };
-            return colors[value] || value;
-        }
-        return '#FF0000';
-    };
 
     // --- Trace Color Logic avec 3 layers ---
     // On charge maintenant une FeatureCollection de segments colorés (backend Refonte Phase 7)
