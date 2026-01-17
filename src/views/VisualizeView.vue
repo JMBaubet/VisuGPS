@@ -96,8 +96,10 @@
                                 <template v-slot:append>
                                     <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
                                     <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
-                                    <!-- Variant / Segment UI -->
-                                    <template v-if="variants.length > 0">
+                                </template>
+                            </v-slider>
+                            <!-- Variant / Segment UI -->
+                            <template v-if="variants.length > 0">
                                         <v-divider vertical class="mx-2"></v-divider>
                                         
                                         <!-- Case 1: No Variant Selected -->
@@ -173,8 +175,7 @@
                                              </v-menu>
                                         </template>
                                     </template>
-                                </template>
-                            </v-slider>          </div>
+          </div>
         </v-card>
       </div>
     </transition>
