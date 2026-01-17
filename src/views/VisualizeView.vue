@@ -497,9 +497,42 @@ const loadVariantSegment = async (variantId, modification, index) => {
         triggeredFlytoIncrement.value = null;
         cameraMovedDuringPause.value = false; // Reset camera movement tracking
         
-        // Update Map Source
-        if (map && map.getSource('circuit-line')) {
-             map.getSource('circuit-line').setData(lineStringRef.value);
+        // Update Map Source (Variant Display)
+        if (map) {
+             const variantSourceId = 'variant-line';
+             const variantLayerId = 'variant-line-layer';
+             const originalOpacity = traceOpacity.value ?? 1.0;
+             const baseWidth = traceWidth.value ?? 4;
+             
+             // Add or Update Variant Layer
+             if (map.getSource(variantSourceId)) {
+                 map.getSource(variantSourceId).setData(lineStringRef.value);
+             } else {
+                 map.addSource(variantSourceId, { type: 'geojson', data: lineStringRef.value });
+                 
+                 // Insert below comet-layer so comet stays on top
+                 const beforeId = map.getLayer('comet-layer') ? 'comet-layer' : undefined;
+                 
+                 map.addLayer({
+                     id: variantLayerId,
+                     type: 'line',
+                     source: variantSourceId,
+                     layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                     paint: {
+                         'line-color': '#FF9800', 
+                         'line-width': baseWidth + 2,
+                         'line-opacity': 1.0
+                     }
+                 }, beforeId);
+             }
+             
+             // Dim Main Trace Layers (50%)
+             const layersToDim = ['trace-complete', 'trace-overlap-aller', 'trace-overlap-retour'];
+             layersToDim.forEach(layerId => {
+                 if (map.getLayer(layerId)) {
+                     map.setPaintProperty(layerId, 'line-opacity', originalOpacity * 0.5);
+                 }
+             });
         }
         if (map && map.getSource('comet-source')) {
              map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
@@ -556,9 +589,20 @@ const loadMainTrace = async () => {
 
         console.log(`[STATE RESTORE] Back to Main: Time=${accumulatedTime}ms, TotalDist=${totalDistanceRef.value}`);
 
-        // Update Map
-        if (map && map.getSource('circuit-line')) {
-             map.getSource('circuit-line').setData(lineStringRef.value);
+        // Update Map - Restore Main Trace Visualization
+        if (map) {
+             // Remove Variant Layer/Source
+             if (map.getLayer('variant-line-layer')) map.removeLayer('variant-line-layer');
+             if (map.getSource('variant-line')) map.removeSource('variant-line');
+             
+             // Restore Opacity
+             const originalOpacity = traceOpacity.value ?? 1.0;
+             const layersToRestore = ['trace-complete', 'trace-overlap-aller', 'trace-overlap-retour'];
+             layersToRestore.forEach(layerId => {
+                 if (map.getLayer(layerId)) {
+                     map.setPaintProperty(layerId, 'line-opacity', originalOpacity);
+                 }
+             });
         }
         
         // FlyTo position sur la trace maîtresse
