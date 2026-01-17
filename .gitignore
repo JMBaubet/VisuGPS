@@ -9,6 +9,9 @@ dist-ssr/
 .env.test.local
 .env.production.local
 
+# --- antigravity
+.agent/skills/
+
 # --- Tauri / Rust ---
 /src-tauri/target/
 /src-tauri/.cargo-lock

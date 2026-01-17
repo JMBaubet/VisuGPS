@@ -158,13 +158,15 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 ##### 3.3.3.2. Couleur courbes
 **Description** : Codes couleurs pour distinguer chaque type de donnée sur le graphe.
 *   [Couleur du Zoom](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurZoom.md)
-*   [Couleur Zoom Edité](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurEditedZoom.md)
+
 *   [Couleur du Pitch](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurPitch.md)
-*   [Couleur Pitch Edité](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurEditedPitch.md)
+
 *   [Couleur du Delta Bearing](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurBearingDelta.md)
 *   [Couleur Delta Bearing Edité](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurEditedBearingDelta.md)
 *   [Couleur du Somme Delta Bearing](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurBearingTotalDelta.md)
 *   [Couleur Somme Delta Bearing Edité](../DocParametrage/Edition/Camera/Graphe_camera/CouleurCourbes/couleurEditedBearingTotalDelta.md)
+*   [Couleur Zoom Edité](../DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedZoom.md)
+*   [Couleur Pitch Edité](../DocParametrage/Edition/Camera/Graphe caméra/CouleurCourbes/couleurEditedPitch.md)
 
 ##### 3.3.3.3. Points de contrôle
 **Description** : Apparence visuelle des marqueurs "Points Clés" sur le graphe.
