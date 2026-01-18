@@ -51,6 +51,12 @@
                   :cx="p.cx" :cy="p.cy" :r="p.r" :fill="p.fill" />
           </g>
 
+          <!-- Variant Reference Points (when length < 2) -->
+          <g class="variant-ref" v-if="variantReferencePoints.length > 0">
+              <circle v-for="(p, i) in variantReferencePoints" :key="`vref-${i}`"
+                  :cx="p.cx" :cy="p.cy" :r="p.r" :fill="p.fill" stroke="white" stroke-width="0.5" />
+          </g>
+          
           <!-- Comparison Connectors (Dashed Lines) -->
           <g class="comparison-connectors" v-if="comparisonConnectors.length > 0">
               <line v-for="(l, i) in comparisonConnectors" :key="`conn-${i}`"
@@ -94,7 +100,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed, nextTick } from 'vue';
 
 // invoke removed
 
@@ -114,6 +120,7 @@ const props = defineProps({
     mainTracePoints: { type: Array, default: () => [] },
     mainTraceStartKm: { type: Number, default: 0 },
     mainTraceEndKm: { type: Number, default: 0 },
+    comparisonType: { type: String, default: 'segment' }, // 'start', 'end', or 'segment'
     padding: {
         type: Object,
         default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
@@ -130,6 +137,7 @@ const comparisonConnectors = ref([]); // New: Lines connecting main to variant
 const mainTraceReferencePoints = ref([]); // New: Main trace dots
 const xTicks = ref([]);
 const yTicks = ref([]);
+const variantReferencePoints = ref([]); // New: For single-point variants
 const totalDrawableDistance = ref(0); // The distance spanning the X axis (either totalDistance or MainTraceSpan)
 let lastUpdatedDistance = 0;
 const minAltitude = ref(0);
@@ -201,6 +209,9 @@ async function processData() {
         return;
     }
     
+    // Reset view if needed (can be refined to preserve position if data update is smooth)
+    progressX.value = 0;
+    
     // Check if we are in valid comparison mode
     // We basically need mainTracePoints to define the "World"
     const isValidComparison = props.isVariantComparison && 
@@ -210,7 +221,7 @@ async function processData() {
 
     // Standard mode data (Variant or Single Trace)
     const filteredTrackingData = props.trackingPoints.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
-    if (filteredTrackingData.length < 2) {
+    if (filteredTrackingData.length < 2 && !isValidComparison) {
         pathSegments.value = [];
         return;
     }
@@ -308,6 +319,7 @@ async function processData() {
 
     pathSegments.value = [];
     mainTraceReferencePoints.value = [];
+    variantReferencePoints.value = [];
     comparisonConnectors.value = [];
 
     if (isValidComparison) {
@@ -328,7 +340,14 @@ async function processData() {
         // 3. Render Variant (Centered in Gap)
         const gapLenMeters = (endKm - startKm) * 1000;
         const variantLenMeters = props.totalDistance;
-        const localOffsetMeters = (gapLenMeters - variantLenMeters) / 2;
+        let localOffsetMeters = 0;
+        if (props.comparisonType === 'start') {
+             localOffsetMeters = gapLenMeters - variantLenMeters;
+        } else if (props.comparisonType === 'end') {
+             localOffsetMeters = 0;
+        } else {
+             localOffsetMeters = (gapLenMeters - variantLenMeters) / 2;
+        }
         
         // Variant points distance is 0..TotalVar. Need to be shifted to startKm + localOffset
         // But generateSegments expects points.distance in KM.
@@ -336,8 +355,18 @@ async function processData() {
         // AND ensuring variant points are treated as starting at 0. (They are)
         
         const globalOffsetForVariant = (startKm * 1000) + localOffsetMeters;
-        const segmentsVariant = generateSegments(filteredTrackingData, globalOffsetForVariant);
-        pathSegments.value.push(...segmentsVariant);
+        if (filteredTrackingData.length >= 2) {
+            const segmentsVariant = generateSegments(filteredTrackingData, globalOffsetForVariant);
+            pathSegments.value.push(...segmentsVariant);
+        } else if (filteredTrackingData.length === 1) {
+            // Visualize the single anchor point specifically
+            variantReferencePoints.value.push({
+                 cx: getX(globalOffsetForVariant),
+                 cy: yScale(filteredTrackingData[0].altitude),
+                 r: 3,
+                 fill: props.comparisonType === 'start' ? '#4CAF50' : '#F44336'
+            });
+        }
         
         // 4. Render Reference Dots (The Replaced Section)
         mainTraceReferencePoints.value = mainGap.map(p => ({
@@ -350,23 +379,22 @@ async function processData() {
         // 5. Connectors
         if (filteredTrackingData.length > 0) {
              // Main End Before Gap -> Variant Start
-             // Main Before ends at startKm.
-             // Variant starts at startKm + localOffset.
-             
-             let yMain1 = yScale(mainBefore[mainBefore.length-1]?.altitude || 0); // approx
-             let yVar1 = yScale(filteredTrackingData[0].altitude);
-             let xMain1 = getX(startKm * 1000);
-             let xVar1 = getX(globalOffsetForVariant);
-             
-             comparisonConnectors.value.push({ x1: xMain1, y1: yMain1, x2: xVar1, y2: yVar1 });
+             if (props.comparisonType !== 'start' && mainBefore.length > 0) {
+                 let yMain1 = yScale(mainBefore[mainBefore.length-1]?.altitude || 0); 
+                 let yVar1 = yScale(filteredTrackingData[0].altitude);
+                 let xMain1 = getX(startKm * 1000);
+                 let xVar1 = getX(globalOffsetForVariant);
+                 comparisonConnectors.value.push({ x1: xMain1, y1: yMain1, x2: xVar1, y2: yVar1 });
+             }
              
              // Variant End -> Main Start After Gap
-             let yVar2 = yScale(filteredTrackingData[filteredTrackingData.length-1].altitude);
-             let yMain2 = yScale(mainAfter[0]?.altitude || 0);
-             let xVar2 = getX(globalOffsetForVariant + variantLenMeters);
-             let xMain2 = getX(endKm * 1000);
-             
-             comparisonConnectors.value.push({ x1: xVar2, y1: yVar2, x2: xMain2, y2: yMain2 });
+             if (props.comparisonType !== 'end' && mainAfter.length > 0) {
+                 let yVar2 = yScale(filteredTrackingData[filteredTrackingData.length-1].altitude);
+                 let yMain2 = yScale(mainAfter[0]?.altitude || 0);
+                 let xVar2 = getX(globalOffsetForVariant + variantLenMeters);
+                 let xMain2 = getX(endKm * 1000);
+                 comparisonConnectors.value.push({ x1: xVar2, y1: yVar2, x2: xMain2, y2: yMain2 });
+             }
         }
 
     } else {
@@ -398,11 +426,131 @@ async function processData() {
 }
 
 // Watch for changes in data props to re-process graph
-watch(() => [props.trackingPoints, props.totalDistance, props.isVariantComparison, props.mainTracePoints], () => {
-    processData();
+watch(() => [props.trackingPoints, props.totalDistance, props.isVariantComparison, props.mainTracePoints], async () => {
+    await processData();
+    
+    // Automatically scroll to reveal the variant start
+    nextTick(() => {
+        if (!containerRef.value) return;
+
+        if (props.isVariantComparison && props.comparisonType === 'start') {
+           containerRef.value.scrollLeft = 0;
+        } else if (props.isVariantComparison) {
+           const gapLenMeters = (props.mainTraceEndKm - props.mainTraceStartKm) * 1000;
+           const variantLenMeters = props.totalDistance;
+           
+           let localOffsetMeters = 0;
+           if (props.comparisonType === 'end') {
+                localOffsetMeters = 0;
+           } else {
+                localOffsetMeters = (gapLenMeters - variantLenMeters) / 2;
+           }
+           
+           // Recalculate context for positioning context
+           let contextStartKm = 0;
+           if (props.mainTracePoints.length > 0) {
+                // Assuming start is 0 relative to available data context
+           }
+           const contextTotalDistMeters = totalDrawableDistance.value;
+           const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
+           const currentViewBoxWidth = (contextTotalDistMeters / 100) * scaleX; 
+           
+           const getGlobalX = (distM) => (distM / contextTotalDistMeters) * currentViewBoxWidth;
+
+           const globalOffsetForVariant = (props.mainTraceStartKm * 1000) + localOffsetMeters;
+           const targetX = getGlobalX(globalOffsetForVariant);
+           
+           const containerWidth = containerRef.value.clientWidth || 800;
+           let targetScroll = targetX - (containerWidth / 2);
+           targetScroll = Math.max(0, Math.min(targetScroll, currentViewBoxWidth - containerWidth));
+           
+           containerRef.value.scrollLeft = targetScroll;
+        }
+    });
+
+    // Also force an update of the cursor position (since distance might not change, but context did)
+    nextTick(() => {
+         updateProgressX(props.currentDistance);
+    });
+
 }, { deep: true, immediate: true });
 
-// onMounted removed, handled by immediate watch
+function updateProgressX(newDistance) {
+    if (!containerRef.value || totalDrawableDistance.value === 0) return;
+
+    // Calculate Progress X based on context
+    // If Comparison: x = getX(current + offset)
+    // If Standard: x = (current / total) * width
+    
+    let xPos = 0;
+    if (props.isVariantComparison && props.mainTracePoints.length > 0) {
+         // Calculation logic mirrors processData
+         const contextLenM = totalDrawableDistance.value;
+         
+         const startGapM = props.mainTraceStartKm * 1000;
+         const endGapM = props.mainTraceEndKm * 1000;
+         const gapLenM = endGapM - startGapM;
+         const variantLenM = props.totalDistance;
+         
+         let localOffsetM = 0;
+         if (props.comparisonType === 'start') {
+              localOffsetM = gapLenM - variantLenM;
+         } else if (props.comparisonType === 'end') {
+              localOffsetM = 0;
+         } else {
+              localOffsetM = (gapLenM - variantLenM) / 2;
+         }
+         
+         const globalPosM = startGapM + localOffsetM + newDistance;
+         
+         xPos = (globalPosM / contextLenM) * viewBoxWidth.value;
+    } else {
+     xPos = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
+    }
+    
+    // Ensure xPos is valid. If NaN (e.g. totalDrawableDistance is 0), default to 0.
+    if (isNaN(xPos)) xPos = 0;
+    
+    progressX.value = xPos;
+
+    const containerWidth = containerRef.value.clientWidth;
+    const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
+    const stuckPositionMeters = stuckPositionKm * 1000;
+    const stuckPositionPx = (stuckPositionMeters / totalDrawableDistance.value) * viewBoxWidth.value;
+
+    let scrollLeft = 0;
+    // Le point de transition est le moment où le curseur, s'il continuait, 
+    // ferait défiler le scroll au-delà de sa position maximale.
+    const transitionPoint = viewBoxWidth.value - containerWidth + stuckPositionPx;
+
+    if (progressX.value < stuckPositionPx) {
+        // Phase 1: Le curseur se déplace au début, le graphe est fixe.
+        scrollLeft = 0;
+    }
+    else if (progressX.value >= transitionPoint) {
+        // Phase 3: Le graphe est calé à la fin, le curseur termine sa course.
+        scrollLeft = viewBoxWidth.value - containerWidth;
+    }
+    else {
+        // Phase 2: Le curseur est fixe sur l'écran, le graphe défile.
+        scrollLeft = progressX.value - stuckPositionPx;
+    }
+
+    // Applique le défilement calculé au conteneur.
+    // WARNING: During auto-scroll on load, we might not want this logic to fight with the other one.
+    // But generally, the cursor should dictate the view.
+    // EXCEPT when we explicitly want to "reveal variant start" which might be different from cursor pos (0).
+    // Let's keep it simple: Cursor Pos updates scroll.
+    
+    if (containerRef.value.scrollLeft !== scrollLeft) {
+        containerRef.value.scrollLeft = scrollLeft;
+    }
+}
+
+watch(() => props.currentDistance, (newDistance) => {
+    lastUpdatedDistance = newDistance;
+    updateProgressX(newDistance);
+});
 
 
 function handleMouseMove(event) {
@@ -461,63 +609,7 @@ function handleMouseLeave() {
     tooltipVisible.value = false;
 }
 
-watch(() => props.currentDistance, (newDistance) => {
-    if (Math.abs(newDistance - lastUpdatedDistance) < 100) return;
-    lastUpdatedDistance = newDistance;
 
-    if (!containerRef.value || totalDrawableDistance.value === 0) return;
-
-    // Calculate Progress X based on context
-    // If Comparison: x = getX(current + offset)
-    // If Standard: x = (current / total) * width
-    
-    let xPos = 0;
-    if (props.isVariantComparison && props.mainTracePoints.length > 0) {
-         // Calculation logic mirrors processData
-         const contextLenM = totalDrawableDistance.value;
-         
-         const startGapM = props.mainTraceStartKm * 1000;
-         const endGapM = props.mainTraceEndKm * 1000;
-         const gapLenM = endGapM - startGapM;
-         const variantLenM = props.totalDistance;
-         const localOffsetM = Math.max(0, (gapLenM - variantLenM) / 2);
-         
-         const globalPosM = startGapM + localOffsetM + newDistance;
-         
-         xPos = (globalPosM / contextLenM) * viewBoxWidth.value;
-    } else {
-         xPos = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
-    }
-    progressX.value = xPos;
-
-    const containerWidth = containerRef.value.clientWidth;
-    const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
-    const stuckPositionMeters = stuckPositionKm * 1000;
-    const stuckPositionPx = (stuckPositionMeters / totalDrawableDistance.value) * viewBoxWidth.value;
-
-    let scrollLeft = 0;
-    // Le point de transition est le moment où le curseur, s'il continuait, 
-    // ferait défiler le scroll au-delà de sa position maximale.
-    const transitionPoint = viewBoxWidth.value - containerWidth + stuckPositionPx;
-
-    if (progressX.value < stuckPositionPx) {
-        // Phase 1: Le curseur se déplace au début, le graphe est fixe.
-        scrollLeft = 0;
-    }
-    else if (progressX.value >= transitionPoint) {
-        // Phase 3: Le graphe est calé à la fin, le curseur termine sa course.
-        scrollLeft = viewBoxWidth.value - containerWidth;
-    }
-    else {
-        // Phase 2: Le curseur est fixe sur l'écran, le graphe défile.
-        scrollLeft = progressX.value - stuckPositionPx;
-    }
-
-    // Applique le défilement calculé au conteneur.
-    if (containerRef.value.scrollLeft !== scrollLeft) {
-        containerRef.value.scrollLeft = scrollLeft;
-    }
-});
 </script>
 
 <style scoped>
@@ -571,6 +663,9 @@ svg {
 .progress-bar {
     stroke: white;
     stroke-width: 1.5;
+}
+rect {
+    fill: white; 
 }
 .connector-line {
     stroke: #00ffff; /* Cyan color for visibility */

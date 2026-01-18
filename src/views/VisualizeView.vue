@@ -68,6 +68,7 @@
             :main-trace-points="mainTraceComparisonPointsRef"
             :main-trace-start-km="mainTraceComparisonStartRef"
             :main-trace-end-km="mainTraceComparisonEndRef"
+            :comparison-type="mainTraceComparisonTypeRef"
           />
       </div>
     </transition>
@@ -356,6 +357,7 @@ const isComparisonModeRef = ref(false);
 const mainTraceComparisonPointsRef = ref([]);
 const mainTraceComparisonStartRef = ref(0);
 const mainTraceComparisonEndRef = ref(0);
+const mainTraceComparisonTypeRef = ref('segment'); // 'start', 'end', or 'segment'
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
@@ -494,7 +496,7 @@ const loadVariantSegment = async (variantId, modification, index) => {
             invoke('get_events', { circuitId: props.circuitId, variantId: variantIdForEvents })
         ]);
 
-        if (!rawTrackingData || rawTrackingData.length < 2) throw new Error("Données de tracking invalides");
+        if (!rawTrackingData || rawTrackingData.length < 1) throw new Error("Données de tracking invalides");
 
         lineStringRef.value = rawLineStringData;
         
@@ -512,38 +514,51 @@ const loadVariantSegment = async (variantId, modification, index) => {
         mainTraceComparisonPointsRef.value = [];
         mainTraceComparisonStartRef.value = 0;
         mainTraceComparisonEndRef.value = 0;
+        mainTraceComparisonTypeRef.value = 'segment';
 
         // TENTATIVE: Try to enable comparison if data available
-        if (modification.type === 'SEGMENT_DEVIATION' && mainTraceState.value?.trackingPoints) {
-             // Verify anchors exist
-             const startIdx = modification.anchorStart?.index;
-             const endIdx = modification.anchorEnd?.index;
+        if (mainTraceState.value?.trackingPoints) {
+             const type = modification.type;
+             let startIdx = null;
+             let endIdx = null;
+             let compType = 'segment';
+
+             if (type === 'SEGMENT_DEVIATION') {
+                  startIdx = modification.anchorStart?.index;
+                  endIdx = modification.anchorEnd?.index;
+                  compType = 'segment';
+             } else if (type === 'DEPART_DEPORTE') {
+                  startIdx = 0;
+                  endIdx = modification.anchorIndexOnMaster || 0;
+                  compType = 'start'; // Align to the right (to anchorEnd)
+             } else if (type === 'ARRIVEE_REPORTEE') {
+                  startIdx = modification.anchorIndexOnMaster || 0;
+                  const mainPoints = mainTraceState.value.trackingPoints;
+                  endIdx = mainPoints.length - 1;
+                  compType = 'end'; // Align to the left (to anchorStart)
+             }
              
              if (typeof startIdx === 'number' && typeof endIdx === 'number' && startIdx < endIdx) {
                   const mainPoints = mainTraceState.value.trackingPoints;
                   if (mainPoints && endIdx < mainPoints.length) {
                        const startKm = mainPoints[startIdx].distance;
-                       const endKm = mainPoints[endIdx].distance; // This is absolute KM on main trace
+                       const endKm = mainPoints[endIdx].distance; 
                        const mainSectionLenKm = endKm - startKm;
                        const variantLenKm = totalDistanceRef.value;
                        
-                       // Check user condition: Variant Shorter than Main Trace Section
-                       // (We can use a small epsilon for float comparison)
+                       // Check condition: Variant Shorter than Main Trace Section
                        if (variantLenKm < mainSectionLenKm - 0.001) {
                             isComparisonModeRef.value = true;
                             mainTraceComparisonStartRef.value = startKm;
                             mainTraceComparisonEndRef.value = endKm;
+                            mainTraceComparisonTypeRef.value = compType;
                             
-                            // Pass FULL main trace for context, not just the slice
                             mainTraceComparisonPointsRef.value = mainPoints.map(p => ({
                                 distance: p.distance,
                                 altitude: p.altitude,
-                                // Calculate slope if needed for coloring Main Trace parts?
-                                // AltitudeSVG recalculates slope usually. 
-                                // Let's pass basic data.
                             }));
                             
-                            console.log(`[COMPARISON MODE] Enabled. Main: ${mainSectionLenKm.toFixed(3)}km, Variant: ${variantLenKm.toFixed(3)}km`);
+                            console.log(`[COMPARISON MODE] Enabled (${compType}). Main: ${mainSectionLenKm.toFixed(3)}km, Variant: ${variantLenKm.toFixed(3)}km`);
                        } else {
                            console.log(`[COMPARISON MODE] Skipped. Variant (${variantLenKm.toFixed(3)}km) >= Main (${mainSectionLenKm.toFixed(3)}km)`);
                        }
@@ -567,9 +582,19 @@ const loadVariantSegment = async (variantId, modification, index) => {
         }
 
         // 4. Reset Animation Engine
+        
+        // Initial setup for Accumulator/Distance
+        // IF Comparison Mode:
+        // - 'start': we start at 0 (beginning of variant = beginning of trace)
+        // - 'segment' or 'end': we might want to start "at the variant" visually?
+        // Actually, for consistency, let's start everything at 0 (time 0 on the variant timeline).
+        // BUT, visually on the graph, for 'end' variant, 0 is at globalOffset. 
+        // AltitudeSVG handles getX(0 + offset). So sending distance=0 is correct for the logic "Beginning of Variant".
+        
         accumulatedTime = 0;
-        lastTimestamp = 0;
         currentDistanceInMeters.value = 0;
+        
+        lastTimestamp = 0;
         isPaused.value = true;
         isAnimationFinished.value = false;
         triggeredPauseIncrement.value = null;
@@ -807,10 +832,12 @@ const loadMainTrace = async () => {
              
              // Restore Opacity
              const originalOpacity = traceOpacity.value ?? 1.0;
+             const originalWidth = traceWidth.value ?? 4;
              const layersToRestore = ['trace-complete', 'trace-overlap-aller', 'trace-overlap-retour'];
              layersToRestore.forEach(layerId => {
                  if (map.getLayer(layerId)) {
                      map.setPaintProperty(layerId, 'line-opacity', originalOpacity);
+                     map.setPaintProperty(layerId, 'line-width', originalWidth);
                  }
              });
         }
@@ -858,6 +885,13 @@ const loadMainTrace = async () => {
         
         // Enfin, on restaure l'état de pause
         isPaused.value = mainTraceState.value.isPaused;
+        
+        // If not paused, render loop needs to be jump-started (as isPaused was potentially true before)
+        if (!isPaused.value) {
+            lastTimestamp = 0; // Reset for new loop
+            requestAnimationFrame(animate); 
+        }
+
         console.log(`[RESTORE END] isPaused=${isPaused.value}, final Km=${(totalDistanceRef.value * (accumulatedTime / (totalDurationAt1xRef.value || 1))).toFixed(2)}`);
         
         showSnackbar("Retour à la trace maîtresse", "info");
@@ -1088,7 +1122,8 @@ async function executeFlytoSequence(flytoData) {
       accumulatedTime += deltaTime * currentSpeed.value;
   }
 
-  const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
+  const totalDur = totalDurationAt1xRef.value || 0;
+  const phase = totalDur > 0 ? Math.min(accumulatedTime / totalDur, 1) : 1;
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = distanceTraveled.toFixed(2);
   currentDistanceInMeters.value = distanceTraveled * 1000;
@@ -2361,8 +2396,8 @@ const initializeMap = async () => {
                 source: 'colored-segments',
                 layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, // Visible par défaut (Phase Aller)
                 paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
+                    'line-width': traceWidth.value ?? 4,
+                    'line-opacity': traceOpacity.value ?? 1,
                     'line-color': ['get', 'color_raw']
                 },
                 filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
@@ -2377,8 +2412,8 @@ const initializeMap = async () => {
                 source: 'colored-segments',
                 layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
                 paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
+                    'line-width': traceWidth.value ?? 4,
+                    'line-opacity': traceOpacity.value ?? 1,
                     'line-color': ['get', 'color_raw']
                 },
                 filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
@@ -2400,8 +2435,8 @@ const initializeMap = async () => {
                 source: 'trace',
                 layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
                 paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
+                    'line-width': traceWidth.value ?? 4,
+                    'line-opacity': traceOpacity.value ?? 1,
                     'line-color': traceColor.value || '#0000FF'
                 }
             });
