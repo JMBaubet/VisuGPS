@@ -487,9 +487,15 @@ const loadVariantSegment = async (variantId, modification, index) => {
     const variantIdForEvents = `${variantId}_${suffix}`;
     
     try {
-        isInitializing.value = true;
-        
-        // 2. Charger les nouvelles données
+    isInitializing.value = true;
+    
+    // Stop any running animation loop immediately
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+
+    // 2. Charger les nouvelles données
         const [rawTrackingData, rawLineStringData, fetchedEvents] = await Promise.all([
             invoke('read_tracking_file', { circuitId: props.circuitId, filename: trackingFilename }),
             invoke('read_line_string_file', { circuitId: props.circuitId, filename: lineStringFilename }),
@@ -796,6 +802,12 @@ const loadMainTrace = async () => {
     
     isInitializing.value = true;
     try {
+        // Stop any running animation loop immediately
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
         currentVariantId.value = null;
         currentSegmentType.value = null;
         currentSegmentIndex.value = null;
