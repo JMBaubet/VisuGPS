@@ -158,8 +158,25 @@
                                                 color="warning"
                                              ></v-btn>
                                              
-                                             <!-- Segment Selector (If multiple segments) -->
-                                             <v-menu v-if="selectedVariant && getVariantSegments(selectedVariant).length > 1">
+                                             <!-- Unified Segment Navigation (Icons) -->
+                                             <div v-if="isMultisegmentVariant" class="d-flex align-center ml-2">
+                                                <v-tooltip v-for="(seg, i) in activeVariantSegments" :key="i" location="top">
+                                                    <template v-slot:activator="{ props }">
+                                                        <v-btn
+                                                            v-bind="props"
+                                                            :icon="getSegmentIcon(seg.type)"
+                                                            variant="text" 
+                                                            density="compact"
+                                                            :color="currentDistanceInMeters >= seg.startDistKm*1000 && currentDistanceInMeters < seg.endDistKm*1000 ? 'primary' : 'grey'"
+                                                            @click="focusSegment(i)"
+                                                        ></v-btn>
+                                                    </template>
+                                                    <span>{{ seg.type.replace('_',' ') }}</span>
+                                                </v-tooltip>
+                                             </div>
+                                             
+                                             <!-- Legacy Fallback (Should not be reached if loadFullVariant used) -->
+                                             <v-menu v-else-if="selectedVariant && getVariantSegments(selectedVariant).length > 1">
                                                 <template v-slot:activator="{ props }">
                                                     <v-btn
                                                         v-bind="props"
@@ -237,6 +254,8 @@ watch(animationState, (newState) => {
     isBackButtonVisible.value = false;
   }
 });
+
+
 
 const router = useRouter();
 const { settings, getSettingValue } = useSettings();
@@ -357,7 +376,13 @@ const isComparisonModeRef = ref(false);
 const mainTraceComparisonPointsRef = ref([]);
 const mainTraceComparisonStartRef = ref(0);
 const mainTraceComparisonEndRef = ref(0);
-const mainTraceComparisonTypeRef = ref('segment'); // 'start', 'end', or 'segment'
+const mainTraceComparisonTypeRef = ref('segment');
+
+// --- Variant Stitching State ---
+const activeVariantSegments = ref([]); // List of segments: { index, type, startDist, endDist, data... }
+const isMultisegmentVariant = ref(false); // Flag for UI logic
+const totalVariantDistanceRef = ref(0);
+ // 'start', 'end', or 'segment'
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
@@ -374,6 +399,9 @@ const layerGradients = ref({
     retour: null,
     neutral: null
 });
+
+const isTransitioning = ref(false);
+const variantLayerIds = ref([]);
 
 // Variants state
 const variants = ref([]);
@@ -431,15 +459,7 @@ const getSegmentColor = (mod) => {
 const selectedVariant = computed(() => variants.value.find(v => v.id === currentVariantId.value));
 
 const handleSelectVariant = (variant) => {
-    const segments = getVariantSegments(variant);
-    if (segments.length === 1) {
-        // Use the originalIndex embedded in the segment object
-        loadVariantSegment(variant.id, segments[0], segments[0].originalIndex);
-    } else {
-        currentVariantId.value = variant.id;
-        currentSegmentType.value = null;
-        currentSegmentIndex.value = null;
-    }
+    loadFullVariant(variant.id, variant);
 };
 
 // Helper pour convertir les couleurs (supporte Vuetify + noms CSS)
@@ -797,6 +817,429 @@ const loadVariantSegment = async (variantId, modification, index) => {
     }
 };
 
+const getSegmentIcon = (type) => {
+    switch (type) {
+        case 'DEPART_DEPORTE': return 'mdi-flag-checkered';
+        case 'ARRIVEE_REPORTEE': return 'mdi-flag-checkered';
+        case 'SEGMENT_DEVIATION': return 'mdi-map-marker-path';
+        default: return 'mdi-map-marker';
+    }
+};
+
+
+
+/**
+ * Loads ALL segments of a variant and stitches them into a single timeline.
+ */
+const loadFullVariant = async (variantId, variantStructure) => {
+    // Save Main Trace State if switching from Main Trace
+    if (!currentVariantId.value) {
+        mainTraceState.value = {
+            lineString: lineStringRef.value,
+            trackingPoints: [...trackingPointsWithDistanceRef.value],
+            totalDistance: totalDistanceRef.value,
+            totalDuration: totalDurationAt1xRef.value,
+            pauseIncrements: [...pauseIncrements.value],
+            flytoEvents: JSON.parse(JSON.stringify(flytoEvents.value)),
+            rangeEvents: [...rangeEvents.value],
+            accumulatedTime: Number(accumulatedTime),
+            isPaused: isPaused.value
+        };
+        console.log(`[STATE SAVE] Main Trace Saved: Time=${accumulatedTime}, Dist=${totalDistanceRef.value}`);
+    } else if (mainTraceState.value && !isMultisegmentVariant.value) {
+         // Fallback legacy update
+         mainTraceState.value.accumulatedTime = Number(accumulatedTime);
+    }
+
+    currentVariantId.value = variantId;
+    isMultisegmentVariant.value = true;
+    activeVariantSegments.value = [];
+    isInitializing.value = true;
+    currentSegmentType.value = null; 
+    
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+
+    console.log("[loadFullVariant] Structure:", variantStructure);
+
+    try {
+        const segmentsToLoad = [];
+        const sortedMods = getVariantSegments(variantStructure);
+        
+        sortedMods.forEach(mod => {
+             let suffix = "";
+             if (mod.type === 'DEPART_DEPORTE') suffix = "DEPART";
+             else if (mod.type === 'ARRIVEE_REPORTEE') suffix = "ARRIVEE";
+             else if (mod.type === 'SEGMENT_DEVIATION') suffix = `SEGMENT_${mod.originalIndex}`;
+             
+             segmentsToLoad.push({ 
+                 type: mod.type, 
+                 index: mod.originalIndex, 
+                 suffix: suffix, 
+                 meta: mod 
+             });
+        });
+
+        console.log("[loadFullVariant] Segments to load:", segmentsToLoad.length, segmentsToLoad);
+
+        const promises = segmentsToLoad.map(async (seg) => {
+            const trackFile = `tracking_${variantId}_${seg.suffix}.json`;
+            const lsFile = `lineString_${variantId}_${seg.suffix}.json`;
+            const evtVarId = `${variantId}_${seg.suffix}`;
+            
+            try {
+                const [rawTrack, rawLS, events] = await Promise.all([
+                    invoke('read_tracking_file', { circuitId: props.circuitId, filename: trackFile }),
+                    invoke('read_line_string_file', { circuitId: props.circuitId, filename: lsFile }),
+                    invoke('get_events', { circuitId: props.circuitId, variantId: evtVarId })
+                ]);
+                
+                let processed = { processedPoints: [], totalDistanceKm: 0 };
+                if (rawTrack && rawTrack.length > 0) {
+                     processed = await invoke('process_tracking_data', {
+                        lineStringGeojson: rawLS,
+                        trackingPointsJs: rawTrack
+                    });
+                }
+                
+                return { 
+                    ...seg, 
+                    rawTrack, 
+                    rawLS, 
+                    events, 
+                    processedPoints: processed.processedPoints, 
+                    segmentDistKm: processed.totalDistanceKm 
+                };
+            } catch (e) {
+                console.error(`Failed to load segment ${seg.suffix}`, e);
+                return null;
+            }
+        });
+        
+        const results = await Promise.all(promises);
+        const validResults = results.filter(r => r !== null);
+        console.log("[loadFullVariant] Valid results:", validResults.length);
+        
+        let globalDistKm = 0;
+        const allPoints = [];
+        const visualCoordinates = [];
+        const mergedFlytos = {};
+        const mergedPauses = [];
+        const mergedRanges = [];
+        
+        activeVariantSegments.value = [];
+        
+        validResults.forEach(seg => {
+            const startDist = globalDistKm;
+            const adjustedPoints = seg.processedPoints.map(p => ({
+                ...p,
+                distance: p.distance + startDist, 
+            }));
+            
+            allPoints.push(...adjustedPoints);
+            
+            let segmentCoords = [];
+            if (seg.rawLS) {
+                if (seg.rawLS.type === 'FeatureCollection' && seg.rawLS.features && seg.rawLS.features.length > 0) {
+                     segmentCoords = seg.rawLS.features[0].geometry.coordinates;
+                } else if (seg.rawLS.type === 'Feature' && seg.rawLS.geometry) {
+                     segmentCoords = seg.rawLS.geometry.coordinates;
+                } else if (seg.rawLS.type === 'LineString' && seg.rawLS.coordinates) {
+                     segmentCoords = seg.rawLS.coordinates;
+                } else if (seg.rawLS.geometry && seg.rawLS.geometry.coordinates) {
+                     segmentCoords = seg.rawLS.geometry.coordinates;
+                }
+            }
+            
+            if (segmentCoords && segmentCoords.length > 0) {
+                visualCoordinates.push(segmentCoords);
+            } else {
+                 console.warn(`[loadFullVariant] No coordinates found for segment ${seg.suffix}`);
+            }
+            
+            const len = seg.segmentDistKm;
+            activeVariantSegments.value.push({
+                type: seg.type,
+                index: seg.index,
+                uiIndex: activeVariantSegments.value.length,
+                startDistKm: startDist,
+                endDistKm: startDist + len,
+                lengthKm: len,
+                firstPoint: adjustedPoints[0] || null,
+                coordinates: segmentCoords, // Store for local calculation
+                points: adjustedPoints // Store local points for gradient calculation
+            });
+            
+            const pointOffset = allPoints.length - adjustedPoints.length;
+
+             if (seg.events?.pointEvents) {
+                 const pEvents = seg.events.pointEvents;
+                 Object.keys(pEvents).forEach(incStr => {
+                     const inc = Number(incStr);
+                     const globalInc = pointOffset + inc;
+                     
+                     if (pEvents[inc].some(e => e.type === 'Pause')) {
+                         mergedPauses.push(globalInc);
+                     }
+                     const flyto = pEvents[inc].find(e => e.type === 'Flyto');
+                     if (flyto) {
+                         mergedFlytos[globalInc] = flyto.data;
+                     }
+                 });
+             }
+             if (seg.events?.rangeEvents) {
+                 seg.events.rangeEvents.forEach(re => {
+                     mergedRanges.push({
+                         ...re,
+                         start: re.start + pointOffset,
+                         end: re.end + pointOffset
+                     });
+                 });
+             }
+             
+            globalDistKm += len;
+        });
+        
+        trackingPointsWithDistanceRef.value = allPoints;
+        totalDistanceRef.value = globalDistKm;
+        
+        totalDurationAt1xRef.value = globalDistKm * (animationSpeed?.value || 10);
+        
+        flytoEvents.value = mergedFlytos;
+        pauseIncrements.value = mergedPauses;
+        rangeEvents.value = mergedRanges;
+
+        // Prepare Slope Colors if needed
+        let slopeColors = null;
+        if (colorTraceBySlope.value) {
+             try {
+                 slopeColors = {
+                    TrancheNegative: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
+                    Tranche1: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
+                    Tranche2: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
+                    Tranche3: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
+                    Tranche4: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
+                    Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
+                 };
+             } catch (e) {}
+        }
+
+        // Helper for Gradient
+        const getCol = (p1, p2) => {
+             if (!slopeColors) return '#FF00FF';
+             const distM = (p2.distance - p1.distance) * 1000;
+             const elev = (p2.altitude || 0) - (p1.altitude || 0);
+             const slope = distM > 0 ? (elev / distM) * 100 : 0;
+             if (slope < 0) return slopeColors.TrancheNegative || '#0000FF';
+             if (slope < 5) return slopeColors.Tranche1 || '#00FF00';
+             if (slope < 10) return slopeColors.Tranche2;
+             if (slope < 15) return slopeColors.Tranche3;
+             if (slope < 20) return slopeColors.Tranche4;
+             return slopeColors.Tranche5;
+        };
+
+        const multiLineString = {
+            type: "Feature",
+            geometry: {
+                type: "MultiLineString",
+                coordinates: visualCoordinates
+            },
+            properties: {}
+        };
+        lineStringRef.value = multiLineString;
+        isComparisonModeRef.value = false; 
+
+        accumulatedTime = 0;
+        currentDistanceInMeters.value = 0;
+        lastTimestamp = 0;
+        isPaused.value = true;
+        isAnimationFinished.value = false;
+        
+        if (map) {
+             // 1. Cleanup old layers/sources
+             variantLayerIds.value.forEach(id => {
+                 if (map.getLayer(id)) map.removeLayer(id);
+                 // Source ID assumption: id.replace('-layer', '')
+                 const sourceId = id.replace('-layer', '');
+                 if (map.getSource(sourceId)) map.removeSource(sourceId);
+             });
+             variantLayerIds.value = [];
+             
+             // Legacy cleanup
+             if (map.getLayer('variant-line-layer')) map.removeLayer('variant-line-layer');
+             if (map.getSource('variant-line')) map.removeSource('variant-line');
+
+             // 2. Create new layers per segment
+             activeVariantSegments.value.forEach((seg, index) => {
+                 if (!seg.coordinates || seg.coordinates.length < 2) return;
+                 
+                 const sourceId = `variant-seg-${index}`;
+                 const layerId = `variant-seg-layer-${index}`;
+                 
+                 const segGeoJSON = {
+                     type: 'Feature',
+                     geometry: { type: 'LineString', coordinates: seg.coordinates },
+                     properties: {}
+                 };
+                 
+                 // Build Gradient for this segment
+                 let gradientExpression = null;
+                 if (slopeColors && seg.points && seg.points.length > 1) {
+                     const expr = ['interpolate', ['linear'], ['line-progress']];
+                     const segStartDist = seg.points[0].distance;
+                     const segLen = seg.points[seg.points.length-1].distance - segStartDist;
+                     
+                     let lastRatio = -1;
+                     const pushStop = (r, color) => {
+                         let ratio = Math.max(0, Math.min(1, r));
+                         // Ensure strictly ascending
+                         if (ratio <= lastRatio) ratio = lastRatio + 0.00001;
+                         if (ratio > 1) ratio = 1;
+                         // If still equal to lastRatio (precision limit), skip? 
+                         // Mapbox needs strict >. 
+                         if (ratio > lastRatio) {
+                             expr.push(ratio);
+                             expr.push(color);
+                             lastRatio = ratio;
+                         }
+                     };
+
+                     pushStop(0, getCol(seg.points[0], seg.points[1] || seg.points[0]));
+                     
+                     for (let i = 0; i < seg.points.length - 1; i++) {
+                         const p1 = seg.points[i];
+                         // Use center of segment or start? Logic used p1 start.
+                         if (segLen > 0) {
+                             const rawRatio = (p1.distance - segStartDist) / segLen;
+                             // Avoid 0 duplicates
+                             if (rawRatio > 0.0001) {
+                                 const col = getCol(p1, seg.points[i+1]);
+                                 pushStop(rawRatio, col);
+                             }
+                         }
+                     }
+                     // Always ensure 1 is reached
+                     pushStop(1, getCol(seg.points[seg.points.length-2], seg.points[seg.points.length-1]));
+                     
+                     gradientExpression = expr;
+                 }
+
+                 if (map.getSource(sourceId)) {
+                     map.getSource(sourceId).setData(segGeoJSON);
+                 } else {
+                     map.addSource(sourceId, { type: 'geojson', data: segGeoJSON, lineMetrics: true });
+                 }
+                 
+                 const paint = {
+                     'line-width': traceWidth.value || 4
+                 };
+                 
+                 if (gradientExpression) {
+                     paint['line-gradient'] = gradientExpression;
+                     paint['line-color'] = 'rgba(255, 255, 255, 0)'; 
+                     paint['line-opacity'] = 1;
+                 } else {
+                     paint['line-color'] = '#FF00FF';
+                 }
+                 
+                 if (!map.getLayer(layerId)) {
+                     map.addLayer({
+                        id: layerId,
+                        type: 'line',
+                        source: sourceId,
+                        layout: { 'line-join': 'round', 'line-cap': 'round' },
+                        paint: paint
+                    });
+                 } else {
+                    if (gradientExpression) {
+                        map.setPaintProperty(layerId, 'line-gradient', gradientExpression);
+                        map.setPaintProperty(layerId, 'line-color', 'rgba(255, 255, 255, 0)');
+                    } else {
+                        map.setPaintProperty(layerId, 'line-gradient', null);
+                        map.setPaintProperty(layerId, 'line-color', '#FF00FF');
+                    }
+                 }
+                 if (!variantLayerIds.value.includes(layerId)) {
+                     variantLayerIds.value.push(layerId);
+                 }
+             });
+             
+             // Clear Comet
+             if (map.getSource('comet-source')) {
+                 map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+             }
+
+             // Restore Opacity Dimming for Main Trace
+             const layersToDim = ['trace-complete', 'trace-overlap-aller', 'trace-overlap-retour'];
+             layersToDim.forEach(lid => {
+                 if (map.getLayer(lid)) map.setPaintProperty(lid, 'line-opacity', 0.5);
+             });
+             
+             // Ensure Comet is on Top
+             if (map.getLayer('comet-layer')) {
+                 map.moveLayer('comet-layer');
+             }
+             
+             const startPt = trackingPointsWithDistanceRef.value[0];
+             if (startPt) {
+                 await flyToPromise(map, {
+                     center: startPt.coordonnee,
+                     zoom: startPt.editedZoom ?? 16,
+                     pitch: startPt.editedPitch ?? 60,
+                     bearing: startPt.editedCap ?? 0,
+                     duration: 1500
+                 });
+             }
+        }
+          
+             // Initialize current segment to the first one
+             if (activeVariantSegments.value.length > 0) {
+                 const firstSeg = activeVariantSegments.value[0];
+                 currentSegmentIndex.value = firstSeg.index;
+                 currentSegmentType.value = firstSeg.type;
+             }
+        
+    } catch (e) {
+        console.error("Full Variant Load Failed", e);
+        showSnackbar("Erreur chargement variant complet", "error");
+    } finally {
+        isInitializing.value = false;
+    }
+};
+
+const focusSegment = async (arrayIndex) => {
+    if (arrayIndex < 0 || arrayIndex >= activeVariantSegments.value.length) return;
+    const seg = activeVariantSegments.value[arrayIndex];
+    
+    currentSegmentIndex.value = seg.index; 
+    currentSegmentType.value = seg.type;
+    
+    // Set Distance/Time relative to global timeline
+    currentDistanceInMeters.value = seg.startDistKm * 1000;
+    
+    const totalDist = totalDistanceRef.value;
+    const ratio = totalDist > 0 ? (seg.startDistKm / totalDist) : 0;
+    const totalDur = totalDurationAt1xRef.value;
+    accumulatedTime = totalDur * ratio;
+    
+    // Manually force updates if paused
+    if (isPaused.value) {
+        lastTimestamp = 0; // Reset delta logic
+    }
+    
+    if (seg.firstPoint) {
+         await flyToPromise(map, {
+             center: seg.firstPoint.coordonnee,
+             zoom: seg.firstPoint.editedZoom ?? 16,
+             pitch: seg.firstPoint.editedPitch ?? 60,
+             bearing: seg.firstPoint.editedCap ?? 0,
+             duration: 1000
+         });
+    }
+};
+
 const loadMainTrace = async () => {
     if (!mainTraceState.value) return;
     
@@ -831,6 +1274,8 @@ const loadMainTrace = async () => {
         lastTimestamp = 0;
         isAnimationFinished.value = false;
         
+        isMultisegmentVariant.value = false; // Reset flag
+        
         // CRITIQUE : on désactive la détection de mouvement avant le FlyTo de repositionnement
         cameraMovedDuringPause.value = false; 
 
@@ -838,9 +1283,24 @@ const loadMainTrace = async () => {
 
         // Update Map - Restore Main Trace Visualization
         if (map) {
-             // Remove Variant Layer/Source
+             // Cleanup Dynamic Variant Layers
+             variantLayerIds.value.forEach(id => {
+                 if (map.getLayer(id)) map.removeLayer(id);
+                 const sourceId = id.replace('-layer', ''); // Approximation, assume convention
+                 // Actually my convention was sourceId = variant-seg-i, layerId = variant-seg-layer-i.
+                 // layerId.replace('-layer', '') -> variant-seg-i. Correct.
+                 if (map.getSource(sourceId)) map.removeSource(sourceId);
+             });
+             variantLayerIds.value = [];
+
+             // Remove Legacy Variant Layer/Source
              if (map.getLayer('variant-line-layer')) map.removeLayer('variant-line-layer');
              if (map.getSource('variant-line')) map.removeSource('variant-line');
+             
+             // Clear Comet
+             if (map.getSource('comet-source')) {
+                 map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+             }
              
              // Restore Opacity
              const originalOpacity = traceOpacity.value ?? 1.0;
@@ -1111,7 +1571,7 @@ async function executeFlytoSequence(flytoData) {
   }
 
   // New, robust timing logic
-  if (isPaused.value) {
+  if (isPaused.value || isTransitioning.value) {
     lastTimestamp = 0; // Invalidate lastTimestamp while paused
     animationFrameId = requestAnimationFrame(animate);
     return;
@@ -1139,6 +1599,44 @@ async function executeFlytoSequence(flytoData) {
   const distanceTraveled = totalDistanceRef.value * phase;
   distanceDisplay.value = distanceTraveled.toFixed(2);
   currentDistanceInMeters.value = distanceTraveled * 1000;
+
+  // --- Variant Segment Auto-Pause Logic ---
+  if (isMultisegmentVariant.value && !isRewinding.value && activeVariantSegments.value.length > 0) {
+      // Determine current UI index from currentSegmentIndex
+      let uiIndex = activeVariantSegments.value.findIndex(s => s.index === currentSegmentIndex.value);
+      
+      // If lost sync, re-sync based on distance
+      if (uiIndex === -1) {
+           uiIndex = activeVariantSegments.value.findIndex(s => distanceTraveled >= s.startDistKm && distanceTraveled < s.endDistKm);
+           if (uiIndex >= 0) {
+               currentSegmentIndex.value = activeVariantSegments.value[uiIndex].index;
+               currentSegmentType.value = activeVariantSegments.value[uiIndex].type;
+           }
+      }
+
+      if (uiIndex >= 0) {
+          const currentSeg = activeVariantSegments.value[uiIndex];
+          // Check if we reached the end of this segment
+          // Tolerance: 5 meters or 1 frame? 
+          // If we passed it, we pause.
+          if (distanceTraveled >= currentSeg.endDistKm - 0.005) { 
+               // Only pause if we are NOT already at the very end of the whole track (which is handled by phase >= 1)
+               // and if we haven't already processed this pause/segment switch for this location.
+               // Simply Pausing works. User clicks Play -> isPaused becomes false.
+               // But we need to switch Segment Index so the NEXT frame doesn't pause again immediately.
+               
+               const nextSeg = activeVariantSegments.value[uiIndex + 1];
+               if (nextSeg) {
+                   isPaused.value = true;
+                   currentSegmentIndex.value = nextSeg.index;
+                   currentSegmentType.value = nextSeg.type;
+                   // Snap time to exactly the boundary to avoid missing/skipping?
+                   // accumulatedTime = (nextSeg.startDistKm / totalDistanceRef.value) * totalDur;
+                   showSnackbar("Fin du segment. Appuyez sur Run pour continuer.", "info");
+               }
+          }
+      }
+  }
 
   // --- Refonte Phase 8 : Bascule Globale Aller -> Retour ---
   // On ne gère plus des zones individuelles, mais une phase globale.
@@ -1197,16 +1695,35 @@ async function executeFlytoSequence(flytoData) {
   const cometLengthKm = cometLength.value / 1000;
   const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
   if (distanceTraveled > startDistance) {
-      try {
-          // Sécurité : turf.lineSliceAlong peut planter si distanceTraveled > longueur totale réelle
-          // On pourrait calculer turf.length ligne par ligne mais c'est coûteux.
-          // Le try-catch est un bon compromis ici.
-          const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
-          map.getSource('comet-source').setData(cometSlice);
-      } catch (e) {
-          // Si hors bornes (fin de trace), on ignore ou on affiche rien
-          // console.warn("Comet slice error:", e);
-      }
+
+        // Comet Logic
+        try {
+            if (isMultisegmentVariant.value && activeVariantSegments.value.length > 0) {
+                 const currentSeg = activeVariantSegments.value.find(s => distanceTraveled >= s.startDistKm && distanceTraveled < s.endDistKm) 
+                                    || activeVariantSegments.value[activeVariantSegments.value.length-1];
+                 
+                 if (currentSeg && currentSeg.coordinates && currentSeg.coordinates.length > 1) {
+                      const segmentLine = turf.lineString(currentSeg.coordinates);
+                      // Calculate local distance
+                      const localDist = distanceTraveled - currentSeg.startDistKm;
+                      const localStart = Math.max(0, localDist - cometLengthKm);
+                      const localEnd = Math.min(localDist, currentSeg.lengthKm);
+                      
+                      if (localEnd > localStart) {
+                           const cometSlice = turf.lineSliceAlong(segmentLine, localStart, localEnd, { units: 'kilometers' });
+                           map.getSource('comet-source').setData(cometSlice);
+                      } else {
+                           map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+                      }
+                 }
+            } else {
+                // Standard Logic
+                const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
+                map.getSource('comet-source').setData(cometSlice);
+            }
+        } catch (e) {
+            console.warn("Comet slice error:", e);
+        }
   }
   else {
       map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
@@ -1391,18 +1908,43 @@ async function executeFlytoSequence(flytoData) {
             map.setCenter([lookAtPointLng, lookAtPointLat]);
             
             // Calculate instantaneous track bearing using geometry
-            if (lineStringRef.value) {
+            let calculatedBearing = null;
+            
+            // MULTI-SEGMENT LOGIC: Calculate bearing on local segment to avoid jumps
+            if (isMultisegmentVariant.value && activeVariantSegments.value.length > 0) {
+                 const currentSeg = activeVariantSegments.value.find(s => distanceTraveled >= s.startDistKm && distanceTraveled < s.endDistKm);
+                 // If at exact end or overflow, use the last segment logic handled by clamp usually.
+                 // We simply check if we found a segment with coordinates
+                 if (currentSeg && currentSeg.coordinates && currentSeg.coordinates.length > 1) {
+                      const localDist = distanceTraveled - currentSeg.startDistKm;
+                      const segmentLine = turf.lineString(currentSeg.coordinates);
+                      
+                      const len = currentSeg.lengthKm;
+                      const dist1 = Math.min(localDist, len);
+                      const dist2 = Math.min(localDist + 0.01, len);
+                      
+                      const p1 = turf.along(segmentLine, dist1, {units: 'kilometers'});
+                      const p2 = turf.along(segmentLine, dist2, {units: 'kilometers'});
+                      calculatedBearing = turf.bearing(p1, p2);
+                 }
+            } 
+            // DEFAULT LOGIC: Use global lineString if available (Main Trace)
+            else if (lineStringRef.value && lineStringRef.value.geometry.type === 'LineString') {
                 try {
                      const p1 = turf.along(lineStringRef.value, distanceTraveled, {units: 'kilometers'});
-                     // Look ahead slightly (e.g. 10 meters) to smooth out jitter
                      const p2 = turf.along(lineStringRef.value, distanceTraveled + 0.01, {units: 'kilometers'});
-                     currentTraceBearing.value = turf.bearing(p1, p2);
+                     calculatedBearing = turf.bearing(p1, p2);
                 } catch (e) {
-                    console.warn("Error calculating track bearing:", e);
+                    // console.warn("Error calculating track bearing:", e);
                 }
             }
+            
+            if (calculatedBearing !== null) {
+                currentTraceBearing.value = calculatedBearing;
+            }
+            
         } else {
-            // At the very last point, just set the camera to its values
+            // At the very last point
             const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * dynamicZoomCoefficient.value;
             const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
             const bearing = currentPoint.editedCap ?? currentPoint.cap;
@@ -2748,6 +3290,36 @@ onMounted(() => {
       });
     }
   }, { immediate: true });
+});
+
+
+// Watcher to handle FlyTo on Resume at Segment Boundaries
+watch(isPaused, async (paused) => {
+    if (!paused) {
+        // Resuming...
+        if (isMultisegmentVariant.value && activeVariantSegments.value.length > 0) {
+             const seg = activeVariantSegments.value.find(s => s.index === currentSegmentIndex.value);
+             
+             if (seg && seg.uiIndex > 0) { // Not first segment
+                 // Check if distance is effectively at start of this segment
+                 if (Math.abs(currentDistanceInMeters.value/1000 - seg.startDistKm) < 0.02) {
+                      if (seg.firstPoint && map) {
+                           isTransitioning.value = true;
+                           
+                           await flyToPromise(map, {
+                               center: seg.firstPoint.coordonnee,
+                               zoom: seg.firstPoint.editedZoom ?? 16,
+                               pitch: seg.firstPoint.editedPitch ?? 60,
+                               bearing: seg.firstPoint.editedCap ?? 0,
+                               duration: 1500
+                           });
+                           
+                           isTransitioning.value = false;
+                      }
+                 }
+             }
+        }
+    }
 });
 
 onUnmounted(() => {
