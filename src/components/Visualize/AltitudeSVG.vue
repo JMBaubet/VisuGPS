@@ -45,6 +45,19 @@
               <path v-for="(segment, index) in pathSegments" :key="`line-${index}`" :d="segment.linePath" :stroke="segment.color" stroke-width="2" fill="none"></path>
           </g>
 
+          <!-- Main Trace Reference (Dots) -->
+          <g class="main-trace-ref" v-if="mainTraceReferencePoints.length > 0">
+              <circle v-for="(p, i) in mainTraceReferencePoints" :key="`ref-${i}`" 
+                  :cx="p.cx" :cy="p.cy" :r="p.r" :fill="p.fill" />
+          </g>
+
+          <!-- Comparison Connectors (Dashed Lines) -->
+          <g class="comparison-connectors" v-if="comparisonConnectors.length > 0">
+              <line v-for="(l, i) in comparisonConnectors" :key="`conn-${i}`"
+                  :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2"
+                  class="connector-line" />
+          </g>
+
           <!-- Progress Bar / Cursor -->
           <line
               v-if="!isCometLinked"
@@ -96,6 +109,11 @@ const props = defineProps({
     // NEW PROPS
     totalDistance: { type: Number, required: true }, // In Meters
     trackingPoints: { type: Array, required: true },
+    // COMPARISON PROPS
+    isVariantComparison: { type: Boolean, default: false },
+    mainTracePoints: { type: Array, default: () => [] },
+    mainTraceStartKm: { type: Number, default: 0 },
+    mainTraceEndKm: { type: Number, default: 0 },
     padding: {
         type: Object,
         default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
@@ -108,9 +126,11 @@ const viewBoxWidth = ref(1000);
 const svgHeight = ref(210);
 const progressX = ref(0);
 const pathSegments = ref([]);
+const comparisonConnectors = ref([]); // New: Lines connecting main to variant
+const mainTraceReferencePoints = ref([]); // New: Main trace dots
 const xTicks = ref([]);
 const yTicks = ref([]);
-const totalDistance = ref(0);
+const totalDrawableDistance = ref(0); // The distance spanning the X axis (either totalDistance or MainTraceSpan)
 let lastUpdatedDistance = 0;
 const minAltitude = ref(0);
 const maxAltitude = ref(0);
@@ -155,9 +175,9 @@ const cursorOpacity = computed(() => {
 });
 
 const cursorWidth = computed(() => {
-    if (isCometLinked.value && totalDistance.value > 0) {
+    if (isCometLinked.value && totalDrawableDistance.value > 0) {
         const cometLengthMeters = getSettingValue('Visualisation/Vue 3D/Trace/longueurComete') || 50;
-        return (cometLengthMeters / totalDistance.value) * viewBoxWidth.value;
+        return (cometLengthMeters / totalDrawableDistance.value) * viewBoxWidth.value;
     }
     return 1.5; 
 });
@@ -175,30 +195,55 @@ const rectDimensions = computed(() => {
 
 // --- Data Loading and Processing ---
 async function processData() {
-    // Data is now received via props, no need to fetch
-    // processData now mainly prepares the graph visualization based on props.trackingPoints
-    
     // Safety check
-    if (!props.trackingPoints || props.trackingPoints.length < 2) {
+    if (!props.trackingPoints) {
         pathSegments.value = [];
         return;
     }
-
-    const filteredTrackingData = props.trackingPoints.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
-
-    if (filteredTrackingData.length < 2) {
-        // console.warn("AltitudeSVG: Not enough valid data points after filtering for altitude profile.");
-        pathSegments.value = [];
-        return;
-    }
-
-    // Determine segment length
-    // If not passed explicitly, we try to deduce it or fallback to settings.
-    // Ideally the parent should pass it, but for now we can estimate or stick to settings.
-    const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
     
-    minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
-    maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
+    // Check if we are in valid comparison mode
+    // We basically need mainTracePoints to define the "World"
+    const isValidComparison = props.isVariantComparison && 
+                              props.mainTracePoints && 
+                              props.mainTracePoints.length > 0;
+                              // Length check is handled by parent logic
+
+    // Standard mode data (Variant or Single Trace)
+    const filteredTrackingData = props.trackingPoints.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
+    if (filteredTrackingData.length < 2) {
+        pathSegments.value = [];
+        return;
+    }
+
+    // --- 1. Determine Context (X-Axis World) & Altitude Range ---
+    let contextStartKm = 0;
+    let contextEndKm = props.totalDistance / 1000;
+    
+    if (isValidComparison) {
+        // If comparing, the World is the Main Trace
+        // Assumes mainTracePoints are sorted by distance
+        const lastPt = props.mainTracePoints[props.mainTracePoints.length - 1];
+        contextEndKm = lastPt ? lastPt.distance : contextEndKm;
+    }
+    
+    const contextTotalDistMeters = (contextEndKm - contextStartKm) * 1000;
+    totalDrawableDistance.value = contextTotalDistMeters; // Used for X scaling & Scroll
+
+    // Scaling Factors
+    const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10;
+    const pixelsPerMeter = pixelsFor10Meters / 10;
+    
+    // Altitude Range
+    // Include Main Trace points in range calculation if comparing
+    let allAltitudes = filteredTrackingData.map(p => p.altitude);
+    if (isValidComparison) {
+         props.mainTracePoints.forEach(p => {
+             if (typeof p.altitude === 'number' && !isNaN(p.altitude)) allAltitudes.push(p.altitude);
+         });
+    }
+    
+    minAltitude.value = Math.min(...allAltitudes);
+    maxAltitude.value = Math.max(...allAltitudes);
     
     const altitudeTickInterval = getSettingValue('Visualisation/Profil Altitude/Graphe/RepereAltitude') || 200;
     const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
@@ -206,47 +251,21 @@ async function processData() {
     
     const effectiveMinAltitude = graphMinY;
     const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
-    
-    const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10;
-    const pixelsPerMeter = pixelsFor10Meters / 10;
     const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
     svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
-    
-    const dataPoints = filteredTrackingData.map((point, index) => {
-        let slope = 0;
-        const currentDistM = point.distance * 1000; // Convert KM to Meters
 
-        if (index > 0) {
-            const prevPoint = filteredTrackingData[index - 1];
-            const prevDistM = prevPoint.distance * 1000; // Convert KM to Meters
-            
-            const distDiffM = currentDistM - prevDistM; 
-            const altitudeChange = point.altitude - prevPoint.altitude;
-            
-            // Use distDiff in METERS for slope calculation
-            slope = distDiffM > 0 ? (altitudeChange / distDiffM) * 100 : 0;
-        }
-        return { 
-            distance: currentDistM,
-            altitude: point.altitude, 
-            slope 
-        };
-    });
-    
-    // totalDistance comes from props now
-    // If props.totalDistance is in KM, convert to Meters? 
-    // VisualizeView seems to use meters for currentDistanceInMeters. Let's assume props.totalDistance is in METERS for consistency within this component.
-    totalDistance.value = props.totalDistance;
-
-    dataPointsForTooltip.value = dataPoints;
-    
-    const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
-    viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
-    
     const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
-    
     zeroAltitudeY.value = yScale(0);
+
+    const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
+    viewBoxWidth.value = (contextTotalDistMeters / 100) * scaleX;
+
+    // Helper: Global X Mapper
+    const getX = (distFromStartMeters) => {
+        return (distFromStartMeters / contextTotalDistMeters) * viewBoxWidth.value;
+    };
     
+    // Helper: Slope Color
     const getSlopeColor = (slope) => {
         if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
         if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
@@ -255,29 +274,108 @@ async function processData() {
         if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
         return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
     };
-    
-    const segments = [];
-    const graphBottomY = svgHeight.value - props.padding.bottom;
-    for (let i = 1; i < dataPoints.length; i++) {
-        const p1 = dataPoints[i - 1];
-        const p2 = dataPoints[i];
+
+    // Helper: Segment Generator
+    const generateSegments = (points, xOffsetMeters = 0) => {
+        const segs = [];
+        const graphBottomY = svgHeight.value - props.padding.bottom;
         
-        // Safety against zero total distance
-        if (totalDistance.value <= 0) continue;
+        for (let i = 1; i < points.length; i++) {
+            const p1 = points[i - 1];
+            const p2 = points[i];
+            
+            // Calc slope locally
+            const distDiff = (p2.distance - p1.distance) * 1000;
+            const altDiff = p2.altitude - p1.altitude;
+            const slope = distDiff > 0 ? (altDiff / distDiff) * 100 : 0;
+            
+            // Calc X based on Global Distance (p.distance) + Offset
+            // Note: points[].distance is in KM.
+            const x1 = getX((p1.distance * 1000) + xOffsetMeters);
+            const x2 = getX((p2.distance * 1000) + xOffsetMeters);
+            const y1 = yScale(p1.altitude);
+            const y2 = yScale(p2.altitude);
 
-        const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
-        const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
-        const y1 = yScale(p1.altitude);
-        const y2 = yScale(p2.altitude);
+            segs.push({
+                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
+                linePath: `M ${x1},${y1} L ${x2},${y2}`,
+                color: getSlopeColor(slope)
+            });
+        }
+        return segs;
+    };
 
-        segments.push({
-            path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
-            linePath: `M ${x1},${y1} L ${x2},${y2}`,
-            color: getSlopeColor(p2.slope)
-        });
+
+    pathSegments.value = [];
+    mainTraceReferencePoints.value = [];
+    comparisonConnectors.value = [];
+
+    if (isValidComparison) {
+        // --- Comparison Mode Visualization ---
+        const startKm = props.mainTraceStartKm;
+        const endKm = props.mainTraceEndKm;
+        
+        // 1. Split Main Trace
+        const mainBefore = props.mainTracePoints.filter(p => p.distance <= startKm);
+        const mainAfter = props.mainTracePoints.filter(p => p.distance >= endKm);
+        const mainGap = props.mainTracePoints.filter(p => p.distance >= startKm && p.distance <= endKm);
+        
+        // 2. Render Main Sections
+        const segmentsBefore = generateSegments(mainBefore);
+        const segmentsAfter = generateSegments(mainAfter);
+        pathSegments.value = [...segmentsBefore, ...segmentsAfter];
+        
+        // 3. Render Variant (Centered in Gap)
+        const gapLenMeters = (endKm - startKm) * 1000;
+        const variantLenMeters = props.totalDistance;
+        const localOffsetMeters = (gapLenMeters - variantLenMeters) / 2;
+        
+        // Variant points distance is 0..TotalVar. Need to be shifted to startKm + localOffset
+        // But generateSegments expects points.distance in KM.
+        // We can cheat by passing xOffsetMeters = (startKm * 1000) + localOffsetMeters
+        // AND ensuring variant points are treated as starting at 0. (They are)
+        
+        const globalOffsetForVariant = (startKm * 1000) + localOffsetMeters;
+        const segmentsVariant = generateSegments(filteredTrackingData, globalOffsetForVariant);
+        pathSegments.value.push(...segmentsVariant);
+        
+        // 4. Render Reference Dots (The Replaced Section)
+        mainTraceReferencePoints.value = mainGap.map(p => ({
+             cx: getX(p.distance * 1000),
+             cy: yScale(p.altitude),
+             r: 1.5,
+             fill: '#666'
+        }));
+        
+        // 5. Connectors
+        if (filteredTrackingData.length > 0) {
+             // Main End Before Gap -> Variant Start
+             // Main Before ends at startKm.
+             // Variant starts at startKm + localOffset.
+             
+             let yMain1 = yScale(mainBefore[mainBefore.length-1]?.altitude || 0); // approx
+             let yVar1 = yScale(filteredTrackingData[0].altitude);
+             let xMain1 = getX(startKm * 1000);
+             let xVar1 = getX(globalOffsetForVariant);
+             
+             comparisonConnectors.value.push({ x1: xMain1, y1: yMain1, x2: xVar1, y2: yVar1 });
+             
+             // Variant End -> Main Start After Gap
+             let yVar2 = yScale(filteredTrackingData[filteredTrackingData.length-1].altitude);
+             let yMain2 = yScale(mainAfter[0]?.altitude || 0);
+             let xVar2 = getX(globalOffsetForVariant + variantLenMeters);
+             let xMain2 = getX(endKm * 1000);
+             
+             comparisonConnectors.value.push({ x1: xVar2, y1: yVar2, x2: xMain2, y2: yMain2 });
+        }
+
+    } else {
+        // --- Standard Mode ---
+        // Just render the tracking points (Variant or Main)
+        pathSegments.value = generateSegments(filteredTrackingData);
     }
-    pathSegments.value = segments;
     
+    // --- ticks ---
     yTicks.value = [];
     for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
         const y = yScale(alt);
@@ -285,18 +383,22 @@ async function processData() {
     }
 
     const distanceTicks = [];
-    const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000; // in meters
-    // Fix infinite loop risk if tickInterval is 0 or NaN
+    const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000; 
     if (tickInterval > 0) {
-        for (let d = 0; d <= totalDistance.value; d += tickInterval) {
-            distanceTicks.push({ value: d, position: (d / totalDistance.value) * viewBoxWidth.value, label: `${d / 1000}km` });
+        for (let d = 0; d <= contextTotalDistMeters; d += tickInterval) {
+            let labelValKm = (contextStartKm * 1000 + d) / 1000;
+            distanceTicks.push({ 
+                value: d, 
+                position: getX(d), 
+                label: `${labelValKm.toFixed(1)}km` 
+            });
         }
     }
     xTicks.value = distanceTicks;
 }
 
 // Watch for changes in data props to re-process graph
-watch(() => [props.trackingPoints, props.totalDistance], () => {
+watch(() => [props.trackingPoints, props.totalDistance, props.isVariantComparison, props.mainTracePoints], () => {
     processData();
 }, { deep: true, immediate: true });
 
@@ -314,7 +416,7 @@ function handleMouseMove(event) {
 
     const clampedMouseX = Math.max(0, Math.min(mouseX, viewBoxWidth.value));
 
-    const hoveredDistance = (clampedMouseX / viewBoxWidth.value) * totalDistance.value;
+    const hoveredDistance = (clampedMouseX / viewBoxWidth.value) * totalDrawableDistance.value;
 
     const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
     const index = Math.round(hoveredDistance / segmentLength);
@@ -363,14 +465,35 @@ watch(() => props.currentDistance, (newDistance) => {
     if (Math.abs(newDistance - lastUpdatedDistance) < 100) return;
     lastUpdatedDistance = newDistance;
 
-    if (!containerRef.value || totalDistance.value === 0) return;
+    if (!containerRef.value || totalDrawableDistance.value === 0) return;
 
-    progressX.value = (newDistance / totalDistance.value) * viewBoxWidth.value;
+    // Calculate Progress X based on context
+    // If Comparison: x = getX(current + offset)
+    // If Standard: x = (current / total) * width
+    
+    let xPos = 0;
+    if (props.isVariantComparison && props.mainTracePoints.length > 0) {
+         // Calculation logic mirrors processData
+         const contextLenM = totalDrawableDistance.value;
+         
+         const startGapM = props.mainTraceStartKm * 1000;
+         const endGapM = props.mainTraceEndKm * 1000;
+         const gapLenM = endGapM - startGapM;
+         const variantLenM = props.totalDistance;
+         const localOffsetM = Math.max(0, (gapLenM - variantLenM) / 2);
+         
+         const globalPosM = startGapM + localOffsetM + newDistance;
+         
+         xPos = (globalPosM / contextLenM) * viewBoxWidth.value;
+    } else {
+         xPos = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
+    }
+    progressX.value = xPos;
 
     const containerWidth = containerRef.value.clientWidth;
     const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
     const stuckPositionMeters = stuckPositionKm * 1000;
-    const stuckPositionPx = (stuckPositionMeters / totalDistance.value) * viewBoxWidth.value;
+    const stuckPositionPx = (stuckPositionMeters / totalDrawableDistance.value) * viewBoxWidth.value;
 
     let scrollLeft = 0;
     // Le point de transition est le moment où le curseur, s'il continuait, 
@@ -448,6 +571,12 @@ svg {
 .progress-bar {
     stroke: white;
     stroke-width: 1.5;
+}
+.connector-line {
+    stroke: #00ffff; /* Cyan color for visibility */
+    stroke-width: 1;
+    stroke-dasharray: 4 2;
+    opacity: 0.7;
 }
 .hover-line {
     stroke: rgba(255, 255, 255, 0.7);

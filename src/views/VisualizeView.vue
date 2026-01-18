@@ -62,8 +62,12 @@
           <altitude-s-v-g 
             :circuit-id="props.circuitId" 
             :current-distance="currentDistanceInMeters" 
-            :total-distance="currentDistanceInMeters > 0 && totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
+            :total-distance="totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
             :tracking-points="trackingPointsWithDistanceRef"
+            :is-variant-comparison="isComparisonModeRef"
+            :main-trace-points="mainTraceComparisonPointsRef"
+            :main-trace-start-km="mainTraceComparisonStartRef"
+            :main-trace-end-km="mainTraceComparisonEndRef"
           />
       </div>
     </transition>
@@ -347,6 +351,11 @@ const trackingDataRef = ref(null);
 const totalDistanceRef = ref(0);
 const totalDurationAt1xRef = ref(0);
 const trackingPointsWithDistanceRef = ref([]);
+// --- Comparison Refs ---
+const isComparisonModeRef = ref(false);
+const mainTraceComparisonPointsRef = ref([]);
+const mainTraceComparisonStartRef = ref(0);
+const mainTraceComparisonEndRef = ref(0);
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
@@ -457,6 +466,8 @@ const loadVariantSegment = async (variantId, modification, index) => {
         // On capture la valeur PRECISE du compteur de temps global
         mainTraceState.value.accumulatedTime = Number(accumulatedTime);
         mainTraceState.value.isPaused = isPaused.value;
+        // Save Main Trace points for comparison
+        mainTraceState.value.trackingPoints = [...trackingPointsWithDistanceRef.value];
         console.log(`[STATE SAVE] Main Trace -> Variant: Time=${mainTraceState.value.accumulatedTime}ms, Paused=${isPaused.value}`);
     }
 
@@ -495,6 +506,50 @@ const loadVariantSegment = async (variantId, modification, index) => {
         trackingPointsWithDistanceRef.value = processedData.processedPoints;
         totalDistanceRef.value = processedData.totalDistanceKm;
         totalDurationAt1xRef.value = totalDistanceRef.value * (animationSpeed?.value || 10);
+
+        // --- Comparaison Profile Logic ---
+        isComparisonModeRef.value = false;
+        mainTraceComparisonPointsRef.value = [];
+        mainTraceComparisonStartRef.value = 0;
+        mainTraceComparisonEndRef.value = 0;
+
+        // TENTATIVE: Try to enable comparison if data available
+        if (modification.type === 'SEGMENT_DEVIATION' && mainTraceState.value?.trackingPoints) {
+             // Verify anchors exist
+             const startIdx = modification.anchorStart?.index;
+             const endIdx = modification.anchorEnd?.index;
+             
+             if (typeof startIdx === 'number' && typeof endIdx === 'number' && startIdx < endIdx) {
+                  const mainPoints = mainTraceState.value.trackingPoints;
+                  if (mainPoints && endIdx < mainPoints.length) {
+                       const startKm = mainPoints[startIdx].distance;
+                       const endKm = mainPoints[endIdx].distance; // This is absolute KM on main trace
+                       const mainSectionLenKm = endKm - startKm;
+                       const variantLenKm = totalDistanceRef.value;
+                       
+                       // Check user condition: Variant Shorter than Main Trace Section
+                       // (We can use a small epsilon for float comparison)
+                       if (variantLenKm < mainSectionLenKm - 0.001) {
+                            isComparisonModeRef.value = true;
+                            mainTraceComparisonStartRef.value = startKm;
+                            mainTraceComparisonEndRef.value = endKm;
+                            
+                            // Pass FULL main trace for context, not just the slice
+                            mainTraceComparisonPointsRef.value = mainPoints.map(p => ({
+                                distance: p.distance,
+                                altitude: p.altitude,
+                                // Calculate slope if needed for coloring Main Trace parts?
+                                // AltitudeSVG recalculates slope usually. 
+                                // Let's pass basic data.
+                            }));
+                            
+                            console.log(`[COMPARISON MODE] Enabled. Main: ${mainSectionLenKm.toFixed(3)}km, Variant: ${variantLenKm.toFixed(3)}km`);
+                       } else {
+                           console.log(`[COMPARISON MODE] Skipped. Variant (${variantLenKm.toFixed(3)}km) >= Main (${mainSectionLenKm.toFixed(3)}km)`);
+                       }
+                  }
+             }
+        }
 
         // 3. Reset segments/events
         if (fetchedEvents) {
@@ -719,6 +774,12 @@ const loadMainTrace = async () => {
         currentVariantId.value = null;
         currentSegmentType.value = null;
         currentSegmentIndex.value = null;
+
+        // --- Reset Comparison State ---
+        isComparisonModeRef.value = false;
+        mainTraceComparisonPointsRef.value = [];
+        mainTraceComparisonStartRef.value = 0;
+        mainTraceComparisonEndRef.value = 0;
 
         lineStringRef.value = mainTraceState.value.lineString;
         trackingPointsWithDistanceRef.value = [...mainTraceState.value.trackingPoints];
