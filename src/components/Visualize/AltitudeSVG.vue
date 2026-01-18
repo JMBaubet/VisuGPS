@@ -83,7 +83,8 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 
-import { invoke } from '@tauri-apps/api/core';
+// invoke removed
+
 
 import { useSettings } from '@/composables/useSettings';
 
@@ -92,6 +93,9 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 const props = defineProps({
     circuitId: { type: String, required: true },
     currentDistance: { type: Number, required: true },
+    // NEW PROPS
+    totalDistance: { type: Number, required: true }, // In Meters
+    trackingPoints: { type: Array, required: true },
     padding: {
         type: Object,
         default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
@@ -171,105 +175,133 @@ const rectDimensions = computed(() => {
 
 // --- Data Loading and Processing ---
 async function processData() {
-    if (!props.circuitId) return;
-    try {
-        const trackingData = await invoke('read_tracking_file', { circuitId: props.circuitId });
-        if (trackingData.length < 2) return;
+    // Data is now received via props, no need to fetch
+    // processData now mainly prepares the graph visualization based on props.trackingPoints
+    
+    // Safety check
+    if (!props.trackingPoints || props.trackingPoints.length < 2) {
+        pathSegments.value = [];
+        return;
+    }
 
-        // Filter trackingData to ensure valid altitudes
-        const filteredTrackingData = trackingData.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
+    const filteredTrackingData = props.trackingPoints.filter(p => typeof p.altitude === 'number' && !isNaN(p.altitude));
 
-        if (filteredTrackingData.length < 2) {
-            console.warn("AltitudeSVG: Not enough valid data points after filtering for altitude profile.");
-            pathSegments.value = [];
-            return;
+    if (filteredTrackingData.length < 2) {
+        // console.warn("AltitudeSVG: Not enough valid data points after filtering for altitude profile.");
+        pathSegments.value = [];
+        return;
+    }
+
+    // Determine segment length
+    // If not passed explicitly, we try to deduce it or fallback to settings.
+    // Ideally the parent should pass it, but for now we can estimate or stick to settings.
+    const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
+    
+    minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
+    maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
+    
+    const altitudeTickInterval = getSettingValue('Visualisation/Profil Altitude/Graphe/RepereAltitude') || 200;
+    const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
+    const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
+    
+    const effectiveMinAltitude = graphMinY;
+    const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
+    
+    const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10;
+    const pixelsPerMeter = pixelsFor10Meters / 10;
+    const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
+    svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
+    
+    const dataPoints = filteredTrackingData.map((point, index) => {
+        let slope = 0;
+        const currentDistM = point.distance * 1000; // Convert KM to Meters
+
+        if (index > 0) {
+            const prevPoint = filteredTrackingData[index - 1];
+            const prevDistM = prevPoint.distance * 1000; // Convert KM to Meters
+            
+            const distDiffM = currentDistM - prevDistM; 
+            const altitudeChange = point.altitude - prevPoint.altitude;
+            
+            // Use distDiff in METERS for slope calculation
+            slope = distDiffM > 0 ? (altitudeChange / distDiffM) * 100 : 0;
         }
-
-        const segmentLength = getSettingValue('Importation/Tracking/LongueurSegment') || 100;
-        
-        minAltitude.value = Math.min(...filteredTrackingData.map(p => p.altitude));
-        maxAltitude.value = Math.max(...filteredTrackingData.map(p => p.altitude));
-        
-        const altitudeTickInterval = getSettingValue('Visualisation/Profil Altitude/Graphe/RepereAltitude') || 200;
-        const graphMinY = Math.floor(minAltitude.value / altitudeTickInterval) * altitudeTickInterval;
-        const graphMaxY = Math.ceil(maxAltitude.value / altitudeTickInterval) * altitudeTickInterval;
-        
-        const effectiveMinAltitude = graphMinY;
-        const effectiveAltitudeSpan = graphMaxY - graphMinY === 0 ? 1 : graphMaxY - graphMinY;
-        
-        const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10; // Default to 10 pixels for 10 meters
-        const pixelsPerMeter = pixelsFor10Meters / 10;
-        const graphDrawingHeight = effectiveAltitudeSpan * pixelsPerMeter;
-        svgHeight.value = graphDrawingHeight + props.padding.top + props.padding.bottom;
-        
-        const dataPoints = filteredTrackingData.map((point, index) => {
-            let slope = 0;
-            if (index > 0) {
-                const prevPoint = filteredTrackingData[index - 1]; // Use filtered data for prevPoint
-                const altitudeChange = point.altitude - prevPoint.altitude;
-                slope = (altitudeChange / segmentLength) * 100;
-            }
-            const distance = index * segmentLength;
-            return { distance, altitude: point.altitude, slope };
-        });
-        
-        totalDistance.value = dataPoints[dataPoints.length - 1].distance;
-        dataPointsForTooltip.value = dataPoints;
-        const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
-        viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
-        
-        const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
-        
-        zeroAltitudeY.value = yScale(0);
-        
-        const getSlopeColor = (slope) => {
-            if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
-            if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
-            if (slope < 6) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2') || 'yellow');
-            if (slope < 9) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3') || 'orange');
-            if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
-            return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
+        return { 
+            distance: currentDistM,
+            altitude: point.altitude, 
+            slope 
         };
-        
-        const segments = [];
-        const graphBottomY = svgHeight.value - props.padding.bottom;
-        for (let i = 1; i < dataPoints.length; i++) {
-            const p1 = dataPoints[i - 1];
-            const p2 = dataPoints[i];
-            const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
-            const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
-            const y1 = yScale(p1.altitude);
-            const y2 = yScale(p2.altitude);
+    });
+    
+    // totalDistance comes from props now
+    // If props.totalDistance is in KM, convert to Meters? 
+    // VisualizeView seems to use meters for currentDistanceInMeters. Let's assume props.totalDistance is in METERS for consistency within this component.
+    totalDistance.value = props.totalDistance;
 
-            segments.push({
-                path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
-                linePath: `M ${x1},${y1} L ${x2},${y2}`,
-                color: getSlopeColor(p2.slope)
-            });
-        }
-        pathSegments.value = segments;
+    dataPointsForTooltip.value = dataPoints;
+    
+    const scaleX = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
+    viewBoxWidth.value = (totalDistance.value / 100) * scaleX;
+    
+    const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
+    
+    zeroAltitudeY.value = yScale(0);
+    
+    const getSlopeColor = (slope) => {
+        if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
+        if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
+        if (slope < 6) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2') || 'yellow');
+        if (slope < 9) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3') || 'orange');
+        if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
+        return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
+    };
+    
+    const segments = [];
+    const graphBottomY = svgHeight.value - props.padding.bottom;
+    for (let i = 1; i < dataPoints.length; i++) {
+        const p1 = dataPoints[i - 1];
+        const p2 = dataPoints[i];
         
-        yTicks.value = []; // Clear previous ticks
-        for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
-            const y = yScale(alt);
-            yTicks.value.push({ y, label: `${alt}m` });
-        }
+        // Safety against zero total distance
+        if (totalDistance.value <= 0) continue;
 
-        const distanceTicks = [];
-        const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000;
+        const x1 = (p1.distance / totalDistance.value) * viewBoxWidth.value;
+        const x2 = (p2.distance / totalDistance.value) * viewBoxWidth.value;
+        const y1 = yScale(p1.altitude);
+        const y2 = yScale(p2.altitude);
+
+        segments.push({
+            path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
+            linePath: `M ${x1},${y1} L ${x2},${y2}`,
+            color: getSlopeColor(p2.slope)
+        });
+    }
+    pathSegments.value = segments;
+    
+    yTicks.value = [];
+    for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
+        const y = yScale(alt);
+        yTicks.value.push({ y, label: `${alt}m` });
+    }
+
+    const distanceTicks = [];
+    const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000; // in meters
+    // Fix infinite loop risk if tickInterval is 0 or NaN
+    if (tickInterval > 0) {
         for (let d = 0; d <= totalDistance.value; d += tickInterval) {
             distanceTicks.push({ value: d, position: (d / totalDistance.value) * viewBoxWidth.value, label: `${d / 1000}km` });
         }
-        xTicks.value = distanceTicks;
-
-    } catch (error) {
-        console.error("AltitudeSVG: Error processing data:", error);
     }
+    xTicks.value = distanceTicks;
 }
 
-onMounted(() => {
+// Watch for changes in data props to re-process graph
+watch(() => [props.trackingPoints, props.totalDistance], () => {
     processData();
-});
+}, { deep: true, immediate: true });
+
+// onMounted removed, handled by immediate watch
+
 
 function handleMouseMove(event) {
     if (!containerRef.value || dataPointsForTooltip.value.length === 0) return;

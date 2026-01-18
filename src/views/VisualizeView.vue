@@ -59,7 +59,12 @@
               <div class="bottom-center-container">
     <transition name="fade">
       <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
-          <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
+          <altitude-s-v-g 
+            :circuit-id="props.circuitId" 
+            :current-distance="currentDistanceInMeters" 
+            :total-distance="currentDistanceInMeters > 0 && totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
+            :tracking-points="trackingPointsWithDistanceRef"
+          />
       </div>
     </transition>
     <transition name="fade">
@@ -1036,12 +1041,18 @@ async function executeFlytoSequence(flytoData) {
       // Trouver le point de bascule ultime (le max de tous les aller_end_km)
       // Correction: On utilise KM et pas Index, car Index Backend (LineString) != Index Frontend (Tracking)
       
-      let maxAllerEndKm = 0;
-      segmentMetadata.value.overlappingZones.forEach(z => {
-          if (z.allerEndKm > maxAllerEndKm) maxAllerEndKm = z.allerEndKm;
-      });
+      // Nouvelle logique : Bascule dynamique basée sur la position actuelle
+      // Si on est dans un segment identifié comme "Retour", on active la vue Retour.
+      // Sinon, par défaut, on reste en vue "Aller".
+      const isPhaseRetour = segmentMetadata.value.overlappingZones.some(z => 
+          distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm
+      );
       
-      const isPhaseRetour = distanceTraveled > maxAllerEndKm;
+      // Variable pour le log (pour garder une info pertinente)
+      // On cherche la zone retour active pour l'afficher dans les logs si besoin
+      const currentRetourZone = isPhaseRetour ? segmentMetadata.value.overlappingZones.find(z => 
+          distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm
+      ) : null;
       
       if (map) {
           if (isPhaseRetour) {
@@ -1051,7 +1062,9 @@ async function executeFlytoSequence(flytoData) {
               }
               if (map.getLayer('trace-overlap-retour') && map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'visible') {
                   map.setLayoutProperty('trace-overlap-retour', 'visibility', 'visible');
-                  console.log(`🔀 [Visualize] Bascule Phase RETOUR (Km ${distanceTraveled.toFixed(2)} > ${maxAllerEndKm.toFixed(2)})`);
+                  if (currentRetourZone) {
+                      console.log(`🔀 [Visualize] Bascule Phase RETOUR (Zone ${currentRetourZone.zoneId}: Km ${distanceTraveled.toFixed(2)})`);
+                  }
               }
           } else {
               // Mode Aller : Afficher uniquement l'overlay aller (qui contient tout sauf retour_overlap)
