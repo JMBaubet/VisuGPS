@@ -662,11 +662,11 @@ const loadVariantSegment = async (variantId, modification, index) => {
                              const elev = (p2.altitude || 0) - (p1.altitude || 0);
                              const slope = distM > 0 ? (elev / distM) * 100 : 0;
                              if (slope < 0) return slopeColors.TrancheNegative || '#0000FF';
-                             if (slope < 5) return slopeColors.Tranche1 || '#00FF00';
-                             if (slope < 10) return slopeColors.Tranche2;
-                             if (slope < 15) return slopeColors.Tranche3;
-                             if (slope < 20) return slopeColors.Tranche4;
-                             return slopeColors.Tranche5;
+                            if (slope < 3) return slopeColors.Tranche1 || '#00FF00';
+                            if (slope < 6) return slopeColors.Tranche2;
+                            if (slope < 9) return slopeColors.Tranche3;
+                            if (slope < 12) return slopeColors.Tranche4;
+                            return slopeColors.Tranche5;
                          };
                          
                          // Point départ
@@ -1094,10 +1094,10 @@ const loadFullVariant = async (variantId, variantStructure) => {
              const elev = (p2.altitude || 0) - (p1.altitude || 0);
              const slope = distM > 0 ? (elev / distM) * 100 : 0;
              if (slope < 0) return slopeColors.TrancheNegative || '#0000FF';
-             if (slope < 5) return slopeColors.Tranche1 || '#00FF00';
-             if (slope < 10) return slopeColors.Tranche2;
-             if (slope < 15) return slopeColors.Tranche3;
-             if (slope < 20) return slopeColors.Tranche4;
+             if (slope < 3) return slopeColors.Tranche1 || '#00FF00';
+             if (slope < 6) return slopeColors.Tranche2;
+             if (slope < 9) return slopeColors.Tranche3;
+             if (slope < 12) return slopeColors.Tranche4;
              return slopeColors.Tranche5;
         };
 

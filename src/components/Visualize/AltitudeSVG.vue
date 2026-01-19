@@ -512,13 +512,14 @@ function updateProgressX(newDistance) {
             let matches = false;
             
             // If currentSegmentIndex is provided and this segment's index matches,
-            // AND the distance is approximately correct, force this segment
+            // check if distance is within this segment's range
             if (props.currentSegmentIndex !== null && seg.index === props.currentSegmentIndex) {
-                const distanceMatches = Math.abs(dKm - seg.startDistKm) < 0.05; // 50m tolerance
-                if (distanceMatches) {
+                // Check if dKm is within segment bounds (with small tolerance)
+                const withinSegment = (dKm >= seg.startDistKm - 0.001) && (dKm <= seg.endDistKm + 0.001);
+                if (withinSegment) {
                     matches = true;
                 } else {
-                    // Current segment but distance is way off - continue search
+                    // Current segment but distance is outside - use normal logic
                     matches = false;
                 }
             } else {
