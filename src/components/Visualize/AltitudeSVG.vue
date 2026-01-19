@@ -385,70 +385,67 @@ async function processData() {
          // 3. Render Variant Segments
          props.variantSegments.forEach(seg => {
              if (seg.points && seg.points.length > 0) {
-                 const sKm = seg.mainStartDistKm || 0;
-                 const eKm = seg.mainEndDistKm || 0;
-                 const gapLenM = (eKm - sKm) * 1000;
-                 const variantLenM = seg.lengthKm * 1000;
-                 
-                 let offsetM = 0;
-                 
-                  // DEPART: Variant End aligns with Main Anchor End
-                 if (seg.type === 'DEPART_DEPORTE') {
-                     const anchorEndM = eKm * 1000;
-                     const variantStartM = anchorEndM - variantLenM;
-                     offsetM = variantStartM;
-                 }
-                 // ARRIVEE: Variant Start aligns with Main Anchor Start
-                 else if (seg.type === 'ARRIVEE_REPORTEE') {
-                     const anchorStartM = sKm * 1000;
-                     offsetM = anchorStartM;
-                 }
-                 // SEGMENT: Center in gap
-                 else {
-                     const anchorStartM = sKm * 1000;
-                     const centerDelta = (gapLenM - variantLenM) / 2;
-                     offsetM = anchorStartM + centerDelta;
-                 }
+                  const sKm = seg.mainStartDistKm || 0;
+                  const eKm = seg.mainEndDistKm || 0;
+                  const gapLenM = (eKm - sKm) * 1000;
+                  const variantLenM = seg.lengthKm * 1000;
+                  
+                  let offsetM = 0;
+                  
+                   // DEPART: Variant End aligns with Main Anchor End
+                  if (seg.type === 'DEPART_DEPORTE') {
+                      const anchorEndM = eKm * 1000;
+                      const variantStartM = anchorEndM - variantLenM;
+                      offsetM = variantStartM;
+                  }
+                  // ARRIVEE: Variant Start aligns with Main Anchor Start
+                  else if (seg.type === 'ARRIVEE_REPORTEE') {
+                      const anchorStartM = sKm * 1000;
+                      offsetM = anchorStartM;
+                  }
+                  // SEGMENT: Center in gap
+                  else {
+                      const anchorStartM = sKm * 1000;
+                      const centerDelta = (gapLenM - variantLenM) / 2;
+                      offsetM = anchorStartM + centerDelta;
+                  }
 
-                 // Points in seg.points have CUMULATIVE distance relative to Variant Start.
-                 // Example: Segment 2 might start at 5km. We want to place it at [OffsetM].
-                 // If we pass OffsetM to generateSegments, result X = (PointDist + OffsetM).
-                 // X = 5000 + OffsetM. WRONG.
-                 // We want X = OffsetM. So we need to shift by (OffsetM - PointDistStart).
-                 
-                 const segmentStartDistM = (seg.startDistKm || 0) * 1000;
-                 const xOffsetMeters = offsetM - segmentStartDistM;
-                 
-                 
-                 // Generate Variant Path
-                 let vSegs = [];
-                 if (seg.points.length >= 2) {
-                     vSegs = generateSegments(seg.points, xOffsetMeters);
-                     pathSegments.value.push(...vSegs);
-                 } else if (seg.points.length === 1) {
-                      variantReferencePoints.value.push({
-                         cx: getX((seg.points[0].distance*1000) + xOffsetMeters),
-                         cy: yScale(seg.points[0].altitude),
-                         r: 3,
-                         fill: seg.type === 'DEPART_DEPORTE' ? '#4CAF50' : '#F44336'
-                     });
-                 }
-                 
-                 // 4. Connectors
-                 // Variant Points: p[0] is start, p[last] is end.
-                 // Main Points: At sKm and eKm.
-                 
-                 const vStartP = seg.points[0];
-                 const vEndP = seg.points[seg.points.length-1];
-                 const vStartX = getX((vStartP.distance*1000) + xOffsetMeters);
-                 const vStartY = yScale(vStartP.altitude);
-                 const vEndX = getX((vEndP.distance*1000) + xOffsetMeters);
-                 const vEndY = yScale(vEndP.altitude);
-                 
-                 // Main Anchors Y
-                 // Find main point close to sKm/eKm
-                 const mStartP = mainPoints.find(p => Math.abs(p.distance - sKm) < 0.01);
-                 const mEndP = mainPoints.find(p => Math.abs(p.distance - eKm) < 0.01);
+                  const segmentStartDistM = (seg.startDistKm || 0) * 1000;
+                  const xOffsetMeters = offsetM - segmentStartDistM;
+                  
+                  // Generate Variant Path
+                  let vSegs = [];
+                  if (seg.points.length >= 2) {
+                      vSegs = generateSegments(seg.points, xOffsetMeters);
+                      pathSegments.value.push(...vSegs);
+                  } else if (seg.points.length === 1 && seg.type !== 'SEGMENT_DEVIATION') {
+                       variantReferencePoints.value.push({
+                          cx: getX((seg.points[0].distance*1000) + xOffsetMeters),
+                          cy: yScale(seg.points[0].altitude),
+                          r: 4,
+                          fill: seg.type === 'DEPART_DEPORTE' ? '#4CAF50' : '#F44336'
+                      });
+                  }
+
+                  const vStartP = seg.points[0];
+                  const vEndP = seg.points[seg.points.length-1];
+                  const vStartX = getX((vStartP.distance*1000) + xOffsetMeters);
+                  const vStartY = yScale(vStartP.altitude);
+                  const vEndX = getX((vEndP.distance*1000) + xOffsetMeters);
+                  const vEndY = yScale(vEndP.altitude);
+
+                  // 4. Anchor Dots
+                  if (seg.points.length >= 2) {
+                      if (seg.type === 'DEPART_DEPORTE') {
+                          variantReferencePoints.value.push({ cx: vEndX, cy: vEndY, r: 4, fill: '#4CAF50' });
+                      } else if (seg.type === 'ARRIVEE_REPORTEE') {
+                          variantReferencePoints.value.push({ cx: vStartX, cy: vStartY, r: 4, fill: '#F44336' });
+                      }
+                  }
+
+                  // 5. Connectors
+                  const mStartP = mainPoints.find(p => Math.abs(p.distance - sKm) < 0.01);
+                  const mEndP = mainPoints.find(p => Math.abs(p.distance - eKm) < 0.01);
                  
                  if (mStartP && seg.type !== 'DEPART_DEPORTE') {
                      // Connect Main Start to Variant Start (Cyan colored line replaced by Slope Color)
