@@ -513,7 +513,7 @@ function updateProgressX(newDistance) {
             
             // If currentSegmentIndex is provided and this segment's index matches,
             // check if distance is within this segment's range
-            if (props.currentSegmentIndex !== null && seg.index === props.currentSegmentIndex) {
+            if (props.currentSegmentIndex !== null && seg.uiIndex === props.currentSegmentIndex) {
                 if (isZeroLength) {
                     // Pour les segments de longueur nulle, forcer le match si sélectionné
                     matches = true;
@@ -595,7 +595,7 @@ function updateProgressX(newDistance) {
                 
                 // Si c'est le segment sélectionné, on arrête immédiatement
                 // Sinon, on continue pour voir si le segment sélectionné matche aussi
-                if (props.currentSegmentIndex === null || seg.index === props.currentSegmentIndex) {
+                if (props.currentSegmentIndex === null || seg.uiIndex === props.currentSegmentIndex) {
                     break;
                 }
             }
