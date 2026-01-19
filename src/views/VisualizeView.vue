@@ -67,6 +67,7 @@
             :is-variant-comparison="isComparisonModeRef"
             :main-trace-points="mainTraceComparisonPointsRef"
             :variant-segments="activeVariantSegments"
+            :current-segment-index="currentSegmentIndex"
           />
       </div>
     </transition>
@@ -1543,9 +1544,15 @@ async function executeFlytoSequence(flytoData) {
     // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
     // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
     // Heuristique : si la durée est > 100, on considère qu'elle est déjà en ms (rétrocompatibilité).
+    // console.log(`[FlyTo] Execute Sequence for increment. Dist adjustment?`);
     const durationInMs = flytoData.duree > 100 ? flytoData.duree : flytoData.duree * 1000;
     const durationToTarget = Math.max(200, durationInMs / currentSpeed.value);
 
+    // Give time for Vue to process the cursor update (AltitudeSVG) before freezing/flying
+    console.log('[FlyTo] Waiting 50ms for cursor update...');
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    console.log('[FlyTo] STARTING flyToPromise (Camera Should Move now)');
     await flyToPromise(map, {
         center: flytoData.coord,
         zoom: flytoData.zoom,
@@ -1553,6 +1560,7 @@ async function executeFlytoSequence(flytoData) {
         bearing: flytoData.cap,
         duration: durationToTarget,
     });
+    console.log('[FlyTo] FINISHED flyToPromise');
 
     // --- Phase 2: En pause sur la cible ---
     animationState.value = 'En_Pause';
@@ -1633,6 +1641,9 @@ async function executeFlytoSequence(flytoData) {
 
   // New, robust timing logic
   if (isPaused.value || isTransitioning.value) {
+    if (isTransitioning.value) {
+        console.log('[animate] BLOCKED by isTransitioning');
+    }
     lastTimestamp = 0; // Invalidate lastTimestamp while paused
     animationFrameId = requestAnimationFrame(animate);
     return;
@@ -1688,6 +1699,7 @@ async function executeFlytoSequence(flytoData) {
                
                const nextSeg = activeVariantSegments.value[uiIndex + 1];
                if (nextSeg) {
+                   console.log('[Auto-Pause] End of segment reached. Pausing and switching to nextSeg.index=', nextSeg.index);
                    isPaused.value = true;
                    currentSegmentIndex.value = nextSeg.index;
                    currentSegmentType.value = nextSeg.type;
@@ -1864,6 +1876,28 @@ async function executeFlytoSequence(flytoData) {
       // Flyto
       const flytoData = flytoEvents.value[currentIncrement];
       if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
+          
+          // CRITICAL: Do NOT trigger FlyTo if we just paused (e.g. at end of segment)
+          if (isPaused.value) {
+              console.log('[FlyTo] SKIPPED because isPaused=true. Increment:', currentIncrement);
+              return; 
+          }
+
+          console.log('[FlyTo] DETECTED event at increment', currentIncrement);
+
+          // FORCE UPDATE position to the event location (Start of Segment)
+          // This ensures AltitudeSVG switches to the new segment immediately
+          if (currentPoint) {
+              const exactDist = currentPoint.distance;
+              console.log('[FlyTo] FORCING distance update to:', exactDist * 1000);
+              currentDistanceInMeters.value = exactDist * 1000;
+              
+              // Also sync accumulatedTime to avoid jumps when resuming
+              const totalDur = totalDurationAt1xRef.value || 1;
+              const ratio = totalDistanceRef.value > 0 ? (exactDist / totalDistanceRef.value) : 0;
+              accumulatedTime = totalDur * ratio;
+          }
+
           triggeredFlytoIncrement.value = currentIncrement;
           executeFlytoSequence(flytoData);
           animationFrameId = requestAnimationFrame(animate);
@@ -1873,6 +1907,7 @@ async function executeFlytoSequence(flytoData) {
       // Pause
       if (pauseIncrements.value.includes(currentIncrement)) {
           if (triggeredPauseIncrement.value !== currentIncrement) {
+              console.log('[Pause] Triggered at increment', currentIncrement);
               isPaused.value = true;
               triggeredPauseIncrement.value = currentIncrement;
               //showSnackbar('Pause programmée atteinte.', 'info');
@@ -3360,7 +3395,10 @@ onMounted(() => {
 
 // Watcher to handle FlyTo on Resume at Segment Boundaries
 watch(isPaused, async (paused) => {
+    console.log('[isPaused Watcher] Triggered. paused=', paused, 'isMultisegment=', isMultisegmentVariant.value);
+    
     if (!paused) {
+        console.log('[isPaused Watcher] Resuming animation...');
         // Resuming...
         if (isMultisegmentVariant.value && activeVariantSegments.value.length > 0) {
              const seg = activeVariantSegments.value.find(s => s.index === currentSegmentIndex.value);
@@ -3369,7 +3407,18 @@ watch(isPaused, async (paused) => {
                  // Check if distance is effectively at start of this segment
                  if (Math.abs(currentDistanceInMeters.value/1000 - seg.startDistKm) < 0.02) {
                       if (seg.firstPoint && map) {
+                           console.log('[Resume Watcher] FORCING cursor update to segment start:', seg.startDistKm * 1000);
+                           
+                           // CRITICAL: Block animate BEFORE updating distance
                            isTransitioning.value = true;
+                           
+                           // FORCE cursor update BEFORE FlyTo
+                           currentDistanceInMeters.value = seg.startDistKm * 1000;
+                           
+                           // Wait for Vue reactivity
+                           await new Promise(resolve => setTimeout(resolve, 50));
+                           
+                           console.log('[Resume Watcher] STARTING FlyTo to segment:', seg.uiIndex);
                            
                            await flyToPromise(map, {
                                center: seg.firstPoint.coordonnee,
@@ -3379,6 +3428,7 @@ watch(isPaused, async (paused) => {
                                duration: 1500
                            });
                            
+                           console.log('[Resume Watcher] FlyTo COMPLETED');
                            isTransitioning.value = false;
                       }
                  }

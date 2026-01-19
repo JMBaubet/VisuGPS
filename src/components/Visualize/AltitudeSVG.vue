@@ -120,6 +120,7 @@ const props = defineProps({
     isVariantComparison: { type: Boolean, default: false },
     mainTracePoints: { type: Array, default: () => [] },
     variantSegments: { type: Array, default: () => [] }, // New Multi-Segment Prop
+    currentSegmentIndex: { type: Number, default: null }, // Which segment is currently selected
     padding: {
         type: Object,
         default: () => ({ top: 10, right: 10, bottom: 30, left: 45 })
@@ -128,6 +129,13 @@ const props = defineProps({
 
 // --- Refs ---
 const containerRef = ref(null);
+
+onMounted(() => {
+    nextTick(() => {
+        updateProgressX(props.currentDistance);
+    });
+});
+
 const viewBoxWidth = ref(1000);
 const svgHeight = ref(210);
 const progressX = ref(0);
@@ -358,7 +366,7 @@ async function processData() {
                  mainTraceReferencePoints.value.push({
                      cx: getX(p.distance * 1000),
                      cy: yScale(p.altitude),
-                     r: 1.5,
+                     r: 1,
                      fill: '#B0B0B0' // Light grey for subtle display
                  });
              });
@@ -492,16 +500,52 @@ function updateProgressX(newDistance) {
     
     let xPos = 0;
     if (props.isVariantComparison && props.variantSegments.length > 0) {
-        // Must map 'newDistance' (which is on the stitched variant timeline) to the global Visual X
-        // This is tricky: 'newDistance' maps to a specific Segment based on distance ranges.
-        // We find the segment, calculate local offset, apply segment visual offset.
         
         let found = false;
-        // activeVariantSegments/props.variantSegments contain: startDistKm (cumulative variant dist)
         const dKm = newDistance / 1000;
         
-        for (const seg of props.variantSegments) {
-            if (dKm >= seg.startDistKm && dKm <= seg.endDistKm) {
+        for (let i = 0; i < props.variantSegments.length; i++) {
+            const seg = props.variantSegments[i];
+            const isLast = i === props.variantSegments.length - 1;
+            const isZeroLength = Math.abs(seg.endDistKm - seg.startDistKm) < 0.001;
+            
+            let matches = false;
+            
+            // If currentSegmentIndex is provided and this segment's index matches,
+            // AND the distance is approximately correct, force this segment
+            if (props.currentSegmentIndex !== null && seg.index === props.currentSegmentIndex) {
+                const distanceMatches = Math.abs(dKm - seg.startDistKm) < 0.05; // 50m tolerance
+                if (distanceMatches) {
+                    matches = true;
+                } else {
+                    // Current segment but distance is way off - continue search
+                    matches = false;
+                }
+            } else {
+                // Normal matching logic
+                if (isZeroLength) {
+                    const exactMatch = Math.abs(dKm - seg.startDistKm) < 0.001;
+                    if (exactMatch) {
+                        // Check if there's a normal segment starting at the same position
+                        const hasNormalSegmentHere = props.variantSegments.some((s, idx) => {
+                            const isNormalLength = Math.abs(s.endDistKm - s.startDistKm) >= 0.001;
+                            const startsSamePlace = Math.abs(s.startDistKm - seg.startDistKm) < 0.001;
+                            return isNormalLength && startsSamePlace;
+                        });
+                        
+                        // Only match if there's no normal segment here
+                        matches = !hasNormalSegmentHere;
+                    }
+                } else {
+                    // Logic to favor 'Next Segment' at boundary (Start of Seg 2 vs End of Seg 1)
+                    // If dKm is exactly at boundary, we want Seg 2.
+                    const matchesStart = dKm >= seg.startDistKm - 0.001;
+                    const matchesEnd = isLast ? (dKm <= seg.endDistKm + 0.001) : (dKm < seg.endDistKm - 0.001);
+                    matches = matchesStart && matchesEnd;
+                }
+            }
+            
+            if (matches) {
                 const localDistInSegM = (dKm - seg.startDistKm) * 1000;
                 
                 // Calculate visual offset of this segment
@@ -509,21 +553,44 @@ function updateProgressX(newDistance) {
                 const eKm = seg.mainEndDistKm || 0;
                 const gapLenM = (eKm - sKm) * 1000;
                 const variantLenM = seg.lengthKm * 1000;
+                
                 let offsetM = 0;
-                if (seg.type === 'DEPART_DEPORTE') offsetM = (eKm*1000) - variantLenM;
+                // Correct Offset Logic (Must match processData)
+                if (seg.type === 'DEPART_DEPORTE') {
+                     // offsetM = (eKm*1000) - variantLenM; 
+                     // Wait, processData uses xOffsetMeters calculation.
+                     // The visual position X = getX(offsetM + localDist).
+                     // In processData: cx: getX((seg.points[0].distance*1000) + xOffsetMeters)
+                     // xOffsetMeters = offsetM - seg.startDistKm*1000
+                     
+                     // Here we want GlobalVisualX.
+                     // GlobalVisualX = xOffsetMeters + (dKm * 1000) ?? No.
+                     
+                     // Let's use the same offsetM logic as processData
+                     offsetM = (eKm*1000) - variantLenM;
+                }
                 else if (seg.type === 'ARRIVEE_REPORTEE') offsetM = sKm*1000;
                 else offsetM = (sKm*1000) + (gapLenM - variantLenM)/2;
                 
-                // Final X = getX(offsetM + localDistInSegM)
-                // Wait, getX scales 'distFromStartMeters' (global context).
-                // Our offsetM is already global context distance.
-                const visualDistM = offsetM + localDistInSegM;
+                // processData uses: xOffsetMeters = offsetM - segmentStartDistM
+                // Point X = getX(PointDist + xOffsetMeters)
+                // PointDist = dKm * 1000 (roughly, strictly it's dist inside LineString)
+                // But dKm here IS the cumulative dist inside LineString (stitched).
+                
+                const segmentStartDistM = seg.startDistKm * 1000;
+                const xOffsetMeters = offsetM - segmentStartDistM;
+                
+                const visualDistM = (dKm * 1000) + xOffsetMeters;
+                
                 xPos = (visualDistM / totalDrawableDistance.value) * viewBoxWidth.value;
                 found = true;
                 break;
             }
         }
-        if (!found) xPos = 0; // Fallback
+        if (!found) {
+             console.warn('[AltitudeSVG] No segment found for dKm:', dKm);
+             xPos = 0; 
+        }
         
     } else {
         xPos = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
@@ -532,7 +599,7 @@ function updateProgressX(newDistance) {
     if (isNaN(xPos)) xPos = 0;
     progressX.value = xPos;
     
-    // Scroll Logic ... (Keep existing)
+    // Scroll Logic
     const containerWidth = containerRef.value.clientWidth;
     const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
     const stuckPositionPx = (stuckPositionKm * 1000 / totalDrawableDistance.value) * viewBoxWidth.value;
@@ -550,6 +617,13 @@ function updateProgressX(newDistance) {
 watch(() => props.currentDistance, (newDistance) => {
     lastUpdatedDistance = newDistance;
     updateProgressX(newDistance);
+});
+
+// Watch segment index changes too (e.g., when switching between DEPART and SEGMENT at same distance)
+watch(() => props.currentSegmentIndex, () => {
+    if (props.currentDistance !== undefined) {
+        updateProgressX(props.currentDistance);
+    }
 });
 
 function handleMouseMove(event) {
