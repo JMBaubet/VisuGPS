@@ -66,9 +66,7 @@
             :tracking-points="trackingPointsWithDistanceRef"
             :is-variant-comparison="isComparisonModeRef"
             :main-trace-points="mainTraceComparisonPointsRef"
-            :main-trace-start-km="mainTraceComparisonStartRef"
-            :main-trace-end-km="mainTraceComparisonEndRef"
-            :comparison-type="mainTraceComparisonTypeRef"
+            :variant-segments="activeVariantSegments"
           />
       </div>
     </transition>
@@ -850,6 +848,33 @@ const loadFullVariant = async (variantId, variantStructure) => {
          // Fallback legacy update
          mainTraceState.value.accumulatedTime = Number(accumulatedTime);
     }
+    
+    // Enable Comparison Mode and reference Main Trace
+    isComparisonModeRef.value = true;
+    
+    // Robustly set Main Trace Points
+    if (mainTraceState.value && mainTraceState.value.trackingPoints && mainTraceState.value.trackingPoints.length > 0) {
+         mainTraceComparisonPointsRef.value = mainTraceState.value.trackingPoints;
+    } else {
+         // Fallback: Use current points if state not yet saved (e.g. first load)
+         // Assuming we are on Main Trace before this switch
+         if (trackingPointsWithDistanceRef.value && trackingPointsWithDistanceRef.value.length > 0) {
+             console.log("[loadFullVariant] capturing current points as Main Trace");
+             mainTraceComparisonPointsRef.value = [...trackingPointsWithDistanceRef.value];
+             
+             // Ensure state is saved for anchors calculation later
+             if (!mainTraceState.value) {
+                 mainTraceState.value = {
+                     trackingPoints: mainTraceComparisonPointsRef.value,
+                     // Other fields might be missing but points are critical for AltitudeSVG
+                 };
+             } else if (!mainTraceState.value.trackingPoints) {
+                 mainTraceState.value.trackingPoints = mainTraceComparisonPointsRef.value;
+             }
+         } else {
+             console.warn("[loadFullVariant] No Main Trace points found!");
+         }
+    }
 
     currentVariantId.value = variantId;
     isMultisegmentVariant.value = true;
@@ -960,6 +985,27 @@ const loadFullVariant = async (variantId, variantStructure) => {
             }
             
             const len = seg.segmentDistKm;
+            // Calculate Main Trace Anchors
+            let mainStart = 0;
+            let mainEnd = 0;
+            // Use saved main trace state if available, or current refs if not yet swapped (but likely swapped/cleared)
+            const mp = mainTraceState.value?.trackingPoints || [];
+            
+
+            
+            if (mp.length > 0) {
+                 if (seg.type === 'DEPART_DEPORTE') {
+                     mainStart = 0;
+                     mainEnd = mp[seg.meta?.anchorEnd?.index]?.distance || 0;
+                 } else if (seg.type === 'ARRIVEE_REPORTEE') {
+                     mainStart = mp[seg.meta?.anchorStart?.index]?.distance || 0;
+                     mainEnd = mp[mp.length - 1]?.distance || 0;
+                 } else {
+                     mainStart = mp[seg.meta?.anchorStart?.index]?.distance || 0;
+                     mainEnd = mp[seg.meta?.anchorEnd?.index]?.distance || 0;
+                 }
+            }
+
             activeVariantSegments.value.push({
                 type: seg.type,
                 index: seg.index,
@@ -968,8 +1014,11 @@ const loadFullVariant = async (variantId, variantStructure) => {
                 endDistKm: startDist + len,
                 lengthKm: len,
                 firstPoint: adjustedPoints[0] || null,
-                coordinates: segmentCoords, // Store for local calculation
-                points: adjustedPoints // Store local points for gradient calculation
+                coordinates: segmentCoords, 
+                points: adjustedPoints,
+                // Anchors for Profile Comparison
+                mainStartDistKm: mainStart,
+                mainEndDistKm: mainEnd
             });
             
             const pointOffset = allPoints.length - adjustedPoints.length;
@@ -1049,7 +1098,8 @@ const loadFullVariant = async (variantId, variantStructure) => {
             properties: {}
         };
         lineStringRef.value = multiLineString;
-        isComparisonModeRef.value = false; 
+        
+        // isComparisonModeRef is set to true at start of function
 
         accumulatedTime = 0;
         currentDistanceInMeters.value = 0;
@@ -1711,22 +1761,26 @@ async function executeFlytoSequence(flytoData) {
                       
                       if (localEnd > localStart) {
                            const cometSlice = turf.lineSliceAlong(segmentLine, localStart, localEnd, { units: 'kilometers' });
-                           map.getSource('comet-source').setData(cometSlice);
+                           if (map.getSource('comet-source')) map.getSource('comet-source').setData(cometSlice);
                       } else {
-                           map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+                           if (map.getSource('comet-source')) map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
                       }
                  }
             } else {
                 // Standard Logic
                 const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
-                map.getSource('comet-source').setData(cometSlice);
+                if (map.getSource('comet-source')) {
+                    map.getSource('comet-source').setData(cometSlice);
+                }
             }
         } catch (e) {
             console.warn("Comet slice error:", e);
         }
   }
   else {
-      map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+      if (map && map.getSource('comet-source')) {
+          map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+      }
   }
 
   // --- Event and Camera Logic ---
