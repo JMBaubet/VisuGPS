@@ -170,7 +170,7 @@
                                                             @click="focusSegment(i)"
                                                         ></v-btn>
                                                     </template>
-                                                    <span>{{ seg.type.replace('_',' ') }}</span>
+                                                    <span>{{ seg.nom || seg.type.replace('_',' ') }}</span>
                                                 </v-tooltip>
                                              </div>
                                              
@@ -436,7 +436,9 @@ const getVariantSegments = (variant) => {
 };
 
 const getSegmentTitle = (mod) => {
-    if (mod.name) return mod.name;
+    // Le nom peut être à la racine (objet modif) ou dans meta (objet segment processé)
+    const candidate = mod.name || (mod.meta && mod.meta.name);
+    if (candidate && candidate.trim() !== '') return candidate;
     if (mod.type === 'DEPART_DEPORTE') return 'Départ';
     if (mod.type === 'ARRIVEE_REPORTEE') return 'Arrivée';
     // Use originalIndex if available, otherwise 0
@@ -1022,6 +1024,8 @@ const loadFullVariant = async (variantId, variantStructure) => {
             }
 
             activeVariantSegments.value.push({
+
+                nom: getSegmentTitle(seg),
                 type: seg.type,
                 index: seg.index,
                 uiIndex: activeVariantSegments.value.length,
