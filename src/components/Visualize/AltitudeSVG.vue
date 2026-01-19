@@ -335,10 +335,9 @@ async function processData() {
          
          // Merge zones? For now assume they are disjoint or sequential.
          // Better to sort by start.
+         // Better to sort by start.
          skippedZones.sort((a,b) => a.start - b.start);
          
-         console.log('[AltitudeSVG] Skipped Zones:', JSON.parse(JSON.stringify(skippedZones)));
-
          // 2. Render Main Trace (Valid = Path, Bypassed = Dots)
          const mainPoints = props.mainTracePoints;
          let lastValidEnd = 0;
@@ -355,32 +354,12 @@ async function processData() {
              // B. BYPASSED CHUNK (Inside Gap) -> Dots
              const chunkInGap = mainPoints.filter(p => p.distance >= zone.start && p.distance <= zone.end);
              chunkInGap.forEach((p, i) => {
-                 let color = '#888888';
-                 // Calculate local slope for color
-                 if (i > 0) {
-                     const prev = chunkInGap[i-1];
-                     const distDiff = (p.distance - prev.distance) * 1000;
-                     if (distDiff > 0) {
-                         const altDiff = p.altitude - prev.altitude;
-                         const slope = (altDiff / distDiff) * 100;
-                         color = getSlopeColor(slope);
-                     }
-                 } else if (chunkInGap.length > 1) {
-                     // First point: use next point
-                     const next = chunkInGap[1];
-                     const distDiff = (next.distance - p.distance) * 1000;
-                     if (distDiff > 0) {
-                         const altDiff = next.altitude - p.altitude;
-                         const slope = (altDiff / distDiff) * 100;
-                         color = getSlopeColor(slope);
-                     }
-                 }
-                 
+                 // Revert to simple grey dots as requested
                  mainTraceReferencePoints.value.push({
                      cx: getX(p.distance * 1000),
                      cy: yScale(p.altitude),
-                     r: 1.5, // Slightly larger for visibility
-                     fill: color
+                     r: 1.5,
+                     fill: '#B0B0B0' // Light grey for subtle display
                  });
              });
              
@@ -431,6 +410,7 @@ async function processData() {
                  
                  const segmentStartDistM = (seg.startDistKm || 0) * 1000;
                  const xOffsetMeters = offsetM - segmentStartDistM;
+                 
                  
                  // Generate Variant Path
                  let vSegs = [];

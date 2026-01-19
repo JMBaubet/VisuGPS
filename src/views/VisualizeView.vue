@@ -991,18 +991,29 @@ const loadFullVariant = async (variantId, variantStructure) => {
             // Use saved main trace state if available, or current refs if not yet swapped (but likely swapped/cleared)
             const mp = mainTraceState.value?.trackingPoints || [];
             
+            
+
 
             
             if (mp.length > 0) {
                  if (seg.type === 'DEPART_DEPORTE') {
                      mainStart = 0;
-                     mainEnd = mp[seg.meta?.anchorEnd?.index]?.distance || 0;
+                     // DEPART: anchorIndexOnMaster = Where it joins (End of Departe)
+                     const idx = seg.meta?.anchorIndexOnMaster ?? seg.meta?.anchorEnd?.index ?? seg.meta?.endPointIndex;
+                     mainEnd = mp[idx]?.distance || 0;
+                     
                  } else if (seg.type === 'ARRIVEE_REPORTEE') {
-                     mainStart = mp[seg.meta?.anchorStart?.index]?.distance || 0;
+                     // ARRIVEE: anchorIndexOnMaster = Where it leaves (Start of Arrivee)
+                     const idx = seg.meta?.anchorIndexOnMaster ?? seg.meta?.anchorStart?.index ?? seg.meta?.startPointIndex;
+                     mainStart = mp[idx]?.distance || 0;
                      mainEnd = mp[mp.length - 1]?.distance || 0;
+
                  } else {
-                     mainStart = mp[seg.meta?.anchorStart?.index]?.distance || 0;
-                     mainEnd = mp[seg.meta?.anchorEnd?.index]?.distance || 0;
+                     // SEGMENT: Expects anchorStart/End objects usually
+                     const idxStart = seg.meta?.anchorStart?.index ?? seg.meta?.startPointIndex;
+                     const idxEnd = seg.meta?.anchorEnd?.index ?? seg.meta?.endPointIndex;
+                     mainStart = mp[idxStart]?.distance || 0;
+                     mainEnd = mp[idxEnd]?.distance || 0;
                  }
             }
 
