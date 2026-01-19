@@ -419,7 +419,7 @@ async function processData() {
                      pathSegments.value.push(...vSegs);
                  } else if (seg.points.length === 1) {
                       variantReferencePoints.value.push({
-                         cx: getX((seg.points[0].distance*1000) + offsetM),
+                         cx: getX((seg.points[0].distance*1000) + xOffsetMeters),
                          cy: yScale(seg.points[0].altitude),
                          r: 3,
                          fill: seg.type === 'DEPART_DEPORTE' ? '#4CAF50' : '#F44336'
@@ -432,9 +432,9 @@ async function processData() {
                  
                  const vStartP = seg.points[0];
                  const vEndP = seg.points[seg.points.length-1];
-                 const vStartX = getX((vStartP.distance*1000) + offsetM);
+                 const vStartX = getX((vStartP.distance*1000) + xOffsetMeters);
                  const vStartY = yScale(vStartP.altitude);
-                 const vEndX = getX((vEndP.distance*1000) + offsetM);
+                 const vEndX = getX((vEndP.distance*1000) + xOffsetMeters);
                  const vEndY = yScale(vEndP.altitude);
                  
                  // Main Anchors Y
