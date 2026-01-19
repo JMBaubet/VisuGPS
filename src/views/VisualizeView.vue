@@ -88,8 +88,8 @@
       <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
         <v-card variant="elevated" class="controls-card">
             <div class="d-flex align-center pa-1">
-                            <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
-                                   @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
+                            <v-btn icon="mdi-rewind" variant="text" size="x-small"
+                                   @mousedown="isRewinding = true"
                                    @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
                             <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
                             <v-divider vertical class="mx-2"></v-divider>
@@ -358,6 +358,9 @@ const unlistenFunctions = [];
 const mapContainer = ref(null);
 let map = null;
 let animationFrameId = null;
+let finalizationTimeoutId = null;
+const coloredSegmentsGeoJsonRef = ref(null);
+
 let cursorTimer = null;
 let isMapInitialized = false;
 let warningShown = false;
@@ -1640,7 +1643,7 @@ async function executeFlytoSequence(flytoData) {
   }
 
   // New, robust timing logic
-  if (isPaused.value || isTransitioning.value) {
+  if ((isPaused.value && !isRewinding.value) || isTransitioning.value) {
     if (isTransitioning.value) {
         console.log('[animate] BLOCKED by isTransitioning');
     }
@@ -2130,7 +2133,7 @@ async function executeFlytoSequence(flytoData) {
     }
 
     // Start finalization sequence
-    setTimeout(async () => {
+    finalizationTimeoutId = setTimeout(async () => {
       if (!map) return;
 
       // Masquer les widgets pour la vue globale finale
@@ -2590,6 +2593,24 @@ watch(isPaused, (paused) => {
     }
 });
 
+// Watcher pour relancer l'animation lors du rembobinage (même si terminé)
+watch(isRewinding, (newVal) => {
+    if (newVal) {
+        // Annuler la finalisation si elle est en attente
+        if (finalizationTimeoutId) {
+            clearTimeout(finalizationTimeoutId);
+            finalizationTimeoutId = null;
+        }
+
+        if (!animationFrameId) {
+            // Si l'animation était terminée ou arrêtée, on la relance
+            isAnimationFinished.value = false;
+            lastTimestamp = 0; // Reset timestamp pour éviter les sauts
+            animationFrameId = requestAnimationFrame(animate);
+        }
+    }
+});
+
 // --- Message Display Functions for Initialization ---
 const getMessagesForKm0 = () => {
   if (!rangeEvents.value || rangeEvents.value.length === 0) {
@@ -2664,6 +2685,92 @@ const goBack = () => {
   router.push({ name: 'Main' });
 };
 
+const setupMapLayersAndSources = async () => {
+  if (!map) return;
+  
+  if (!map.getSource('mapbox-dem')) {
+    map.addSource('mapbox-dem', {
+      'type': 'raster-dem',
+      'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+      'tileSize': 512,
+      'maxzoom': 14
+    });
+  }
+  map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
+  map.setFog({});
+
+  if (!map.getSource('trace')) {
+    map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
+  }
+
+  // Source for the colored segments (Detailed FeatureCollection)
+  if (coloredSegmentsGeoJsonRef.value && !map.getSource('colored-segments')) {
+    map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJsonRef.value });
+
+    // Layer 2: Overlay Aller (Tout SAUF Retour)
+    if (!map.getLayer('trace-overlap-aller')) {
+        map.addLayer({
+            id: 'trace-overlap-aller',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, 
+            paint: {
+                'line-width': traceWidth.value ?? 4,
+                'line-opacity': traceOpacity.value ?? 1,
+                'line-color': ['get', 'color_raw']
+            },
+            filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
+        });
+    }
+
+    // Layer 3: Overlay Retour (Tout SAUF Aller)
+    if (!map.getLayer('trace-overlap-retour')) {
+        map.addLayer({
+            id: 'trace-overlap-retour',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, 
+            paint: {
+                'line-width': traceWidth.value ?? 4,
+                'line-opacity': traceOpacity.value ?? 1,
+                'line-color': ['get', 'color_raw']
+            },
+            filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
+        });
+    }
+  }
+
+  // Fallback
+  if (!coloredSegmentsGeoJsonRef.value && !map.getLayer('trace-complete')) {
+     if (!map.getSource('trace') && lineStringRef.value) {
+        map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
+     }
+     
+     if (map.getSource('trace')) {
+        map.addLayer({
+            id: 'trace-complete',
+            type: 'line',
+            source: 'trace',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+            paint: {
+                'line-width': traceWidth.value ?? 4,
+                'line-opacity': traceOpacity.value ?? 1,
+                'line-color': traceColor.value || '#0000FF'
+            }
+        });
+     }
+  }
+
+  // Comète
+  if (lineStringRef.value && !map.getSource('comet-source')) {
+    map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
+  }
+  if (!map.getLayer('comet-layer')) {
+    map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
+  }
+};
+
+
 const resetAnimation = async () => {
     accumulatedTime = 0;
     isPaused.value = true;
@@ -2691,9 +2798,12 @@ const resetAnimation = async () => {
         sendVisualizeViewStateUpdate();
 
         // Restauration du style de visualisation (satellite) si nécessaire
-        if (mapStyle.value !== map.getStyle().style) {
+        // On force le rechargement si on n'est pas sûr, car on peut être en style Standard (fin de vol)
+        if (mapStyle.value && (mapStyle.value !== (map.getStyle() && map.getStyle().style))) {
+            console.log('[resetAnimation] Restoring Satellite style...');
             map.setStyle(mapStyle.value);
             await new Promise(resolve => map.once('style.load', resolve));
+            setupMapLayersAndSources();
         }
 
         const startCameraOptions = {
@@ -2971,7 +3081,7 @@ const initializeMap = async () => {
 
     // --- Trace Color Logic avec 3 layers ---
     // On charge maintenant une FeatureCollection de segments colorés (backend Refonte Phase 7)
-    let coloredSegmentsGeoJson = null;
+
 
     if (colorTraceBySlope.value) {
         try {
@@ -2984,14 +3094,15 @@ const initializeMap = async () => {
                 Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
 
-            coloredSegmentsGeoJson = await invoke('get_colored_segments_geojson', {
+            coloredSegmentsGeoJsonRef.value = await invoke('get_colored_segments_geojson', {
                 circuitId: props.circuitId,
                 slopeColors: slopeColors,
                 segmentLength: segmentLength.value,
             });
 
-            if (coloredSegmentsGeoJson) {
+            if (coloredSegmentsGeoJsonRef.value) {
                 console.log('[Visualize] Segmented GeoJSON loaded');
+                if (map) setupMapLayersAndSources();
             } else {
                 console.warn("Failed to generate segmented GeoJSON.");
             }
@@ -3011,103 +3122,7 @@ const initializeMap = async () => {
       interactive: false, // Désactiver l'interaction au démarrage
     });
 
-    const setupMapLayersAndSources = async () => {
-      if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', {
-          'type': 'raster-dem',
-          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-          'tileSize': 512,
-          'maxzoom': 14
-        });
-      }
-      map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
-      map.setFog({});
 
-      if (!map.getSource('trace')) {
-        map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
-      }
-
-      const basePaintProps = {
-        'line-width': traceWidth.value,
-        'line-opacity': traceOpacity.value
-      };
-
-      // --- Refonte Phase 7 : Utilisation de Source 'colored-segments' avec Filtres ---
-      
-      // Source for the colored segments (Detailed FeatureCollection)
-      if (coloredSegmentsGeoJson && !map.getSource('colored-segments')) {
-        map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson });
-
-        // Layer 1: Trace complète (SUPPRIME - Simplification Phase 8)
-        // On n'affiche plus de couche grise en dessous.
-        // Seules les couches Aller et Retour s'alternent.
-        
-        // Layer 2: Overlay Aller (Tout SAUF Retour)
-        if (!map.getLayer('trace-overlap-aller')) {
-            map.addLayer({
-                id: 'trace-overlap-aller',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, // Visible par défaut (Phase Aller)
-                paint: {
-                    'line-width': traceWidth.value ?? 4,
-                    'line-opacity': traceOpacity.value ?? 1,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
-            });
-        }
-
-        // Layer 3: Overlay Retour (Tout SAUF Aller)
-        if (!map.getLayer('trace-overlap-retour')) {
-            map.addLayer({
-                id: 'trace-overlap-retour',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
-                paint: {
-                    'line-width': traceWidth.value ?? 4,
-                    'line-opacity': traceOpacity.value ?? 1,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
-            });
-        }
-      }
-
-      // Fallback: Si pas de segments colorés (ex: tracking.json manquant ou erreur backend)
-      // On utilise 'trace-complete' avec le lineString simple et une couleur par défaut
-      if (!coloredSegmentsGeoJson && !map.getLayer('trace-complete')) {
-         if (!map.getSource('trace') && lineStringRef.value) {
-            map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
-         }
-         
-         if (map.getSource('trace')) {
-            map.addLayer({
-                id: 'trace-complete',
-                type: 'line',
-                source: 'trace',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                paint: {
-                    'line-width': traceWidth.value ?? 4,
-                    'line-opacity': traceOpacity.value ?? 1,
-                    'line-color': traceColor.value || '#0000FF'
-                }
-            });
-         }
-      }
-
-      // Layers overlays vides pour éviter erreurs si appelés
-      if (!map.getLayer('trace-overlap-aller') && !coloredSegmentsGeoJson) { /* No op fallback logic for overlap if no data */ }
-
-      // Affichage Comète
-      if (lineStringRef.value && !map.getSource('comet-source')) {
-        map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
-      }
-      if (!map.getLayer('comet-layer')) {
-        map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
-      }
-    };
 
     map.on('style.load', async () => {
       await setupMapLayersAndSources();

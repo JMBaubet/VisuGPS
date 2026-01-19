@@ -514,13 +514,18 @@ function updateProgressX(newDistance) {
             // If currentSegmentIndex is provided and this segment's index matches,
             // check if distance is within this segment's range
             if (props.currentSegmentIndex !== null && seg.index === props.currentSegmentIndex) {
-                // Check if dKm is within segment bounds (with small tolerance)
-                const withinSegment = (dKm >= seg.startDistKm - 0.001) && (dKm <= seg.endDistKm + 0.001);
-                if (withinSegment) {
+                if (isZeroLength) {
+                    // Pour les segments de longueur nulle, forcer le match si sélectionné
                     matches = true;
                 } else {
-                    // Current segment but distance is outside - use normal logic
-                    matches = false;
+                    // Check if dKm is within segment bounds (with small tolerance)
+                    const withinSegment = (dKm >= seg.startDistKm - 0.001) && (dKm <= seg.endDistKm + 0.001);
+                    if (withinSegment) {
+                        matches = true;
+                    } else {
+                        // Current segment but distance is outside - use normal logic
+                        matches = false;
+                    }
                 }
             } else {
                 // Normal matching logic
@@ -547,7 +552,9 @@ function updateProgressX(newDistance) {
             }
             
             if (matches) {
-                const localDistInSegM = (dKm - seg.startDistKm) * 1000;
+                // Pour les segments de longueur nulle, utiliser la position exacte du segment
+                const effectiveDKm = isZeroLength ? seg.startDistKm : dKm;
+                const localDistInSegM = (effectiveDKm - seg.startDistKm) * 1000;
                 
                 // Calculate visual offset of this segment
                 const sKm = seg.mainStartDistKm || 0;
@@ -581,11 +588,16 @@ function updateProgressX(newDistance) {
                 const segmentStartDistM = seg.startDistKm * 1000;
                 const xOffsetMeters = offsetM - segmentStartDistM;
                 
-                const visualDistM = (dKm * 1000) + xOffsetMeters;
+                const visualDistM = (effectiveDKm * 1000) + xOffsetMeters;
                 
                 xPos = (visualDistM / totalDrawableDistance.value) * viewBoxWidth.value;
                 found = true;
-                break;
+                
+                // Si c'est le segment sélectionné, on arrête immédiatement
+                // Sinon, on continue pour voir si le segment sélectionné matche aussi
+                if (props.currentSegmentIndex === null || seg.index === props.currentSegmentIndex) {
+                    break;
+                }
             }
         }
         if (!found) {
