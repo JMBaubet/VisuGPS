@@ -2734,63 +2734,88 @@ const setupMapLayersAndSources = async () => {
     map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
   }
 
-  // Source for the colored segments (Detailed FeatureCollection)
-  if (coloredSegmentsGeoJsonRef.value && !map.getSource('colored-segments')) {
-    map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJsonRef.value });
+  // --- Trace Principal et Overlaps avec Gradients ---
+  const hasGradients = layerGradients.value && layerGradients.value.main;
 
-    // Layer 2: Overlay Aller (Tout SAUF Retour)
-    if (!map.getLayer('trace-overlap-aller')) {
-        map.addLayer({
-            id: 'trace-overlap-aller',
-            type: 'line',
-            source: 'colored-segments',
-            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, 
-            paint: {
-                'line-width': traceWidth.value ?? 4,
-                'line-opacity': traceOpacity.value ?? 1,
-                'line-color': ['get', 'color_raw']
-            },
-            filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
-        });
+  // Layer 1: Trace Complète (Dessous, potentially gray in segments if comparing, or full slope)
+  if (!map.getLayer('trace-complete')) {
+    const paint = {
+      'line-width': traceWidth.value ?? 4,
+      'line-opacity': traceOpacity.value ?? 1,
+    };
+    if (hasGradients) {
+      paint['line-gradient'] = layerGradients.value.main;
+      paint['line-color'] = 'rgba(255, 255, 255, 0)';
+    } else {
+      paint['line-color'] = traceColor.value || '#0000FF';
     }
 
-    // Layer 3: Overlay Retour (Tout SAUF Aller)
-    if (!map.getLayer('trace-overlap-retour')) {
-        map.addLayer({
-            id: 'trace-overlap-retour',
-            type: 'line',
-            source: 'colored-segments',
-            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, 
-            paint: {
-                'line-width': traceWidth.value ?? 4,
-                'line-opacity': traceOpacity.value ?? 1,
-                'line-color': ['get', 'color_raw']
-            },
-            filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
-        });
+    map.addLayer({
+        id: 'trace-complete',
+        type: 'line',
+        source: 'trace',
+        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+        paint: paint
+    });
+  } else {
+    // Update existing
+    if (hasGradients) {
+      map.setPaintProperty('trace-complete', 'line-gradient', layerGradients.value.main);
+      map.setPaintProperty('trace-complete', 'line-color', 'rgba(255, 255, 255, 0)');
     }
   }
 
-  // Fallback
-  if (!coloredSegmentsGeoJsonRef.value && !map.getLayer('trace-complete')) {
-     if (!map.getSource('trace') && lineStringRef.value) {
-        map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
-     }
-     
-     if (map.getSource('trace')) {
+  // Layer 2 & 3: Overlaps (Aller / Retour)
+  const overlapLayers = [
+    { id: 'trace-overlap-aller', gradient: layerGradients.value?.aller, defaultVisibility: 'visible' },
+    { id: 'trace-overlap-retour', gradient: layerGradients.value?.retour, defaultVisibility: 'none' }
+  ];
+
+  overlapLayers.forEach(l => {
+    if (!map.getLayer(l.id)) {
+      const paint = {
+        'line-width': traceWidth.value ?? 4,
+        'line-opacity': traceOpacity.value ?? 1,
+      };
+      
+      if (l.gradient) {
+        paint['line-gradient'] = l.gradient;
+        paint['line-color'] = 'rgba(255, 255, 255, 0)';
+        
         map.addLayer({
-            id: 'trace-complete',
+            id: l.id,
             type: 'line',
-            source: 'trace',
-            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-            paint: {
-                'line-width': traceWidth.value ?? 4,
-                'line-opacity': traceOpacity.value ?? 1,
-                'line-color': traceColor.value || '#0000FF'
-            }
+            source: 'trace', // Utilise la trace unique pour supporter line-gradient
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': l.defaultVisibility },
+            paint: paint
         });
-     }
-  }
+      } else if (coloredSegmentsGeoJsonRef.value) {
+        // Fallback to segmented if no gradient
+        if (!map.getSource('colored-segments')) {
+           map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJsonRef.value });
+        }
+        paint['line-color'] = ['get', 'color_raw'];
+        const filter = l.id === 'trace-overlap-aller' 
+          ? ['!=', ['get', 'segment_type'], 'retour_overlap']
+          : ['!=', ['get', 'segment_type'], 'aller_overlap'];
+
+        map.addLayer({
+            id: l.id,
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': l.defaultVisibility },
+            paint: paint,
+            filter: filter
+        });
+      }
+    } else {
+      // Update existing
+      if (l.gradient) {
+        map.setPaintProperty(l.id, 'line-gradient', l.gradient);
+        map.setPaintProperty(l.id, 'line-color', 'rgba(255, 255, 255, 0)');
+      }
+    }
+  });
 
   // Comète
   if (lineStringRef.value && !map.getSource('comet-source')) {
@@ -3125,6 +3150,27 @@ const initializeMap = async () => {
                 Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
             };
 
+            const params = {
+                circuitId: props.circuitId,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength.value,
+            };
+
+            // Charger les gradients Mapbox (avec transitions 25m)
+            const [mainGrad, allerGrad, retourGrad, neutralGrad] = await Promise.all([
+                invoke('get_main_segments_expression', params),
+                invoke('get_aller_segments_expression', params),
+                invoke('get_retour_segments_expression', params),
+                invoke('get_neutral_overlap_expression', { circuitId: props.circuitId, segmentLength: segmentLength.value })
+            ]);
+
+            layerGradients.value = {
+                main: mainGrad,
+                aller: allerGrad,
+                retour: retourGrad,
+                neutral: neutralGrad
+            };
+
             coloredSegmentsGeoJsonRef.value = await invoke('get_colored_segments_geojson', {
                 circuitId: props.circuitId,
                 slopeColors: slopeColors,
@@ -3132,13 +3178,13 @@ const initializeMap = async () => {
             });
 
             if (coloredSegmentsGeoJsonRef.value) {
-                console.log('[Visualize] Segmented GeoJSON loaded');
+                console.log('[Visualize] Segmented GeoJSON and Gradients loaded');
                 if (map) setupMapLayersAndSources();
             } else {
                 console.warn("Failed to generate segmented GeoJSON.");
             }
         } catch (e) {
-            console.error("Error getting colored segments:", e);
+            console.error("Error getting colored segments or gradients:", e);
         }
     }
 
