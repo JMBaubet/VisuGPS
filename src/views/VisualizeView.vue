@@ -163,10 +163,10 @@
                                                     <template v-slot:activator="{ props }">
                                                         <v-btn
                                                             v-bind="props"
-                                                            :icon="getSegmentIcon(seg.type)"
+                                                            :icon="getSegmentIcon(seg)"
                                                             variant="text" 
                                                             density="compact"
-                                                            :color="currentDistanceInMeters >= seg.startDistKm*1000 && currentDistanceInMeters < seg.endDistKm*1000 ? 'primary' : 'grey'"
+                                                            :color="getSegmentButtonColor(seg, isSegmentActive(seg))"
                                                             @click="focusSegment(i)"
                                                         ></v-btn>
                                                     </template>
@@ -821,16 +821,43 @@ const loadVariantSegment = async (variantId, modification, index) => {
     }
 };
 
-const getSegmentIcon = (type) => {
+const getSegmentIcon = (segOrType) => {
+    const type = (segOrType && typeof segOrType === 'object') ? segOrType.type : segOrType;
+    let length = 0;
+    
+    if (segOrType && typeof segOrType === 'object') {
+        length = segOrType.lengthKm || segOrType.longueur || 0;
+    }
+
     switch (type) {
-        case 'DEPART_DEPORTE': return 'mdi-flag-checkered';
-        case 'ARRIVEE_REPORTEE': return 'mdi-flag-checkered';
+        case 'DEPART_DEPORTE': 
+            return (length > 0) ? 'mdi-arrow-expand-right' : 'mdi-flag-checkered';
+        case 'ARRIVEE_REPORTEE': 
+            return (length > 0) ? 'mdi-arrow-collapse-right' : 'mdi-flag-checkered';
         case 'SEGMENT_DEVIATION': return 'mdi-map-marker-path';
         default: return 'mdi-map-marker';
     }
 };
 
+const isSegmentActive = (seg) => {
+    // Pour les boutons de navigation, on utilise uiIndex (ordre d'affichage)
+    // plutôt que index (ordre dans le fichier archive)
+    if (!isMultisegmentVariant.value || !activeVariantSegments.value.length) {
+        return false;
+    }
+    
+    return seg.uiIndex === currentSegmentIndex.value;
+};
 
+const getSegmentButtonColor = (seg, isActive) => {
+    if (!isActive) return 'grey';
+    
+    // Check type directly from segment object
+    if (seg.type === 'DEPART_DEPORTE') return '#4CAF50'; // Green
+    if (seg.type === 'ARRIVEE_REPORTEE') return '#F44336'; // Red
+    
+    return 'primary';
+};
 
 /**
  * Loads ALL segments of a variant and stitches them into a single timeline.
@@ -1266,7 +1293,7 @@ const loadFullVariant = async (variantId, variantStructure) => {
              // Initialize current segment to the first one
              if (activeVariantSegments.value.length > 0) {
                  const firstSeg = activeVariantSegments.value[0];
-                 currentSegmentIndex.value = firstSeg.index;
+                 currentSegmentIndex.value = firstSeg.uiIndex;
                  currentSegmentType.value = firstSeg.type;
              }
         
@@ -1282,7 +1309,7 @@ const focusSegment = async (arrayIndex) => {
     if (arrayIndex < 0 || arrayIndex >= activeVariantSegments.value.length) return;
     const seg = activeVariantSegments.value[arrayIndex];
     
-    currentSegmentIndex.value = seg.index; 
+    currentSegmentIndex.value = seg.uiIndex; 
     currentSegmentType.value = seg.type;
     
     // Set Distance/Time relative to global timeline
@@ -1682,13 +1709,13 @@ async function executeFlytoSequence(flytoData) {
   // --- Variant Segment Auto-Pause Logic ---
   if (isMultisegmentVariant.value && !isRewinding.value && activeVariantSegments.value.length > 0) {
       // Determine current UI index from currentSegmentIndex
-      let uiIndex = activeVariantSegments.value.findIndex(s => s.index === currentSegmentIndex.value);
+      let uiIndex = activeVariantSegments.value.findIndex(s => s.uiIndex === currentSegmentIndex.value);
       
       // If lost sync, re-sync based on distance
       if (uiIndex === -1) {
            uiIndex = activeVariantSegments.value.findIndex(s => distanceTraveled >= s.startDistKm && distanceTraveled < s.endDistKm);
            if (uiIndex >= 0) {
-               currentSegmentIndex.value = activeVariantSegments.value[uiIndex].index;
+               currentSegmentIndex.value = uiIndex;
                currentSegmentType.value = activeVariantSegments.value[uiIndex].type;
            }
       }
@@ -1708,7 +1735,7 @@ async function executeFlytoSequence(flytoData) {
                if (nextSeg) {
                    console.log('[Auto-Pause] End of segment reached. Pausing and switching to nextSeg.index=', nextSeg.index);
                    isPaused.value = true;
-                   currentSegmentIndex.value = nextSeg.index;
+                   currentSegmentIndex.value = nextSeg.uiIndex;
                    currentSegmentType.value = nextSeg.type;
                    // Snap time to exactly the boundary to avoid missing/skipping?
                    // accumulatedTime = (nextSeg.startDistKm / totalDistanceRef.value) * totalDur;
