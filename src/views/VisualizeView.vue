@@ -608,7 +608,13 @@ const loadVariantSegment = async (variantId, modification, index) => {
                 if (flytoE) flytos[Number(inc)] = flytoE.data;
             }
             flytoEvents.value = flytos;
-            rangeEvents.value = fetchedEvents.rangeEvents || [];
+            
+            // Marquer les rangeEvents avec l'index du segment pour le filtrage
+            const eventsWithSegmentIndex = (fetchedEvents.rangeEvents || []).map(re => ({
+                ...re,
+                segmentIndex: index
+            }));
+            rangeEvents.value = eventsWithSegmentIndex;
         }
 
         // 4. Reset Animation Engine
@@ -802,10 +808,11 @@ const loadVariantSegment = async (variantId, modification, index) => {
             });
             
             // Afficher les messages de départ du segment
-            const { atKm0, nearKm0 } = getMessagesForKm0();
+            clearAllMessages(); // Effacer les messages précédents
+            const { atKm0, nearKm0 } = getMessagesForKm0(index); // Filtrer par index de segment
             const messagesStart = [...atKm0, ...nearKm0];
             if (messagesStart.length > 0) {
-                 console.log(`[Variant] Displaying ${messagesStart.length} messages at start`);
+                 console.log(`[Variant] Displaying ${messagesStart.length} messages at start of segment ${index}`);
                  // Petite pause pour laisser la caméra se stabiliser
                  setTimeout(() => displayMessagesWithFade(messagesStart, 800), 200);
             }
@@ -989,7 +996,7 @@ const loadFullVariant = async (variantId, variantStructure) => {
         
         activeVariantSegments.value = [];
         
-        validResults.forEach(seg => {
+        validResults.forEach((seg, segmentLoopIndex) => {
             const startDist = globalDistKm;
             const adjustedPoints = seg.processedPoints.map(p => ({
                 ...p,
@@ -1089,7 +1096,8 @@ const loadFullVariant = async (variantId, variantStructure) => {
                      mergedRanges.push({
                          ...re,
                          start: re.start + pointOffset,
-                         end: re.end + pointOffset
+                         end: re.end + pointOffset,
+                         segmentIndex: segmentLoopIndex // Ajouter l'index du segment pour le filtrage
                      });
                  });
              }
@@ -1287,6 +1295,16 @@ const loadFullVariant = async (variantId, variantStructure) => {
                      bearing: startPt.editedCap ?? 0,
                      duration: 1500
                  });
+                 
+                 // Afficher les messages de départ de la variante
+                 clearAllMessages(); // Effacer les messages précédents
+                 const { atKm0, nearKm0 } = getMessagesForKm0(0); // Premier segment (index 0)
+                 const messagesStart = [...atKm0, ...nearKm0];
+                 if (messagesStart.length > 0) {
+                     console.log(`[loadFullVariant] Displaying ${messagesStart.length} messages at variant start`);
+                     // Petite pause pour laisser la camera se stabiliser
+                     setTimeout(() => displayMessagesWithFade(messagesStart, 800), 200);
+                 }
              }
         }
           
@@ -1333,6 +1351,16 @@ const focusSegment = async (arrayIndex) => {
              bearing: seg.firstPoint.editedCap ?? 0,
              duration: 1000
          });
+         
+         // Afficher les messages de départ du segment
+         clearAllMessages(); // Effacer les messages précédents
+         const { atKm0, nearKm0 } = getMessagesForKm0(seg.uiIndex); // Filtrer par index de segment
+         const messagesStart = [...atKm0, ...nearKm0];
+         if (messagesStart.length > 0) {
+             console.log(`[focusSegment] Displaying ${messagesStart.length} messages at segment ${seg.uiIndex} start`);
+             // Petite pause pour laisser la caméra se stabiliser
+             setTimeout(() => displayMessagesWithFade(messagesStart, 800), 200);
+         }
     }
 };
 
@@ -1341,6 +1369,9 @@ const loadMainTrace = async () => {
     
     isInitializing.value = true;
     try {
+        // Effacer les messages des variantes
+        clearAllMessages();
+        
         // Stop any running animation loop immediately
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
@@ -2643,7 +2674,14 @@ watch(isRewinding, (newVal) => {
 });
 
 // --- Message Display Functions for Initialization ---
-const getMessagesForKm0 = () => {
+const clearAllMessages = () => {
+  if (activePopups.size > 0) {
+    activePopups.forEach(popup => popup.remove());
+    activePopups.clear();
+  }
+};
+
+const getMessagesForKm0 = (segmentFilter = null) => {
   if (!rangeEvents.value || rangeEvents.value.length === 0) {
     return { atKm0: [], nearKm0: [] };
   }
@@ -2652,12 +2690,21 @@ const getMessagesForKm0 = () => {
   const nearKm0 = [];
   
   for (const msg of rangeEvents.value) {
-    // Messages visibles au km0 (startIncrement <= 0 && endIncrement >= 0)
-    if (msg.startIncrement <= 0 && msg.endIncrement >= 0) {
-      if (msg.anchorIncrement === 0) {
-        atKm0.push(msg);
-      } else {
-        nearKm0.push(msg);
+    // Si un filtre de segment est fourni, vérifier que le message appartient à ce segment
+    if (segmentFilter !== null && msg.segmentIndex !== undefined && msg.segmentIndex !== segmentFilter) {
+      continue;
+    }
+    
+    // Messages qui COMMENCENT au km0 (pas ceux qui le traversent)
+    // Un message commence au km0 si son anchorIncrement === 0 OU son startIncrement === 0
+    if (msg.anchorIncrement === 0 || msg.startIncrement === 0) {
+      // Vérifier aussi qu'il est visible (endIncrement >= 0)
+      if (msg.endIncrement >= 0) {
+        if (msg.anchorIncrement === 0) {
+          atKm0.push(msg);
+        } else {
+          nearKm0.push(msg);
+        }
       }
     }
   }
