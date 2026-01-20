@@ -114,13 +114,18 @@ async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<(Vec<Vec<f6
     let mut coords_for_fetch = Vec::new();
 
     for (i, p) in points_raw.iter().enumerate() {
+        // Consider None or 0.0 as a candidate for fetching (if we want to be sure)
+        // Note: 0.0 is technically valid (sea level), but often means "missing" in router outputs.
         if let Some(alt) = p.alt {
-            final_3d.push(vec![p.lon, p.lat, alt]);
-        } else {
-            final_3d.push(vec![p.lon, p.lat, 0.0]); // Placeholder
-            missing_alt_indices.push(i);
-            coords_for_fetch.push([p.lon, p.lat]);
+            if alt != 0.0 {
+                final_3d.push(vec![p.lon, p.lat, alt]);
+                continue;
+            }
         }
+        
+        final_3d.push(vec![p.lon, p.lat, 0.0]); // Placeholder
+        missing_alt_indices.push(i);
+        coords_for_fetch.push([p.lon, p.lat]);
     }
 
     let mut warning = None;
@@ -164,6 +169,11 @@ pub async fn create_variant_files(
         return Err("Circuit directory not found".to_string());
     }
 
+    // Load smoothing settings
+    let median_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_median_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+    let avg_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_avg_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
+    let max_gradient = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.max_gradient_percent").and_then(|v| v.as_f64()).unwrap_or(40.0);
+
     // Load master tracking.json to copy anchor point data
     let tracking_master_path = circuit_data_dir.join("tracking.json");
     let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
@@ -194,11 +204,14 @@ pub async fn create_variant_files(
                     _ => suffix.to_string() 
                 };
 
-                let (track_points_3d, warning) = prepare_points_3d(points_raw).await?;
+                let (track_points_3d_raw, warning) = prepare_points_3d(points_raw).await?;
                 
                 if let Some(w) = warning {
                     global_warning = Some(w);
                 }
+
+                // Apply altitude smoothing to the segment
+                let track_points_3d = crate::gpx_processor::clean_altitude_data(&track_points_3d_raw, median_window, avg_window, max_gradient);
 
                 // Write LineString file
                 let linestring_filename = format!("lineString_{}_{}.json", request.metadata.id, suffix_full);
