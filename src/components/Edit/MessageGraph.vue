@@ -195,14 +195,20 @@ const processedRangeEvents = computed(() => {
 
   // --- Initial processing to add coordinates to events ---
   const validEventsWithCoords = props.rangeEvents.map(event => {
-    const startIncrement = event.startIncrement;
-    const endIncrement = event.endIncrement;
-    const anchorIncrement = event.anchorIncrement;
+    const firstInc = props.trackingPoints[0].increment;
+    const lastInc = props.trackingPoints[props.trackingPoints.length - 1].increment;
 
-    if (!trackingMap.has(startIncrement) || !trackingMap.has(endIncrement) || !trackingMap.has(anchorIncrement)) {
-      console.warn(`[MessageGraph] Event with missing increment in trackingPoints. Skipping event:`, event);
-      return null;
-    }
+    const getClampedDistance = (inc) => {
+      if (trackingMap.has(inc)) return trackingMap.get(inc);
+      if (inc <= firstInc) return props.trackingPoints[0].distance;
+      if (inc >= lastInc) return props.trackingPoints[props.trackingPoints.length - 1].distance;
+      // Cas rare de trou interne dans les incréments : on prend la distance du premier point par défaut
+      return props.trackingPoints[0].distance;
+    };
+
+    const startDistance = getClampedDistance(event.startIncrement);
+    const endDistance = getClampedDistance(event.endIncrement);
+    const anchorDistance = getClampedDistance(event.anchorIncrement);
 
     let message = null;
     if (event.message) {
@@ -216,10 +222,6 @@ const processedRangeEvents = computed(() => {
         console.warn(`[MessageGraph] No message data found for event. Skipping:`, event);
         return null;
     }
-
-    const startDistance = trackingMap.get(startIncrement);
-    const endDistance = trackingMap.get(endIncrement);
-    const anchorDistance = trackingMap.get(anchorIncrement);
 
     return {
       ...event,
