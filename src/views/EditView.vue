@@ -533,12 +533,26 @@ const loadVariantSegment = async (variantId, modification, index) => {
                     type: 'Feature',
                     geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
                 });
+                // Clear pin
+                if (map.getSource('variant-pin')) {
+                    map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
+                }
             } else {
                 // Not enough points for a LineString (e.g. just a start point marker), hide the line
                 map.getSource('circuit-line').setData({
                     type: 'FeatureCollection',
                     features: []
                 });
+                
+                // Show PIN if it's a DEPART or ARRIVEE with 1 point
+                if (map.getSource('variant-pin') && lineStringCoordinates.value.length === 1) {
+                    const color = modification.type === 'DEPART_DEPORTE' ? '#4CAF50' : (modification.type === 'ARRIVEE_REPORTEE' ? '#F44336' : '#9E9E9E');
+                    map.getSource('variant-pin').setData({
+                        type: 'Feature',
+                        properties: { color: color },
+                        geometry: { type: 'Point', coordinates: lineStringCoordinates.value[0] }
+                    });
+                }
             }
         }
         
@@ -684,6 +698,10 @@ const loadMainTrace = async () => {
                 type: 'Feature',
                 geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
             });
+            // Clear variant pin when returning to main trace
+            if (map.getSource('variant-pin')) {
+                map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
+            }
         }
     
         const line = turf.lineString(lineStringCoordinates.value);
@@ -2377,6 +2395,28 @@ onMounted(async () => {
           'line-color': mapboxAvancementColorHex.value,
           'line-width': epaisseurAvancement,
         },
+      });
+
+      // Localisation Pin for 0-length variants
+      map.addSource('variant-pin', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      });
+
+      map.addLayer({
+        id: 'variant-pin-layer',
+        type: 'circle',
+        source: 'variant-pin',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.9
+        }
       });
 
       // Function to update message popups based on current increment
