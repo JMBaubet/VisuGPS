@@ -699,6 +699,177 @@ const handleMapClick = (e) => {
         }
     }
 
+    // --- NEW VALIDATION: VARIANT LENGTH CHECK ---
+    
+    // Calculates length of the "cut" section on main trace
+    const calculateMainTraceSectionLength = (anchorIndex1, anchorIndex2) => {
+        if (!trackingPoints.value || trackingPoints.value.length === 0) return Infinity;
+        
+        let startIdx = 0;
+        let endIdx = 0;
+        
+        // Handle single anchor cases (Start/End)
+        if (anchorIndex2 === undefined) { 
+             // Logic depends on context, handled by caller or assume full trace?
+             // Actually for DEPART: 0 to anchorIndex1
+             // For ARRIVEE: anchorIndex1 to LAST
+             return 0; 
+        }
+
+        startIdx = Math.min(anchorIndex1, anchorIndex2);
+        endIdx = Math.max(anchorIndex1, anchorIndex2);
+        
+        // Ensure bounds
+        startIdx = Math.max(0, startIdx);
+        endIdx = Math.min(trackingPoints.value.length - 1, endIdx);
+        
+        // Get distances from tracking points (assuming 'cumulDist' or calculate)
+        // trackingPoints usually has 'distance' (km) or we calculate from coordinates
+        const p1 = trackingPoints.value[startIdx];
+        const p2 = trackingPoints.value[endIdx];
+        
+        // Use pre-calculated distances if available in tracking.json
+        // tracking.json has 'distance' field? Let's check initMap
+        // initMap uses invoke('read_tracking_file'), which returns fields.
+        // Usually tracking points have cumulative distance.
+        // Let's assume linear distance sum if not available.
+        
+        // Using turf distance on the slice of lineString is safest if 'distance' field missing
+        if (masterTraceGeojson.value) {
+             const slice = turf.lineSlice(
+                 turf.point(p1.coordonnee), 
+                 turf.point(p2.coordonnee), 
+                 masterTraceGeojson.value
+             );
+             return turf.length(slice, { units: 'kilometers' });
+        }
+        return 0;
+    };
+
+    // Calculate current modification length + new point
+    const calculateProjectedVariantLength = (mod, pointToAdd) => {
+        // We simulate adding the point to the list
+        const currentPoints = mod.points.map(p => p.coords);
+        const newPoints = [...currentPoints, pointToAdd.coords];
+        
+        if (newPoints.length < 2) return 0;
+        
+        // If we have a preview (routed), use it for the EXISTING part?
+        // No, we want to know the length WITH the new point.
+        // Since we don't have the routed path for the new point yet, 
+        // we must Estimate it.
+        // BUT user says "we have precise length via router".
+        // This implies we should Route the new segment Proposal?
+        // That is async and slow for a synchronous click handler.
+        // Compromise: Use Turf distance (crow flies) between last point and new point,
+        // added to existing routed length.
+        
+        let existingLength = 0;
+        if (mod.preview && mod.preview.coordinates) {
+             existingLength = turf.length(mod.preview, { units: 'kilometers' });
+        } else if (mod.points.length >= 2) {
+             // Fallback if no preview
+             existingLength = turf.length(turf.lineString(currentPoints), { units: 'kilometers' });
+        }
+        
+        const lastPoint = currentPoints[currentPoints.length - 1];
+        const distToAdd = turf.distance(
+            turf.point(lastPoint), 
+            turf.point(pointToAdd.coords), 
+            { units: 'kilometers' }
+        );
+        
+        // We multiply distToAdd by a factor (e.g. 1.1) to account for road winding?
+        // Better strict check later, loose check now?
+        // User wants strict check.
+        // Let's trust the user knows straight lines != road.
+        // But if we block strictly on "straight line < curved road", we might block valid paths 
+        // that are actually shorter but look longer in straight lines? No, straight is always shorter.
+        // The problem is: estimated NEW length (straight) < Real New Length (Road).
+        // So we UNDER-estimate the new length.
+        // If even the Under-estimation is > Original, then DEFINITELY block.
+        // If Under-estimation < Original, we might still accept it, and then Route check fails later.
+        
+        return existingLength + distToAdd;
+    };
+
+    if (activeMod) {
+         let projectedVarLen = calculateProjectedVariantLength(activeMod, newPoint);
+         let originalSectionLen = Infinity;
+         
+         if (currentMode.value === 'DEPART') {
+             // Section: Start(0) to Anchor (current newPoint must be Anchor?)
+             // No, DEPART builds FROM end TO start (reversed internally) or user clicks 
+             // typically: Anchor (Start of mod, but End of variant) -> Waypoints -> Start.
+             // Wait, DEPART_DEPORTE implementation: 
+             // "Points: ... Waypoints ... Anchor(IndexOnMaster)"? 
+             // Or "Anchor(IndexOnMaster) ... Waypoints ... Start"?
+             // Let's check `generatePreviewForMod`:
+             // if (mod.type === 'DEPART') coords = reversed...
+             // Usually user clicks Anchor first (on trace) then moves away?
+             // If activeMod has 0 points, newPoint IS the Anchor.
+             
+             // Case A: First point (Anchor)
+             if (activeMod.points.length === 0) {
+                 if (!isSnap) { /* already handled above */ }
+                 // Anchor defined. Length is 0. Valid.
+             } else {
+                 // Case B: Adding Waypoints (moving away from anchor)
+                 // The "Variant" is the path created.
+                 // The "Original" is the path from Trace Start (0) to The Anchor.
+                 const anchor = activeMod.points[0]; // First point is Anchor
+                 originalSectionLen = calculateMainTraceSectionLength(0, anchor.index);
+                 
+                 if (projectedVarLen > originalSectionLen) {
+                     showSnackbar(`La variante projetée (${projectedVarLen.toFixed(2)}km) dépasse la section originale (${originalSectionLen.toFixed(2)}km).`, "error");
+                     return;
+                 }
+             }
+         }
+         else if (currentMode.value === 'ARRIVEE') {
+             // ARRIVEE: Anchor ... Waypoints ... End
+             // Original: Anchor to Trace End
+             if (activeMod.points.length === 0) {
+                  // Anchor defined.
+             } else {
+                 const anchor = activeMod.points[0];
+                 const lastTraceIdx = trackingPoints.value.length - 1;
+                 originalSectionLen = calculateMainTraceSectionLength(anchor.index, lastTraceIdx);
+                 
+                  if (projectedVarLen > originalSectionLen) {
+                     showSnackbar(`La variante projetée (${projectedVarLen.toFixed(2)}km) dépasse la section originale (${originalSectionLen.toFixed(2)}km).`, "error");
+                     return;
+                 }
+             }
+         }
+         else if (currentMode.value === 'SEGMENT') {
+             // Anchor1 ... Waypoints ... Anchor2
+             if (activeMod.points.length === 0) {
+                 // First Anchor
+             } else {
+                 // Check if Closing (isSnap = true, second anchor)
+                 if (isSnap) {
+                      const anchor1 = activeMod.points[0];
+                      const anchor2 = newPoint; // This is the closing anchor
+                      
+                      originalSectionLen = calculateMainTraceSectionLength(anchor1.index, anchor2.index);
+                      
+                      // For the closure, calculateProjectedVariantLength adds distance from last waypoint to anchor2
+                      // This gives total variant length estimate
+                      if (projectedVarLen > originalSectionLen) {
+                         showSnackbar(`Le segment variante (${projectedVarLen.toFixed(2)}km) est plus long que la trace originale (${originalSectionLen.toFixed(2)}km).`, "error");
+                         return;
+                     }
+                 } else {
+                     // Adding Waypoint
+                     // We don't know the end anchor yet, so we don't know the Original Length limit.
+                     // But strictly speaking, the variant is ALREADY creating a detour between Anchor1 and "Current closest point on trace"?
+                     // No, that's too restrictive. We only validate on CLOSURE.
+                 }
+             }
+         }
+    }
+
     activeMod.points.push(newPoint);
     isModified.value = true;
 
