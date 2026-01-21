@@ -18,7 +18,7 @@
       <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
             <div class="d-flex align-center justify-center fill-height px-4">
               <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ (totalDistanceRef).toFixed(2) }} km</span>
+              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ (totalDistanceRef / 1000).toFixed(2) }} km</span>
             </div>  
       </v-card>
     </transition>
@@ -59,7 +59,7 @@
             :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
             :circuit-id="props.circuitId" 
             :current-distance="currentDistanceInMeters" 
-            :total-distance="totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
+            :total-distance="totalDistanceRef > 0 ? totalDistanceRef : 1"
             :tracking-points="trackingPointsWithDistanceRef"
             :is-variant-comparison="false"
             :main-trace-points="null"
@@ -272,6 +272,17 @@ const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanc
 // 6. Camera Interpolator (NEW)
 const { updateCameraPosition } = useCameraInterpolator(map);
 
+// 7. Variant Calculator (NEW - JS Reconstruction)
+import { useVariantCalculator } from '@/composables/useVariantCalculator.js';
+const { calculateVariantStats } = useVariantCalculator();
+
+const modifications = ref([]);
+const fullRouteGeoJson = ref(null); // The reconstructed continuous line
+const masterTraceGeoJson = ref(null); // The original master trace
+const variantStats = ref({ total: 0, current: 0 });
+const backendTrackingTotalDistance = ref(0); // For Ratio calculation
+
+
 
 // --- Legacy State ---
 const isInitializing = ref(true);
@@ -392,27 +403,77 @@ const initializeVisualization = async () => {
              return;
         }
 
-        // 1. Load Data (Variant Specific)
-        const { circuit } = await loadCircuitData(props.circuitId); // Just for metadata
+        // 1. Load Data
+        const { circuit } = await loadCircuitData(props.circuitId); // Metadata
         currentCircuitRef.value = circuit;
         if (circuit) avancementCommunes.value = circuit.avancementCommunes;
 
-        // Load Variant Geometry
-        const geoJsonString = await invoke('get_variant_geojson', { circuitId: props.circuitId, variantId: selectedVariantId.value });
-        const geoJson = JSON.parse(geoJsonString);
-        lineStringRef.value = geoJson.geometry; 
+        // A. Load MASTER Trace (Source of truth for original segments - High Resolution)
+        const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+        masterTraceGeoJson.value = masterGeoJson;
+
+        // B. Load Variant Details
+        const variantArchive = await invoke('get_variant_details', { circuitId: props.circuitId, variantId: selectedVariantId.value });
+        modifications.value = variantArchive.modifications || [];
+
+        // C. Reconstruct Full Route & Colored Segments (JS)
+        // We pass the High-Res Master GeoJSON. The function will now snap variant endpoints to this high-res trace.
+        const { fullLineString, coloredSegments, stats } = reconstructVariantRoute(masterGeoJson, modifications.value, segmentLength.value);
         
-        // Generate Tracking Points locally
-        const generatedTracking = generateTrackingFromGeoJSON(geoJson.geometry.coordinates);
-        trackingPointsWithDistanceRef.value = generatedTracking;
-        totalDistanceRef.value = generatedTracking[generatedTracking.length - 1].distance;
+        fullRouteGeoJson.value = fullLineString;
+        lineStringRef.value = fullLineString; 
+        coloredSegmentsGeoJsonRef.value = coloredSegments;
+        
+        // Update Stats
+        variantStats.value = stats;
+
+        // D. Load Tracking (Backend generated - KEPT FOR CAMERA & TIMING)
+        // User Requirement: Use tracking.json (or tracking_var) for Camera.
+        const trackingJsonString = await invoke('get_variant_tracking', { circuitId: props.circuitId, variantId: selectedVariantId.value });
+        let trackingData = JSON.parse(trackingJsonString);
+        
+        // Apply Frontend Smoothing
+        // VisualizeView does not smooth manually; trusting backend bearings prevents jitter.
+        trackingData = applyFrontendDistanceCorrection(trackingData, fullLineString); // Sync tracking distances with JS Geometry
+
+        trackingPointsWithDistanceRef.value = trackingData;
+        
+        // Use Nominal Total Distance (last increment * 100m)
+        // stats.total is geometric length, which might differ from increment-based length.
+        // To be consistent with the camera, we use the tracking length.
+        const nominalTotalKm = trackingData[trackingData.length - 1].distance; // Already nominal KM
+        totalDistanceRef.value = nominalTotalKm * 1000; // Display expects METERS
+        
+        // backendTrackingTotalDistance used for reference
+        backendTrackingTotalDistance.value = nominalTotalKm; 
 
         // Calculate Average Duration
         const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
-        totalDurationAt1xRef.value = totalDistanceRef.value * msPerKm; 
+        totalDurationAt1xRef.value = nominalTotalKm * msPerKm; 
 
-        // Variants don't have control points preserved yet (unless we map them). Resetting for now.
-        controlPointIndicesRef.value = []; 
+        // Populate control points...
+        controlPointIndicesRef.value = trackingData
+            .map((p, i) => (p.pointDeControl ? i : -1))
+            .filter(i => i !== -1);
+
+        // REPAIR nbrSegment (Force Spline Continuity)
+        // Since variant tracking is stitched, original nbrSegment values are broken chains.
+        // We recalculate them to ensure seamless interpolation between Control Points.
+        const indices = controlPointIndicesRef.value;
+        for (let i = 0; i < indices.length - 1; i++) {
+            const currentIdx = indices[i];
+            const nextIdx = indices[i+1];
+            trackingData[currentIdx].nbrSegment = nextIdx - currentIdx;
+        }
+        if (indices.length > 0) {
+            trackingData[indices[indices.length-1]].nbrSegment = 0;
+        }
+            
+        // If no control points found (e.g. fully generated variant without preserved props), 
+        // fallback to empty (Standard Interpolation will take over)
+        if (controlPointIndicesRef.value.length === 0) {
+             console.warn("No control points found in variant tracking. Camera movement may be less smooth.");
+        } 
 
         // Reset Events (Variants don't imply events yet)
         pauseIncrements.value = [];
@@ -486,34 +547,92 @@ const initializeVisualization = async () => {
     }
 };
 
-function generateTrackingFromGeoJSON(coordinates) {
-    const tracking = [];
-    let dist = 0;
+
     
-    // Default starting point: index 0
-    // Try to get altitude from coordinate[2]
-    
-    for (let i = 0; i < coordinates.length; i++) {
-        const coord = coordinates[i];
-        if (i > 0) {
-            const prev = coordinates[i-1];
-            const d = turf.distance(turf.point(prev), turf.point(coord));
-            dist += d;
+/**
+ * Applies smoothing to tracking data received from backend.
+ * Essential for variant segments which have generated points with default cap=0.
+ * Also smooths the master tracking parts for consistency.
+ */
+function applySmoothingToTracking(tracking) {
+    // 1. First pass: Ensure Raw Bearings exist
+    for (let i = 0; i < tracking.length; i++) {
+        const pt = tracking[i];
+        
+        // If cap is 0 (likely generated), calculate it
+        if (!pt.cap || pt.cap === 0) {
+            let rawBearing = 0;
+            const coord = pt.coordonnee; // [lon, lat]
+            
+            if (i > 0) {
+                const prev = tracking[i-1].coordonnee;
+                // Avoid NaN from duplicate points
+                if (Math.abs(prev[0] - coord[0]) < 1e-9 && Math.abs(prev[1] - coord[1]) < 1e-9) {
+                     rawBearing = tracking[i-1].cap || 0;
+                } else {
+                     rawBearing = turf.bearing(turf.point(prev), turf.point(coord));
+                }
+            } else if (tracking.length > 1) {
+                const next = tracking[i+1].coordonnee;
+                rawBearing = turf.bearing(turf.point(coord), turf.point(next));
+            }
+             
+            if (isNaN(rawBearing)) rawBearing = 0;
+            pt.cap = rawBearing;
         }
         
-        tracking.push({
-            increment: i,
-            coordonnee: [coord[0], coord[1]],
-            altitude: coord.length > 2 ? coord[2] : 0,
-            distance: dist,
-            // Defaults
-            zoom: 16,
-            pitch: 45,
-            cap: 0, 
-            commune: null,
-            pointDeControl: false
-        });
+        // Ensure defaults if missing
+        if (!pt.zoom) pt.zoom = 17; // Closer zoom to see spline effect distinct from arc
+        if (!pt.pitch) pt.pitch = 50;
     }
+
+    // 2. Second pass: Smooth Bearings (Vector Averaging)
+    const smoothingWindow = 10; 
+    
+    // We clone to avoid modifying while reading? 
+    // Actually we can compute average based on the raw caps we just set.
+    
+    // Create a temp array for smoothed caps to apply after calculation
+    const newCaps = new Array(tracking.length);
+
+    for (let i = 0; i < tracking.length; i++) {
+        let sinSum = 0;
+        let cosSum = 0;
+        let count = 0;
+
+        for (let j = Math.max(0, i - smoothingWindow); j <= Math.min(tracking.length - 1, i + smoothingWindow + 5); j++) {
+            const bearingRad = (tracking[j].cap * Math.PI) / 180;
+            sinSum += Math.sin(bearingRad);
+            cosSum += Math.cos(bearingRad);
+            count++;
+        }
+
+        if (count > 0) {
+            const avgBearingRad = Math.atan2(sinSum / count, cosSum / count);
+            let avgBearingDeg = (avgBearingRad * 180) / Math.PI;
+            if (avgBearingDeg < 0) avgBearingDeg += 360; 
+            
+            newCaps[i] = avgBearingDeg;
+        } else {
+            newCaps[i] = tracking[i].cap;
+        }
+    }
+    
+    // Apply new caps
+    for(let i=0; i<tracking.length; i++) {
+        tracking[i].editedCap = newCaps[i];
+        tracking[i].cap = newCaps[i];
+    }
+    
+    // Fix start
+    if(tracking.length > 5) {
+        const startBearing = tracking[5].editedCap; 
+         for(let k=0; k<5; k++) {
+             tracking[k].editedCap = startBearing;
+             tracking[k].cap = startBearing;
+         }
+    }
+
     return tracking;
 }
 
@@ -541,15 +660,16 @@ const animateLoop = (timestamp) => {
     lastTimestamp = timestamp;
     
     // Call controller to update time refs
-    const { phase, distanceTraveled } = updateTime(deltaTime, totalDurationAt1xRef.value, totalDistanceRef.value);
+    // Call controller to update time refs (Controller expects KM)
+    const { phase, distanceTraveled } = updateTime(deltaTime, totalDurationAt1xRef.value, totalDistanceRef.value / 1000);
     
-    // 3. Comet
+    // 3. Comet (use km directly)
     updateComet(distanceTraveled);
 
     // 4. Overlap Layers (Trace Retour/Aller switch)
     checkLayers(distanceTraveled);
 
-    // 5. Camera Interpolation (Using New Composable)
+    // 5. Camera Interpolation (Using New Composable) - Expects KM for tracking comparison
     const newBearing = updateCameraPosition(distanceTraveled, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
         dynamicZoomIntensity: dynamicZoomIntensity.value,
         currentSpeed: currentSpeed.value,
@@ -585,7 +705,8 @@ const animateLoop = (timestamp) => {
     }
 
     // 6. Check Events (Pause/Flyto)
-    checkEvents(distanceTraveled);
+    // 6. Check Events (Pause/Flyto) - Expects M
+    checkEvents(distanceTraveled * 1000);
 
     // 7. Loop or End
     if (phase < 1 || isRewinding.value) {
@@ -612,7 +733,6 @@ const checkLayers = (distanceTraveled) => {
 
 const updateComet = (distanceTraveled) => {
      if(!map.value || !lineStringRef.value) return;
-     
      const totalLen = turf.length(lineStringRef.value, { units: 'kilometers' });
      const currentDist = Math.max(0, Math.min(distanceTraveled, totalLen));
      const cometLengthKm = cometLength.value / 1000;
@@ -744,7 +864,14 @@ const executeFlytoSequence = async (flytoData) => {
 
     animationState.value = 'Survol_Evenementiel';
     const durationBack = Math.max(200, duration / currentSpeed.value);
-    await flyToPromise({ ...preFlytoCameraOptions.value, duration: durationBack });
+    const preOpts = preFlytoCameraOptions.value;
+    await flyToPromise({ 
+        center: preOpts.center, 
+        zoom: preOpts.zoom, 
+        pitch: preOpts.pitch, 
+        bearing: preOpts.bearing, 
+        duration: durationBack 
+    });
 
     isFlytoActive.value = false;
     isPaused.value = false;
@@ -778,10 +905,21 @@ const handleEndSequence = async () => {
     }
 
     const traceBbox = turf.bbox(lineStringRef.value);
-    await flyToPromise({
-        pitch: 0, bearing: 0, duration: flyToGlobalDuration.value,
-        ...(map.value.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 }))
-    });
+    /* Safe implementation of Final FlyTo */
+    try {
+        const camParams = map.value.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+        if (camParams) {
+             await flyToPromise({
+                center: camParams.center,
+                zoom: camParams.zoom,
+                pitch: 0, 
+                bearing: 0, 
+                duration: flyToGlobalDuration.value
+            });
+        }
+    } catch (err) {
+        console.warn("End sequence flyTo failed", err);
+    }
     
     animationState.value = 'Termine';
      // Logic Reprise Auto...
@@ -991,6 +1129,282 @@ watch(isPaused, (newVal) => {
         }
     }
 });
+// --- JS Reconstruction Logic ---
+
+// --- JS Reconstruction Logic ---
+
+function reconstructVariantRoute(masterGeoJson, modifications, segmentLengthKm) {
+    let masterCoords = [];
+    if (masterGeoJson) {
+        if (masterGeoJson.type === 'FeatureCollection' && masterGeoJson.features && masterGeoJson.features.length > 0) {
+            masterCoords = masterGeoJson.features[0].geometry.coordinates;
+        } else if (masterGeoJson.type === 'Feature' && masterGeoJson.geometry) {
+             masterCoords = masterGeoJson.geometry.coordinates;
+        } else if (masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
+             masterCoords = masterGeoJson.geometry.coordinates; // Fallback for simple object wrapper
+        } else if (masterGeoJson.coordinates) {
+             masterCoords = masterGeoJson.coordinates; // Raw Geometry
+        }
+    }
+
+    if (!masterCoords || masterCoords.length === 0) {
+        console.error("Invalid Master GeoJSON structure:", masterGeoJson);
+        return { fullLineString: null, coloredSegments: { type: 'FeatureCollection', features: [] }, stats: { total: 0, current: 0 } };
+    }
+
+    // 2. Geometric Snapping Helper
+    // The stored indices in anchors are tracking indices (Low Res) and don't match Master Trace (High Res).
+    // To ensure perfect visual cut, we find the Master Point that is CLOSEST to the Variant Start/End.
+    const findNearestIndex = (targetCoord, hintIndex = 0) => {
+        if (!targetCoord) return 0;
+        let bestIdx = hintIndex;
+        let minDist = Infinity;
+        
+        // Scan Window: High-Res trace can have 10k+ points. Full scan is safest to avoid local minima issues.
+        // Performance should be fine (< 5ms).
+        for (let i = 0; i < masterCoords.length; i++) {
+            const pt = masterCoords[i];
+            // Euclidean squared
+            const d = (pt[0]-targetCoord[0])**2 + (pt[1]-targetCoord[1])**2;
+            if (d < minDist) {
+                minDist = d;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    };
+
+    // Helper to resolve anchor index using PURE GEOMETRY (since indices are incompatible)
+    const getSmartCutIndex = (anchorIndex, variantEndpoint) => {
+        // If we have a variant endpoint, find the TRULY closest master point.
+        if (variantEndpoint) {
+            const geoIdx = findNearestIndex(variantEndpoint, 0);
+            // console.log(`[DEBUG] Snapping to HighRes Index: ${geoIdx}`);
+            return geoIdx;
+        }
+        // Fallback if no endpoint (shouldn't happen for anchors): return 0
+        return 0;
+    };
+
+    const features = []; // For colored segments
+    let currentMasterIndex = 0;
+    let combinedCoords = [];
+    
+    // Sort modifications by anchor index (still useful for ordering blocks)
+    const sortedMods = [...modifications].map((m, i) => ({
+        ...m,
+        originalIndex: i
+    })).sort((a, b) => {
+        let idxA = 0;
+        if (a.type === 'DEPART_DEPORTE' || a.type === 'DEPART') idxA = -1;
+        else if (a.type === 'ARRIVEE_REPORTEE' || a.type === 'ARRIVEE') idxA = Number.MAX_SAFE_INTEGER;
+        else idxA = a.anchorStart ? a.anchorStart.index : (a.anchorIndexOnMaster || 0);
+
+        let idxB = 0;
+        if (b.type === 'DEPART_DEPORTE' || b.type === 'DEPART') idxB = -1;
+        else if (b.type === 'ARRIVEE_REPORTEE' || b.type === 'ARRIVEE') idxB = Number.MAX_SAFE_INTEGER;
+        else idxB = b.anchorStart ? b.anchorStart.index : (b.anchorIndexOnMaster || 0);
+
+        return idxA - idxB;
+    });
+
+    sortedMods.forEach(mod => {
+        // Determine Start/End indices for the cut on Master Trace
+        let cutStart = currentMasterIndex;
+        let cutEnd = currentMasterIndex;
+        let variantCoords = [];
+
+        // Extract variant geometry
+        // The modifications from 'get_variant_details' contain 'points' (raw) and 'fullGeometry' (if generated)
+        // We prefer 'fullGeometry' if available for smoothness, or 'points' if raw.
+        if (mod.fullGeometry && mod.fullGeometry.length > 0) {
+            variantCoords = mod.fullGeometry.map(p => [p.lon, p.lat]);
+        } else if (mod.points) {
+             variantCoords = mod.points.map(p => [p.coords ? p.coords[0] : p.lon, p.coords ? p.coords[1] : p.lat]);
+        }
+
+        if (mod.type === 'DEPART_DEPORTE' || mod.type === 'DEPART') {
+            cutStart = 0;
+            // Variant ENDS, Master RESUMES.
+            // Point to check is Variant's LAST point.
+            // Master should resume at the point closest to Variant End.
+            const lastVarPoint = variantCoords.length > 0 ? variantCoords[variantCoords.length - 1] : null;
+            cutEnd = getSmartCutIndex(mod.anchorIndexOnMaster, lastVarPoint);
+            
+            // STITCH END: Variant End -> Master Anchor (cutEnd)
+            if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
+                const anchorPoint = masterCoords[cutEnd];
+                if (anchorPoint) {
+                    const dist = Math.sqrt(Math.pow(lastVarPoint[0]-anchorPoint[0], 2) + Math.pow(lastVarPoint[1]-anchorPoint[1], 2));
+                    if (dist > 1e-7) {
+                         variantCoords.push(anchorPoint);
+                    }
+                }
+            }
+
+            // Add Variant Segment (Blue)
+             features.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: variantCoords },
+                properties: { status: 'NEW', modType: mod.type }
+            });
+            combinedCoords.push(...variantCoords);
+
+            currentMasterIndex = cutEnd;
+
+        } else if (mod.type === 'ARRIVEE_REPORTEE' || mod.type === 'ARRIVEE') {
+            // Master PAUSES, Variant STARTS.
+            // Point to check is Variant's FIRST point.
+            const firstVarPoint = variantCoords.length > 0 ? variantCoords[0] : null;
+            const rawAnchorIdx = mod.anchorIndexOnMaster;
+            
+            // If rawAnchorIdx undefined, assume end of trace.
+            cutEnd = rawAnchorIdx !== undefined ? getSmartCutIndex(rawAnchorIdx, firstVarPoint) : masterCoords.length - 1;
+
+            if (cutEnd > cutStart) {
+                const originalSegment = masterCoords.slice(cutStart, cutEnd + 1); // +1 to include anchor
+                features.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: originalSegment },
+                    properties: { status: 'COMMON' }
+                });
+                combinedCoords.push(...originalSegment);
+            }
+            
+            // STITCH START: Master Anchor (cutEnd) -> Variant Start
+             if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
+                const anchorPoint = masterCoords[cutEnd];
+                if (anchorPoint && firstVarPoint) { // check firstVarPoint again
+                     const dist = Math.sqrt(Math.pow(firstVarPoint[0]-anchorPoint[0], 2) + Math.pow(firstVarPoint[1]-anchorPoint[1], 2));
+                    if (dist > 1e-7) {
+                         variantCoords.unshift(anchorPoint);
+                    }
+                }
+            }
+
+            // Add Variant (Blue)
+             features.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: variantCoords },
+                properties: { status: 'NEW', modType: mod.type }
+            });
+            combinedCoords.push(...variantCoords);
+
+            currentMasterIndex = masterCoords.length; // Finished
+
+        } else {
+            // SEGMENT
+            cutStart = currentMasterIndex;
+            
+            const firstVarPoint = variantCoords.length > 0 ? variantCoords[0] : null;
+            const lastVarPoint = variantCoords.length > 0 ? variantCoords[variantCoords.length - 1] : null;
+
+            const rawAnchorStart = mod.anchorStart ? mod.anchorStart.index : 0;
+            const rawAnchorEnd = mod.anchorEnd ? mod.anchorEnd.index : 0;
+            
+            // Cut Master at Start Anchor (Closest to Variant Start)
+            cutEnd = getSmartCutIndex(rawAnchorStart, firstVarPoint);
+            // Resume Master at End Anchor (Closest to Variant End)
+            const resumeIndex = getSmartCutIndex(rawAnchorEnd, lastVarPoint);
+
+            // Add Original Segment (Green) up to Start Anchor
+            if (cutEnd > cutStart) {
+                 const originalSegment = masterCoords.slice(cutStart, cutEnd + 1); 
+                features.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: originalSegment },
+                    properties: { status: 'COMMON' }
+                });
+                combinedCoords.push(...originalSegment);
+            }
+            
+            // STITCHING: Ensuring Continuity
+            
+            // 1. Force Start: Master Anchor (cutEnd) -> Variant Start
+             if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
+                const anchorPoint = masterCoords[cutEnd];
+                 if (anchorPoint && firstVarPoint) {
+                    const dist = Math.sqrt(Math.pow(firstVarPoint[0]-anchorPoint[0], 2) + Math.pow(firstVarPoint[1]-anchorPoint[1], 2));
+                    console.log(`[DEBUG] SEGMENT START GAP: ${dist.toFixed(7)}`);
+                    if (dist > 1e-7) {
+                        variantCoords.unshift(anchorPoint);
+                    }
+                }
+            }
+            
+            // 2. Force End: Variant End -> Master Anchor (resumeIndex)
+            if (variantCoords.length > 0 && resumeIndex < masterCoords.length) {
+                const resumePoint = masterCoords[resumeIndex];
+                
+                if (resumePoint && lastVarPoint) {
+                    const dist = Math.sqrt(Math.pow(lastVarPoint[0]-resumePoint[0], 2) + Math.pow(lastVarPoint[1]-resumePoint[1], 2));
+                    console.log(`[DEBUG] SEGMENT END GAP: ${dist.toFixed(7)}`);
+                    if (dist > 1e-7) { 
+                        variantCoords.push(resumePoint);
+                    }
+                }
+            }
+
+            // Add Variant (Blue)
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: variantCoords },
+                properties: { status: 'NEW', modType: mod.type }
+            });
+            combinedCoords.push(...variantCoords);
+
+            currentMasterIndex = resumeIndex;
+        }
+    });
+
+    // Add remaining master trace (if any)
+    if (currentMasterIndex < masterCoords.length - 1) {
+        const remaining = masterCoords.slice(currentMasterIndex);
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: remaining },
+            properties: { status: 'COMMON' }
+        });
+        combinedCoords.push(...remaining);
+    }
+    
+    // Create Stats
+    // We already have combined coordinates, we can calculate length directly!
+    // Or use calculator? Calculator is better for consistency with Editor logic.
+    // But since we built the line, turf.length is the absolute truth for visuals.
+    const fullLineString = turf.lineString(combinedCoords);
+    const totalLen = turf.length(fullLineString, { units: 'kilometers' });
+
+    // Use Calculator primarily for verify? No, if we reconstructed, use the reconstruction length.
+    // It's the visual truth.
+    
+    return {
+        fullLineString,
+        coloredSegments: { type: 'FeatureCollection', features },
+        stats: { total: totalLen, current: 0 }
+    };
+}
+
+// 3. Robust Distance Correction (Geometric Projection)
+// Linear scaling isn't enough because local variations between Low-Res (Tracking) and High-Res (Comet) cause drift.
+// We must project each tracking point onto the High-Res line to get its TRUE distance.
+function applyFrontendDistanceCorrection(trackingData, fullLineString) {
+    if (!trackingData || trackingData.length === 0 || !fullLineString) return trackingData;
+
+    // VisualizeView logic (via process_tracking_data):
+    // Distance matches increment * 100m exactly. No projection.
+    // This ensures alignment with the simplified grid used by the Camera.
+    
+    trackingData.forEach(p => {
+        // p.increment is the 100m step index.
+        const nominalDistKm = (p.increment * 100) / 1000;
+        p.distance = nominalDistKm;
+        
+        // We do NOT update p.coordonnee (keep original drift).
+    });
+
+    return trackingData;
+}
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown);

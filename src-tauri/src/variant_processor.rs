@@ -705,10 +705,13 @@ pub async fn get_variant_geojson(
 
 
     // 4. Stitching Logic
-     let find_corresponding_idx = |lon: f64, lat: f64, tracking_idx: usize, start_search_from: usize| -> usize {
-        // Estimate position based on tracking index ratio
-        let ratio = tracking_idx as f64 / total_tracking_pts as f64;
-        let estimated_idx = (ratio * total_high_res_pts as f64) as usize;
+
+
+    // 4. Stitching Logic
+     let find_corresponding_idx = |lat: f64, lon: f64, hint_idx: usize, start_search_from: usize| -> (usize, f64) {
+        // hint_idx is High Resolution index (from anchors). 
+        // We use it directly as the bio-center for search.
+        let estimated_idx = hint_idx;
         
         let window_size = (total_high_res_pts / 20).max(500); 
         let min_search = estimated_idx.saturating_sub(window_size).max(start_search_from);
@@ -717,12 +720,37 @@ pub async fn get_variant_geojson(
         let mut min_dist = f64::MAX;
         let mut best_idx = start_search_from;
         
+        // Safety Fallback if window invalid
+        if min_search >= max_search {
+             let fallback_max = (start_search_from + 2000).min(total_high_res_pts);
+             for i in start_search_from..fallback_max {
+                let mp = &master_points_high_res[i];
+                let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
+                if d < min_dist { min_dist = d; best_idx = i; }
+             }
+             return (best_idx, min_dist);
+        }
+
         for i in min_search..max_search {
             let mp = &master_points_high_res[i];
              let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
             if d < min_dist { min_dist = d; best_idx = i; }
         }
-        best_idx
+        
+        // Fallback: Global Search if local match is poor (> 50m)
+        // This handles cases where indices might be corrupted or desynchronized
+        if min_dist > 50.0 {
+             let mut global_min = min_dist;
+             for i in start_search_from..total_high_res_pts {
+                let mp = &master_points_high_res[i];
+                let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
+                if d < global_min { global_min = d; best_idx = i; }
+                if global_min < 1.0 { break; } // Optimization: found close match (< 1m)
+             }
+             min_dist = global_min;
+        }
+        
+        (best_idx, min_dist)
     };
 
     let mut final_points: Vec<Vec<f64>> = Vec::new();
@@ -730,20 +758,37 @@ pub async fn get_variant_geojson(
     let mut sorted_mods = archive.modifications.clone();
     sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
     let mut has_arrivee_reportee = false;
+    
+    eprintln!("🔍 RUST: Starting variant assembly. Master has {} high-res points", total_high_res_pts);
 
     for modification in &sorted_mods {
          match modification {
             VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                
                 if let Some(geom) = full_geometry {
                      for p in geom {
                          final_points.push(vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]);
                      }
                 }
-                let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
-                current_master_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
+                // Use master_points_high_res directly
+                if *anchor_index_on_master < master_points_high_res.len() {
+                    let anchor_coords = &master_points_high_res[*anchor_index_on_master];
+                    // master_points_high_res: [lon, lat, alt], haversine needs (lat, lon)
+                    let (idx, dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, 0);
+                    current_master_idx = idx;
+                } else {
+                    current_master_idx = 0; // Error fallback
+                }
             },
              VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
-                 let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
+                 // anchor_start.coords: [lon, lat], haversine needs (lat, lon)
+                 let (start_idx, start_dist) = find_corresponding_idx(anchor_start.coords[1], anchor_start.coords[0], anchor_start.index, current_master_idx);
+                 
+                 // Log what we actually found in master
+                 if start_idx < master_points_high_res.len() {
+                     let _found_point = &master_points_high_res[start_idx];
+                 }
+                 
                  if start_idx >= current_master_idx {
                     for i in current_master_idx..=start_idx {
                         if i < master_points_high_res.len() {
@@ -759,21 +804,35 @@ pub async fn get_variant_geojson(
                      }
                 }
                 
-                let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, current_master_idx);
+                // anchor_end.coords: [lon, lat], haversine needs (lat, lon)
+                let (end_idx, end_dist) = find_corresponding_idx(anchor_end.coords[1], anchor_end.coords[0], anchor_end.index, current_master_idx);
+                
+                // Log what we found
+                if end_idx < master_points_high_res.len() {
+                    let _found_point = &master_points_high_res[end_idx];
+                }
+                
                 current_master_idx = end_idx;
-                if current_master_idx < start_idx { current_master_idx = start_idx + 1; }
+                if current_master_idx < start_idx { 
+                    current_master_idx = start_idx + 1; 
+                }
              },
              VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
                  has_arrivee_reportee = true;
-                  let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
-                let arrivee_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, current_master_idx);
-                 if arrivee_idx >= current_master_idx {
-                    for i in current_master_idx..=arrivee_idx {
-                        if i < master_points_high_res.len() {
-                            final_points.push(master_points_high_res[i].clone());
+                 if *anchor_index_on_master < master_points_high_res.len() {
+                    let anchor_coords = &master_points_high_res[*anchor_index_on_master];
+                    // master_points_high_res: [lon, lat, alt], haversine needs (lat, lon)
+                    let (arrivee_idx, arrivee_dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, current_master_idx);
+                    
+                    if arrivee_idx >= current_master_idx {
+                        for i in current_master_idx..=arrivee_idx {
+                            if i < master_points_high_res.len() {
+                                final_points.push(master_points_high_res[i].clone());
+                            }
                         }
                     }
-                }
+                 }
+                 
                 if let Some(geom) = full_geometry {
                       for p in geom {
                          final_points.push(vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]);
@@ -969,4 +1028,195 @@ pub async fn get_variant_comparison_geojson(
     });
 
     Ok(serde_json::to_string(&fc).map_err(|e| e.to_string())?)
+}
+
+// --- Helpers for Tracking Generation ---
+
+fn generate_simple_tracking(points: &Vec<VariantPoint>) -> Vec<serde_json::Value> {
+    let mut tracked_points = Vec::new();
+    let mut dist_since_last_cp = 0.0;
+    let mut last_processed: Option<&VariantPoint> = None;
+
+    for (i, p) in points.iter().enumerate() {
+        let mut is_cp = false;
+        
+        if let Some(prev) = last_processed {
+             let d = crate::gpx_processor::haversine_distance(prev.lat, prev.lon, p.lat, p.lon);
+             dist_since_last_cp += d;
+        }
+        
+        // Mark as CP if start, end, or > 100m
+        if i == 0 || i == points.len() - 1 || dist_since_last_cp >= 100.0 {
+            is_cp = true;
+            dist_since_last_cp = 0.0;
+        }
+
+        tracked_points.push(serde_json::json!({
+            "increment": i, 
+            "coordonnee": [p.lon, p.lat],
+            "altitude": p.alt.unwrap_or(0.0),
+            "distance": 0.0, 
+            "cap": 0.0,
+            "zoom": 16.0,
+            "pitch": 55.0,
+            "pointDeControl": is_cp
+        }));
+        
+        last_processed = Some(p);
+    }
+    tracked_points
+}
+
+fn find_closest_tracking_idx(tracking: &Vec<serde_json::Value>, lat: f64, lon: f64, start_hint: usize) -> usize {
+    let mut min_dist = f64::MAX;
+    let mut best_idx = start_hint;
+    let limit = tracking.len();
+    // Search localized around hint first could be better but let's scan a reasonable window or all if small
+    // Optimization: scan forward from start_hint
+    for i in 0..limit {
+        if let Some(coords) = tracking[i].get("coordonnee").and_then(|c| c.as_array()) {
+            if coords.len() >= 2 {
+                let clat = coords[1].as_f64().unwrap_or(0.0);
+                let clon = coords[0].as_f64().unwrap_or(0.0);
+                let d = (clat - lat).powi(2) + (clon - lon).powi(2);
+                if d < min_dist {
+                    min_dist = d;
+                    best_idx = i;
+                }
+            }
+        }
+    }
+    best_idx
+}
+
+#[tauri::command]
+pub async fn get_variant_tracking(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<String, String> {
+     let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    // 1. Load Master Tracking
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let tracking_path = circuit_data_dir.join("tracking.json");
+    if !tracking_path.exists() { return Err("Master tracking.json missing".to_string()); }
+    
+    let content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
+    let master_tracking: Vec<serde_json::Value> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+    // 2. Load Variant Data
+    // Use get_variant_details which returns Archive
+    let archive = get_variant_details(app_handle.clone(), circuit_id.clone(), variant_id.clone()).await?;
+
+    // 3. Assemble
+    let mut final_tracking: Vec<serde_json::Value> = Vec::new();
+    let mut current_master_idx = 0;
+    
+    // Check for DepartDeporte first as it overrides start
+    // Sort logic similar to comparison? Yes.
+    let mut sorted_mods = archive.modifications.clone();
+    sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
+
+    for modification in sorted_mods {
+        match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                // Determine connection point on master
+                // anchor_index_on_master is GeoJSON index. 
+                // We need to map this to tracking index. Use coordinates.
+                 if let Some(anchor_pt) = master_tracking.get(0).and_then(|_| {
+                     // Need coordinates of anchor from master TRACKING? No, anchor index is relative to LineString.
+                     // But we have anchor point in modification? No, just index.
+                     // Let's use the provided full_geometry LAST point to sync with Master.
+                     full_geometry.as_ref().and_then(|g| g.last())
+                 }) {
+                      // Find where this point connects on Master
+                      let connect_idx = find_closest_tracking_idx(&master_tracking, anchor_pt.lat, anchor_pt.lon, 0);
+                      
+                      // Add New Segment
+                      if let Some(geom) = full_geometry {
+                          final_tracking.extend(generate_simple_tracking(&geom));
+                      }
+                      current_master_idx = connect_idx + 1;
+                 }
+            },
+            VariantModification::ArriveeReportee { full_geometry, .. } => {
+                 if let Some(geom) = full_geometry {
+                     if let Some(first) = geom.first() {
+                         let connect_idx = find_closest_tracking_idx(&master_tracking, first.lat, first.lon, current_master_idx);
+                         
+                         // Add Master until connection
+                         for i in current_master_idx..=connect_idx {
+                             if i < master_tracking.len() {
+                                 final_tracking.push(master_tracking[i].clone());
+                             }
+                         }
+                         
+                         // Add New Segment
+                         final_tracking.extend(generate_simple_tracking(&geom));
+                         
+                         current_master_idx = master_tracking.len(); // End
+                     }
+                 }
+            },
+            VariantModification::SegmentDeviation { full_geometry, .. } => {
+                if let Some(geom) = full_geometry {
+                    if let Some(first) = geom.first() {
+                        let start_idx = find_closest_tracking_idx(&master_tracking, first.lat, first.lon, current_master_idx);
+                        
+                         // Add Master until start
+                         for i in current_master_idx..=start_idx {
+                             if i < master_tracking.len() {
+                                 final_tracking.push(master_tracking[i].clone());
+                             }
+                         }
+                         
+                         // Add New Segment
+                         final_tracking.extend(generate_simple_tracking(&geom));
+                         
+                         if let Some(last) = geom.last() {
+                              let end_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, start_idx);
+                              current_master_idx = end_idx;
+                         }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Add remaining master
+    for i in current_master_idx..master_tracking.len() {
+        final_tracking.push(master_tracking[i].clone());
+    }
+    
+    // 4. Post-Process: Recalculate Distances and Increments
+    let mut total_dist = 0.0;
+    let mut last_coord: Option<(f64, f64)> = None;
+
+    for (i, val) in final_tracking.iter_mut().enumerate() {
+        if let Some(obj) = val.as_object_mut() {
+            // Update increment
+            obj.insert("increment".to_string(), serde_json::json!(i));
+            
+            // Calc distance
+            if let Some(coords) = obj.get("coordonnee").and_then(|c| c.as_array()) {
+                 let lon = coords[0].as_f64().unwrap_or(0.0);
+                 let lat = coords[1].as_f64().unwrap_or(0.0);
+                 
+                 if let Some(prev) = last_coord {
+                     let d = crate::gpx_processor::haversine_distance(prev.1, prev.0, lat, lon);
+                     total_dist += d;
+                 }
+                 last_coord = Some((lon, lat));
+                 
+                 obj.insert("distance".to_string(), serde_json::json!(total_dist));
+            }
+        }
+    }
+    
+    Ok(serde_json::to_string(&final_tracking).map_err(|e| e.to_string())?)
 }

@@ -53,6 +53,7 @@ export function useCameraInterpolator(map) {
                 if (nextCpIndex < trackingPoints.length) {
                     prevCamKeyframe = controlPoint;
                     nextCamKeyframe = trackingPoints[nextCpIndex];
+                    // console.log(`[DEBUG] Camera Spline: ${lastPassedControlPointIndex} -> ${nextCpIndex} (Dist: ${controlPoint.distance.toFixed(1)} -> ${nextCamKeyframe.distance.toFixed(1)})`);
                 }
             }
         }
@@ -142,6 +143,9 @@ export function useCameraInterpolator(map) {
                     map.value.setZoom(zoom);
                     map.value.setPitch(pitch);
                     map.value.setBearing(bearing);
+
+
+
                     map.value.setCenter([lookAtPointLng, lookAtPointLat]);
 
                     // Calcul du bearing de la trace
