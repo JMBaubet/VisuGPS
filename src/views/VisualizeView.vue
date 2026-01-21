@@ -69,17 +69,28 @@
       </div>
     </transition>
     <transition name="fade">
-      <v-btn v-if="!isInitializing && isPaused && !isControlsCardVisible"
-             color="warning"
-             @click="isAnimationFinished ? resetAnimation() : isPaused = false"
-             class="bottom-controls"
-             size="x-large"
-             rounded
-             title="Reprendre l'animation (P)"
-             @wheel.stop
-      >
-        Reprise
-      </v-btn>
+      <div v-if="!isInitializing && isPaused && !isControlsCardVisible" class="d-flex flex-column align-center bottom-controls" @wheel.stop>
+          <v-btn
+                 color="warning"
+                 @click="isAnimationFinished ? resetAnimation() : isPaused = false"
+                 class="mb-2"
+                 size="x-large"
+                 rounded
+                 title="Reprendre l'animation (P)"
+          >
+            Reprise
+          </v-btn>
+          <v-btn v-if="isAnimationFinished && hasVariants"
+                 color="primary"
+                 @click="goToVariantView"
+                 size="x-large"
+                 rounded
+                 prepend-icon="mdi-source-branch"
+                 title="Voir les variantes"
+          >
+            Variantes
+          </v-btn>
+      </div>
     </transition>
     <transition name="fade-opacity">
       <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
@@ -107,13 +118,34 @@
                              <!-- Variant Link (Placeholder for now) -->
                              <template v-if="hasVariants">
                                  <v-divider vertical class="mx-2"></v-divider>
-                                 <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView"></v-btn>
+                                 <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
                              </template>
           </div>
         </v-card>
       </div>
     </transition>
   </div>
+    <!-- Variant Selection Dialog -->
+    <v-dialog v-model="showVariantSelection" max-width="500">
+        <v-card>
+            <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
+            <v-list>
+                <v-list-item v-for="v in availableVariants" :key="v.id" @click="selectVariant(v.id)" link>
+                    <template v-slot:prepend>
+                        <v-icon icon="mdi-source-branch" color="primary"></v-icon>
+                    </template>
+                    <v-list-item-title>{{ v.name }}</v-list-item-title>
+                    <v-list-item-subtitle>
+                        {{ (v.stats.totalDistance).toFixed(1) }} km • {{ v.stats.totalAscent.toFixed(0) }}m D+
+                    </v-list-item-subtitle>
+                </v-list-item>
+            </v-list>
+            <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn text @click="showVariantSelection = false">Annuler</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script setup>
@@ -295,7 +327,54 @@ function mapSpeedToSlider(speed) {
 
 // --- Methods ---
 
-const goToVariantView = () => { router.push({ name: 'VisualizeVariant', params: { circuitId: props.circuitId } }); };
+const showVariantSelection = ref(false);
+const availableVariants = ref([]);
+
+const goToVariantView = async () => {
+    try {
+        const variants = await invoke('get_variants', { circuitId: props.circuitId });
+        if (!variants || variants.length === 0) {
+             showSnackbar("Aucune variante disponible.", "warning");
+             return;
+        }
+
+        if (variants.length === 1) {
+            navigateToVariant(variants[0].id);
+        } else {
+            availableVariants.value = variants;
+            showVariantSelection.value = true;
+        }
+    } catch (e) {
+        console.error("Erreur chargement variants:", e);
+        showSnackbar("Erreur chargement variants", "error");
+    }
+};
+
+const selectVariant = (variantId) => {
+    showVariantSelection.value = false;
+    navigateToVariant(variantId);
+};
+
+const navigateToVariant = (variantId) => {
+    let query = {};
+    if (map.value) {
+        const center = map.value.getCenter();
+        query = {
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.value.getZoom(),
+            bearing: map.value.getBearing(),
+            pitch: map.value.getPitch()
+        };
+    }
+    router.push({ 
+        name: 'VisualizeVariant', 
+        params: { circuitId: props.circuitId }, 
+        query: { ...query, variantId: variantId } // Pass variantId in query or params? Ideally params but route is /visualize-variant/:circuitId
+        // Let's pass it in query if the route doesn't support it, OR update router to support /:variantId
+        // Actually, route definition is important.
+    });
+};
 const goBack = () => { router.push({ name: 'Main' }); };
 const getToHexImproved = (n) => toHex(getSettingValue(n));
 

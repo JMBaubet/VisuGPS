@@ -105,10 +105,24 @@
                                 </template>
                             </v-slider>
                              <!-- Variant Link (Placeholder for now) -->
-                             <template v-if="hasVariants">
-                                 <v-divider vertical class="mx-2"></v-divider>
-                                 <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView"></v-btn>
-                             </template>
+                             <!-- Variant Switching & Return -->
+                             <v-divider vertical class="mx-2"></v-divider>
+                             
+                             <!-- Select another variant (if multiple) -->
+                             <v-btn v-if="availableVariants.length > 1" 
+                                    icon="mdi-format-list-bulleted" 
+                                    variant="text" 
+                                    title="Changer de variante" 
+                                    @click="showVariantSelection = true">
+                             </v-btn>
+
+                             <!-- Return to Main Trace -->
+                             <v-btn icon="mdi-arrow-u-left-top" 
+                                    variant="text" 
+                                    color="secondary"
+                                    title="Retour Trace Principale" 
+                                    @click="returnToMainTrace">
+                             </v-btn>
           </div>
         </v-card>
       </div>
@@ -116,7 +130,7 @@
   </div>
 
     <!-- Variant Selection Dialog -->
-    <v-dialog v-model="showVariantSelection" persistent max-width="500">
+    <v-dialog v-model="showVariantSelection" persistent max-width="500" scrim="black" opacity="0.5">
         <v-card>
             <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
             <v-list>
@@ -140,7 +154,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import mapboxgl from 'mapbox-gl';
@@ -170,9 +184,12 @@ const props = defineProps({
   variantId: { type: String, default: null } // Optional
 });
 
+const router = useRouter();
+const route = useRoute();
+
 const showVariantSelection = ref(false);
 const availableVariants = ref([]);
-const selectedVariantId = ref(props.variantId);
+const selectedVariantId = ref(props.variantId || route.query.variantId);
 
 const selectVariant = (id) => {
     selectedVariantId.value = id;
@@ -181,8 +198,6 @@ const selectVariant = (id) => {
     // router.replace({ name: 'VisualizeVariant', params: { circuitId: props.circuitId, variantId: id } });
     initializeVisualization();
 };
-
-const router = useRouter();
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
@@ -226,7 +241,7 @@ const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
 // --- Using New Composables ---
 // 1. Map Engine
-const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap } = useMapEngine(mapContainer, mapboxToken, styleLancement, terrainExaggeration);
+const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap } = useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExaggeration);
 
 // 2. Camera Manager
 const { pausedCameraOptions, currentCameraBearing: camBearing, saveCameraState, restoreCameraState, enableInteraction, disableInteraction, startBearingTracking } = useCameraManager(map);
@@ -330,7 +345,7 @@ function mapSpeedToSlider(speed) {
 
 // --- Methods ---
 
-const goToVariantView = () => { showVariantSelection.value = true; };
+const returnToMainTrace = () => { router.push({ name: 'Visualize', params: { id: props.circuitId } }); };
 const goBack = () => { router.push({ name: 'Main' }); };
 const getToHexImproved = (n) => toHex(getSettingValue(n));
 
@@ -348,29 +363,33 @@ const togglePlayPauseOrReset = () => {
 const initializeVisualization = async () => {
     resetTime(); 
     try {
-        // 0. Variant Selection Logic
-        if (!selectedVariantId.value) {
-            try {
-                const variants = await invoke('get_variants', { circuitId: props.circuitId });
-                console.log("Variantes trouvées:", variants);
-                if (!variants || variants.length === 0) {
-                    showSnackbar("Aucune variante disponible pour ce circuit.", "warning");
-                    // Fallback to main trace or exit? Let's go back.
-                     setTimeout(() => goBack(), 2000);
-                    return;
-                }
-                if (variants.length === 1 && !showVariantSelection.value) { // Auto select if only one
-                    selectedVariantId.value = variants[0].id;
-                } else {
-                    availableVariants.value = variants;
-                    showVariantSelection.value = true;
-                    return; // Wait for user selection
-                }
-            } catch(e) {
-                console.error("Erreur chargement variants:", e);
-                showSnackbar("Erreur chargement variants", "error");
-                return;
+        // 0. Map Init (Pre-load to avoid black screen)
+        let initialCenter = centerEurope.value;
+        let initialZoom = zoomEurope.value;
+        if (route.query.lat && route.query.lng && route.query.zoom) {
+             initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
+             initialZoom = parseFloat(route.query.zoom);
+        }
+        
+        if (!map.value) {
+            let instance = await initMapEngine(initialCenter, initialZoom);
+            if(!instance) throw new Error("Map failed to init");
+            instance.setMinZoom(zoomMinimum.value);
+            
+            if (route.query.bearing && route.query.pitch) {
+                instance.jumpTo({
+                    bearing: parseFloat(route.query.bearing),
+                    pitch: parseFloat(route.query.pitch)
+                });
             }
+            startBearingTracking();
+        }
+
+        // 0.5 Ensure we have a variant ID
+        if (!selectedVariantId.value) {
+             showSnackbar("Aucune variante spécifiée.", "error");
+             setTimeout(() => goBack(), 1000);
+             return;
         }
 
         // 1. Load Data (Variant Specific)
@@ -414,50 +433,36 @@ const initializeVisualization = async () => {
             coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
         }
 
-        // 2. Map Init
-        const mapInstance = await initMapEngine(centerEurope.value, zoomEurope.value);
-        if(!mapInstance) throw new Error("Map failed to init");
-        
-        mapInstance.setMinZoom(zoomMinimum.value);
-
-        startBearingTracking();
-
+        // 3. Map Layers (Once data is loaded)
         setupTraceLayers({
             traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
             lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
             coloredSegmentsData: coloredSegmentsGeoJsonRef.value
         });
         
-        // 3. Animation Sequence (Simplified)
-        animationState.value = 'Vol_Vers_Vue_Globale';
-        const traceBbox = turf.bbox(lineStringRef.value);
-        const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+        // 3. Animation Sequence (Simplified for Variants: Direct to Start)
         
-        await flyToPromise(globalView, { duration: durationEuropeToTrace.value });
-
-        animationState.value = 'Pause_Observation';
-        await new Promise(r => setTimeout(r, pauseBeforeStart.value));
+        // Note: Map is already initialized with `mapStyle` (3D) in useMapEngine.
+        // No need to switch from styleLancement.
 
         animationState.value = 'Vol_Vers_Depart';
-        if (mapStyle.value !== styleLancement.value) {
-            mapInstance.setStyle(mapStyle.value);
-            await new Promise(resolve => mapInstance.once('style.load', resolve));
-            setupTraceLayers({
-                traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-                lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-                coloredSegmentsData: coloredSegmentsGeoJsonRef.value
-            }); 
-        }
-
+        
+        // Initial FlyTo directly to Start
         const startPoint = trackingPointsWithDistanceRef.value[0];
-        // Default camera if no edited pitch/zoom available in generic tracking
+        
+        // Initialize camera at a high view first for context? Or just direct?
+        // User asked for "Directement faire un flyto vers le km 0".
+        // Let's start from a reasonable zoomed out view of the start and zoom in.
+        
         await flyToPromise({
             center: startPoint.coordonnee,
-            zoom: 16, // Default
-            pitch: 45, // Default
-            bearing: 0, // Default
-            duration: durationTraceToStart.value
+            zoom: 16, 
+            pitch: 45,
+            bearing: 0,
+            duration: 3000 // A bit faster/smoother direct entry
         });
+
+
 
         animationState.value = 'En_Pause_au_Depart';
         isInitializing.value = false;
@@ -953,11 +958,26 @@ onMounted(() => {
 });
 
 // Watch settings changes that mandate restart/update...
-const unwatchSettings = watch(settings, (newSettings) => {
-    if (newSettings && mapboxToken.value && !isMapLoaded.value) {
-         initializeVisualization();
+onMounted(async () => {
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
+    
+    // Ensure DOM is ready
+    await nextTick();
+
+    if (mapboxToken.value) {
+        initializeVisualization();
+    } else {
+        // Fallback or wait for settings?
+        // Usually settings are loaded. If not, a watch might be needed.
+        const unwatch = watch(mapboxToken, (token) => {
+            if (token) {
+                initializeVisualization();
+                unwatch();
+            }
+        });
     }
-}, { immediate: true, deep: true });
+});
 
 // Sync isPaused with animationState for UI visibility
 watch(isPaused, (newVal) => {
