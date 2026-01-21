@@ -404,8 +404,23 @@ const initializeVisualization = async () => {
         
         if (pauseAuKm0.value > 0) {
              isPaused.value = true;
-             await new Promise(r => setTimeout(r, pauseAuKm0.value));
-             isPaused.value = false; 
+             // Wait for delay OR user interaction (isPaused becoming false)
+             await new Promise(resolve => {
+                 let timer = setTimeout(() => {
+                     stopWatch();
+                     resolve();
+                 }, pauseAuKm0.value);
+                 
+                 const stopWatch = watch(isPaused, (newVal) => {
+                     if (!newVal) { // User clicked Play
+                         clearTimeout(timer);
+                         stopWatch();
+                         resolve();
+                     }
+                 });
+             });
+             // Ensure paused is false if timeout expired naturally
+             if (isPaused.value) isPaused.value = false;
         }
 
     } catch (error) {
@@ -738,6 +753,19 @@ const unwatchSettings = watch(settings, (newSettings) => {
          initializeVisualization();
     }
 }, { immediate: true, deep: true });
+
+// Sync isPaused with animationState for UI visibility
+watch(isPaused, (newVal) => {
+    if (newVal) {
+        if (animationState.value === 'En_Animation') {
+            animationState.value = 'En_Pause';
+        }
+    } else {
+        if (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart') {
+            animationState.value = 'En_Animation';
+        }
+    }
+});
 
 onUnmounted(() => {
     cleanupMap();
