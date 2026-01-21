@@ -716,6 +716,38 @@ const resetAnimation = async () => {
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
     
+    // Restore UI
+    isDistanceDisplayVisible.value = true;
+    isAltitudeVisible.value = true;
+    isCommuneWidgetVisible.value = true;
+    isWeatherInfoVisible.value = true;
+    isCompassVisible.value = true;
+
+    // Restore Map Style for 3D View if changed
+    if (mapStyle.value && map.value.getStyle().name !== mapStyle.value) { // Simple check, might need robust URL check
+        // Or assume if we are in End State (standard map) we need to switch back
+         map.value.setStyle(mapStyle.value);
+         await new Promise(r => map.value.once('style.load', r));
+         
+         // Re-add Terrain
+         if (!map.value.getSource('mapbox-dem')) {
+             map.value.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+        }
+        map.value.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
+
+        // Re-setup layers
+        setupTraceLayers({
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
+            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+        });
+    }
+
     activePopups.forEach(p => p.remove());
     activePopups.clear();
     
