@@ -266,23 +266,31 @@ const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/
 
 function mapSliderToSpeed(sliderValue) {
     const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 10;
-    const def = defaultSpeedValue.value || 1;
-    const halfMax = max / 2;
-    if (sliderValue <= 20) return min + (sliderValue / 20) * (def - min);
-    if (sliderValue <= 80) return def + ((sliderValue - 20) / 60) * (halfMax - def);
-    return halfMax + ((sliderValue - 80) / 20) * (max - halfMax);
+    const max = maxSpeedValue.value || 100.0;
+    
+    // Logarithmic scale: speed = min * (max/min)^(slider/100)
+    if (sliderValue <= 0) return min;
+    if (sliderValue >= 100) return max;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    // Interpolate in log domain
+    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+    return Math.exp(logVal);
 }
+
 function mapSpeedToSlider(speed) {
     const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 10;
-    const def = defaultSpeedValue.value || 1;
-    const halfMax = max / 2;
-    if (speed < min) return 0;
-    if (speed > max) return 100;
-    if (speed <= def) return ((speed - min) / (def - min)) * 20;
-    if (speed <= halfMax) return 20 + ((speed - def) / (halfMax - def)) * 60;
-    return 80 + ((speed - halfMax) / (max - halfMax)) * 20;
+    const max = maxSpeedValue.value || 100.0;
+    
+    if (speed <= min) return 0;
+    if (speed >= max) return 100;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
 }
 
 // --- Methods ---
@@ -742,8 +750,98 @@ async function initWeather(circuit, trackingPoints) {
     } catch (e) { console.warn("Weather init error", e); }
 }
 
+const wasPausedBeforeArrowRight = ref(false);
+
+
+const handleKeydown = (e) => {
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+    switch(e.key) {
+        case ' ': // Espace
+            e.preventDefault();
+            togglePlayPauseOrReset();
+            break;
+        case 'h':
+        case 'H':
+            if (isBackButtonVisibleFinal.value) goBack();
+            break;
+        case 'ArrowLeft':
+            if (!isRewinding.value) isRewinding.value = true;
+            break;
+        case 'ArrowRight':
+            if (isPaused.value) {
+                wasPausedBeforeArrowRight.value = true;
+                isPaused.value = false;
+            }
+            break;
+        case 'ArrowUp':
+             e.preventDefault();
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+             break;
+        case 'ArrowDown':
+             e.preventDefault();
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+             break;
+        case '1':
+        case '&': // Support AZERTY '1'
+             sliderPosition.value = mapSpeedToSlider(1.0); // Reset speed to 1x
+             break;
+        case 'w':
+        case 'W':
+             // Toggle ALL widgets (replacing V)
+             const allState = !isControlsCardVisible.value;
+             isControlsCardVisible.value = allState;
+             isDistanceDisplayVisible.value = allState;
+             isCommuneWidgetVisible.value = allState;
+             isAltitudeVisible.value = allState;
+             isWeatherInfoVisible.value = allState;
+             isCompassVisible.value = allState;
+             break;
+        case 'c':
+        case 'C':
+             isControlsCardVisible.value = !isControlsCardVisible.value;
+             break;
+        case 'v': // Villes / Communes
+        case 'V':
+             isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
+             break;
+        case 'd':
+        case 'D':
+             isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+             break;
+        case 'a':
+        case 'A':
+             isAltitudeVisible.value = !isAltitudeVisible.value;
+             break;
+        case 'm':
+        case 'M':
+             isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
+             break;
+        case 'b':
+        case 'B':
+             isCompassVisible.value = !isCompassVisible.value;
+             break;
+    }
+};
+
+const handleKeyup = (e) => {
+    switch(e.key) {
+        case 'ArrowLeft':
+            isRewinding.value = false;
+            break;
+        case 'ArrowRight':
+            if (wasPausedBeforeArrowRight.value) {
+                isPaused.value = true;
+                wasPausedBeforeArrowRight.value = false;
+            }
+            break;
+    }
+};
+
 // --- Lifecycle ---
 onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
     // Do not call init here directly. Wait for settings.
 });
 
@@ -768,6 +866,8 @@ watch(isPaused, (newVal) => {
 });
 
 onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('keyup', handleKeyup);
     cleanupMap();
     if (mapContainer.value) mapContainer.value.remove();
     activePopups.forEach(p => p.remove());
