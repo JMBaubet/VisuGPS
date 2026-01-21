@@ -672,3 +672,301 @@ pub async fn calculate_route(
 
     Err("Service de routage inconnu.".to_string())
 }
+
+#[tauri::command]
+pub async fn get_variant_geojson(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<String, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    // 1. Get Details (hydrated with full_geometry from lineString files)
+    let archive = get_variant_details(app_handle.clone(), circuit_id.clone(), variant_id.clone()).await?;
+
+    // 2. Load Master Trace
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let master_ls_path = circuit_data_dir.join("lineString.json");
+    let master_ls_content = fs::read_to_string(&master_ls_path).map_err(|e| format!("Failed to read lineString.json: {}", e))?;
+    let master_ls: serde_json::Value = serde_json::from_str(&master_ls_content).map_err(|e| format!("Failed to parse lineString.json: {}", e))?;
+    let master_coords = master_ls["coordinates"].as_array().ok_or("Invalid lineString format")?;
+    let master_points_high_res: Vec<Vec<f64>> = master_coords.iter().map(|c| c.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect()).collect();
+
+    // 3. Load Master Tracking (needed for indexing logic)
+    let tracking_master_path = circuit_data_dir.join("tracking.json");
+    let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
+    let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
+    let total_tracking_pts = tracking_master.len();
+    let total_high_res_pts = master_points_high_res.len();
+
+
+    // 4. Stitching Logic
+     let find_corresponding_idx = |lon: f64, lat: f64, tracking_idx: usize, start_search_from: usize| -> usize {
+        // Estimate position based on tracking index ratio
+        let ratio = tracking_idx as f64 / total_tracking_pts as f64;
+        let estimated_idx = (ratio * total_high_res_pts as f64) as usize;
+        
+        let window_size = (total_high_res_pts / 20).max(500); 
+        let min_search = estimated_idx.saturating_sub(window_size).max(start_search_from);
+        let max_search = (estimated_idx + window_size).min(total_high_res_pts);
+        
+        let mut min_dist = f64::MAX;
+        let mut best_idx = start_search_from;
+        
+        for i in min_search..max_search {
+            let mp = &master_points_high_res[i];
+             let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
+            if d < min_dist { min_dist = d; best_idx = i; }
+        }
+        best_idx
+    };
+
+    let mut final_points: Vec<Vec<f64>> = Vec::new();
+    let mut current_master_idx = 0;
+    let mut sorted_mods = archive.modifications.clone();
+    sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
+    let mut has_arrivee_reportee = false;
+
+    for modification in &sorted_mods {
+         match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                if let Some(geom) = full_geometry {
+                     for p in geom {
+                         final_points.push(vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]);
+                     }
+                }
+                let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                current_master_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
+            },
+             VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
+                 let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
+                 if start_idx >= current_master_idx {
+                    for i in current_master_idx..=start_idx {
+                        if i < master_points_high_res.len() {
+                            final_points.push(master_points_high_res[i].clone());
+                        }
+                    }
+                }
+                current_master_idx = start_idx + 1;
+                
+                if let Some(geom) = full_geometry {
+                     for p in geom {
+                         final_points.push(vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]);
+                     }
+                }
+                
+                let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, current_master_idx);
+                current_master_idx = end_idx;
+                if current_master_idx < start_idx { current_master_idx = start_idx + 1; }
+             },
+             VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
+                 has_arrivee_reportee = true;
+                  let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                let arrivee_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, current_master_idx);
+                 if arrivee_idx >= current_master_idx {
+                    for i in current_master_idx..=arrivee_idx {
+                        if i < master_points_high_res.len() {
+                            final_points.push(master_points_high_res[i].clone());
+                        }
+                    }
+                }
+                if let Some(geom) = full_geometry {
+                      for p in geom {
+                         final_points.push(vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]);
+                     }
+                }
+                current_master_idx = master_points_high_res.len();
+             }
+         }
+    }
+
+    if !has_arrivee_reportee {
+        while current_master_idx < master_points_high_res.len() {
+            final_points.push(master_points_high_res[current_master_idx].clone());
+            current_master_idx += 1;
+        }
+    }
+
+    // Convert to GeoJSON string
+      let geojson = serde_json::json!({
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": final_points
+        },
+        "properties": {
+            "variant_id": variant_id
+        }
+    });
+
+    Ok(serde_json::to_string(&geojson).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn get_variant_comparison_geojson(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<String, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    // 1. Get Details
+    let archive = get_variant_details(app_handle.clone(), circuit_id.clone(), variant_id.clone()).await?;
+
+    // 2. Load Master Trace
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let master_ls_path = circuit_data_dir.join("lineString.json");
+    let master_ls_content = fs::read_to_string(&master_ls_path).map_err(|e| format!("Failed to read lineString.json: {}", e))?;
+    let master_ls: serde_json::Value = serde_json::from_str(&master_ls_content).map_err(|e| format!("Failed to parse lineString.json: {}", e))?;
+    let master_coords = master_ls["coordinates"].as_array().ok_or("Invalid lineString format")?;
+    let master_points_high_res: Vec<Vec<f64>> = master_coords.iter().map(|c| c.as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect()).collect();
+
+    // 3. Load Master Tracking
+    let tracking_master_path = circuit_data_dir.join("tracking.json");
+    let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
+    let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
+    let total_tracking_pts = tracking_master.len();
+    let total_high_res_pts = master_points_high_res.len();
+
+    // 4. Indexing Helper
+    let find_corresponding_idx = |lon: f64, lat: f64, tracking_idx: usize, start_search_from: usize| -> usize {
+        let ratio = tracking_idx as f64 / total_tracking_pts as f64;
+        let estimated_idx = (ratio * total_high_res_pts as f64) as usize;
+        let window_size = (total_high_res_pts / 20).max(500); 
+        let min_search = estimated_idx.saturating_sub(window_size).max(start_search_from);
+        let max_search = (estimated_idx + window_size).min(total_high_res_pts);
+        
+        let mut min_dist = f64::MAX;
+        let mut best_idx = start_search_from;
+        
+        for i in min_search..max_search {
+            let mp = &master_points_high_res[i];
+            let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
+            if d < min_dist { min_dist = d; best_idx = i; }
+        }
+        best_idx
+    };
+
+    let mut features: Vec<serde_json::Value> = Vec::new();
+    let mut current_master_idx = 0;
+    
+    // Sort modifications by start anchor index
+    let mut sorted_mods = archive.modifications.clone();
+    sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
+    let mut has_arrivee_reportee = false;
+
+    // Helper to create Feature
+    let create_feature = |points: Vec<Vec<f64>>, status: &str| -> serde_json::Value {
+         serde_json::json!({
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": points
+            },
+            "properties": {
+                "status": status // "COMMON", "ABANDONED", "NEW"
+            }
+        })
+    };
+
+    for modification in &sorted_mods {
+         match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                // Determine anchor position on master
+                let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                let anchor_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
+
+                // ABANDONED segment from Start (0) to Anchor
+                if anchor_idx > 0 {
+                    let abandoned_pts: Vec<Vec<f64>> = master_points_high_res[0..=anchor_idx].to_vec();
+                    features.push(create_feature(abandoned_pts, "ABANDONED"));
+                }
+                current_master_idx = anchor_idx;
+
+                 // NEW segment (the variant part)
+                if let Some(geom) = full_geometry {
+                     let pts: Vec<Vec<f64>> = geom.iter().map(|p| vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]).collect();
+                     features.push(create_feature(pts, "NEW"));
+                }
+            },
+             VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
+                 let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
+                 
+                 // COMMON segment from current to start_idx
+                 if start_idx > current_master_idx {
+                     let common_pts: Vec<Vec<f64>> = master_points_high_res[current_master_idx..=start_idx].to_vec();
+                     if !common_pts.is_empty() {
+                         features.push(create_feature(common_pts, "COMMON"));
+                     }
+                 }
+                 
+                 // Find end_idx
+                 let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, start_idx);
+                 
+                 // ABANDONED segment from start_idx to end_idx
+                 if end_idx > start_idx {
+                      let abandoned_pts: Vec<Vec<f64>> = master_points_high_res[start_idx..=end_idx].to_vec();
+                      if !abandoned_pts.is_empty() {
+                         features.push(create_feature(abandoned_pts, "ABANDONED"));
+                     }
+                 }
+                
+                // NEW segment
+                if let Some(geom) = full_geometry {
+                     let pts: Vec<Vec<f64>> = geom.iter().map(|p| vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]).collect();
+                     features.push(create_feature(pts, "NEW"));
+                }
+                
+                current_master_idx = end_idx;
+                if current_master_idx < start_idx { current_master_idx = start_idx; } // Safety
+             },
+             VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
+                 has_arrivee_reportee = true;
+                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                 let arrivee_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, current_master_idx);
+                 
+                 // COMMON segment up to Arrivee Anchor
+                 if arrivee_idx > current_master_idx {
+                     let common_pts: Vec<Vec<f64>> = master_points_high_res[current_master_idx..=arrivee_idx].to_vec();
+                      if !common_pts.is_empty() {
+                         features.push(create_feature(common_pts, "COMMON"));
+                     }
+                 }
+                 
+                // ABANDONED segment from Arrivee Anchor to End
+                if arrivee_idx < master_points_high_res.len() - 1 {
+                    let abandoned_pts: Vec<Vec<f64>> = master_points_high_res[arrivee_idx..].to_vec();
+                    features.push(create_feature(abandoned_pts, "ABANDONED"));
+                }
+
+                // NEW segment
+                if let Some(geom) = full_geometry {
+                     let pts: Vec<Vec<f64>> = geom.iter().map(|p| vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]).collect();
+                     features.push(create_feature(pts, "NEW"));
+                }
+                current_master_idx = master_points_high_res.len();
+             }
+         }
+    }
+
+    // Remaining COMMON segment if any
+    if !has_arrivee_reportee && current_master_idx < master_points_high_res.len() {
+        let common_pts: Vec<Vec<f64>> = master_points_high_res[current_master_idx..].to_vec();
+        features.push(create_feature(common_pts, "COMMON"));
+    }
+
+    let fc = serde_json::json!({
+        "type": "FeatureCollection",
+        "features": features
+    });
+
+    Ok(serde_json::to_string(&fc).map_err(|e| e.to_string())?)
+}

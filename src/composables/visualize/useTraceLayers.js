@@ -89,6 +89,57 @@ export function useTraceLayers(map) {
             }
         }
 
+        // 6. Layers Variantes (Separes pour z-index)
+        // Ordre d'ajout = Ordre d'affichage (Peintre) si pas de 'beforeId'.
+        // On veut: ABANDONED (Dessous) -> COMMON -> NEW (Dessus)
+        // Et tout ça avant 'comet-layer' (si elle existe déjà, ou on s'assure qu'elle est ajoutée après).
+
+        if (coloredSegmentsGeoJsonRef.value) {
+            const hasStatus = coloredSegmentsGeoJsonRef.value.features?.some(f => f.properties && f.properties.status);
+            if (hasStatus) {
+                // Background: Abandoned (Black)
+                if (!map.value.getLayer('trace-variant-abandoned')) {
+                    map.value.addLayer({
+                        id: 'trace-variant-abandoned',
+                        type: 'line',
+                        source: 'colored-segments',
+                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#000000' },
+                        filter: ['==', ['get', 'status'], 'ABANDONED']
+                    });
+                }
+
+                // Middle: Common (Green)
+                if (!map.value.getLayer('trace-variant-common')) {
+                    map.value.addLayer({
+                        id: 'trace-variant-common',
+                        type: 'line',
+                        source: 'colored-segments',
+                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#00FF00' },
+                        filter: ['==', ['get', 'status'], 'COMMON']
+                    });
+                }
+
+                // Top: New (Blue) - Priority
+                if (!map.value.getLayer('trace-variant-new')) {
+                    map.value.addLayer({
+                        id: 'trace-variant-new',
+                        type: 'line',
+                        source: 'colored-segments',
+                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#0000FF' },
+                        filter: ['==', ['get', 'status'], 'NEW']
+                    });
+                }
+
+                // Masquer les couches standard
+                updateLayerVisibility('trace-complete', false);
+                updateLayerVisibility('trace-overlap-aller', false);
+                updateLayerVisibility('trace-overlap-retour', false);
+            }
+        }
+
         // 5. Layer Comète
         if (!map.value.getSource('comet-source')) {
             map.value.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });

@@ -114,6 +114,28 @@
       </div>
     </transition>
   </div>
+
+    <!-- Variant Selection Dialog -->
+    <v-dialog v-model="showVariantSelection" persistent max-width="500">
+        <v-card>
+            <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
+            <v-list>
+                <v-list-item v-for="v in availableVariants" :key="v.id" @click="selectVariant(v.id)" link>
+                    <template v-slot:prepend>
+                        <v-icon icon="mdi-source-branch" color="primary"></v-icon>
+                    </template>
+                    <v-list-item-title>{{ v.name }}</v-list-item-title>
+                    <v-list-item-subtitle>
+                        {{ (v.stats.totalDistance).toFixed(1) }} km • {{ v.stats.totalAscent.toFixed(0) }}m D+
+                    </v-list-item-subtitle>
+                </v-list-item>
+            </v-list>
+            <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn text @click="goBack">Annuler</v-btn>
+            </v-card-actions>
+        </v-card>
+    </v-dialog>
 </template>
 
 <script setup>
@@ -145,7 +167,20 @@ import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpol
 
 const props = defineProps({
   circuitId: { type: String, required: true },
+  variantId: { type: String, default: null } // Optional
 });
+
+const showVariantSelection = ref(false);
+const availableVariants = ref([]);
+const selectedVariantId = ref(props.variantId);
+
+const selectVariant = (id) => {
+    selectedVariantId.value = id;
+    showVariantSelection.value = false;
+    // Update URL without reloading? Or just continue.
+    // router.replace({ name: 'VisualizeVariant', params: { circuitId: props.circuitId, variantId: id } });
+    initializeVisualization();
+};
 
 const router = useRouter();
 const { settings, getSettingValue } = useSettings();
@@ -295,7 +330,7 @@ function mapSpeedToSlider(speed) {
 
 // --- Methods ---
 
-const goToVariantView = () => { router.push({ name: 'VisualizeVariant', params: { circuitId: props.circuitId } }); };
+const goToVariantView = () => { showVariantSelection.value = true; };
 const goBack = () => { router.push({ name: 'Main' }); };
 const getToHexImproved = (n) => toHex(getSettingValue(n));
 
@@ -311,58 +346,75 @@ const togglePlayPauseOrReset = () => {
 
 // --- Initialization Logic ---
 const initializeVisualization = async () => {
-    resetTime(); // Ensure animation time starts at 0
+    resetTime(); 
     try {
-        const { circuit, trackingData } = await loadCircuitData(props.circuitId);
+        // 0. Variant Selection Logic
+        if (!selectedVariantId.value) {
+            try {
+                const variants = await invoke('get_variants', { circuitId: props.circuitId });
+                console.log("Variantes trouvées:", variants);
+                if (!variants || variants.length === 0) {
+                    showSnackbar("Aucune variante disponible pour ce circuit.", "warning");
+                    // Fallback to main trace or exit? Let's go back.
+                     setTimeout(() => goBack(), 2000);
+                    return;
+                }
+                if (variants.length === 1 && !showVariantSelection.value) { // Auto select if only one
+                    selectedVariantId.value = variants[0].id;
+                } else {
+                    availableVariants.value = variants;
+                    showVariantSelection.value = true;
+                    return; // Wait for user selection
+                }
+            } catch(e) {
+                console.error("Erreur chargement variants:", e);
+                showSnackbar("Erreur chargement variants", "error");
+                return;
+            }
+        }
+
+        // 1. Load Data (Variant Specific)
+        const { circuit } = await loadCircuitData(props.circuitId); // Just for metadata
         currentCircuitRef.value = circuit;
         if (circuit) avancementCommunes.value = circuit.avancementCommunes;
-        // Debug logs removed
-         
-         try {
-            const variants = await invoke('get_variants', { circuitId: props.circuitId });
-            hasVariants.value = variants && variants.length > 0;
-        } catch(e) { console.warn("Check variants failed", e); }
 
-        const processed = await processTrackingData(lineStringRef.value, trackingData);
-        totalDistanceRef.value = processed.totalDistanceKm;
+        // Load Variant Geometry
+        const geoJsonString = await invoke('get_variant_geojson', { circuitId: props.circuitId, variantId: selectedVariantId.value });
+        const geoJson = JSON.parse(geoJsonString);
+        lineStringRef.value = geoJson.geometry; 
         
+        // Generate Tracking Points locally
+        const generatedTracking = generateTrackingFromGeoJSON(geoJson.geometry.coordinates);
+        trackingPointsWithDistanceRef.value = generatedTracking;
+        totalDistanceRef.value = generatedTracking[generatedTracking.length - 1].distance;
+
+        // Calculate Average Duration
         const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
         totalDurationAt1xRef.value = totalDistanceRef.value * msPerKm; 
 
-        controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
-            if (p.pointDeControl) acc.push(index);
-            return acc;
-        }, []);
+        // Variants don't have control points preserved yet (unless we map them). Resetting for now.
+        controlPointIndicesRef.value = []; 
 
-        const events = eventsRef.value;
-        if (events && events.pointEvents) {
-             pauseIncrements.value = Object.keys(events.pointEvents).filter(k => events.pointEvents[k].some(e => e.type === 'Pause')).map(Number);
-             const flytos = {};
-             Object.keys(events.pointEvents).forEach(k => {
-                 const ev = events.pointEvents[k].find(e => e.type === 'Flyto');
-                 if(ev) flytos[Number(k)] = ev.data;
-             });
-             flytoEvents.value = flytos;
-        }
-        rangeEvents.value = events?.rangeEvents || [];
+        // Reset Events (Variants don't imply events yet)
+        pauseIncrements.value = [];
+        flytoEvents.value = {};
+        rangeEvents.value = [];
 
         await initWeather(circuit, trackingPointsWithDistanceRef.value);
 
-        if (colorTraceBySlope.value) {
-             const slopeColors = {
-                TrancheNegative: getToHexImproved('Visualisation/Profil Altitude/Couleurs/TrancheNegative'),
-                Tranche1: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche1'),
-                Tranche2: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche2'),
-                Tranche3: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche3'),
-                Tranche4: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche4'),
-                Tranche5: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche5'),
-            };
-            try {
-                const geojson = await invoke('get_colored_segments_geojson', { circuitId: props.circuitId, slopeColors, segmentLength: segmentLength.value });
-                coloredSegmentsGeoJsonRef.value = geojson;
-            } catch(e) { console.error("Colored segments error", e); }
+
+
+        // Load Comparison Geometry (Segments coloring)
+        try {
+            const comparisonGeoJsonString = await invoke('get_variant_comparison_geojson', { circuitId: props.circuitId, variantId: selectedVariantId.value });
+            const comparisonGeoJson = JSON.parse(comparisonGeoJsonString);
+            coloredSegmentsGeoJsonRef.value = comparisonGeoJson;
+        } catch(e) {
+            console.error("Comparison load error", e);
+            coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
         }
 
+        // 2. Map Init
         const mapInstance = await initMapEngine(centerEurope.value, zoomEurope.value);
         if(!mapInstance) throw new Error("Map failed to init");
         
@@ -376,6 +428,7 @@ const initializeVisualization = async () => {
             coloredSegmentsData: coloredSegmentsGeoJsonRef.value
         });
         
+        // 3. Animation Sequence (Simplified)
         animationState.value = 'Vol_Vers_Vue_Globale';
         const traceBbox = turf.bbox(lineStringRef.value);
         const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
@@ -397,11 +450,12 @@ const initializeVisualization = async () => {
         }
 
         const startPoint = trackingPointsWithDistanceRef.value[0];
+        // Default camera if no edited pitch/zoom available in generic tracking
         await flyToPromise({
             center: startPoint.coordonnee,
-            zoom: startPoint.editedZoom ?? startPoint.zoom,
-            pitch: startPoint.editedPitch ?? startPoint.pitch,
-            bearing: startPoint.editedCap ?? startPoint.cap,
+            zoom: 16, // Default
+            pitch: 45, // Default
+            bearing: 0, // Default
             duration: durationTraceToStart.value
         });
 
@@ -412,30 +466,51 @@ const initializeVisualization = async () => {
         
         if (pauseAuKm0.value > 0) {
              isPaused.value = true;
-             // Wait for delay OR user interaction (isPaused becoming false)
              await new Promise(resolve => {
-                 let timer = setTimeout(() => {
-                     stopWatch();
-                     resolve();
-                 }, pauseAuKm0.value);
-                 
+                 let timer = setTimeout(() => { stopWatch(); resolve(); }, pauseAuKm0.value);
                  const stopWatch = watch(isPaused, (newVal) => {
-                     if (!newVal) { // User clicked Play
-                         clearTimeout(timer);
-                         stopWatch();
-                         resolve();
-                     }
+                     if (!newVal) { clearTimeout(timer); stopWatch(); resolve(); }
                  });
              });
-             // Ensure paused is false if timeout expired naturally
              if (isPaused.value) isPaused.value = false;
         }
 
     } catch (error) {
-        console.error("Init Visualization Failed:", error);
-        showSnackbar("Erreur d'initialisation", "error");
+        console.error("Init Visualization Variant Failed:", error);
+        showSnackbar("Erreur d'initialisation variante", "error");
     }
 };
+
+function generateTrackingFromGeoJSON(coordinates) {
+    const tracking = [];
+    let dist = 0;
+    
+    // Default starting point: index 0
+    // Try to get altitude from coordinate[2]
+    
+    for (let i = 0; i < coordinates.length; i++) {
+        const coord = coordinates[i];
+        if (i > 0) {
+            const prev = coordinates[i-1];
+            const d = turf.distance(turf.point(prev), turf.point(coord));
+            dist += d;
+        }
+        
+        tracking.push({
+            increment: i,
+            coordonnee: [coord[0], coord[1]],
+            altitude: coord.length > 2 ? coord[2] : 0,
+            distance: dist,
+            // Defaults
+            zoom: 16,
+            pitch: 45,
+            cap: 0, 
+            commune: null,
+            pointDeControl: false
+        });
+    }
+    return tracking;
+}
 
 let lastTimestamp = 0;
 

@@ -2510,6 +2510,8 @@ pub fn run() {
             variant_processor::get_variant_details,
             variant_processor::delete_variant,
             variant_processor::rename_variant,
+            variant_processor::get_variant_geojson,
+            variant_processor::get_variant_comparison_geojson,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

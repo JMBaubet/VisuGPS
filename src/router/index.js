@@ -37,6 +37,12 @@ const routes = [
     name: 'VariantTraceView',
     component: () => import('../views/VariantTraceView.vue'),
     props: true
+  },
+  {
+    path: '/visualize-variant/:circuitId/:variantId?',
+    name: 'VisualizeVariant',
+    component: () => import('../views/VisualizeVariantView.vue'),
+    props: true
   }
 ]
 
