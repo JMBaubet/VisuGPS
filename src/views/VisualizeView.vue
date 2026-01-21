@@ -513,7 +513,7 @@ const animateLoop = (timestamp) => {
 
 const checkLayers = (distanceTraveled) => {
      if (segmentMetadata.value?.overlappingZones) {
-         const isRetour = segmentMetadata.value.overlappingZones.some(z => distanceTraveled >= z.retourEndKm && distanceTraveled <= z.retourEndKm); 
+         const isRetour = segmentMetadata.value.overlappingZones.some(z => distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm); 
          if (isRetour) {
              updateTraceOverlapVisibility(null, 'retour');
          } else {
