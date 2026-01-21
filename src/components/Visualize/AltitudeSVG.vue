@@ -131,7 +131,6 @@ const props = defineProps({
 const containerRef = ref(null);
 
 onMounted(() => {
-    console.log("AltitudeSVG mounted | currentDistance:", props.currentDistance, "| totalDistance prop:", props.totalDistance, "| totalDrawable:", totalDrawableDistance.value);
     processData(); // Initial render
     nextTick(() => {
         updateProgressX(props.currentDistance);
@@ -200,7 +199,6 @@ const cursorWidth = computed(() => {
 
 // --- Logic ---
 async function processData() {
-    console.log("AltitudeSVG: processData called | totalDistance:", props.totalDistance, "| trackingPoints:", props.trackingPoints?.length);
     if (!props.trackingPoints) {
         pathSegments.value = [];
         return;
@@ -477,9 +475,10 @@ async function processData() {
     }
 }
 
-// Only rebuild graph when circuit/variant changes, NOT on animation updates
-watch(() => [props.totalDistance, props.isVariantComparison, props.variantSegments?.length], 
-      processData);
+// processData is now called ONLY:
+// 1. On mount (line 135)
+// 2. When parent changes the component key (forces re-mount)
+// This prevents it from being called during animation
 
 function updateProgressX(newDistance) {
     if (!containerRef.value || totalDrawableDistance.value === 0) return;
@@ -628,7 +627,6 @@ function updateProgressX(newDistance) {
 }
 
 watch(() => props.currentDistance, (newDistance) => {
-    console.log("AltitudeSVG: currentDistance changed to", newDistance.toFixed(1), "m");
     lastUpdatedDistance = newDistance;
     updateProgressX(newDistance);
 });
@@ -640,14 +638,6 @@ watch(() => props.currentSegmentIndex, () => {
     }
 });
 
-// Debug: watch progressX changes
-let lastLoggedProgress = -1;
-watch(progressX, (newVal) => {
-    if (Math.abs(newVal - lastLoggedProgress) > 10) { // Log every 10px change
-        console.log("AltitudeSVG: progressX =", newVal.toFixed(1));
-        lastLoggedProgress = newVal;
-    }
-});
 
 function handleMouseMove(event) {
     // Tooltip logic (needs update for comparison?)

@@ -56,6 +56,7 @@
     <transition name="fade">
       <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
           <altitude-s-v-g 
+            :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
             :circuit-id="props.circuitId" 
             :current-distance="currentDistanceInMeters" 
             :total-distance="totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
@@ -63,7 +64,7 @@
             :is-variant-comparison="false"
             :main-trace-points="null"
             :variant-segments="[]"
-            :current-segment-index="0"
+            :current-segment-index="null"
           />
       </div>
     </transition>
@@ -415,13 +416,7 @@ const initializeVisualization = async () => {
 
 let lastTimestamp = 0;
 
-// --- Main Animation Loop (Restored Full Logic) ---
 const animateLoop = (timestamp) => {
-    // Debug: log every 100 frames
-    if (!animateLoop.frameCount) animateLoop.frameCount = 0;
-    if (animateLoop.frameCount++ % 100 === 0) {
-        console.log("animateLoop | dist:", currentDistanceInMeters.value.toFixed(1), "m | paused:", isPaused.value);
-    }
     
     // 0. FlyTo Exclusive Mode
     if (isFlytoActive.value) {
@@ -720,10 +715,8 @@ async function initWeather(circuit, trackingPoints) {
     }
     let startDate = null;
     if (!circuit || !circuit.dateDepart) {
-        console.warn("Weather Init: No dateDepart found, defaulting to TODAY.");
         startDate = new Date();
     } else {
-        console.log("Weather Init: Start Date", circuit.dateDepart);
         startDate = new Date(circuit.dateDepart);
     }
     simulationStartDate.value = startDate;
@@ -735,14 +728,8 @@ async function initWeather(circuit, trackingPoints) {
 }
 
 // --- Lifecycle ---
-let debugInterval = null;
 onMounted(() => {
-    interruptUpdate();
     // Do not call init here directly. Wait for settings.
-    
-    debugInterval = setInterval(() => {
-        // Debug logs removed
-    }, 5000);
 });
 
 // Watch settings changes that mandate restart/update...
@@ -753,7 +740,6 @@ const unwatchSettings = watch(settings, (newSettings) => {
 }, { immediate: true, deep: true });
 
 onUnmounted(() => {
-    if (debugInterval) clearInterval(debugInterval);
     cleanupMap();
     if (mapContainer.value) mapContainer.value.remove();
     activePopups.forEach(p => p.remove());
