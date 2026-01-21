@@ -794,6 +794,25 @@ fn update_circuit_traceur(
 }
 
 #[tauri::command]
+fn get_circuit_scenarios(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<Vec<gpx_processor::MeteoScenario>, String> {
+    let state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+    
+    let scenarios = circuits_file
+        .circuits
+        .into_iter()
+        .find(|c| c.circuit_id == circuit_id)
+        .and_then(|c| c.meteo_config)
+        .and_then(|mc| mc.scenarios)
+        .unwrap_or_default();
+
+    Ok(scenarios)
+}
+
+#[tauri::command]
 fn update_circuit_meteo(
     state: State<Mutex<AppState>>,
     circuit_id: String,
@@ -2451,6 +2470,7 @@ pub fn run() {
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
+            get_circuit_scenarios,
             update_circuit_meteo,
             get_available_monitors,
             update_current_view,

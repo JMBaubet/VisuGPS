@@ -83,9 +83,9 @@
           
           <rect
               v-else
-              :x="rectDimensions.x"
+              :x="Math.max(0, progressX - cursorWidth)"
               y="0"
-              :width="rectDimensions.width"
+              :width="Math.min(cursorWidth, progressX)"
               :height="svgHeight - 20"
               :fill="cursorColor"
               :style="{ opacity: cursorOpacity }"
@@ -131,6 +131,8 @@ const props = defineProps({
 const containerRef = ref(null);
 
 onMounted(() => {
+    console.log("AltitudeSVG mounted | currentDistance:", props.currentDistance, "| totalDistance prop:", props.totalDistance, "| totalDrawable:", totalDrawableDistance.value);
+    processData(); // Initial render
     nextTick(() => {
         updateProgressX(props.currentDistance);
     });
@@ -190,29 +192,15 @@ const cursorOpacity = computed(() => {
 const cursorWidth = computed(() => {
     if (isCometLinked.value && totalDrawableDistance.value > 0) {
         const cometLengthMeters = getSettingValue('Visualisation/Vue 3D/Trace/longueurComete') || 50;
-        return (cometLengthMeters / totalDrawableDistance.value) * viewBoxWidth.value;
+        const calculatedWidth = (cometLengthMeters / totalDrawableDistance.value) * viewBoxWidth.value;
+        return Math.max(2, calculatedWidth); // Enforce min width of 2px
     }
     return 1.5; 
 });
 
-const rectDimensions = computed(() => {
-    const px = progressX.value;
-    const cw = cursorWidth.value;
-    
-    // Calculate edges ensuring non-negative width
-    const leftEdge = px - cw;
-    const rightEdge = px;
-    
-    const visibleLeft = Math.max(0, leftEdge);
-    const visibleRight = Math.max(0, rightEdge);
-    
-    const width = Math.max(0, visibleRight - visibleLeft);
-    
-    return { x: visibleLeft, width };
-});
-
 // --- Logic ---
 async function processData() {
+    console.log("AltitudeSVG: processData called | totalDistance:", props.totalDistance, "| trackingPoints:", props.trackingPoints?.length);
     if (!props.trackingPoints) {
         pathSegments.value = [];
         return;
@@ -489,11 +477,20 @@ async function processData() {
     }
 }
 
-watch(() => [props.trackingPoints, props.totalDistance, props.isVariantComparison, props.mainTracePoints, props.variantSegments], 
-      processData, { deep: true, immediate: true });
+// Only rebuild graph when circuit/variant changes, NOT on animation updates
+watch(() => [props.totalDistance, props.isVariantComparison, props.variantSegments?.length], 
+      processData);
 
 function updateProgressX(newDistance) {
     if (!containerRef.value || totalDrawableDistance.value === 0) return;
+    
+    // Calculate potential X locally to verify
+    let debugX = 0;
+    // ... (existing logic uses xPos)
+    
+    // We can't log "progressX.value" BEFORE calculating it, but we can log at end of function.
+    // Or just log the computed prop state.
+    // Debug: console.log("AltitudeSVG Update:", newDistance, "TotalDist:", totalDrawableDistance.value, "Linked:", isCometLinked.value, "Container:", !!containerRef.value);
     
     let xPos = 0;
     if (props.isVariantComparison && props.variantSegments.length > 0) {
@@ -603,21 +600,27 @@ function updateProgressX(newDistance) {
         }
         
     } else {
-        xPos = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
+        // Normal mode (no variants)
+        const calculatedX = (newDistance / totalDrawableDistance.value) * viewBoxWidth.value;
+        // Debug: console.log("AltitudeSVG Normal calc:", {newDistance, total: totalDrawableDistance.value, vbWidth: viewBoxWidth.value, calculatedX});
+        xPos = calculatedX;
     }
     
     if (isNaN(xPos)) xPos = 0;
-    progressX.value = xPos;
     
-    // Scroll Logic
+    // CRITICAL: Assign progressX BEFORE any DOM operations to ensure Vue reactivity updates first
+    progressX.value = xPos;
+    // progressX assigned
+    
+    // Scroll Logic (DOM operations that may trigger re-renders)
     const containerWidth = containerRef.value.clientWidth;
     const stuckPositionKm = getSettingValue('Visualisation/Profil Altitude/Graphe/CurseurPositionKm') || 10;
     const stuckPositionPx = (stuckPositionKm * 1000 / totalDrawableDistance.value) * viewBoxWidth.value;
     let scrollLeft = 0;
     const transitionPoint = viewBoxWidth.value - containerWidth + stuckPositionPx;
-    if (progressX.value < stuckPositionPx) scrollLeft = 0;
-    else if (progressX.value >= transitionPoint) scrollLeft = viewBoxWidth.value - containerWidth;
-    else scrollLeft = progressX.value - stuckPositionPx;
+    if (xPos < stuckPositionPx) scrollLeft = 0;
+    else if (xPos >= transitionPoint) scrollLeft = viewBoxWidth.value - containerWidth;
+    else scrollLeft = xPos - stuckPositionPx;
     
     if (containerRef.value.scrollLeft !== scrollLeft) {
         containerRef.value.scrollLeft = scrollLeft;
@@ -625,6 +628,7 @@ function updateProgressX(newDistance) {
 }
 
 watch(() => props.currentDistance, (newDistance) => {
+    console.log("AltitudeSVG: currentDistance changed to", newDistance.toFixed(1), "m");
     lastUpdatedDistance = newDistance;
     updateProgressX(newDistance);
 });
@@ -633,6 +637,15 @@ watch(() => props.currentDistance, (newDistance) => {
 watch(() => props.currentSegmentIndex, () => {
     if (props.currentDistance !== undefined) {
         updateProgressX(props.currentDistance);
+    }
+});
+
+// Debug: watch progressX changes
+let lastLoggedProgress = -1;
+watch(progressX, (newVal) => {
+    if (Math.abs(newVal - lastLoggedProgress) > 10) { // Log every 10px change
+        console.log("AltitudeSVG: progressX =", newVal.toFixed(1));
+        lastLoggedProgress = newVal;
     }
 });
 
