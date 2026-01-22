@@ -73,6 +73,10 @@ L'application est divisée en plusieurs vues distinctes pour une meilleure clart
 
 ---
 
+## 🛠️ Skills
+
+Les skills personnalisés se trouvent dans .agent/skills/
+
 ## 🤝 Contribution
 
 Pour contribuer, veuillez vous référer au guide de contribution dans `CONTRIBUTING.md`
