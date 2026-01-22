@@ -1329,19 +1329,27 @@
             "libelle": "Parametres",
             "parametres": [
               {
-                "identifiant": "routingApiKey",
+                "identifiant": "apiKeyGraphHopper",
                 "libelle": "Clé API GraphHopper",
                 "description": "Clé API pour le service de routage GraphHopper.",
                 "type": "secret",
                 "defaut": "",
-                "doc": "docs/DocParametrage/Variante/Parametres/routingApiKey.md"
+                "doc": "docs/DocParametrage/Variante/Parametres/apiKeyGraphHopper.md"
+              },
+              {
+                "identifiant": "apiKeyOpenRouteService",
+                "libelle": "Clé API OpenRouteService",
+                "description": "Clé API pour le service de routage OpenRouteService.",
+                "type": "secret",
+                "defaut": "",
+                "doc": "docs/DocParametrage/Variante/Parametres/apiKeyOpenRouteService.md"
               },
               {
                 "identifiant": "routingService",
                 "libelle": "Service de routage",
                 "description": "Service utilisé pour calculer l'itinéraire entre les points.",
                 "type": "list",
-                "defaut": "GraphHopper",
+                "defaut": "OpenRouteService",
                 "valeurs": [
                   "GraphHopper",
                   "OpenRouteService"

@@ -552,6 +552,13 @@ pub async fn rename_variant(
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteResult {
+    pub geojson: String,
+    pub warning: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 struct GraphHopperResponse {
     paths: Vec<GraphHopperPath>,
 }
@@ -568,13 +575,136 @@ struct GraphHopperPoints {
     coordinates: Vec<Vec<f64>>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct OrsResponse {
+    features: Vec<OrsFeature>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OrsFeature {
+    geometry: OrsGeometry,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct OrsGeometry {
+    coordinates: Vec<Vec<f64>>,
+}
+
+async fn call_graphhopper(api_key: &str, profile: &str, points: &Vec<[f64; 2]>) -> Result<String, String> {
+    if api_key.is_empty() {
+        return Err("Clé API GraphHopper manquante.".to_string());
+    }
+
+    let max_points_per_request = 5;
+    let mut all_coordinates: Vec<Vec<f64>> = Vec::new();
+
+    let chunks: Vec<Vec<[f64; 2]>> = if points.len() > max_points_per_request {
+        let mut result = Vec::new();
+        let mut start_idx = 0;
+        while start_idx < points.len() - 1 {
+            let end_idx = (start_idx + max_points_per_request).min(points.len());
+            if end_idx - start_idx < 2 { break; }
+            result.push(points[start_idx..end_idx].to_vec());
+            start_idx = end_idx - 1; 
+        }
+        result
+    } else {
+        vec![points.clone()]
+    };
+
+    for (i, chunk_points) in chunks.iter().enumerate() {
+        if i > 0 {
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        }
+
+        let client = reqwest::Client::new();
+        let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=true", api_key, profile);
+        
+        for p in chunk_points {
+            url.push_str(&format!("&point={},{}", p[1], p[0]));
+        }
+
+        let resp = client.get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("GraphHopper Request failed: {}", e))?;
+
+        if !resp.status().is_success() {
+             return Err(format!("GraphHopper API Error: {}", resp.status()));
+        }
+
+        let gh_resp: GraphHopperResponse = resp.json().await.map_err(|e| format!("GH Parse error: {}", e))?;
+
+        if let Some(path) = gh_resp.paths.first() {
+            let mut coords = path.points.coordinates.clone();
+            if i > 0 && !coords.is_empty() {
+                coords.remove(0);
+            }
+            all_coordinates.extend(coords);
+        } else {
+             return Err("GraphHopper: Aucun chemin trouvé.".to_string());
+        }
+    }
+    
+    let geojson = serde_json::json!({
+         "type": "LineString",
+         "coordinates": all_coordinates
+     });
+     Ok(serde_json::to_string(&geojson).unwrap())
+}
+
+async fn call_openrouteservice(api_key: &str, profile: &str, points: &Vec<[f64; 2]>) -> Result<String, String> {
+    if api_key.is_empty() {
+        return Err("Clé API OpenRouteService manquante.".to_string());
+    }
+
+    // Map profiles: car->driving-car, racingbike->cycling-road, bike->cycling-mountain
+    let ors_profile = match profile {
+        "car" => "driving-car",
+        "racingbike" => "cycling-road",
+        "bike" => "cycling-mountain",
+        _ => "driving-car"
+    };
+
+    let client = reqwest::Client::new();
+    let url = format!("https://api.openrouteservice.org/v2/directions/{}/geojson", ors_profile);
+    
+    let body = serde_json::json!({
+        "coordinates": points
+    });
+
+    let resp = client.post(&url)
+        .header("Authorization", api_key)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("ORS Request failed: {}", e))?;
+
+     if !resp.status().is_success() {
+         return Err(format!("OpenRouteService API Error: {}", resp.status()));
+    }
+
+    let ors_resp: OrsResponse = resp.json().await.map_err(|e| format!("ORS Parse error: {}", e))?;
+
+    if let Some(feature) = ors_resp.features.first() {
+         let geojson = serde_json::json!({
+             "type": "LineString",
+             "coordinates": feature.geometry.coordinates
+         });
+         Ok(serde_json::to_string(&geojson).unwrap())
+    } else {
+         Err("OpenRouteService: Aucun chemin trouvé.".to_string())
+    }
+}
+
 #[tauri::command]
 pub async fn calculate_route(
     app_handle: tauri::AppHandle,
     service: String,
     profile: String,
     points: Vec<[f64; 2]>,
-) -> Result<String, String> {
+) -> Result<RouteResult, String> {
     if points.len() < 2 {
         return Err("Il faut au moins 2 points pour calculer un itinéraire.".to_string());
     }
@@ -584,93 +714,57 @@ pub async fn calculate_route(
         let app_state = state_mutex.lock().unwrap();
         app_state.app_env_path.clone()
     };
-
+    
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
     let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
-    let api_key = crate::get_setting_value(
-        &settings,
-        "data.groupes.Variante.parametres.routingApiKey",
-    )
-    .and_then(|v| v.as_str())
-    .unwrap_or("")
-    .to_string();
+    let key_gh = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyGraphHopper").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let key_ors = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyOpenRouteService").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
+    // Define priority list based on user preference
+    let mut attempt_order = Vec::new();
     if service == "GraphHopper" {
-        if api_key.is_empty() {
-             return Err("Clé API GraphHopper manquante dans les paramètres.".to_string());
-        }
-
-        let max_points_per_request = 5;
-        let mut all_coordinates: Vec<Vec<f64>> = Vec::new();
-        
-        // Chunking logic
-        let chunks: Vec<Vec<[f64; 2]>> = if points.len() > max_points_per_request {
-            let mut result = Vec::new();
-            let mut start_idx = 0;
-            while start_idx < points.len() - 1 {
-                let end_idx = (start_idx + max_points_per_request).min(points.len());
-                // Ensure we have at least 2 points
-                if end_idx - start_idx < 2 {
-                     // Should not happen with well-formed overlapping, but safety check
-                     break; 
-                }
-                result.push(points[start_idx..end_idx].to_vec());
-                start_idx = end_idx - 1; // Overlap: last point becomes first of next chunk
-            }
-            result
-        } else {
-            vec![points]
-        };
-
-        for (i, chunk_points) in chunks.iter().enumerate() {
-            if i > 0 {
-                // Add a small delay to avoid rate limiting
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-            }
-
-            let client = reqwest::Client::new();
-            let mut url = format!("https://graphhopper.com/api/1/route?key={}&profile={}&points_encoded=false&elevation=true", api_key, profile);
-            
-            for p in chunk_points {
-                url.push_str(&format!("&point={},{}", p[1], p[0])); // Lat,Lon
-            }
-
-            let resp = client.get(&url)
-                .send()
-                .await
-                .map_err(|e| format!("Request failed for chunk {}: {}", i, e))?;
-
-            if !resp.status().is_success() {
-                 return Err(format!("GraphHopper API Error on chunk {}: {}", i, resp.status()));
-            }
-
-            let gh_resp: GraphHopperResponse = resp.json().await.map_err(|e| format!("Parse error: {}", e))?;
-
-            if let Some(path) = gh_resp.paths.first() {
-                // If it's not the first chunk, remove the first point to avoid duplicate with previous chunk's last point
-                let mut coords = path.points.coordinates.clone();
-                if i > 0 && !coords.is_empty() {
-                    coords.remove(0);
-                }
-                all_coordinates.extend(coords);
-            } else {
-                 return Err(format!("Aucun chemin trouvé pour le tronçon {}.", i+1));
-            }
-        }
-        
-        let geojson = serde_json::json!({
-             "type": "LineString",
-             "coordinates": all_coordinates
-         });
-         return Ok(serde_json::to_string(&geojson).unwrap());
-
-    } else if service == "OpenRouteService" {
-        return Err("OpenRouteService non implémenté pour le moment.".to_string());
+        attempt_order.push(("GraphHopper", &key_gh));
+        attempt_order.push(("OpenRouteService", &key_ors));
+    } else {
+        attempt_order.push(("OpenRouteService", &key_ors));
+        attempt_order.push(("GraphHopper", &key_gh));
     }
 
-    Err("Service de routage inconnu.".to_string())
+    let mut last_error = String::new();
+
+    for (i, (svc_name, key)) in attempt_order.iter().enumerate() {
+        let is_fallback = i > 0;
+        
+        // Retry logic for the current service (max 3 attempts)
+        for attempt in 1..=3 {
+            let result = if *svc_name == "GraphHopper" {
+                call_graphhopper(key, &profile, &points).await
+            } else {
+                call_openrouteservice(key, &profile, &points).await
+            };
+
+            match result {
+                Ok(geojson) => {
+                    let warning = if is_fallback {
+                        Some(format!("Service préférentiel indisponible. Bascule automatique sur {}.", svc_name))
+                    } else {
+                        None
+                    };
+                    return Ok(RouteResult { geojson, warning });
+                },
+                Err(e) => {
+                    last_error = e.clone();
+                    if attempt < 3 {
+                        tokio::time::sleep(std::time::Duration::from_millis(500 * attempt)).await;
+                    }
+                }
+            }
+        }
+    }
+
+    Err(format!("Echec du routage sur tous les services. Dernière erreur: {}", last_error))
 }
 
 #[tauri::command]

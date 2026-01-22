@@ -1103,18 +1103,34 @@ const generatePreviewForMod = async (modIndex) => {
             coords = [...mod.points].reverse().map(p => p.coords);
         }
 
-        const geojsonStr = await invoke('calculate_route', {
+        const routeResultStr = await invoke('calculate_route', {
             service: variantConfig.value.routingService,
             profile: variantConfig.value.routingProfile,
             points: coords
         });
+        
+        // Deserialize response (it matches Rust RouteResult { geojson: String, warning: Option<String> })
+        // Note: Invoke returns serialization of Rust struct. If Rust returns Result<RouteResult, String>, 
+        // on success we get the object properties directly.
+        // Wait, invoke usually returns the object directly if Serialize is implemented.
+        // Let's check: RouteResult has { geojson: String, warning: Option<String> }. 
+        // So 'routeResultStr' is actually an OBJECT, not a string, if tauri handles it standardly.
+        // However, looking at Rust: Result<RouteResult, String>. 
+        // On success -> RouteResult object.
+        
+        const routeResult = routeResultStr; // It's already the object
+        
+        if (routeResult.warning) {
+             showSnackbar(routeResult.warning, "warning");
+        }
 
-        mod.preview = JSON.parse(geojsonStr);
+        mod.preview = JSON.parse(routeResult.geojson);
         updatePreviewSource();
+
     } catch (e) {
         console.error("Routing error for mod", modIndex, e);
         
-        let msg = "Erreur routage : Tracé direct utilisé.";
+        let msg = "Erreur routage : Tracé direct utilisé. (" + e + ")";
         if (variantConfig.value.routingProfile === 'racingbike') {
              msg += " Essayez le profil 'VTT' ou 'Route + Pistes'.";
              routingErrorProfile.value = 'racingbike';

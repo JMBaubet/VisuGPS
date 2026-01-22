@@ -10,7 +10,7 @@ Le paramètre `routingService` permet de choisir le fournisseur tiers utilisé p
 
 -   **Libellé**: Service de routage
 -   **Type**: Liste de choix
--   **Valeur par défaut**: `GraphHopper`
+-   **Valeur par défaut**: `OpenRouteService`
 -   **Options**: `GraphHopper`, `OpenRouteService`
 
 ## ⚖️ Justification : Pourquoi changer de service ?
@@ -29,5 +29,5 @@ Chaque service utilise ses propres algorithmes et parfois des données légèrem
 
 ## ⚠️ Recommandations
 
--   **Priorité** : Utilisez `GraphHopper` par défaut, il est généralement très performant pour les profils vélo.
--   **Alternative** : Ne changez pour `OpenRouteService` que si vous rencontrez des problèmes de tracé avec le premier.
+-   **Priorité** : Utilisez `OpenRouteService` par défaut, il est généralement plus satisfaisant pour les tracés complexes.
+-   **Alternative** : Ne changez pour `GraphHopper` que si vous rencontrez des problèmes de tracé avec le premier.
