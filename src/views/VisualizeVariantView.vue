@@ -237,6 +237,17 @@ const dynamicZoomIntensity = computed(() => getSettingValue('Visualisation/Lectu
 const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/colorerSelonPente')); // Fixed path - wait, verify Visualisation vs Edition?
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
 
+// --- Variant Visualization Settings ---
+const showSegments = computed(() => getSettingValue('Visualisation/Variantes/afficherSegments'));
+const showSlope = computed(() => getSettingValue('Visualisation/Variantes/afficherPente'));
+const segmentThickness = computed(() => getSettingValue('Visualisation/Variantes/epaisseurSegments'));
+const segmentOpacity = computed(() => getSettingValue('Visualisation/Variantes/opaciteSegments'));
+const slopeThickness = computed(() => getSettingValue('Visualisation/Variantes/epaisseurPente'));
+const slopeOpacity = computed(() => getSettingValue('Visualisation/Variantes/opacitePente'));
+const colorNew = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurNouveau')));
+const colorCommon = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurCommun')));
+const colorAbandoned = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurAbandonne')));
+
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
 // --- Using New Composables ---
@@ -263,7 +274,7 @@ const isFlytoActive = ref(false); // Mode FlyTo exclusif
 const preFlytoCameraOptions = ref(null);
 
 // 4. Trace Layers
-const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, coloredSegmentsGeoJsonRef } = useTraceLayers(map);
+const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
@@ -484,6 +495,23 @@ const initializeVisualization = async () => {
 
 
 
+        // E. Generate Slope Segments (Backend)
+        const slopeColors = {
+                TrancheNegative: getToHexImproved('Visualisation/Profil Altitude/Couleurs/TrancheNegative'),
+                Tranche1: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche1'),
+                Tranche2: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche2'),
+                Tranche3: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche3'),
+                Tranche4: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche4'),
+                Tranche5: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche5'),
+         };
+         
+         const expression = await invoke('get_variant_slope_expression', { 
+            circuitId: props.circuitId, 
+            variantId: selectedVariantId.value,
+            slopeColors: slopeColors
+         });
+         slopeExpressionRef.value = expression;
+
         // Load Comparison Geometry (Segments coloring)
         try {
             const comparisonGeoJsonString = await invoke('get_variant_comparison_geojson', { circuitId: props.circuitId, variantId: selectedVariantId.value });
@@ -498,8 +526,20 @@ const initializeVisualization = async () => {
         setupTraceLayers({
             traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
             lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            slopeExpression: slopeExpressionRef.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
         });
+
+        // Apply Initial Visibility
+        updateLayerVisibility('trace-slope', showSlope.value);
+        if (!showSegments.value) {
+             updateLayerVisibility('trace-variant-common', false);
+             updateLayerVisibility('trace-variant-new', false);
+             updateLayerVisibility('trace-variant-abandoned', false);
+        }
         
         // 3. Animation Sequence (Simplified for Variants: Direct to Start)
         
@@ -1129,6 +1169,20 @@ watch(isPaused, (newVal) => {
         }
     }
 });
+
+// Watch Visualization Layers Toggles
+watch([showSegments, showSlope, map], () => {
+     updateLayerVisibility('trace-variant-common', showSegments.value);
+     updateLayerVisibility('trace-variant-new', showSegments.value);
+     updateLayerVisibility('trace-variant-abandoned', showSegments.value);
+     updateLayerVisibility('trace-slope', showSlope.value);
+});
+
+function generateSlopeSegments(trackingPoints) {
+    // Deprecated in favor of Backend expression
+    return { type: 'FeatureCollection', features: [] };
+}
+
 // --- JS Reconstruction Logic ---
 
 // --- JS Reconstruction Logic ---

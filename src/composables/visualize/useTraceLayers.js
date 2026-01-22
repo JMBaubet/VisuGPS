@@ -2,6 +2,7 @@ import { ref, shallowRef } from 'vue';
 
 export function useTraceLayers(map) {
     const coloredSegmentsGeoJsonRef = shallowRef(null);
+    const slopeExpressionRef = shallowRef(null);
 
     // Configuration par défaut, pourra être surchargée
     const config = {
@@ -19,8 +20,17 @@ export function useTraceLayers(map) {
         const {
             traceWidth, traceOpacity, traceColor,
             lineStringData, coloredSegmentsData,
-            cometWidth, cometColor, cometOpacity
+            cometWidth, cometColor, cometOpacity,
+            // Variant specific info
+            segmentThickness, segmentOpacity,
+            colorNew, colorCommon, colorAbandoned,
+            // Slope specific info
+            slopeThickness, slopeOpacityLogic, slopeExpression
         } = { ...config, ...configs };
+
+        if (slopeExpression) {
+            slopeExpressionRef.value = slopeExpression;
+        }
 
         if (coloredSegmentsData) {
             coloredSegmentsGeoJsonRef.value = coloredSegmentsData;
@@ -104,7 +114,7 @@ export function useTraceLayers(map) {
                         type: 'line',
                         source: 'colored-segments',
                         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#000000' },
+                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorAbandoned || '#000000' },
                         filter: ['==', ['get', 'status'], 'ABANDONED']
                     });
                 }
@@ -116,7 +126,7 @@ export function useTraceLayers(map) {
                         type: 'line',
                         source: 'colored-segments',
                         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#00FF00' },
+                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorCommon || '#00FF00' },
                         filter: ['==', ['get', 'status'], 'COMMON']
                     });
                 }
@@ -128,7 +138,7 @@ export function useTraceLayers(map) {
                         type: 'line',
                         source: 'colored-segments',
                         layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                        paint: { 'line-width': traceWidth, 'line-opacity': traceOpacity, 'line-color': '#0000FF' },
+                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorNew || '#0000FF' },
                         filter: ['==', ['get', 'status'], 'NEW']
                     });
                 }
@@ -138,6 +148,21 @@ export function useTraceLayers(map) {
                 updateLayerVisibility('trace-overlap-aller', false);
                 updateLayerVisibility('trace-overlap-retour', false);
             }
+        }
+
+        // 7. Layer Pente (Slope) - Above everything
+        if (slopeExpressionRef.value && !map.value.getLayer('trace-slope')) {
+            map.value.addLayer({
+                id: 'trace-slope',
+                type: 'line',
+                source: 'trace', // Reuse trace source which has lineMetrics: true
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Controlled by toggle
+                paint: {
+                    'line-width': slopeThickness || traceWidth,
+                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
+                    'line-gradient': slopeExpressionRef.value
+                }
+            });
         }
 
         // 5. Layer Comète
@@ -189,6 +214,8 @@ export function useTraceLayers(map) {
         setupTraceLayers,
         updateLayerVisibility,
         updateTraceOverlapVisibility,
-        coloredSegmentsGeoJsonRef
+        updateTraceOverlapVisibility,
+        coloredSegmentsGeoJsonRef,
+        slopeExpressionRef
     };
 }

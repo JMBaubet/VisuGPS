@@ -2513,6 +2513,7 @@ pub fn run() {
             variant_processor::get_variant_geojson,
             variant_processor::get_variant_comparison_geojson,
             variant_processor::get_variant_tracking,
+            variant_processor::get_variant_slope_expression,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

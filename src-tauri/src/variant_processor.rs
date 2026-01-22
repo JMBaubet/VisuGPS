@@ -1287,12 +1287,72 @@ fn find_closest_tracking_idx(tracking: &Vec<serde_json::Value>, lat: f64, lon: f
     best_idx
 }
 
+// --- Commands ---
+
 #[tauri::command]
 pub async fn get_variant_tracking(
     app_handle: tauri::AppHandle,
     circuit_id: String,
     variant_id: String,
 ) -> Result<String, String> {
+    let tracking_data = get_variant_tracking_internal(app_handle, circuit_id, variant_id).await?;
+    serde_json::to_string(&tracking_data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_variant_slope_expression(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+    slope_colors: std::collections::HashMap<String, String>,
+) -> Result<serde_json::Value, String> {
+    // 1. Get Variant Tracking (Interpolated at 100m)
+    let tracking_values = get_variant_tracking_internal(app_handle.clone(), circuit_id.clone(), variant_id).await?;
+    
+    // 2. Convert to TraceStyle TrackingPoint
+    let tracking_points: Vec<crate::trace_style::TrackingPoint> = tracking_values.into_iter().map(|v| {
+        let alt = v["altitude"].as_f64().unwrap_or(0.0);
+        let coords = v["coordonnee"].as_array().unwrap();
+        let lon = coords[0].as_f64().unwrap_or(0.0);
+        let lat = coords[1].as_f64().unwrap_or(0.0);
+        crate::trace_style::TrackingPoint {
+            altitude: alt,
+            coordonnee: [lon, lat],
+        }
+    }).collect();
+
+    // 3. Get Settings for segment length
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = std::fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+    let segment_length = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(100.0);
+
+     // 4. Generate Expression using TraceStyle (reusing existing logic)
+     crate::trace_style::get_slope_color_expression(
+         app_handle.state::<std::sync::Mutex<crate::AppState>>(),
+         circuit_id,
+         slope_colors,
+         segment_length,
+         None,
+         Some(tracking_points)
+     ).await
+}
+
+
+
+
+pub async fn get_variant_tracking_internal(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
      let app_env_path = {
         let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
         let app_state = state_mutex.lock().unwrap();
@@ -1461,5 +1521,5 @@ pub async fn get_variant_tracking(
         }
     }
     
-    Ok(serde_json::to_string(&final_tracking).map_err(|e| e.to_string())?)
+    Ok(final_tracking)
 }
