@@ -1259,6 +1259,51 @@
                     "doc": "docs/DocParametrage/Variante/Edition/TraceMaitresse/opacite.md"
                   }
                 ]
+              },
+              {
+                "libelle": "Carte",
+                "parametres": [
+                  {
+                    "identifiant": "style",
+                    "libelle": "Style de carte",
+                    "description": "Style de carte Mapbox utilisé pour l'édition des variantes (Standard, Satellite, Outdoors).",
+                    "type": "list",
+                    "defaut": "mapbox://styles/mapbox/standard",
+                    "valeurs": [
+                      "mapbox://styles/mapbox/standard",
+                      "mapbox://styles/mapbox/outdoors-v12",
+                      "mapbox://styles/mapbox/satellite-v9",
+                      "mapbox://styles/mapbox/streets-v11",
+                      "mapbox://styles/mapbox/light-v10",
+                      "mapbox://styles/mapbox/dark-v10"
+                    ],
+                    "doc": "docs/DocParametrage/Variante/Edition/Carte/style.md"
+                  }
+                ]
+              },
+              {
+                "libelle": "Noeuds",
+                "parametres": [
+                  {
+                    "identifiant": "couleur",
+                    "libelle": "Couleur des nœuds",
+                    "description": "Couleur des points d'ancrage affichés sur la trace maîtresse.",
+                    "type": "couleur",
+                    "defaut": "orange-darken-1",
+                    "materialDesign": true,
+                    "doc": "docs/DocParametrage/Variante/Edition/Noeuds/couleur.md"
+                  },
+                  {
+                    "identifiant": "zoomVisu",
+                    "libelle": "Zoom visibilité nœuds",
+                    "description": "Niveau de zoom minimum pour afficher les points d'ancrage sur la trace maîtresse.",
+                    "type": "entier",
+                    "defaut": 13,
+                    "min": 10,
+                    "max": 20,
+                    "doc": "docs/DocParametrage/Variante/Edition/Noeuds/zoomVisu.md"
+                  }
+                ]
               }
             ],
             "parametres": []
@@ -1290,98 +1335,36 @@
                 "type": "secret",
                 "defaut": "",
                 "doc": "docs/DocParametrage/Variante/Parametres/routingApiKey.md"
+              },
+              {
+                "identifiant": "routingService",
+                "libelle": "Service de routage",
+                "description": "Service utilisé pour calculer l'itinéraire entre les points.",
+                "type": "list",
+                "defaut": "GraphHopper",
+                "valeurs": [
+                  "GraphHopper",
+                  "OpenRouteService"
+                ],
+                "doc": "docs/DocParametrage/Variante/Parametres/routingService.md"
+              },
+              {
+                "identifiant": "routingType",
+                "libelle": "Profil de routage",
+                "description": "Profil de véhicule utilisé par défaut pour le calcul d'itinéraire.",
+                "type": "list",
+                "defaut": "Route uniquement",
+                "valeurs": [
+                  "Route + Pistes cyclables",
+                  "Route uniquement",
+                  "VTT / Chemin"
+                ],
+                "doc": "docs/DocParametrage/Variante/Parametres/routingType.md"
               }
             ]
           }
         ],
-        "parametres": [
-          {
-            "identifiant": "originalColor",
-            "libelle": "Couleur trace maîtresse",
-            "description": "Couleur de la trace originale lors de l'édition d'une variante.",
-            "type": "couleur",
-            "defaut": "#BDBDBD",
-            "materialDesign": false,
-            "doc": "docs/DocParametrage/Variante/originalColor.md"
-          },
-          {
-            "identifiant": "previewColor",
-            "libelle": "Couleur trace aperçu",
-            "description": "Couleur du segment en cours de création.",
-            "type": "couleur",
-            "defaut": "#651FFF",
-            "materialDesign": false,
-            "doc": "docs/DocParametrage/Variante/previewColor.md"
-          },
-          {
-            "identifiant": "nodeColor",
-            "libelle": "Couleur des nœuds",
-            "description": "Couleur des points d'ancrage affichés sur la trace maîtresse.",
-            "type": "couleur",
-            "defaut": "#FFFFFF",
-            "materialDesign": false,
-            "doc": "docs/DocParametrage/Variante/nodeColor.md"
-          },
-          {
-            "identifiant": "routingService",
-            "libelle": "Service de routage",
-            "description": "Service utilisé pour calculer l'itinéraire entre les points.",
-            "type": "list",
-            "defaut": "GraphHopper",
-            "valeurs": [
-              "GraphHopper",
-              "OpenRouteService"
-            ],
-            "doc": "docs/DocParametrage/Variante/routingService.md"
-          },
-          {
-            "identifiant": "routingApiKey",
-            "libelle": "Clé API Routage",
-            "description": "Clé API pour le service de routage (GraphHopper ou OpenRouteService).",
-            "type": "string",
-            "defaut": "",
-            "doc": "docs/DocParametrage/Variante/routingApiKey.md"
-          },
-          {
-            "identifiant": "routingType",
-            "libelle": "Profil de routage",
-            "description": "Profil de véhicule utilisé par défaut pour le calcul d'itinéraire.",
-            "type": "list",
-            "defaut": "Route uniquement",
-            "valeurs": [
-              "Route + Pistes cyclables",
-              "Route uniquement",
-              "VTT / Chemin"
-            ],
-            "doc": "docs/DocParametrage/Variante/routingType.md"
-          },
-          {
-            "identifiant": "mapStyle",
-            "libelle": "Style de carte",
-            "description": "Style de carte Mapbox utilisé pour l'édition des variantes (Standard, Satellite, Outdoors).",
-            "type": "list",
-            "defaut": "mapbox://styles/mapbox/standard",
-            "valeurs": [
-              "mapbox://styles/mapbox/standard",
-              "mapbox://styles/mapbox/outdoors-v12",
-              "mapbox://styles/mapbox/satellite-v9",
-              "mapbox://styles/mapbox/streets-v11",
-              "mapbox://styles/mapbox/light-v10",
-              "mapbox://styles/mapbox/dark-v10"
-            ],
-            "doc": "docs/DocParametrage/Variante/mapStyle.md"
-          },
-          {
-            "identifiant": "zoomVisuNode",
-            "libelle": "Zoom visibilité nœuds",
-            "description": "Niveau de zoom minimum pour afficher les points d'ancrage sur la trace maîtresse.",
-            "type": "entier",
-            "defaut": 13,
-            "min": 10,
-            "max": 20,
-            "doc": "docs/DocParametrage/Variante/zoomVisuNode.md"
-          }
-        ]
+        "parametres": []
       },
       {
         "libelle": "Visualisation",

@@ -290,10 +290,10 @@ const initMap = async () => {
     }
     
     // Load behavior settings
-    variantConfig.value.routingService = getSettingValue('Variante/routingService') || 'GraphHopper';
+    variantConfig.value.routingService = getSettingValue('Variante/Parametres/routingService') || 'GraphHopper';
     
     // Mapping French labels from settings to technical keys for Toolbar/API
-    const profileLabel = getSettingValue('Variante/routingType') || 'Route uniquement';
+    const profileLabel = getSettingValue('Variante/Parametres/routingType') || 'Route uniquement';
     const profileMap = {
         'Route + Pistes cyclables': 'car',
         'Route uniquement': 'racingbike',
@@ -313,7 +313,7 @@ const initMap = async () => {
 
     map.value = new mapboxgl.Map({
       container: 'map-container',
-      style: getSettingValue('Variante/mapStyle') || 'mapbox://styles/mapbox/outdoors-v12',
+      style: getSettingValue('Variante/Edition/Carte/style') || 'mapbox://styles/mapbox/outdoors-v12',
       center: [2.2137, 46.2276],
       zoom: 5
     });
@@ -345,7 +345,8 @@ const initMap = async () => {
        map.value.on('click', handleMapClick);
        
        // Resolve colors with fallbacks
-       const previewColor = resolveColor(getSettingValue('Variante/previewColor'), '#651FFF');
+       const previewColor = resolveColor(getSettingValue('Variante/Edition/Trace/couleur'), '#651FFF');
+       const previewWidth = getSettingValue('Variante/Edition/Trace/largeur') || 4;
               map.value.addSource('preview-source', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
         map.value.addLayer({
             id: 'preview-layer',
@@ -357,9 +358,9 @@ const initMap = async () => {
                     ['get', 'type'],
                     'DEPART', '#4CAF50', // Green
                     'ARRIVEE', '#F44336',  // Red
-                    '#2196F3'             // Blue for segments
+                    previewColor             // Configured color for segments
                 ],
-                'line-width': 4,
+                'line-width': previewWidth,
                 'line-dasharray': [
                     'case',
                     ['boolean', ['get', 'finalized'], false],
@@ -371,7 +372,7 @@ const initMap = async () => {
 
 
 
-       const nodeColor = resolveColor(getSettingValue('Variante/nodeColor'), '#FF9800');
+       const nodeColor = resolveColor(getSettingValue('Variante/Edition/Noeuds/couleur'), '#FF9800');
        
        // Tracking Points Layer
        try {
@@ -396,7 +397,7 @@ const initMap = async () => {
                 data: { type: 'FeatureCollection', features: trackingFeatures }
             });
 
-            const zoomVisuNode = getSettingValue('Variante/zoomVisuNode') || 13;
+            const zoomVisuNode = getSettingValue('Variante/Edition/Noeuds/zoomVisu') || 13;
 
             map.value.addLayer({
                 id: 'tracking-layer',
@@ -407,7 +408,7 @@ const initMap = async () => {
                     'circle-radius': [
                         'case',
                         ['boolean', ['get', 'pointDeControl'], false],
-                        6,
+                        9,
                         4
                     ],
                     'circle-color': [
@@ -416,6 +417,13 @@ const initMap = async () => {
                         '#FF9800', // Orange for control points
                         nodeColor  // Default node color
                     ],
+                    'circle-stroke-width': [
+                        'case',
+                        ['boolean', ['get', 'pointDeControl'], false],
+                        2,
+                        0
+                    ],
+                    'circle-stroke-color': '#FFFFFF',
                     'circle-opacity': 0.8
                 }
             });
@@ -490,7 +498,11 @@ const loadCircuitTrace = async () => {
      masterTraceGeojson.value = geojson;
      console.log(`[Init] Master trace loaded: ${geojson.coordinates.length} points`);
      
-     const originalColor = resolveColor(getSettingValue('Variante/originalColor'), '#BDBDBD');
+     const originalColor = resolveColor(getSettingValue('Variante/Edition/Trace Maîtresse/couleur'), '#BDBDBD');
+     const originalWidth = getSettingValue('Variante/Edition/Trace Maîtresse/largeur') || 4;
+     const originalOpacity = getSettingValue('Variante/Edition/Trace Maîtresse/opacite') !== undefined 
+                           ? getSettingValue('Variante/Edition/Trace Maîtresse/opacite') 
+                           : 0.3;
      
      if(map.value.getSource('trace-source')) {
          map.value.getSource('trace-source').setData(geojson);
@@ -510,7 +522,8 @@ const loadCircuitTrace = async () => {
              },
              paint: {
                  'line-color': originalColor,
-                 'line-width': 4
+                 'line-width': originalWidth,
+                 'line-opacity': originalOpacity
              }
          });
          
