@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, defineProps, defineEmits, nextTick } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import DocDisplay from '@/components/DocDisplay.vue';
 

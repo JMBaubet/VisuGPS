@@ -700,7 +700,7 @@ pub async fn get_variant_geojson(
     let tracking_master_path = circuit_data_dir.join("tracking.json");
     let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
     let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
-    let total_tracking_pts = tracking_master.len();
+    let _total_tracking_pts = tracking_master.len();
     let total_high_res_pts = master_points_high_res.len();
 
 
@@ -774,7 +774,7 @@ pub async fn get_variant_geojson(
                 if *anchor_index_on_master < master_points_high_res.len() {
                     let anchor_coords = &master_points_high_res[*anchor_index_on_master];
                     // master_points_high_res: [lon, lat, alt], haversine needs (lat, lon)
-                    let (idx, dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, 0);
+                    let (idx, _dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, 0);
                     current_master_idx = idx;
                 } else {
                     current_master_idx = 0; // Error fallback
@@ -782,7 +782,7 @@ pub async fn get_variant_geojson(
             },
              VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
                  // anchor_start.coords: [lon, lat], haversine needs (lat, lon)
-                 let (start_idx, start_dist) = find_corresponding_idx(anchor_start.coords[1], anchor_start.coords[0], anchor_start.index, current_master_idx);
+                 let (start_idx, _start_dist) = find_corresponding_idx(anchor_start.coords[1], anchor_start.coords[0], anchor_start.index, current_master_idx);
                  
                  // Log what we actually found in master
                  if start_idx < master_points_high_res.len() {
@@ -805,7 +805,7 @@ pub async fn get_variant_geojson(
                 }
                 
                 // anchor_end.coords: [lon, lat], haversine needs (lat, lon)
-                let (end_idx, end_dist) = find_corresponding_idx(anchor_end.coords[1], anchor_end.coords[0], anchor_end.index, current_master_idx);
+                let (end_idx, _end_dist) = find_corresponding_idx(anchor_end.coords[1], anchor_end.coords[0], anchor_end.index, current_master_idx);
                 
                 // Log what we found
                 if end_idx < master_points_high_res.len() {
@@ -822,7 +822,7 @@ pub async fn get_variant_geojson(
                  if *anchor_index_on_master < master_points_high_res.len() {
                     let anchor_coords = &master_points_high_res[*anchor_index_on_master];
                     // master_points_high_res: [lon, lat, alt], haversine needs (lat, lon)
-                    let (arrivee_idx, arrivee_dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, current_master_idx);
+                    let (arrivee_idx, _arrivee_dist) = find_corresponding_idx(anchor_coords[1], anchor_coords[0], *anchor_index_on_master, current_master_idx);
                     
                     if arrivee_idx >= current_master_idx {
                         for i in current_master_idx..=arrivee_idx {
@@ -1124,7 +1124,7 @@ pub async fn get_variant_tracking(
 
     for modification in sorted_mods {
         match modification {
-            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+            VariantModification::DepartDeporte { full_geometry, .. } => {
                 // Determine connection point on master
                 // anchor_index_on_master is GeoJSON index. 
                 // We need to map this to tracking index. Use coordinates.

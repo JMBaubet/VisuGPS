@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, defineProps, defineEmits, onMounted } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import DocDisplay from '@/components/DocDisplay.vue';
 import { invoke } from '@tauri-apps/api/core';

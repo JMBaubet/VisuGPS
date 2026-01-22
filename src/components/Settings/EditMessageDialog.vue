@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, defineProps, defineEmits, onMounted } from 'vue';
+import { ref, watch, computed, onMounted } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useMessages } from '@/composables/useMessages';
 import MessageLibraryModal from '@/components/Edit/MessageLibraryModal.vue';

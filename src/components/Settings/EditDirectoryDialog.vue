@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, defineProps, defineEmits } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { open } from '@tauri-apps/plugin-dialog';
 import DocDisplay from '@/components/DocDisplay.vue';
