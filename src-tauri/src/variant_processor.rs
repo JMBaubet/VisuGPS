@@ -222,15 +222,72 @@ pub async fn create_variant_files(
                 });
                 fs::write(&linestring_path, serde_json::to_string_pretty(&linestring_json).unwrap()).map_err(|e| e.to_string())?;
 
-                // Overrides from master tracking
-                let (override_first, override_last) = match modification {
-                    VariantModification::DepartDeporte { anchor_index_on_master, .. } => (None, tracking_master.get(*anchor_index_on_master).cloned()),
-                    VariantModification::ArriveeReportee { anchor_index_on_master, .. } => (tracking_master.get(*anchor_index_on_master).cloned(), None),
-                    VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => (tracking_master.get(anchor_start.index).cloned(), tracking_master.get(anchor_end.index).cloned())
-                };
-
                 // Generate Tracking file
                 let tracking_filename = format!("tracking_{}_{}.json", request.metadata.id, suffix_full);
+                
+                let segment_length = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(100.0);
+
+                // Logic for nbrSegment according to user rules
+                let (mut override_first, mut override_last) = match modification {
+                    VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
+                        // Calculate geometric length to estimate nbr segments
+                        let mut length_m = 0.0;
+                        for i in 0..track_points_3d.len().saturating_sub(1) {
+                            length_m += crate::gpx_processor::haversine_distance(
+                                track_points_3d[i][1], track_points_3d[i][0],
+                                track_points_3d[i+1][1], track_points_3d[i+1][0]
+                            );
+                        }
+                        
+                        let mut segments_count = (length_m / segment_length) as u32;
+                        if (length_m % segment_length) > 1.0 {
+                            segments_count += 1;
+                        }
+
+                        let mut first_ovr = serde_json::json!({
+                            "nbrSegment": segments_count
+                        });
+                        
+                        // Copy camera parameters from master anchor to variant start
+                        if let Some(anchor_tp) = tracking_master.get(*anchor_index_on_master) {
+                            if let Some(obj) = first_ovr.as_object_mut() {
+                                for field in ["zoom", "pitch", "cap", "editedZoom", "editedPitch", "editedCap"] {
+                                    if let Some(val) = anchor_tp.get(field) {
+                                        obj.insert(field.to_string(), val.clone());
+                                    }
+                                }
+                            }
+                        }
+                        
+                        (Some(first_ovr), tracking_master.get(*anchor_index_on_master).cloned())
+                    },
+                    VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
+                        let mut first_ovr = tracking_master.get(*anchor_index_on_master).cloned().unwrap_or(serde_json::json!({}));
+                        // Arrivee: nbrSegment from anchor to master end
+                        let nbr = (tracking_master.len() as u32).saturating_sub(*anchor_index_on_master as u32).saturating_sub(1);
+                        first_ovr["nbrSegment"] = serde_json::json!(nbr);
+                        (Some(first_ovr), None)
+                    },
+                    VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
+                        let mut first_ovr = tracking_master.get(anchor_start.index).cloned().unwrap_or(serde_json::json!({}));
+                        
+                        // Segment: nbrSegment from anchor_start to next pointDeControl on master
+                        let mut next_cp_idx = anchor_start.index + 1;
+                        while next_cp_idx < tracking_master.len() {
+                            if tracking_master[next_cp_idx]["pointDeControl"].as_bool().unwrap_or(false) {
+                                break;
+                            }
+                            next_cp_idx += 1;
+                        }
+                        let nbr = next_cp_idx.saturating_sub(anchor_start.index) as u32;
+                        first_ovr["nbrSegment"] = serde_json::json!(nbr);
+                        
+                        (Some(first_ovr), tracking_master.get(anchor_end.index).cloned())
+                    }
+                };
+
                 crate::tracking_processor::generate_tracking_file(&app_env_path, &request.circuit_id, &track_points_3d, &settings, Some(&tracking_filename), override_first, override_last)?;
             }
         }
@@ -1126,39 +1183,60 @@ pub async fn get_variant_comparison_geojson(
 
 // --- Helpers for Tracking Generation ---
 
-fn generate_simple_tracking(points: &Vec<VariantPoint>) -> Vec<serde_json::Value> {
-    let mut tracked_points = Vec::new();
-    let mut dist_since_last_cp = 0.0;
-    let mut last_processed: Option<&VariantPoint> = None;
+fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f64) -> Vec<serde_json::Value> {
+    if points.is_empty() { return Vec::new(); }
+    
+    // 1. Convert to simple coordinates for calculation
+    let coords_3d: Vec<Vec<f64>> = points.iter().map(|p| vec![p.lon, p.lat, p.alt.unwrap_or(0.0)]).collect();
+    
+    // 2. Interpolate
+    let mut calculated_points = Vec::new();
+    calculated_points.push(coords_3d[0].clone());
 
-    for (i, p) in points.iter().enumerate() {
-        let mut is_cp = false;
-        
-        if let Some(prev) = last_processed {
-             let d = crate::gpx_processor::haversine_distance(prev.lat, prev.lon, p.lat, p.lon);
-             dist_since_last_cp += d;
-        }
-        
-        // Mark as CP if start, end, or > 100m
-        if i == 0 || i == points.len() - 1 || dist_since_last_cp >= 100.0 {
-            is_cp = true;
-            dist_since_last_cp = 0.0;
-        }
+    let mut distance_needed = segment_length;
+    let mut distance_traversed = 0.0;
 
-        tracked_points.push(serde_json::json!({
-            "increment": i, 
-            "coordonnee": [p.lon, p.lat],
-            "altitude": p.alt.unwrap_or(0.0),
-            "distance": 0.0, 
+    for i in 0..coords_3d.len() - 1 {
+        let p1 = &coords_3d[i];
+        let p2 = &coords_3d[i+1];
+        let dist = crate::gpx_processor::haversine_distance(p1[1], p1[0], p2[1], p2[0]);
+
+        if dist > 0.0 {
+            while distance_traversed + dist >= distance_needed {
+                let fraction = (distance_needed - distance_traversed) / dist;
+                let lon = p1[0] + (p2[0] - p1[0]) * fraction;
+                let lat = p1[1] + (p2[1] - p1[1]) * fraction;
+                let alt = p1[2] + (p2[2] - p1[2]) * fraction;
+                calculated_points.push(vec![lon, lat, alt]);
+                distance_needed += segment_length;
+            }
+        }
+        distance_traversed += dist;
+    }
+
+    // 3. Add last point if needed
+    if coords_3d.len() > 1 {
+        let last = coords_3d.last().unwrap();
+        let last_calc = calculated_points.last().unwrap();
+        let d = crate::gpx_processor::haversine_distance(last[1], last[0], last_calc[1], last_calc[0]);
+        if d > 1.0 {
+            calculated_points.push(last.clone());
+        }
+    }
+
+    // 4. Map to TrackingPoint JSON
+    calculated_points.iter().enumerate().map(|(i, p)| {
+        serde_json::json!({
+            "increment": i,
+            "coordonnee": [p[0], p[1]],
+            "altitude": p[2],
+            "distance": 0.0,
             "cap": 0.0,
             "zoom": 16.0,
             "pitch": 55.0,
-            "pointDeControl": is_cp
-        }));
-        
-        last_processed = Some(p);
-    }
-    tracked_points
+            "pointDeControl": i == 0 || i == calculated_points.len() - 1
+        })
+    }).collect()
 }
 
 fn find_closest_tracking_idx(tracking: &Vec<serde_json::Value>, lat: f64, lon: f64, start_hint: usize) -> usize {
@@ -1195,6 +1273,14 @@ pub async fn get_variant_tracking(
         app_state.app_env_path.clone()
     };
 
+    let settings_path = app_env_path.join("settings.json");
+    let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let segment_length = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(100.0);
+
     // 1. Load Master Tracking
     let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
     let tracking_path = circuit_data_dir.join("tracking.json");
@@ -1219,22 +1305,25 @@ pub async fn get_variant_tracking(
     for modification in sorted_mods {
         match modification {
             VariantModification::DepartDeporte { full_geometry, .. } => {
-                // Determine connection point on master
-                // anchor_index_on_master is GeoJSON index. 
-                // We need to map this to tracking index. Use coordinates.
-                 if let Some(anchor_pt) = master_tracking.get(0).and_then(|_| {
-                     // Need coordinates of anchor from master TRACKING? No, anchor index is relative to LineString.
-                     // But we have anchor point in modification? No, just index.
-                     // Let's use the provided full_geometry LAST point to sync with Master.
-                     full_geometry.as_ref().and_then(|g| g.last())
-                 }) {
-                      // Find where this point connects on Master
-                      let connect_idx = find_closest_tracking_idx(&master_tracking, anchor_pt.lat, anchor_pt.lon, 0);
+                 if let Some(geom) = full_geometry {
+                      // Find where it connects on Master
+                      let last = geom.last().unwrap();
+                      let connect_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, 0);
                       
-                      // Add New Segment
-                      if let Some(geom) = full_geometry {
-                          final_tracking.extend(generate_simple_tracking(&geom));
+                      let mut variant_tracking = generate_interpolated_tracking(&geom, segment_length);
+
+                      // Copy camera params from anchor to first point
+                      if let Some(anchor_tp) = master_tracking.get(connect_idx) {
+                          if let Some(first_tp) = variant_tracking.get_mut(0).and_then(|v| v.as_object_mut()) {
+                              for field in ["zoom", "pitch", "cap", "editedZoom", "editedPitch", "editedCap"] {
+                                  if let Some(val) = anchor_tp.get(field) {
+                                      first_tp.insert(field.to_string(), val.clone());
+                                  }
+                              }
+                          }
                       }
+
+                      final_tracking.extend(variant_tracking);
                       current_master_idx = connect_idx + 1;
                  }
             },
@@ -1251,7 +1340,7 @@ pub async fn get_variant_tracking(
                          }
                          
                          // Add New Segment
-                         final_tracking.extend(generate_simple_tracking(&geom));
+                         final_tracking.extend(generate_interpolated_tracking(&geom, segment_length));
                          
                          current_master_idx = master_tracking.len(); // End
                      }
@@ -1270,11 +1359,11 @@ pub async fn get_variant_tracking(
                          }
                          
                          // Add New Segment
-                         final_tracking.extend(generate_simple_tracking(&geom));
+                         final_tracking.extend(generate_interpolated_tracking(&geom, segment_length));
                          
                          if let Some(last) = geom.last() {
                               let end_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, start_idx);
-                              current_master_idx = end_idx;
+                              current_master_idx = end_idx + 1;
                          }
                     }
                 }
@@ -1287,28 +1376,10 @@ pub async fn get_variant_tracking(
         final_tracking.push(master_tracking[i].clone());
     }
     
-    // 4. Post-Process: Recalculate Distances and Increments
-    let mut total_dist = 0.0;
-    let mut last_coord: Option<(f64, f64)> = None;
-
+    // 4. Post-Process: Recalculate Increments
     for (i, val) in final_tracking.iter_mut().enumerate() {
         if let Some(obj) = val.as_object_mut() {
-            // Update increment
             obj.insert("increment".to_string(), serde_json::json!(i));
-            
-            // Calc distance
-            if let Some(coords) = obj.get("coordonnee").and_then(|c| c.as_array()) {
-                 let lon = coords[0].as_f64().unwrap_or(0.0);
-                 let lat = coords[1].as_f64().unwrap_or(0.0);
-                 
-                 if let Some(prev) = last_coord {
-                     let d = crate::gpx_processor::haversine_distance(prev.1, prev.0, lat, lon);
-                     total_dist += d;
-                 }
-                 last_coord = Some((lon, lat));
-                 
-                 obj.insert("distance".to_string(), serde_json::json!(total_dist));
-            }
         }
     }
     

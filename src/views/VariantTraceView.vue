@@ -557,6 +557,10 @@ const handleMapClick = (e) => {
             if (d < minInfo.dist) { minInfo = { dist: d, point: p }; }
         }
         if (minInfo.dist < 30) {
+            if (!minInfo.point.pointDeControl) {
+                showSnackbar("Veuillez utiliser les points de contrôle pour l'ancrage.", "warning");
+                return;
+            }
             isSnap = true;
             newPoint = { coords: minInfo.point.coordonnee, type: 'ANCHOR', index: minInfo.point.increment };
         }
