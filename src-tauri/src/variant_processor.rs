@@ -230,7 +230,7 @@ pub async fn create_variant_files(
                     .unwrap_or(100.0);
 
                 // Logic for nbrSegment according to user rules
-                let (mut override_first, mut override_last) = match modification {
+                let (override_first, override_last) = match modification {
                     VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
                         // Calculate geometric length to estimate nbr segments
                         let mut length_m = 0.0;
@@ -1183,6 +1183,19 @@ pub async fn get_variant_comparison_geojson(
 
 // --- Helpers for Tracking Generation ---
 
+fn simple_bearing(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let lat1 = lat1.to_radians();
+    let lon1 = lon1.to_radians();
+    let lat2 = lat2.to_radians();
+    let lon2 = lon2.to_radians();
+    let d_lon = lon2 - lon1;
+    let y = d_lon.sin() * lat2.cos();
+    let x = lat1.cos() * lat2.sin() - lat1.sin() * lat2.cos() * d_lon.cos();
+    let mut brng = y.atan2(x).to_degrees();
+    if brng < 0.0 { brng += 360.0; }
+    (brng * 10.0).round() / 10.0
+}
+
 fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f64) -> Vec<serde_json::Value> {
     if points.is_empty() { return Vec::new(); }
     
@@ -1225,18 +1238,31 @@ fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f6
     }
 
     // 4. Map to TrackingPoint JSON
-    calculated_points.iter().enumerate().map(|(i, p)| {
-        serde_json::json!({
+    let count = calculated_points.len();
+    let mut results: Vec<serde_json::Value> = Vec::new();
+    for i in 0..count {
+        let p = &calculated_points[i];
+        let mut cap = 0.0;
+        if i < count - 1 {
+            let next = &calculated_points[i + 1];
+            cap = simple_bearing(p[1], p[0], next[1], next[0]);
+        } else if i > 0 {
+            if let Some(prev) = results.last() {
+                cap = prev["cap"].as_f64().unwrap_or(0.0);
+            }
+        }
+        results.push(serde_json::json!({
             "increment": i,
             "coordonnee": [p[0], p[1]],
             "altitude": p[2],
             "distance": 0.0,
-            "cap": 0.0,
+            "cap": cap,
             "zoom": 16.0,
             "pitch": 55.0,
-            "pointDeControl": i == 0 || i == calculated_points.len() - 1
-        })
-    }).collect()
+            "pointDeControl": i == 0 || i == count - 1
+        }));
+    }
+    results
 }
 
 fn find_closest_tracking_idx(tracking: &Vec<serde_json::Value>, lat: f64, lon: f64, start_hint: usize) -> usize {
@@ -1322,6 +1348,18 @@ pub async fn get_variant_tracking(
                               }
                           }
                       }
+                      
+                      // Update LAST point of variant to point to master_tracking[connect_idx + 1]
+                      if let (Some(last_tp), Some(next_master_tp)) = (variant_tracking.last_mut(), master_tracking.get(connect_idx + 1)) {
+                          if let (Some(last_obj), Some(next_obj)) = (last_tp.as_object_mut(), next_master_tp.as_object()) {
+                              let l_coords = last_obj["coordonnee"].as_array().unwrap();
+                              let n_coords = next_obj["coordonnee"].as_array().unwrap();
+                              let new_cap = simple_bearing(l_coords[1].as_f64().unwrap(), l_coords[0].as_f64().unwrap(),
+                                                         n_coords[1].as_f64().unwrap(), n_coords[0].as_f64().unwrap());
+                              last_obj.insert("cap".to_string(), serde_json::json!(new_cap));
+                              if last_obj.contains_key("editedCap") { last_obj.insert("editedCap".to_string(), serde_json::json!(new_cap)); }
+                          }
+                      }
 
                       final_tracking.extend(variant_tracking);
                       current_master_idx = connect_idx + 1;
@@ -1339,8 +1377,20 @@ pub async fn get_variant_tracking(
                              }
                          }
                          
-                         // Add New Segment
-                         final_tracking.extend(generate_interpolated_tracking(&geom, segment_length));
+                         // Add New Segment (skip first point as it's the anchor in master)
+                         let var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                         // Update master anchor's cap to point to the FIRST NEW point of variant
+                         if let (Some(anchor_tp), Some(next_var_tp)) = (final_tracking.last_mut(), var_tracking.get(1)) {
+                             if let (Some(anchor_obj), Some(next_obj)) = (anchor_tp.as_object_mut(), next_var_tp.as_object()) {
+                                 let a_coords = anchor_obj["coordonnee"].as_array().unwrap();
+                                 let n_coords = next_obj["coordonnee"].as_array().unwrap();
+                                 let new_cap = simple_bearing(a_coords[1].as_f64().unwrap(), a_coords[0].as_f64().unwrap(),
+                                                            n_coords[1].as_f64().unwrap(), n_coords[0].as_f64().unwrap());
+                                 anchor_obj.insert("cap".to_string(), serde_json::json!(new_cap));
+                                 if anchor_obj.contains_key("editedCap") { anchor_obj.insert("editedCap".to_string(), serde_json::json!(new_cap)); }
+                             }
+                         }
+                         final_tracking.extend(var_tracking.into_iter().skip(1));
                          
                          current_master_idx = master_tracking.len(); // End
                      }
@@ -1358,12 +1408,40 @@ pub async fn get_variant_tracking(
                              }
                          }
                          
-                         // Add New Segment
-                         final_tracking.extend(generate_interpolated_tracking(&geom, segment_length));
+                         // Add New Segment (skip first point as it's the anchor in master)
+                         let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
                          
+                         // 1. Update master anchor to point to variant[1]
+                         if let (Some(anchor_tp), Some(next_var_tp)) = (final_tracking.last_mut(), var_tracking.get(1)) {
+                              if let (Some(anchor_obj), Some(next_obj)) = (anchor_tp.as_object_mut(), next_var_tp.as_object()) {
+                                 let a_coords = anchor_obj["coordonnee"].as_array().unwrap();
+                                 let n_coords = next_obj["coordonnee"].as_array().unwrap();
+                                 let new_cap = simple_bearing(a_coords[1].as_f64().unwrap(), a_coords[0].as_f64().unwrap(),
+                                                            n_coords[1].as_f64().unwrap(), n_coords[0].as_f64().unwrap());
+                                 anchor_obj.insert("cap".to_string(), serde_json::json!(new_cap));
+                                 if anchor_obj.contains_key("editedCap") { anchor_obj.insert("editedCap".to_string(), serde_json::json!(new_cap)); }
+                             }
+                         }
+                         
+                         // 2. Update last point of variant to point to master_tracking[end_idx + 1]
                          if let Some(last) = geom.last() {
-                              let end_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, start_idx);
-                              current_master_idx = end_idx + 1;
+                             let end_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, start_idx);
+                             
+                             if let (Some(last_tp), Some(next_master_tp)) = (var_tracking.last_mut(), master_tracking.get(end_idx + 1)) {
+                                  if let (Some(last_obj), Some(next_obj)) = (last_tp.as_object_mut(), next_master_tp.as_object()) {
+                                     let l_coords = last_obj["coordonnee"].as_array().unwrap();
+                                     let n_coords = next_obj["coordonnee"].as_array().unwrap();
+                                     let new_cap = simple_bearing(l_coords[1].as_f64().unwrap(), l_coords[0].as_f64().unwrap(),
+                                                                n_coords[1].as_f64().unwrap(), n_coords[0].as_f64().unwrap());
+                                     last_obj.insert("cap".to_string(), serde_json::json!(new_cap));
+                                     if last_obj.contains_key("editedCap") { last_obj.insert("editedCap".to_string(), serde_json::json!(new_cap)); }
+                                 }
+                             }
+                             
+                             final_tracking.extend(var_tracking.into_iter().skip(1));
+                             current_master_idx = end_idx + 1;
+                         } else {
+                             final_tracking.extend(var_tracking.into_iter().skip(1));
                          }
                     }
                 }
