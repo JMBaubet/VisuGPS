@@ -238,15 +238,15 @@ const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/T
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
 
 // --- Variant Visualization Settings ---
-const showSegments = computed(() => getSettingValue('Visualisation/Variantes/afficherSegments'));
-const showSlope = computed(() => getSettingValue('Visualisation/Variantes/afficherPente'));
-const segmentThickness = computed(() => getSettingValue('Visualisation/Variantes/epaisseurSegments'));
-const segmentOpacity = computed(() => getSettingValue('Visualisation/Variantes/opaciteSegments'));
-const slopeThickness = computed(() => getSettingValue('Visualisation/Variantes/epaisseurPente'));
-const slopeOpacity = computed(() => getSettingValue('Visualisation/Variantes/opacitePente'));
-const colorNew = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurNouveau')));
-const colorCommon = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurCommun')));
-const colorAbandoned = computed(() => toHex(getSettingValue('Visualisation/Variantes/couleurAbandonne')));
+const showSegments = computed(() => getSettingValue('Variantes/Visualisation/afficherSegments'));
+const showSlope = computed(() => getSettingValue('Variantes/Visualisation/afficherPente'));
+const segmentThickness = computed(() => getSettingValue('Variantes/Visualisation/epaisseurSegments'));
+const segmentOpacity = computed(() => getSettingValue('Variantes/Visualisation/opaciteSegments'));
+const slopeThickness = computed(() => getSettingValue('Variantes/Visualisation/epaisseurPente'));
+const slopeOpacity = computed(() => getSettingValue('Variantes/Visualisation/opacitePente'));
+const colorNew = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurNouveau')));
+const colorCommon = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurCommun')));
+const colorAbandoned = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurAbandonne')));
 
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
