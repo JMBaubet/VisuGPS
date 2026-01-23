@@ -512,13 +512,19 @@ const initializeVisualization = async () => {
          });
          slopeExpressionRef.value = expression;
 
-        // Load Comparison Geometry (Segments coloring)
+        // F. Generate Colored Segments (Slope-based + Aller/Retour)
+        // This replaces the old get_variant_comparison_geojson to allow live slope color updates
+        // and identical behavior to the main trace for Aller/Retour overlaps.
         try {
-            const comparisonGeoJsonString = await invoke('get_variant_comparison_geojson', { circuitId: props.circuitId, variantId: selectedVariantId.value });
-            const comparisonGeoJson = JSON.parse(comparisonGeoJsonString);
-            coloredSegmentsGeoJsonRef.value = comparisonGeoJson;
+            const geojson = await invoke('get_colored_segments_geojson', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength.value
+            });
+            coloredSegmentsGeoJsonRef.value = geojson;
         } catch(e) {
-            console.error("Comparison load error", e);
+            console.error("Colored segments load error", e);
             coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
         }
 

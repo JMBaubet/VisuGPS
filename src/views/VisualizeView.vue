@@ -437,7 +437,12 @@ const initializeVisualization = async () => {
                 Tranche5: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche5'),
             };
             try {
-                const geojson = await invoke('get_colored_segments_geojson', { circuitId: props.circuitId, slopeColors, segmentLength: segmentLength.value });
+                const geojson = await invoke('get_colored_segments_geojson', { 
+                    circuitId: props.circuitId, 
+                    slopeColors, 
+                    segmentLength: segmentLength.value,
+                    variantId: null 
+                });
                 coloredSegmentsGeoJsonRef.value = geojson;
             } catch(e) { console.error("Colored segments error", e); }
         }

@@ -8,16 +8,41 @@
       style="position: absolute; top: 16px; right: 16px; z-index: 10;"
     ></v-btn>
     <v-row class="fill-height">
-      <v-col cols="9" class="fill-height pa-0">
+      <v-col cols="9" class="fill-height pa-0" style="position: relative;">
         <div id="map" class="fill-height"></div>
+        
+        <!-- Widget de données sur la carte -->
+        <v-card v-if="currentPointData && showPointData" class="debug-overlay-card elevation-4" border>
+          <v-card-title class="text-subtitle-2 bg-primary text-white py-1">
+            {{ currentTraceName }}
+          </v-card-title>
+          <v-card-text class="pa-1">
+            <div v-for="(value, key) in orderedPointData" :key="key" class="d-flex debug-data-row">
+              <span class="font-weight-bold mr-1">{{ key }}:</span>
+              <span class="text-truncate">{{ formatValue(value) }}</span>
+            </div>
+          </v-card-text>
+        </v-card>
       </v-col>
       <v-col cols="3">
         <v-card>
           <v-card-title>Contrôles de débogage</v-card-title>
           <v-card-text>
             <p>Circuit ID: {{ circuitId }}</p>
-            <v-switch v-model="showTrace" label="Afficher la trace GPX"></v-switch>
-            <v-switch v-model="showCaps" label="Afficher les caps"></v-switch>
+            <v-switch v-model="showTrace" label="Afficher la trace GPX" density="compact" hide-details></v-switch>
+            <v-switch v-model="showCaps" label="Afficher les caps" density="compact" hide-details></v-switch>
+            <v-switch v-model="showPointData" label="Afficher données point" density="compact" hide-details></v-switch>
+            
+            <v-divider class="my-4"></v-divider>
+            <p class="font-weight-bold">Élément à déboguer:</p>
+            <v-select
+              v-model="selectedVariantId"
+              :items="variantOptions"
+              label="Sélectionner une trace"
+              density="compact"
+              variant="outlined"
+              class="mt-2"
+            ></v-select>
             
             <v-divider class="my-4"></v-divider>
             <p class="font-weight-bold">Layers de trace:</p>
@@ -26,6 +51,24 @@
               <v-radio label="Overlay Retour" value="retour"></v-radio>
               <v-radio label="Tous (Aller + Retour)" value="all"></v-radio>
             </v-radio-group>
+            
+            <v-divider class="my-4"></v-divider>
+            <p class="font-weight-bold">Zones de chevauchement:</p>
+            <v-select
+              v-model="selectedZoneId"
+              :items="zoneOptions"
+              label="Visualiser une zone"
+              density="compact"
+              variant="outlined"
+              class="mt-2"
+              hide-details
+            ></v-select>
+            <div v-if="selectedZoneId" class="caption mt-2">
+              <v-chip size="x-small" color="#D2B48C" variant="flat" class="mr-1">Start Aller</v-chip>
+              <v-chip size="x-small" color="#5D4037" variant="flat" class="mr-1">Stop Aller</v-chip>
+              <v-chip size="x-small" color="#E1BEE7" variant="flat" class="mr-1">Start Retour</v-chip>
+              <v-chip size="x-small" color="#7B1FA2" variant="flat" class="mr-1">Stop Retour</v-chip>
+            </div>
 
             <v-divider class="my-4"></v-divider>
             <p>Point: {{ currentIndex + 1 }} / {{ trackingPoints.length }}</p>
@@ -40,13 +83,37 @@
             </div>
           </v-card-text>
         </v-card>
+
       </v-col>
     </v-row>
   </v-container>
 </template>
 
+<style scoped>
+.debug-data-row {
+  border-bottom: 1px solid #eee;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  padding: 2px 0;
+}
+.debug-data-row:last-child {
+  border-bottom: none;
+}
+.debug-overlay-card {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  width: 280px;
+  max-height: 80vh;
+  overflow-y: auto;
+  opacity: 0.8;
+  pointer-events: auto;
+}
+</style>
+
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import mapboxgl from 'mapbox-gl';
@@ -69,6 +136,7 @@ const lineString = ref(null);
 const trackingPoints = ref([]);
 const currentIndex = ref(0);
 const lissageCap = ref(15);
+const showPointData = ref(true);
 
 const showTrace = ref(true);
 const showCaps = ref(true);
@@ -79,12 +147,106 @@ const layerGradients = ref({
     retour: null
 });
 const coloredSegmentsGeoJson = ref(null);
+const variants = ref([]);
+const selectedVariantId = ref(null); // null = Trace Principale
+
+const variantOptions = computed(() => {
+    const options = [{ title: 'Trace Principale', value: null }];
+    variants.value.forEach(v => {
+        options.push({ title: `Variant: ${v.name || v.id}`, value: v.id });
+    });
+    return options;
+});
+const currentPointData = computed(() => {
+    if (trackingPoints.value.length > 0 && currentIndex.value < trackingPoints.value.length) {
+        return trackingPoints.value[currentIndex.value];
+    }
+    return null;
+});
+
+function formatValue(val) {
+    if (val === null || val === undefined) return 'null';
+    if (Array.isArray(val)) {
+        return `[${val.map(v => typeof v === 'number' ? v.toFixed(6) : v).join(', ')}]`;
+    }
+    if (typeof val === 'number') {
+        // Formater les nombres (plus de décimales pour les coordonnées, moins pour le reste)
+        return Number.isInteger(val) ? val.toString() : val.toFixed(4);
+    }
+    return val.toString();
+}
+
+const currentTraceName = computed(() => {
+    if (!selectedVariantId.value) return 'Trace Principale';
+    const variant = variants.value.find(v => v.id === selectedVariantId.value);
+    return variant ? (variant.name || variant.id) : 'Variant';
+});
+
+const orderedPointData = computed(() => {
+    if (!currentPointData.value) return {};
+    
+    const data = { ...currentPointData.value };
+    const ordered = {};
+    
+    // Mettre l'incrément en premier
+    if ('increment' in data) {
+        ordered['increment'] = data['increment'];
+        delete data['increment'];
+    }
+    
+    // Ajouter le reste
+    Object.assign(ordered, data);
+    return ordered;
+});
+
+const segmentMetadata = ref(null);
+const selectedZoneId = ref(null);
+const zoneOptions = computed(() => {
+    if (!segmentMetadata.value || !segmentMetadata.value.overlappingZones || segmentMetadata.value.overlappingZones.length === 0) {
+        return [{ title: 'Aucune zone détectée', value: null }];
+    }
+    const options = [{ title: 'Masquer les zones', value: null }];
+    segmentMetadata.value.overlappingZones.forEach(z => {
+        options.push({ title: `Zone ${z.zoneId}`, value: z.zoneId });
+    });
+    return options;
+});
 
 let map = null;
 
 onMounted(async () => {
+  await fetchVariants();
   await loadNonMapData();
   window.addEventListener('keydown', handleKeyDown);
+});
+
+async function fetchVariants() {
+    try {
+        const fetched = await invoke('get_variants', { circuitId: circuitId.value });
+        variants.value = fetched || [];
+    } catch (e) {
+        console.error("Error fetching variants:", e);
+    }
+}
+
+watch(selectedVariantId, async () => {
+    selectedZoneId.value = null; // Reset zone selection when changing trace
+    await loadNonMapData();
+    if (map) {
+        // Force refresh of sources
+        if (map.getSource('colored-segments')) {
+            map.getSource('colored-segments').setData(coloredSegmentsGeoJson.value || { type: 'FeatureCollection', features: [] });
+        }
+        if (map.getSource('gpx-trace') && lineString.value) {
+            map.getSource('gpx-trace').setData(lineString.value);
+        }
+        updateMapFeatures();
+        updateZoneMarkers();
+    }
+});
+
+watch(selectedZoneId, () => {
+    updateZoneMarkers();
 });
 
 onUnmounted(() => {
@@ -128,9 +290,13 @@ async function loadNonMapData() {
   lissageCap.value = lissageCapValue || 15;
 
   try {
-    const data = await invoke('get_debug_data', { circuitId: circuitId.value });
+    const data = await invoke('get_debug_data', { 
+        circuitId: circuitId.value, 
+        variantId: selectedVariantId.value 
+    });
     lineString.value = data.line_string;
     trackingPoints.value = data.tracking_points;
+    segmentMetadata.value = data.segment_metadata;
 
     // Charger les gradients comme dans VisualizeView
     const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment') || 20;
@@ -148,6 +314,7 @@ async function loadNonMapData() {
             circuitId: circuitId.value,
             slopeColors: slopeColors,
             segmentLength: segmentLength,
+            variantId: selectedVariantId.value
         });
 
         if (geoJson) {
@@ -244,7 +411,43 @@ function setupLayers() {
      map.addSource('gpx-trace', { type: 'geojson', data: lineString.value });
   }
 
+  // Source for zone markers
+  if (!map.getSource('zone-markers')) {
+      map.addSource('zone-markers', { type: 'geojson', data: turf.featureCollection([]) });
+      
+      map.addLayer({
+          id: 'zone-markers-layer',
+          type: 'circle',
+          source: 'zone-markers',
+          paint: {
+              'circle-radius': ['case', ['get', 'isRetour'], 5, 8],
+              'circle-color': ['get', 'color'],
+              'circle-stroke-width': ['case', ['get', 'isRetour'], 0, 2],
+              'circle-stroke-color': '#FFFFFF'
+          }
+      });
+      
+      map.addLayer({
+          id: 'zone-labels-layer',
+          type: 'symbol',
+          source: 'zone-markers',
+          layout: {
+              'text-field': ['get', 'title'],
+              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              'text-size': 11,
+              'text-offset': [0, 1.5],
+              'text-anchor': 'top'
+          },
+          paint: {
+              'text-color': '#000000',
+              'text-halo-color': '#FFFFFF',
+              'text-halo-width': 1
+          }
+      });
+  }
+
   updateLayerVisibility();
+  updateZoneMarkers();
 
   // Source and Layer for the bearing vector (added first to be underneath points)
   map.addSource('bearing-vector', { type: 'geojson', data: turf.lineString([initialVectorStart.geometry.coordinates, initialVectorEnd.geometry.coordinates]) });
@@ -337,6 +540,79 @@ function updateLayerVisibility() {
     if (map.getLayer('gpx-trace-retour')) {
         map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour ? 'visible' : 'none');
     }
+}
+
+function updateZoneMarkers() {
+    if (!map || !map.getSource('zone-markers')) return;
+    
+    if (selectedZoneId.value === null || !segmentMetadata.value) {
+        map.getSource('zone-markers').setData(turf.featureCollection([]));
+        return;
+    }
+    
+    const zone = segmentMetadata.value.overlappingZones.find(z => z.zoneId === selectedZoneId.value);
+    if (!zone) {
+        map.getSource('zone-markers').setData(turf.featureCollection([]));
+        return;
+    }
+    
+    const features = [];
+    
+    // 🔴 UNIFICATION INDEXATION
+    // Désormais, tant pour la trace principale que pour les variants, 
+    // les index stockés dans metadata se réfèrent au fichier lineString (ou lineString_FULL).
+    let coordinatesSource = [];
+    if (lineString.value && lineString.value.coordinates) {
+        coordinatesSource = lineString.value.coordinates;
+    } else if (lineString.value && lineString.value.geometry && lineString.value.geometry.coordinates) {
+        coordinatesSource = lineString.value.geometry.coordinates;
+    }
+    
+    // Helper to get point safely
+    const getPt = (idx) => coordinatesSource[idx];
+    
+    // Aller Start (Marron clair)
+    const allerStartIdx = zone.allerStartIndex;
+    const p1 = getPt(allerStartIdx);
+    if (p1) {
+        features.push(turf.point(p1, { 
+            color: '#D2B48C', 
+            title: `Start Aller (idx:${allerStartIdx})`,
+            isRetour: false
+        }));
+    }
+    // Aller Stop (Marron foncé)
+    const allerEndIdx = zone.allerEndIndex;
+    const p2 = getPt(allerEndIdx);
+    if (p2) {
+        features.push(turf.point(p2, { 
+            color: '#5D4037', 
+            title: `Stop Aller (idx:${allerEndIdx})`,
+            isRetour: false
+        }));
+    }
+    // Retour Start (Mauve clair)
+    const retourStartIdx = zone.retourStartIndex;
+    const p3 = getPt(retourStartIdx);
+    if (p3) {
+        features.push(turf.point(p3, { 
+            color: '#E1BEE7', 
+            title: `Start Retour (idx:${retourStartIdx})`,
+            isRetour: true
+        }));
+    }
+    // Retour Stop (Mauve foncé)
+    const retourEndIdx = zone.retourEndIndex;
+    const p4 = getPt(retourEndIdx);
+    if (p4) {
+        features.push(turf.point(p4, { 
+            color: '#7B1FA2', 
+            title: `Stop Retour (idx:${retourEndIdx})`,
+            isRetour: true
+        }));
+    }
+    
+    map.getSource('zone-markers').setData(turf.featureCollection(features));
 }
 
 watch(currentIndex, updateMapFeatures);

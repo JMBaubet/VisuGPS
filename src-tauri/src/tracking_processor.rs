@@ -26,6 +26,17 @@ struct TrackingPoint {
     edited_zoom: Option<f64>,
     edited_pitch: Option<f64>,
     edited_cap: Option<f64>,
+    
+    // 🔴 Distance cumulée en km (nécessaire pour detect_overlapping_segments)
+    distance: f64,
+    
+    // 🔴 NOUVEAU: Métadonnées pour segments irréguliers et points d'ancrage
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_segment_length: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_regular_segment: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_anchor_point: Option<bool>,
 }
 
 pub fn generate_tracking_file(
@@ -108,6 +119,37 @@ pub fn generate_tracking_file(
     for (i, (point, altitude)) in calculated_points.iter().enumerate() {
         let cap = calculate_smoothed_bearing(i, &points_only, bearing_smoothing);
 
+        // 🔴 CORRECTION: actualSegmentLength = longueur NOMINALE du segment (ex: 100m)
+        // Exception: dernier segment peut être plus court
+        // Les points d'ancrage seront marqués plus tard dans variant_processor.rs
+        let actual_seg_length: Option<f64> = if i < calculated_points.len() - 1 {
+            // Par défaut, tous les segments font segment_length (100m)
+            // Sauf le tout dernier segment qui peut être plus court
+            if i == calculated_points.len() - 2 {
+                // Avant-dernier point : calculer la vraie distance vers le dernier
+                let next_point = &calculated_points[i + 1].0;
+                Some(point.haversine_distance(next_point))
+            } else {
+                // Tous les autres segments : longueur nominale
+                Some(segment_length)
+            }
+        } else {
+            None // Dernier point, pas de segment suivant
+        };
+
+        // 🔴 CORRECTION: Segment régulier = longueur proche de segment_length (±5%)
+        let is_regular = actual_seg_length.map(|len| {
+            let tolerance = segment_length * 0.05;
+            (len - segment_length).abs() <= tolerance
+        });
+
+        // 🔴 NOTE: isAnchorPoint sera défini plus tard dans variant_processor.rs
+        // Pour les traces principales, pas de points d'ancrage
+        let is_anchor = None;
+
+        // Calculer la distance cumulée en km
+        let cumulative_distance_km = (i as f64 * segment_length) / 1000.0;
+        
         let mut tp = TrackingPoint {
             increment: i as u32,
             point_de_control: i == 0 || i == calculated_points.len() - 1,
@@ -123,6 +165,14 @@ pub fn generate_tracking_file(
             edited_zoom: None,
             edited_pitch: None,
             edited_cap: None,
+            
+            // 🔴 Distance cumulée
+            distance: cumulative_distance_km,
+            
+            // 🔴 NOUVEAU: Métadonnées
+            actual_segment_length: actual_seg_length,
+            is_regular_segment: is_regular,
+            is_anchor_point: is_anchor,
         };
 
         if i == 0 {

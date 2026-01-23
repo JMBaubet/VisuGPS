@@ -450,19 +450,34 @@ pub struct CircuitsFile {
 struct DebugData {
     line_string: Value,
     tracking_points: Value,
+    segment_metadata: Value,
 }
 
 #[tauri::command]
-fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<DebugData, String> {
+fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String, variant_id: Option<String>) -> Result<DebugData, String> {
     let state = state.lock().unwrap();
-    let data_dir = state.app_env_path.join("data").join(circuit_id);
+    let data_dir = state.app_env_path.join("data").join(&circuit_id);
 
-    let line_string_path = data_dir.join("lineString.json");
-    let tracking_points_path = data_dir.join("tracking.json");
+    let (line_string_file, tracking_file, meta_file) = if let Some(ref vid) = variant_id {
+        (format!("lineString_{}_FULL.json", vid), format!("tracking_{}_FULL.json", vid), format!("segments_metadata_{}.json", vid))
+    } else {
+        ("lineString.json".to_string(), "tracking.json".to_string(), "segments_metadata.json".to_string())
+    };
+
+    let line_string_path = data_dir.join(line_string_file);
+    let tracking_points_path = data_dir.join(tracking_file);
+    let meta_path = data_dir.join(meta_file);
 
     let line_string_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
     let tracking_points_content =
         fs::read_to_string(tracking_points_path).map_err(|e| e.to_string())?;
+    
+    let segment_metadata: Value = if meta_path.exists() {
+        let content = fs::read_to_string(meta_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        serde_json::json!({"overlappingZones": []})
+    };
 
     let line_string: Value =
         serde_json::from_str(&line_string_content).map_err(|e| e.to_string())?;
@@ -472,6 +487,7 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
     Ok(DebugData {
         line_string,
         tracking_points,
+        segment_metadata,
     })
 }
 
@@ -2514,6 +2530,9 @@ pub fn run() {
             variant_processor::get_variant_comparison_geojson,
             variant_processor::get_variant_tracking,
             variant_processor::get_variant_slope_expression,
+            variant_processor::get_variant_full_linestring,
+            variant_processor::get_variant_full_tracking,
+            variant_processor::get_variant_overlap_metadata,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

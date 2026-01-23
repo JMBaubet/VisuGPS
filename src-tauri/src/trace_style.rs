@@ -591,18 +591,34 @@ pub async fn get_colored_segments_geojson(
     circuit_id: String,
     slope_colors: HashMap<String, String>,
     segment_length: f64,
+    variant_id: Option<String>,
 ) -> Result<serde_json::Value, String> {
     let (metadata_path, tracking_path, linestring_path) = {
         let app_state = state.lock().unwrap();
         let data_dir = app_state.app_env_path.clone();
-        let metadata_path = data_dir.join("data").join(&circuit_id).join("segments_metadata.json");
-        let tracking_path = data_dir.join("data").join(&circuit_id).join("tracking.json");
-        let linestring_path = data_dir.join("data").join(&circuit_id).join("lineString.json");
+        
+        let (meta_file, track_file, line_file) = if let Some(ref vid) = variant_id {
+            (
+                format!("segments_metadata_{}.json", vid),
+                format!("tracking_{}_FULL.json", vid),
+                format!("lineString_{}_FULL.json", vid)
+            )
+        } else {
+            (
+                "segments_metadata.json".to_string(),
+                "tracking.json".to_string(),
+                "lineString.json".to_string()
+            )
+        };
+
+        let metadata_path = data_dir.join("data").join(&circuit_id).join(meta_file);
+        let tracking_path = data_dir.join("data").join(&circuit_id).join(track_file);
+        let linestring_path = data_dir.join("data").join(&circuit_id).join(line_file);
         (metadata_path, tracking_path, linestring_path)
     };
 
     if !tracking_path.exists() || !linestring_path.exists() {
-        return Err("Tracking or LineString file not found".to_string());
+        return Err(format!("Tracking or LineString file not found at {:?}", if !tracking_path.exists() { tracking_path } else { linestring_path }));
     }
 
     // Charger tracking (pour infos segments et pentes)

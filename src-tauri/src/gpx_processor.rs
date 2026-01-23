@@ -252,6 +252,14 @@ struct GpxMetadata {
     let mut elevations: Vec<f64> = points.iter().map(|p| p[2]).collect();
     let len = elevations.len();
 
+    // 🔴 NOUVEAU: Vérifier si toutes les altitudes sont à 0 (API n'a pas retourné d'altitudes)
+    // Si c'est le cas, ne pas lisser pour éviter d'introduire des artéfacts
+    let all_zero = elevations.iter().all(|&alt| alt == 0.0);
+    if all_zero {
+        // Retourner les points inchangés si toutes les altitudes sont à 0
+        return points.clone();
+    }
+
     // 0. Gradient Clamping (Pre-pass)
     if max_gradient > 0.0 {
         let mut new_elevations = elevations.clone();

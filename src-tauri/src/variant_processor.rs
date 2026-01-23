@@ -430,6 +430,131 @@ pub async fn create_variant_files(
     metadata.stats.master_distance = master_circuit.distance_km;
     metadata.stats.master_ascent = master_circuit.denivele_m as f64;
 
+    // ========== GÉNÉRATION DES FICHIERS PRÉCALCULÉS ==========
+    
+    // 1. Sauvegarder lineString_FULL.json (Géométrie haute résolution complète)
+    let full_linestring_path = circuit_data_dir.join(format!("lineString_{}_FULL.json", metadata.id));
+    let full_linestring = serde_json::json!({
+        "type": "LineString",
+        "coordinates": cleaned_points
+    });
+    fs::write(&full_linestring_path, serde_json::to_string_pretty(&full_linestring).unwrap())
+        .map_err(|e| format!("Failed to write lineString_FULL: {}", e))?;
+    
+    // 2. Générer tracking_FULL.json (Tracking complet du variant)
+    let full_tracking_filename = format!("tracking_{}_FULL.json", metadata.id);
+    crate::tracking_processor::generate_tracking_file(
+        &app_env_path,
+        &request.circuit_id,
+        &cleaned_points,
+        &settings,
+        Some(&full_tracking_filename),
+        None, // Override first
+        None  // Override last
+    )?;
+    
+    // 3. Charger le tracking_FULL pour identifier les points d'ancrage
+    let full_tracking_path = circuit_data_dir.join(&full_tracking_filename);
+    let full_tracking_content = fs::read_to_string(&full_tracking_path)
+        .map_err(|e| format!("Failed to read generated tracking_FULL: {}", e))?;
+    let mut full_tracking_points: Vec<serde_json::Value> = serde_json::from_str(&full_tracking_content)
+        .map_err(|e| format!("Failed to parse tracking_FULL: {}", e))?;
+    
+    // 🔴 NOUVEAU: Identifier et marquer les points d'ancrage
+    // Collecter les coordonnées des points d'ancrage depuis les modifications
+    let mut anchor_coords: Vec<(f64, f64)> = Vec::new();
+    for modification in &sorted_mods {
+        match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
+                let coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                anchor_coords.push((coords[0].as_f64().unwrap(), coords[1].as_f64().unwrap()));
+            },
+            VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
+                // Début de déviation
+                anchor_coords.push((anchor_start.coords[0], anchor_start.coords[1]));
+                // Fin de déviation
+                anchor_coords.push((anchor_end.coords[0], anchor_end.coords[1]));
+            },
+            VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
+                let coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
+                anchor_coords.push((coords[0].as_f64().unwrap(), coords[1].as_f64().unwrap()));
+            }
+        }
+    }
+    
+    // 🔴 PASS 1: Trouver les indices des points d'ancrage
+    let mut anchor_indices: Vec<usize> = Vec::new();
+    for (i, point) in full_tracking_points.iter().enumerate() {
+        let point_coords = point["coordonnee"].as_array().unwrap();
+        let point_lon = point_coords[0].as_f64().unwrap();
+        let point_lat = point_coords[1].as_f64().unwrap();
+        
+        for (anchor_lon, anchor_lat) in &anchor_coords {
+            let dist = crate::gpx_processor::haversine_distance(point_lat, point_lon, *anchor_lat, *anchor_lon);
+            if dist < 10.0 {
+                anchor_indices.push(i);
+                break;
+            }
+        }
+    }
+    
+    // 🔴 PASS 2: Marquer les points d'ancrage
+    for &i in &anchor_indices {
+        full_tracking_points[i]["isAnchorPoint"] = serde_json::json!(true);
+    }
+    
+    // Sauvegarder le tracking_FULL mis à jour avec les points d'ancrage
+    fs::write(&full_tracking_path, serde_json::to_string_pretty(&full_tracking_points).unwrap())
+        .map_err(|e| format!("Failed to write updated tracking_FULL: {}", e))?;
+    
+    // 4. Générer segments_metadata (Détection des overlaps)
+    // 🔴 CORRECTION: Utiliser lineString_FULL (haute résolution) au lieu de tracking_FULL
+    // Cela permet d'avoir des index de métadonnées cohérents avec la géométrie brute, comme pour la trace principale.
+    let distance_threshold = crate::get_setting_value(&settings, "data.groupes.Visualisation.parametres.overlapDetectionThreshold")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(20.0); // 20 mètres par défaut
+
+    let mut high_res_points: Vec<serde_json::Value> = Vec::new();
+    let mut cumulative_dist = 0.0;
+    
+    // On extrait les coordonnées de full_linestring (déjà calculé plus haut)
+    if let Some(coords) = full_linestring.get("coordinates").and_then(|c| c.as_array()) {
+        for (i, coord) in coords.iter().enumerate() {
+            let lat = coord[1].as_f64().unwrap_or(0.0);
+            let lon = coord[0].as_f64().unwrap_or(0.0);
+            
+            if i > 0 {
+                let prev = &coords[i-1];
+                let dist_m = crate::segment_analyzer::haversine_distance(prev[1].as_f64().unwrap_or(0.0), prev[0].as_f64().unwrap_or(0.0), lat, lon);
+                cumulative_dist += dist_m / 1000.0;
+            }
+            
+            high_res_points.push(serde_json::json!({
+                "coordonnee": [lon, lat],
+                "distance": cumulative_dist
+            }));
+        }
+    }
+
+    let overlapping_zones = crate::segment_analyzer::detect_overlapping_segments(
+        &high_res_points,
+        distance_threshold
+    )?;
+    
+    let segments_metadata = crate::segment_analyzer::SegmentMetadata {
+        circuit_id: request.circuit_id.clone(),
+        overlapping_zones,
+        detection_threshold_meters: distance_threshold,
+        total_points: high_res_points.len(),
+        analysis_date: chrono::Utc::now().to_rfc3339(),
+    };
+    
+    let metadata_path = circuit_data_dir.join(format!("segments_metadata_{}.json", metadata.id));
+    fs::write(&metadata_path, serde_json::to_string_pretty(&segments_metadata).unwrap())
+        .map_err(|e| format!("Failed to write segments_metadata: {}", e))?;
+    
+    // TODO Phase 2: Implémenter lissage d'altitude aux points d'ancrage
+
     let archive_path = circuit_data_dir.join(format!("archive_{}.json", metadata.id));
     let mut modifications = request.modifications;
     for m in modifications.iter_mut() {
@@ -607,6 +732,88 @@ pub async fn rename_variant(
 
     Ok(())
 }
+
+/// Charge le fichier lineString_FULL.json d'un variant
+#[tauri::command]
+pub async fn get_variant_full_linestring(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<serde_json::Value, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let linestring_path = app_env_path.join("data")
+        .join(&circuit_id)
+        .join(format!("lineString_{}_FULL.json", variant_id));
+
+    if !linestring_path.exists() {
+        return Err(format!("LineString FULL file not found for variant {}", variant_id));
+    }
+
+    let content = fs::read_to_string(&linestring_path).map_err(|e| e.to_string())?;
+    let linestring: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    Ok(linestring)
+}
+
+/// Charge le fichier tracking_FULL.json d'un variant
+#[tauri::command]
+pub async fn get_variant_full_tracking(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let tracking_path = app_env_path.join("data")
+        .join(&circuit_id)
+        .join(format!("tracking_{}_FULL.json", variant_id));
+
+    if !tracking_path.exists() {
+        return Err(format!("Tracking FULL file not found for variant {}", variant_id));
+    }
+
+    let content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
+    let tracking: Vec<serde_json::Value> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    Ok(tracking)
+}
+
+/// Charge le fichier segments_metadata.json d'un variant
+#[tauri::command]
+pub async fn get_variant_overlap_metadata(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+) -> Result<crate::segment_analyzer::SegmentMetadata, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let metadata_path = app_env_path.join("data")
+        .join(&circuit_id)
+        .join(format!("segments_metadata_{}.json", variant_id));
+
+    if !metadata_path.exists() {
+        return Err(format!("Segments metadata file not found for variant {}", variant_id));
+    }
+
+    let content = fs::read_to_string(&metadata_path).map_err(|e| e.to_string())?;
+    let metadata: crate::segment_analyzer::SegmentMetadata = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    
+    Ok(metadata)
+}
+
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
