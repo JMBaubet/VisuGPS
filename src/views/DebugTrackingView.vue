@@ -13,13 +13,16 @@
         
         <!-- Widget de données sur la carte -->
         <v-card v-if="currentPointData && showPointData" class="debug-overlay-card elevation-4" border>
-          <v-card-title class="text-subtitle-2 bg-primary text-white py-1">
-            {{ currentTraceName }}
+          <v-card-title class="text-subtitle-2 bg-primary text-white py-1 d-flex justify-space-between">
+            <span>{{ currentTraceName }}</span>
+            <span class="text-caption">Index: {{ currentIndex }}</span>
           </v-card-title>
           <v-card-text class="pa-1">
-            <div v-for="(value, key) in orderedPointData" :key="key" class="d-flex debug-data-row">
-              <span class="font-weight-bold mr-1">{{ key }}:</span>
-              <span class="text-truncate">{{ formatValue(value) }}</span>
+            <div v-for="field in orderedPointData" :key="field.key" class="d-flex debug-data-row">
+              <span class="font-weight-bold mr-1">{{ field.key }}:</span>
+              <span :style="getFieldStyle(field.key, field.value, currentPointData)" class="text-truncate">
+                {{ formatValue(field.value, field.key) }}
+              </span>
             </div>
           </v-card-text>
         </v-card>
@@ -164,16 +167,46 @@ const currentPointData = computed(() => {
     return null;
 });
 
-function formatValue(val) {
+function formatValue(val, key) {
+    if (key === 'isAnchorPoint') {
+        return val === true ? 'TRUE' : '';
+    }
     if (val === null || val === undefined) return 'null';
     if (Array.isArray(val)) {
         return `[${val.map(v => typeof v === 'number' ? v.toFixed(6) : v).join(', ')}]`;
     }
     if (typeof val === 'number') {
-        // Formater les nombres (plus de décimales pour les coordonnées, moins pour le reste)
         return Number.isInteger(val) ? val.toString() : val.toFixed(4);
     }
     return val.toString();
+}
+
+function getFieldStyle(key, value, data) {
+    if (key === 'pointDeControl') {
+        return { color: value ? '#4CAF50' : '#9E9E9E', fontWeight: value ? 'bold' : 'normal' };
+    }
+    if (key === 'nbrSegment') {
+        return { color: data.pointDeControl ? '#4CAF50' : '#9E9E9E', fontWeight: data.pointDeControl ? 'bold' : 'normal' };
+    }
+    if (key === 'altitude' && value === 0) {
+        return { color: '#F44336', fontWeight: 'bold' };
+    }
+    if (key === 'isAnchorPoint' && value === true) {
+        return { color: '#4CAF50', fontWeight: 'bold' };
+    }
+    if (key === 'typeTroncon') {
+        if (value === 'Commun') return { color: '#ECEFF1', textShadow: '0.5px 0.5px 1px #000' }; // Blanc nacré
+        if (value === 'Segment') return { color: '#2196F3', fontWeight: 'bold' };
+        if (value === 'Départ') return { color: '#4CAF50', fontWeight: 'bold' };
+        if (value === 'Arrivée') return { color: '#F44336', fontWeight: 'bold' };
+    }
+    if (key === 'editedZoom' && value !== null && value !== undefined && value !== 16) {
+        return { color: '#F44336', fontWeight: 'bold' };
+    }
+    if (key === 'editedPitch' && value !== null && value !== undefined && value !== 60) {
+        return { color: '#F44336', fontWeight: 'bold' };
+    }
+    return {};
 }
 
 const currentTraceName = computed(() => {
@@ -183,20 +216,46 @@ const currentTraceName = computed(() => {
 });
 
 const orderedPointData = computed(() => {
-    if (!currentPointData.value) return {};
+    if (!currentPointData.value) return [];
     
-    const data = { ...currentPointData.value };
-    const ordered = {};
+    const data = currentPointData.value;
+    const order = [
+        'increment',
+        'pointDeControl',
+        'nbrSegment',
+        'altitude',
+        'isAnchorPoint',
+        'typeTroncon',
+        'editedCap',
+        'editedZoom',
+        'editedPitch',
+        'commune',
+        'altitudeCamera',
+        'cap',
+        'zoom',
+        'pitch',
+        'isRegularSegment',
+        'actualSegmentLength',
+        'coordonnee',
+        'coordonneeCamera'
+    ];
     
-    // Mettre l'incrément en premier
-    if ('increment' in data) {
-        ordered['increment'] = data['increment'];
-        delete data['increment'];
-    }
+    const result = [];
+    order.forEach(key => {
+        // Pour isAnchorPoint, on l'affiche même s'il n'est pas dans les données (valeur nulle)
+        if (key in data || key === 'isAnchorPoint') {
+            result.push({ key, value: data[key] });
+        }
+    });
+
+    // Ajouter les éventuels champs restants non listés dans l'ordre
+    Object.keys(data).forEach(key => {
+        if (!order.includes(key)) {
+            result.push({ key, value: data[key] });
+        }
+    });
     
-    // Ajouter le reste
-    Object.assign(ordered, data);
-    return ordered;
+    return result;
 });
 
 const segmentMetadata = ref(null);

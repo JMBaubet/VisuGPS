@@ -26,23 +26,29 @@ struct TrackingPoint {
     edited_zoom: Option<f64>,
     edited_pitch: Option<f64>,
     edited_cap: Option<f64>,
-    
-    // 🔴 Distance cumulée en km (nécessaire pour detect_overlapping_segments)
-    distance: f64,
-    
-    // 🔴 NOUVEAU: Métadonnées pour segments irréguliers et points d'ancrage
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_anchor_point: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    type_troncon: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     actual_segment_length: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     is_regular_segment: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    is_anchor_point: Option<bool>,
+    distance: f64,
 }
+
+#[derive(Clone, Debug)]
+pub struct PointContext {
+    pub coords: Vec<f64>, // [lon, lat, alt]
+    pub is_anchor: bool,
+    pub type_troncon: Option<String>,
+}
+    
 
 pub fn generate_tracking_file(
     app_env_path: &Path,
     circuit_id: &str,
-    track_points: &Vec<Vec<f64>>,
+    points_context: &Vec<PointContext>,
     settings: &serde_json::Value,
     output_filename: Option<&str>,
     override_first: Option<serde_json::Value>,
@@ -61,20 +67,21 @@ pub fn generate_tracking_file(
         .and_then(|v| v.as_u64().map(|i| i as u32))
         .unwrap_or(60);
 
-    let geo_points: Vec<Point<f64>> = track_points
+    let geo_points: Vec<Point<f64>> = points_context
         .iter()
-        .map(|p| Point::new(p[0], p[1]))
+        .map(|p| Point::new(p.coords[0], p.coords[1]))
         .collect();
 
-    // Store (Point, Altitude)
-    let mut calculated_points: Vec<(Point<f64>, f64)> = Vec::new();
+    // Store (Point, Altitude, is_anchor, type_troncon)
+    let mut calculated_points: Vec<(Point<f64>, f64, bool, Option<String>)> = Vec::new();
     
     let mut distance_needed = 0.0;
     let mut distance_traversed = 0.0;
 
     // Add first point
-    if let (Some(first_pt), Some(first_orig)) = (geo_points.first(), track_points.first()) {
-        calculated_points.push((*first_pt, first_orig[2]));
+    if let (Some(_first_ctx), Some(first_orig)) = (points_context.first(), points_context.first()) {
+        let first_pt = Point::new(first_orig.coords[0], first_orig.coords[1]);
+        calculated_points.push((first_pt, first_orig.coords[2], first_orig.is_anchor, first_orig.type_troncon.clone()));
         distance_needed += segment_length;
     }
 
@@ -82,9 +89,11 @@ pub fn generate_tracking_file(
     for i in 0..geo_points.len() - 1 {
         let p1 = geo_points[i];
         let p2 = geo_points[i+1];
-        let alt1 = track_points[i][2];
-        let alt2 = track_points[i+1][2];
-
+        let alt1 = points_context[i].coords[2];
+        let alt2 = points_context[i+1].coords[2];
+        
+        let type_troncon = points_context[i].type_troncon.clone();
+        
         let segment_len = p1.haversine_distance(&p2);
 
         while distance_traversed + segment_len >= distance_needed {
@@ -95,38 +104,58 @@ pub fn generate_tracking_file(
             let new_point = geo::Line::new(p1, p2).line_interpolate_point(fraction).unwrap();
             
             // Interpolate Altitude directly from the current segment
-            // This guarantees we don't jump to a nearby overlapping segment
             let new_alt = alt1 + (alt2 - alt1) * fraction;
             
-            calculated_points.push((new_point, new_alt));
+            // Un point interpolé est considéré comme ancre si l'un des points du segment d'origine l'est et qu'on est au début/fin
+            // Mais plus simplement, on ne marque comme ancre que les points "réels" si possible.
+            // Pour l'instant on ne marque pas les points interpolés comme ancre, sauf s'ils tombent pile dessus (rare).
+            let is_anchor = false; 
+
+            calculated_points.push((new_point, new_alt, is_anchor, type_troncon.clone()));
             distance_needed += segment_length;
         }
         distance_traversed += segment_len;
     }
 
-    // Add the very last point if needed
-    if let (Some(last_pt), Some(last_orig)) = (geo_points.last(), track_points.last()) {
-        if let Some((last_calc_pt, _)) = calculated_points.last() {
-            if last_calc_pt.haversine_distance(last_pt) > 1.0 {
-                 calculated_points.push((*last_pt, last_orig[2]));
+    // 🔴 NOUVEAU: Récupérer les coordonnées et le type de tous les points d'ancrage "réels"
+    let anchors: Vec<(Point<f64>, Option<String>)> = points_context.iter()
+        .filter(|ctx| ctx.is_anchor)
+        .map(|ctx| (Point::new(ctx.coords[0], ctx.coords[1]), ctx.type_troncon.clone()))
+        .collect();
+
+    // Associer chaque ancre réelle au point de tracking le plus proche
+    for (anchor_pt, anchor_type) in anchors {
+        let mut best_dist = f64::MAX;
+        let mut best_idx = None;
+        
+        for (i, (calc_pt, _, _, _)) in calculated_points.iter().enumerate() {
+            let dist = calc_pt.haversine_distance(&anchor_pt);
+            if dist < best_dist {
+                best_dist = dist;
+                best_idx = Some(i);
+            }
+        }
+        
+        // Si on a trouvé un point à moins de 60m (pour un pas de 100m c'est raisonnable)
+        if let Some(idx) = best_idx {
+            if best_dist < (segment_length * 0.6) {
+                calculated_points[idx].2 = true;
+                // On force le type de tronçon de l'ancre sur ce point de tracking
+                if anchor_type.is_some() {
+                    calculated_points[idx].3 = anchor_type;
+                }
             }
         }
     }
 
-    let points_only: Vec<Point<f64>> = calculated_points.iter().map(|(p, _)| *p).collect();
+    let points_only: Vec<Point<f64>> = calculated_points.iter().map(|(p, _, _, _)| *p).collect();
     let mut tracking_points: Vec<TrackingPoint> = Vec::new();
 
-    for (i, (point, altitude)) in calculated_points.iter().enumerate() {
+    for (i, (point, altitude, is_anchor, type_troncon)) in calculated_points.iter().enumerate() {
         let cap = calculate_smoothed_bearing(i, &points_only, bearing_smoothing);
 
-        // 🔴 CORRECTION: actualSegmentLength = longueur NOMINALE du segment (ex: 100m)
-        // Exception: dernier segment peut être plus court
-        // Les points d'ancrage seront marqués plus tard dans variant_processor.rs
         let actual_seg_length: Option<f64> = if i < calculated_points.len() - 1 {
-            // Par défaut, tous les segments font segment_length (100m)
-            // Sauf le tout dernier segment qui peut être plus court
             if i == calculated_points.len() - 2 {
-                // Avant-dernier point : calculer la vraie distance vers le dernier
                 let next_point = &calculated_points[i + 1].0;
                 Some(point.haversine_distance(next_point))
             } else {
@@ -143,9 +172,9 @@ pub fn generate_tracking_file(
             (len - segment_length).abs() <= tolerance
         });
 
-        // 🔴 NOTE: isAnchorPoint sera défini plus tard dans variant_processor.rs
-        // Pour les traces principales, pas de points d'ancrage
-        let is_anchor = None;
+        // 🔴 NOTE: isAnchorPoint et typeTroncon viennent de la reconstruction
+        let is_anchor_val = if *is_anchor { Some(true) } else { None };
+        let type_troncon_val = type_troncon.clone();
 
         // Calculer la distance cumulée en km
         let cumulative_distance_km = (i as f64 * segment_length) / 1000.0;
@@ -172,7 +201,8 @@ pub fn generate_tracking_file(
             // 🔴 NOUVEAU: Métadonnées
             actual_segment_length: actual_seg_length,
             is_regular_segment: is_regular,
-            is_anchor_point: is_anchor,
+            is_anchor_point: is_anchor_val,
+            type_troncon: type_troncon_val,
         };
 
         if i == 0 {

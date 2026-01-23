@@ -663,10 +663,18 @@ pub fn commit_new_circuit(
     let settings: serde_json::Value =
         serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
+    let points_context: Vec<tracking_processor::PointContext> = draft.track_points.iter().map(|p| {
+        tracking_processor::PointContext {
+            coords: p.clone(),
+            is_anchor: false,
+            type_troncon: Some("Commun".to_string()),
+        }
+    }).collect();
+
     let total_tracking_points = tracking_processor::generate_tracking_file(
         &app_env_path,
         &new_circuit_id,
-        &draft.track_points,
+        &points_context,
         &settings,
         None,
         None,
