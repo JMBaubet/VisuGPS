@@ -1008,6 +1008,17 @@ const handleLoadVariant = async (variantId) => {
                 };
             }
             
+            if (rm.longueur) {
+                mod.length = rm.longueur;
+            } else if (mod.preview) {
+                try {
+                    const line = turf.lineString(mod.preview.coordinates);
+                    mod.length = turf.length(line, { units: 'kilometers' });
+                } catch (e) {
+                    console.warn("Could not calc length from preview", e);
+                }
+            }
+            
             modifications.value.push(mod);
         }
         
@@ -1129,6 +1140,17 @@ const generatePreviewForMod = async (modIndex) => {
         }
 
         mod.preview = JSON.parse(routeResult.geojson);
+        
+        // Calculate length
+        if (mod.preview && mod.preview.coordinates) {
+             try {
+                const line = turf.lineString(mod.preview.coordinates);
+                mod.length = turf.length(line, { units: 'kilometers' });
+             } catch (e) {
+                console.warn("Error calculating length:", e);
+             }
+        }
+
         updatePreviewSource();
 
     } catch (e) {
@@ -1150,6 +1172,12 @@ const generatePreviewForMod = async (modIndex) => {
             type: 'LineString',
             coordinates: fallbackCoords
         };
+        
+        // Calculate length for fallback
+        try {
+            const line = turf.lineString(fallbackCoords);
+            mod.length = turf.length(line, { units: 'kilometers' });
+        } catch (e) {}
         updatePreviewSource();
     } finally {
         isLoading.value = false;
@@ -1199,6 +1227,8 @@ const saveVariant = () => {
     showSaveDialog.value = true;
 };
 
+
+
 const confirmSaveVariant = async () => {
     const finalName = loadedVariantId.value ? loadedVariantName.value : variantName.value.trim();
     
@@ -1239,10 +1269,163 @@ const confirmSaveVariant = async () => {
                 }
             }
             
+            // --- PADDING LOGIC (Modulo 100m) ---
+            if (mod.type === 'SEGMENT' && longueur > 0) {
+                const lenMeters = longueur * 1000;
+                const remainder = lenMeters % 100;
+                
+                // If we have a significant remainder (avoid micro-adjustments for float precision issues close to 0 or 100)
+                if (remainder > 0.5 && remainder < 99.5) {
+                    let needed = 100 - remainder;
+                    
+                    const startAnchor = anchors[0];
+                    const endAnchor = anchors[anchors.length - 1];
+                    const pStart = coords[0];
+                    const pEnd = coords[coords.length - 1];
+                    
+                    // 1. Calculate Gaps (Anchor -> Snapped Point on Trace)
+                    const line = masterTraceGeojson.value;
+                    
+                    const getGapInfo = (anchorCoords) => {
+                         const ptAnchor = turf.point(anchorCoords);
+                         const snapped = turf.nearestPointOnLine(line, ptAnchor);
+                         const gapKm = turf.distance(ptAnchor, snapped, { units: 'kilometers' });
+                         return { gapMeters: gapKm * 1000, snappedPoint: snapped };
+                    };
+                    
+                    const startGap = getGapInfo(startAnchor.coords);
+                    const endGap = getGapInfo(endAnchor.coords);
+                    
+                    const minRequired = 2 * (startGap.gapMeters + endGap.gapMeters);
+                    
+                    // 2. Adjust needed if minRequired > needed
+                    // We increase needed by 100m steps until it's enough to cover the mandatory gaps
+                    while (needed < minRequired) {
+                        needed += 100;
+                    }
+                    
+                    // 3. Distribute remaining budget to trace extensions
+                    const budgetForTrace = needed - minRequired;
+                    
+                    // Split equally between start and end
+                    const budgetStart = budgetForTrace / 2.0;
+                    const budgetEnd = budgetForTrace / 2.0;
+                    
+                    // One-way distance on trace
+                    const distOnTraceStart = budgetStart / 2.0;
+                    const distOnTraceEnd = budgetEnd / 2.0;
+                    
+                    // Helper to generate extension path
+                    const generateExtension = (snappedPt, distMeters, direction, label) => {
+                         if (distMeters <= 0.01) return [];
+                         
+                         const snappedCoords = snappedPt.geometry.coordinates;
+                         const projLocationKm = snappedPt.properties.location;
+                         const distKm = distMeters / 1000.0;
+                         
+                         let targetLocationKm = projLocationKm + (distKm * direction);
+                         
+                         const totalLen = turf.length(line);
+                         if (targetLocationKm < 0) targetLocationKm = 0;
+                         if (targetLocationKm > totalLen) targetLocationKm = totalLen;
+                         
+                         const ptTarget = turf.along(line, targetLocationKm);
+                         const slice = turf.lineSlice(snappedPt, ptTarget, line);
+                         let sliceCoords = slice.geometry.coordinates;
+                         
+                         
+                         // Measure actual slice length
+                         const sliceLenKm = turf.length(turf.lineString(sliceCoords), { units: 'kilometers' });
+                         const sliceLenMeters = sliceLenKm * 1000;
+                         
+                         // Ensure slice starts at snappedPt (Anchor) and goes to ptTarget
+                         // lineSlice can return [Target...Snapped] if Target is before Snapped index-wise
+                         // We check distance from first point to snappedPt vs last point to snappedPt
+                         if (sliceCoords.length > 0) {
+                             const firstDist = turf.distance(turf.point(sliceCoords[0]), snappedPt);
+                             const lastDist = turf.distance(turf.point(sliceCoords[sliceCoords.length-1]), snappedPt);
+                             
+                             // If last point is closer to anchor than first point, we need to reverse
+                             // to have [Snapped -> Target]
+                             if (lastDist < firstDist) {
+                                 sliceCoords = sliceCoords.reverse();
+                             }
+                         }
+                         
+                         // Out + Back
+                         const outPath = sliceCoords;
+                         const backPath = [...sliceCoords].reverse();
+                         const combined = [...outPath, ...backPath.slice(1)];
+                         
+                         // Measure combined path
+                         const combinedLine = turf.lineString(combined);
+                         const combinedLenKm = turf.length(combinedLine, { units: 'kilometers' });
+                         const combinedLenMeters = combinedLenKm * 1000;
+                         
+                         // [Proj, ..., Target, ..., Proj]
+                         return combined;
+                    };
+                    
+                    const startExtTrace = generateExtension(startGap.snappedPoint, distOnTraceStart, -1, "START");
+                    const endExtTrace = generateExtension(endGap.snappedPoint, distOnTraceEnd, 1, "END");
+                    
+                    // Assemble: P_Start -> [GapStartPath] -> [TraceExtStart] -> [GapStartPathBack] -> P_Start
+                    
+                    const buildLeg = (pStart, gapInfo, tracePath, label) => {
+                         const pProj = gapInfo.snappedPoint.geometry.coordinates;
+                         
+                         // Determine the leg path for return (stitching)
+                         const legPath = (tracePath && tracePath.length > 0) ? tracePath : [pProj];
+                         
+                         // Measure Actual Added Length for this Leg
+                         // Path: pStart -> pProj -> tracePath (out+back, already starts/ends at pProj) -> pProj -> pStart
+                         // Since legPath starts and ends at pProj (or is just [pProj]), the full path is:
+                         // [pStart, ...legPath, pStart]
+                         
+                         const fullLegPath = [pStart, ...legPath, pStart];
+                         
+                         try {
+                              const legLine = turf.lineString(fullLegPath);
+                              const legLenKm = turf.length(legLine, { units: 'kilometers' });
+                              const legLen = legLenKm * 1000;
+                              return { path: legPath, len: legLen };
+                         } catch(e) { console.error(e); return { path: legPath, len: 0 }; }
+                    };
+                    
+                    const startResult = buildLeg(startAnchor.coords, startGap, startExtTrace, "START");
+                    const endResult = buildLeg(endAnchor.coords, endGap, endExtTrace, "END");
+
+                    const startLeg = startResult.path;
+                    const endLeg = endResult.path;
+
+                     const middle = coords.slice(1, coords.length - 1);
+                     
+                     const newCoords = [
+                         startAnchor.coords,
+                         ...startLeg,
+                         startAnchor.coords,
+                         ...middle,
+                         endAnchor.coords,
+                         ...endLeg,
+                         endAnchor.coords
+                     ];
+                     
+                     coords = newCoords;
+                     
+                      // Recalculate length
+                     try {
+                        const line = turf.lineString(coords);
+                        longueur = turf.length(line, { units: 'kilometers' });
+                     } catch (e) {
+                         console.error("Error recalc length", e);
+                     }
+                }
+            }
+            // -----------------------------------
+
             // Preparation de la géométrie complète (pour les fichiers permanents)
-            const fullGeometry = (mod.preview && mod.preview.coordinates) 
-                ? mod.preview.coordinates.map(c => ({ lat: c[1], lon: c[0], alt: c[2] }))
-                : mod.points.map(p => ({ lat: p.coords[1], lon: p.coords[0] }));
+            // Note: Use 'coords' which might have been modified by padding logic
+            const fullGeometry = coords.map(c => ({ lat: c[1], lon: c[0], alt: c[2] || 0 }));
 
             if (mod.type === 'SEGMENT') {
                 // For segment, waypoints = intermediate points between anchors

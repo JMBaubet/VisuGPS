@@ -47,6 +47,7 @@
               <v-list-item
                 v-bind="groupProps"
                 :title="getModTitle(mod, mod.originalIndex)"
+                :subtitle="getModSubtitle(mod)"
                 :class="{ 'border-s-4 border-primary': !mod.finalized && mod.type === activeMode }"
               >
                 <template v-slot:prepend>
@@ -326,6 +327,15 @@ const getModTitle = (mod, index) => {
     if (mod.type === 'DEPART') return 'Départ';
     if (mod.type === 'ARRIVEE') return 'Arrivée';
     return `Segment ${index + 1}`;
+};
+
+const getModSubtitle = (mod) => {
+    if (mod.type === 'SEGMENT' && mod.length) {
+        const lengthMeters = mod.length * 1000;
+        const modulo = lengthMeters % 100;
+        return `Modulo : ${modulo.toFixed(0)}m`;
+    }
+    return '';
 };
 
 const getPointTitle = (point, pIndex) => {
