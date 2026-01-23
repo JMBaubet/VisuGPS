@@ -1322,6 +1322,88 @@
                 "decimales": 1,
                 "unite": "s",
                 "doc": "docs/DocParametrage/Variante/Visualisation/dureeFlytoSegment.md"
+              },
+              {
+                "identifiant": "afficherSegments",
+                "libelle": "Afficher les segments",
+                "description": "Afficher ou masquer les segments de variante colorés.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Variante/Visualisation/afficherSegments.md"
+              },
+              {
+                "identifiant": "afficherPente",
+                "libelle": "Afficher la pente",
+                "description": "Afficher ou masquer la couche de pente.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Variante/Visualisation/afficherPente.md"
+              },
+              {
+                "identifiant": "epaisseurSegments",
+                "libelle": "Épaisseur des segments",
+                "description": "Épaisseur des lignes de segments.",
+                "type": "entier",
+                "defaut": 7,
+                "min": 1,
+                "max": 20,
+                "doc": "docs/DocParametrage/Variante/Visualisation/epaisseurSegments.md"
+              },
+              {
+                "identifiant": "opaciteSegments",
+                "libelle": "Opacité des segments",
+                "description": "Opacité des lignes de segments.",
+                "type": "reel",
+                "defaut": 0.8,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.1,
+                "doc": "docs/DocParametrage/Variante/Visualisation/opaciteSegments.md"
+              },
+              {
+                "identifiant": "epaisseurPente",
+                "libelle": "Épaisseur de la pente",
+                "description": "Épaisseur de la ligne de pente.",
+                "type": "entier",
+                "defaut": 5,
+                "min": 1,
+                "max": 20,
+                "doc": "docs/DocParametrage/Variante/Visualisation/epaisseurPente.md"
+              },
+              {
+                "identifiant": "opacitePente",
+                "libelle": "Opacité de la pente",
+                "description": "Opacité de la ligne de pente.",
+                "type": "reel",
+                "defaut": 0.8,
+                "min": 0.0,
+                "max": 1.0,
+                "step": 0.1,
+                "doc": "docs/DocParametrage/Variante/Visualisation/opacitePente.md"
+              },
+              {
+                "identifiant": "couleurNouveau",
+                "libelle": "Couleur Nouveau tronçon",
+                "description": "Couleur des segments correspondant aux variantes ajoutées.",
+                "type": "couleur",
+                "defaut": "#0000FF",
+                "doc": "docs/DocParametrage/Variante/Visualisation/couleurNouveau.md"
+              },
+              {
+                "identifiant": "couleurCommun",
+                "libelle": "Couleur Tronçon commun",
+                "description": "Couleur des segments communs.",
+                "type": "couleur",
+                "defaut": "#00FF00",
+                "doc": "docs/DocParametrage/Variante/Visualisation/couleurCommun.md"
+              },
+              {
+                "identifiant": "couleurAbandonne",
+                "libelle": "Couleur Tronçon abandonné",
+                "description": "Couleur des segments abandonnés.",
+                "type": "couleur",
+                "defaut": "#000000",
+                "doc": "docs/DocParametrage/Variante/Visualisation/couleurAbandonne.md"
               }
             ]
           },
@@ -2255,110 +2337,15 @@
           }
         ]
       }
-    ],
-    "libelle": "Data"
+    ]
   },
-  "groupes": [
-    {
-      "libelle": "Variantes",
-      "groupes": [
-        {
-          "libelle": "Visualisation",
-          "parametres": [
-            {
-              "identifiant": "afficherSegments",
-              "libelle": "Afficher les segments",
-              "description": "Afficher ou masquer les segments de variante colorés.",
-              "type": "booleen",
-              "defaut": true,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/afficherSegments.md"
-            },
-            {
-              "identifiant": "afficherPente",
-              "libelle": "Afficher la pente",
-              "description": "Afficher ou masquer la couche de pente.",
-              "type": "booleen",
-              "defaut": true,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/afficherPente.md"
-            },
-            {
-              "identifiant": "epaisseurSegments",
-              "libelle": "Épaisseur des segments",
-              "description": "Épaisseur des lignes de segments.",
-              "type": "entier",
-              "defaut": 7,
-              "min": 1,
-              "max": 20,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/epaisseurSegments.md"
-            },
-            {
-              "identifiant": "opaciteSegments",
-              "libelle": "Opacité des segments",
-              "description": "Opacité des lignes de segments.",
-              "type": "reel",
-              "defaut": 0.8,
-              "min": 0.0,
-              "max": 1.0,
-              "step": 0.1,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/opaciteSegments.md"
-            },
-            {
-              "identifiant": "epaisseurPente",
-              "libelle": "Épaisseur de la pente",
-              "description": "Épaisseur de la ligne de pente.",
-              "type": "entier",
-              "defaut": 5,
-              "min": 1,
-              "max": 20,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/epaisseurPente.md"
-            },
-            {
-              "identifiant": "opacitePente",
-              "libelle": "Opacité de la pente",
-              "description": "Opacité de la ligne de pente.",
-              "type": "reel",
-              "defaut": 0.8,
-              "min": 0.0,
-              "max": 1.0,
-              "step": 0.1,
-              "doc": "docs/DocParametrage/Variantes/Visualisation/opacitePente.md"
-            },
-            {
-              "identifiant": "couleurNouveau",
-              "libelle": "Couleur Nouveau tronçon",
-              "description": "Couleur des segments correspondant aux variantes ajoutées.",
-              "type": "couleur",
-              "defaut": "#0000FF",
-              "doc": "docs/DocParametrage/Variantes/Visualisation/couleurNouveau.md"
-            },
-            {
-              "identifiant": "couleurCommun",
-              "libelle": "Couleur Tronçon commun",
-              "description": "Couleur des segments communs.",
-              "type": "couleur",
-              "defaut": "#00FF00",
-              "doc": "docs/DocParametrage/Variantes/Visualisation/couleurCommun.md"
-            },
-            {
-              "identifiant": "couleurAbandonne",
-              "libelle": "Couleur Tronçon abandonné",
-              "description": "Couleur des segments abandonnés.",
-              "type": "couleur",
-              "defaut": "#000000",
-              "doc": "docs/DocParametrage/Variantes/Visualisation/couleurAbandonne.md"
-            }
-          ]
-        }
-      ]
-    }
-  ],
   "référence": {
     "context": "OPE",
     "date_creation": null,
     "date_revision": null,
     "date_revison": null,
     "description": "Mode d'écécution par défaut de l'application VisuGPS",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "version_export_circuit": "1.0.0",
     "version_export_context": "1.0.0",
     "Status": "Start"

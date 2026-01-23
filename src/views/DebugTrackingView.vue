@@ -52,7 +52,8 @@
             <v-radio-group v-model="selectedTraceLayer" density="compact">
               <v-radio label="Overlay Aller" value="aller"></v-radio>
               <v-radio label="Overlay Retour" value="retour"></v-radio>
-              <v-radio label="Tous (Aller + Retour)" value="all"></v-radio>
+              <v-radio label="Tous (Pentes)" value="all"></v-radio>
+              <v-radio label="Statut Variante" value="status"></v-radio>
             </v-radio-group>
             
             <v-divider class="my-4"></v-divider>
@@ -463,6 +464,43 @@ function setupLayers() {
             filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
         });
     }
+
+    // Layers Variantes (Separes pour z-index)
+    // Background: Abandoned (Black)
+    if (!map.getLayer('trace-variant-abandoned')) {
+        map.addLayer({
+            id: 'trace-variant-abandoned',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
+            paint: { 'line-width': 4, 'line-opacity': 1, 'line-color': '#000000' },
+            filter: ['==', ['get', 'status'], 'ABANDONED']
+        });
+    }
+
+    // Middle: Common (Green)
+    if (!map.getLayer('trace-variant-common')) {
+        map.addLayer({
+            id: 'trace-variant-common',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
+            paint: { 'line-width': 4, 'line-opacity': 1, 'line-color': '#4CAF50' },
+            filter: ['==', ['get', 'status'], 'COMMON']
+        });
+    }
+
+    // Top: New (Blue)
+    if (!map.getLayer('trace-variant-new')) {
+        map.addLayer({
+            id: 'trace-variant-new',
+            type: 'line',
+            source: 'colored-segments',
+            layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
+            paint: { 'line-width': 4, 'line-opacity': 1, 'line-color': '#2196F3' },
+            filter: ['==', ['get', 'status'], 'NEW']
+        });
+    }
   }
 
   // Backup: Source for main lineString if colored segments fail (or unused but safe to keep)
@@ -586,18 +624,28 @@ function updateMapFeatures() {
 function updateLayerVisibility() {
     if (!map) return;
     
-    // 'complete' n'existe plus. 'all' affiche Aller + Retour.
     const showAller = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'aller';
     const showRetour = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'retour';
+    const showStatus = selectedTraceLayer.value === 'status';
     
     // Global toggle
     const globalVisible = showTrace.value;
 
     if (map.getLayer('gpx-trace-aller')) {
-        map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller ? 'visible' : 'none');
+        map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller && !showStatus ? 'visible' : 'none');
     }
     if (map.getLayer('gpx-trace-retour')) {
-        map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour ? 'visible' : 'none');
+        map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour && !showStatus ? 'visible' : 'none');
+    }
+
+    if (map.getLayer('trace-variant-abandoned')) {
+        map.setLayoutProperty('trace-variant-abandoned', 'visibility', globalVisible && showStatus ? 'visible' : 'none');
+    }
+    if (map.getLayer('trace-variant-common')) {
+        map.setLayoutProperty('trace-variant-common', 'visibility', globalVisible && showStatus ? 'visible' : 'none');
+    }
+    if (map.getLayer('trace-variant-new')) {
+        map.setLayoutProperty('trace-variant-new', 'visibility', globalVisible && showStatus ? 'visible' : 'none');
     }
 }
 

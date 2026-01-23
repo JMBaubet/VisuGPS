@@ -1,102 +1,90 @@
-import { computed } from 'vue';
-import * as turf from '@turf/turf';
-
-/**
- * Composable for calculating total distance and current progression
- * across a master trace with multiple variant segments applied.
- */
 export function useVariantCalculator() {
-
     /**
-     * Calculates the total distance and current progression for a variant composite.
+     * Calcule les statistiques projetées/réelles d'une variante.
      * 
-     * @param {number} mainTraceTotalLength - Total length of the master trace in km.
-     * @param {Array} modifications - Array of modifications (saved in variant details).
-     * @param {number} segmentLength - Length of one tracking segment in km (usually 0.1).
-     * @param {number|null} currentSegmentIndex - Index of the currently active variant segment (original index).
-     * @param {number} currentProgressInSegment - Current distance in km within the active segment.
-     * @returns {Object} { total: number, current: number }
+     * @param {number} masterLength - Longueur totale de la trace maître (km).
+     * @param {Array} modifications - Liste des modifications de la variante.
+     * @param {number} segmentLength - Longueur d'un segment de tracking (m, ex: 100).
+     * @param {number} currentSegmentIndex - Index de la modification en cours d'édition (Optionnel).
+     * @param {number} currentProgressDistance - Distance parcourue dans le segment actuel (Optionnel, km).
+     * @returns {Object} { total: number, current: number } - Distances en km.
      */
-    const calculateVariantStats = (
-        mainTraceTotalLength,
-        modifications,
-        segmentLength,
-        currentSegmentIndex = null,
-        currentProgressInSegment = 0
-    ) => {
-        if (!modifications || modifications.length === 0) {
-            return { total: mainTraceTotalLength, current: currentProgressInSegment };
+    const calculateVariantStats = (masterLength, modifications, segmentLength, currentSegmentIndex = null, currentProgressDistance = 0) => {
+        if (!masterLength) return { total: 0, current: 0 };
+
+        const segLenKm = segmentLength / 1000;
+        let totalDistance = masterLength;
+        let currentDistance = 0;
+
+        // 1. Calculer la distance totale de la variante
+        // On retire les morceaux du maître et on ajoute les nouveaux morceaux
+        const sortedMods = [...modifications].sort((a, b) => {
+            const getStartIdx = (m) => {
+                if (m.type === 'DEPART_DEPORTE') return 0;
+                if (m.type === 'ARRIVEE_REPORTEE') return m.anchorIndexOnMaster || 0;
+                if (m.type === 'SEGMENT_DEVIATION') return m.anchorStart?.index || 0;
+                return 0;
+            };
+            return getStartIdx(a) - getStartIdx(b);
+        });
+
+        for (const mod of sortedMods) {
+            let removedLength = 0;
+            if (mod.type === 'DEPART_DEPORTE') {
+                removedLength = (mod.anchorIndexOnMaster || 0) * segLenKm;
+            } else if (mod.type === 'ARRIVEE_REPORTEE') {
+                const startIdx = mod.anchorIndexOnMaster || 0;
+                // On estime l'index de fin par rapport à la longueur totale
+                const endIdx = Math.round(masterLength / segLenKm);
+                removedLength = Math.max(0, (endIdx - startIdx) * segLenKm);
+            } else if (mod.type === 'SEGMENT_DEVIATION') {
+                const startIdx = mod.anchorStart?.index || 0;
+                const endIdx = mod.anchorEnd?.index || 0;
+                removedLength = Math.max(0, (endIdx - startIdx) * segLenKm);
+            }
+
+            totalDistance = totalDistance - removedLength + (mod.longueur || 0);
         }
 
-        // 1. Sort modifications by anchor index to ensure chronological processing
-        const sortedMods = [...modifications].map((m, i) => ({
-            ...m,
-            // If originalIndex is missing, we use i (useful for RouteBuilder/VariantTraceView)
-            originalIndex: m.originalIndex !== undefined ? m.originalIndex : i
-        })).sort((a, b) => {
-            let idxA = 0;
-            if (a.type === 'DEPART_DEPORTE' || a.type === 'DEPART') idxA = -1;
-            else if (a.type === 'ARRIVEE_REPORTEE' || a.type === 'ARRIVEE') idxA = Number.MAX_SAFE_INTEGER;
-            else idxA = a.anchorStart ? a.anchorStart.index : (a.anchorIndexOnMaster || 0);
+        // 2. Calculer la position actuelle si spécifiée
+        if (currentSegmentIndex !== null) {
+            // Identifier le type et la position du segment actuel dans la liste triée
+            // On calcule la distance du début de la variante jusqu'au début du segment actuel, 
+            // puis on ajoute currentProgressDistance.
 
-            let idxB = 0;
-            if (b.type === 'DEPART_DEPORTE' || b.type === 'DEPART') idxB = -1;
-            else if (b.type === 'ARRIVEE_REPORTEE' || b.type === 'ARRIVEE') idxB = Number.MAX_SAFE_INTEGER;
-            else idxB = b.anchorStart ? b.anchorStart.index : (b.anchorIndexOnMaster || 0);
+            let accumulated = 0;
+            let currentMasterPos = 0; // Position sur le maître (index de tracking)
 
-            return idxA - idxB;
-        });
+            for (let i = 0; i < sortedMods.length; i++) {
+                const mod = sortedMods[i];
+                const modOrigIndex = modifications.indexOf(mod);
 
-        let total = mainTraceTotalLength;
-        let current = currentProgressInSegment;
-        let accumulatedOffset = 0;
-        let activeSegmentFound = false;
+                // Section commune AVANT ce segment
+                let nextMasterStart = 0;
+                if (mod.type === 'DEPART_DEPORTE') nextMasterStart = 0;
+                else if (mod.type === 'ARRIVEE_REPORTEE') nextMasterStart = mod.anchorIndexOnMaster;
+                else if (mod.type === 'SEGMENT_DEVIATION') nextMasterStart = mod.anchorStart?.index;
 
-        sortedMods.forEach((mod) => {
-            // Calculate Cut Length (on Main Trace)
-            let startIndex = 0;
-            let endIndex = 0;
-            let cutLength = 0;
+                const commonSectionLength = Math.max(0, (nextMasterStart - currentMasterPos) * segLenKm);
 
-            if (mod.type === 'DEPART_DEPORTE' || mod.type === 'DEPART') {
-                startIndex = 0;
-                endIndex = mod.anchorIndexOnMaster || 0;
-                cutLength = (endIndex - startIndex) * segmentLength;
-            } else if (mod.type === 'ARRIVEE_REPORTEE' || mod.type === 'ARRIVEE') {
-                startIndex = mod.anchorIndexOnMaster || 0;
-                // For ARRIVEE_REPORTEE, cutLength is from anchor to the end of main trace
-                cutLength = Math.max(0, mainTraceTotalLength - (startIndex * segmentLength));
-            } else {
-                // SEGMENT_DEVIATION or SEGMENT
-                startIndex = mod.anchorStart ? mod.anchorStart.index : 0;
-                endIndex = mod.anchorEnd ? mod.anchorEnd.index : 0;
-                cutLength = (endIndex - startIndex) * segmentLength;
-            }
-
-            const variantLength = mod.longueur || 0;
-
-            // Update Total: Total = Total - MainTracePortion + VariantPortion
-            total = total - cutLength + variantLength;
-
-            // Update Current (Progress) if we are in a variant
-            if (currentSegmentIndex !== null) {
-                if (mod.originalIndex === currentSegmentIndex) {
-                    activeSegmentFound = true;
-
-                    let startOfMainBeforeCut = startIndex * segmentLength;
-
-                    // Position globally = (Start on Main + Shifts from previous variants) + current segment progress
-                    current = (startOfMainBeforeCut + accumulatedOffset) + currentProgressInSegment;
-                } else if (!activeSegmentFound) {
-                    // This segment is BEFORE the active one, its length change shifts global position
-                    accumulatedOffset += (variantLength - cutLength);
+                if (modOrigIndex === currentSegmentIndex) {
+                    accumulated += commonSectionLength;
+                    currentDistance = accumulated + currentProgressDistance;
+                    break;
                 }
+
+                accumulated += commonSectionLength + (mod.longueur || 0);
+
+                // Mettre à jour la position sur le maître après le segment
+                if (mod.type === 'DEPART_DEPORTE') currentMasterPos = mod.anchorIndexOnMaster;
+                else if (mod.type === 'ARRIVEE_REPORTEE') currentMasterPos = Math.round(masterLength / segLenKm);
+                else if (mod.type === 'SEGMENT_DEVIATION') currentMasterPos = mod.anchorEnd?.index;
             }
-        });
+        }
 
         return {
-            total: Math.max(0, total),
-            current: Math.max(0, current)
+            total: Math.max(0, totalDistance),
+            current: Math.max(0, currentDistance)
         };
     };
 

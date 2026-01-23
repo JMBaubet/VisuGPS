@@ -238,15 +238,15 @@ const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/T
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
 
 // --- Variant Visualization Settings ---
-const showSegments = computed(() => getSettingValue('Variantes/Visualisation/afficherSegments'));
-const showSlope = computed(() => getSettingValue('Variantes/Visualisation/afficherPente'));
-const segmentThickness = computed(() => getSettingValue('Variantes/Visualisation/epaisseurSegments'));
-const segmentOpacity = computed(() => getSettingValue('Variantes/Visualisation/opaciteSegments'));
-const slopeThickness = computed(() => getSettingValue('Variantes/Visualisation/epaisseurPente'));
-const slopeOpacity = computed(() => getSettingValue('Variantes/Visualisation/opacitePente'));
-const colorNew = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurNouveau')));
-const colorCommon = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurCommun')));
-const colorAbandoned = computed(() => toHex(getSettingValue('Variantes/Visualisation/couleurAbandonne')));
+const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
+const showSlope = computed(() => getSettingValue('Variante/Visualisation/afficherPente'));
+const segmentThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurSegments'));
+const segmentOpacity = computed(() => getSettingValue('Variante/Visualisation/opaciteSegments'));
+const slopeThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurPente'));
+const slopeOpacity = computed(() => getSettingValue('Variante/Visualisation/opacitePente'));
+const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurNouveau')));
+const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
+const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
 
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
@@ -274,7 +274,7 @@ const isFlytoActive = ref(false); // Mode FlyTo exclusif
 const preFlytoCameraOptions = ref(null);
 
 // 4. Trace Layers
-const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
+const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, updateVariantSlopeMode, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
@@ -283,15 +283,10 @@ const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanc
 // 6. Camera Interpolator (NEW)
 const { updateCameraPosition } = useCameraInterpolator(map);
 
-// 7. Variant Calculator (NEW - JS Reconstruction)
-import { useVariantCalculator } from '@/composables/useVariantCalculator.js';
-const { calculateVariantStats } = useVariantCalculator();
-
 const modifications = ref([]);
-const fullRouteGeoJson = ref(null); // The reconstructed continuous line
-const masterTraceGeoJson = ref(null); // The original master trace
+const fullRouteGeoJson = ref(null);
+const masterTraceGeoJson = ref(null);
 const variantStats = ref({ total: 0, current: 0 });
-const backendTrackingTotalDistance = ref(0); // For Ratio calculation
 
 
 
@@ -423,68 +418,57 @@ const initializeVisualization = async () => {
         const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
         masterTraceGeoJson.value = masterGeoJson;
 
-        // B. Load Variant Details
+        // A. Load Variant Details (Metadata + Stats)
         const variantArchive = await invoke('get_variant_details', { circuitId: props.circuitId, variantId: selectedVariantId.value });
         modifications.value = variantArchive.modifications || [];
+        variantStats.value = {
+            total: (variantArchive.metadata?.stats?.totalDistance || 0),
+            current: 0
+        };
 
-        // C. Reconstruct Full Route & Colored Segments (JS)
-        // We pass the High-Res Master GeoJSON. The function will now snap variant endpoints to this high-res trace.
-        const { fullLineString, coloredSegments, stats } = reconstructVariantRoute(masterGeoJson, modifications.value, segmentLength.value);
-        
+        // A.5 Load Overlap Metadata (Aller/Retour)
+        try {
+            segmentMetadata.value = await invoke('get_variant_overlap_metadata', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value 
+            });
+        } catch (e) {
+            console.warn("[VisualizeVariant] Could not fetch variant overlap metadata. This is normal for old variants needing re-save:", e);
+            segmentMetadata.value = null;
+        }
+
+        if (segmentMetadata.value) {
+            console.log(`[VisualizeVariant] Metadata loaded: ${segmentMetadata.value.overlappingZones?.length || 0} overlap zones detected.`);
+        }
+
+        // B. Load RECONSTITUTED Geometry (FULL)
+        const fullLineString = await invoke('read_line_string_file', { 
+            circuitId: props.circuitId, 
+            filename: `lineString_${selectedVariantId.value}_FULL.json` 
+        });
         fullRouteGeoJson.value = fullLineString;
         lineStringRef.value = fullLineString; 
-        coloredSegmentsGeoJsonRef.value = coloredSegments;
-        
-        // Update Stats
-        variantStats.value = stats;
 
-        // D. Load Tracking (Backend generated - KEPT FOR CAMERA & TIMING)
-        // User Requirement: Use tracking.json (or tracking_var) for Camera.
-        const trackingJsonString = await invoke('get_variant_tracking', { circuitId: props.circuitId, variantId: selectedVariantId.value });
-        let trackingData = JSON.parse(trackingJsonString);
+        // C. Load RECONSTITUTED Tracking (FULL)
+        let trackingData = await invoke('read_tracking_file', { 
+            circuitId: props.circuitId, 
+            filename: `tracking_${selectedVariantId.value}_FULL.json` 
+        });
         
-        // Apply Frontend Smoothing
-        // VisualizeView does not smooth manually; trusting backend bearings prevents jitter.
-        trackingData = applyFrontendDistanceCorrection(trackingData, fullLineString); // Sync tracking distances with JS Geometry
-
         trackingPointsWithDistanceRef.value = trackingData;
         
-        // Use Nominal Total Distance (last increment * 100m)
-        // stats.total is geometric length, which might differ from increment-based length.
-        // To be consistent with the camera, we use the tracking length.
-        const nominalTotalKm = trackingData[trackingData.length - 1].distance; // Already nominal KM
-        totalDistanceRef.value = nominalTotalKm * 1000; // Display expects METERS
+        // Use exact total distance from tracking
+        const nominalTotalKm = trackingData[trackingData.length - 1].distance;
+        totalDistanceRef.value = nominalTotalKm * 1000;
         
-        // backendTrackingTotalDistance used for reference
-        backendTrackingTotalDistance.value = nominalTotalKm; 
-
-        // Calculate Average Duration
+        // D. Calculate Duration
         const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
         totalDurationAt1xRef.value = nominalTotalKm * msPerKm; 
 
-        // Populate control points...
+        // E. Populate control points
         controlPointIndicesRef.value = trackingData
             .map((p, i) => (p.pointDeControl ? i : -1))
             .filter(i => i !== -1);
-
-        // REPAIR nbrSegment (Force Spline Continuity)
-        // Since variant tracking is stitched, original nbrSegment values are broken chains.
-        // We recalculate them to ensure seamless interpolation between Control Points.
-        const indices = controlPointIndicesRef.value;
-        for (let i = 0; i < indices.length - 1; i++) {
-            const currentIdx = indices[i];
-            const nextIdx = indices[i+1];
-            trackingData[currentIdx].nbrSegment = nextIdx - currentIdx;
-        }
-        if (indices.length > 0) {
-            trackingData[indices[indices.length-1]].nbrSegment = 0;
-        }
-            
-        // If no control points found (e.g. fully generated variant without preserved props), 
-        // fallback to empty (Standard Interpolation will take over)
-        if (controlPointIndicesRef.value.length === 0) {
-             console.warn("No control points found in variant tracking. Camera movement may be less smooth.");
-        } 
 
         // Reset Events (Variants don't imply events yet)
         pauseIncrements.value = [];
@@ -542,9 +526,28 @@ const initializeVisualization = async () => {
         // Apply Initial Visibility
         updateLayerVisibility('trace-slope', showSlope.value);
         if (!showSegments.value) {
-             updateLayerVisibility('trace-variant-common', false);
-             updateLayerVisibility('trace-variant-new', false);
+             updateLayerVisibility('trace-variant-common-aller', false);
+             updateLayerVisibility('trace-variant-common-retour', false);
+             updateLayerVisibility('trace-variant-new-aller', false);
+             updateLayerVisibility('trace-variant-new-retour', false);
              updateLayerVisibility('trace-variant-abandoned', false);
+        }
+        
+        // Watches for live setting updates
+        watch(showSegments, (newVal) => {
+            updateLayerVisibility('trace-variant-common-aller', newVal);
+            updateLayerVisibility('trace-variant-common-retour', false);
+            updateLayerVisibility('trace-variant-new-aller', newVal);
+            updateLayerVisibility('trace-variant-new-retour', false);
+            updateLayerVisibility('trace-variant-abandoned', false);
+        });
+        watch(showSlope, (newVal) => {
+            updateVariantSlopeMode(newVal, { common: colorCommon.value, new: colorNew.value });
+        });
+        
+        // Initial state for slope mode on segments
+        if (showSlope.value) {
+             updateVariantSlopeMode(true, { common: colorCommon.value, new: colorNew.value });
         }
         
         // 3. Animation Sequence (Simplified for Variants: Direct to Start)
@@ -766,14 +769,18 @@ const animateLoop = (timestamp) => {
 
 // --- Helpers ---
 
+let lastDirection = 'aller';
 const checkLayers = (distanceTraveled) => {
      if (segmentMetadata.value?.overlappingZones) {
          const isRetour = segmentMetadata.value.overlappingZones.some(z => distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm); 
-         if (isRetour) {
-             updateTraceOverlapVisibility(null, 'retour');
-         } else {
-             updateTraceOverlapVisibility(null, 'aller');
+         const currentDir = isRetour ? 'retour' : 'aller';
+         
+         if (currentDir !== lastDirection) {
+             console.log(`[VisualizeVariant] Switching Layer to: ${currentDir} at distance ${distanceTraveled.toFixed(2)} km`);
+             lastDirection = currentDir;
          }
+
+         updateTraceOverlapVisibility(null, currentDir, showSegments.value);
     }
 };
 
@@ -1189,282 +1196,6 @@ function generateSlopeSegments(trackingPoints) {
     return { type: 'FeatureCollection', features: [] };
 }
 
-// --- JS Reconstruction Logic ---
-
-// --- JS Reconstruction Logic ---
-
-function reconstructVariantRoute(masterGeoJson, modifications, segmentLengthKm) {
-    let masterCoords = [];
-    if (masterGeoJson) {
-        if (masterGeoJson.type === 'FeatureCollection' && masterGeoJson.features && masterGeoJson.features.length > 0) {
-            masterCoords = masterGeoJson.features[0].geometry.coordinates;
-        } else if (masterGeoJson.type === 'Feature' && masterGeoJson.geometry) {
-             masterCoords = masterGeoJson.geometry.coordinates;
-        } else if (masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
-             masterCoords = masterGeoJson.geometry.coordinates; // Fallback for simple object wrapper
-        } else if (masterGeoJson.coordinates) {
-             masterCoords = masterGeoJson.coordinates; // Raw Geometry
-        }
-    }
-
-    if (!masterCoords || masterCoords.length === 0) {
-        console.error("Invalid Master GeoJSON structure:", masterGeoJson);
-        return { fullLineString: null, coloredSegments: { type: 'FeatureCollection', features: [] }, stats: { total: 0, current: 0 } };
-    }
-
-    // 2. Geometric Snapping Helper
-    // The stored indices in anchors are tracking indices (Low Res) and don't match Master Trace (High Res).
-    // To ensure perfect visual cut, we find the Master Point that is CLOSEST to the Variant Start/End.
-    const findNearestIndex = (targetCoord, hintIndex = 0) => {
-        if (!targetCoord) return 0;
-        let bestIdx = hintIndex;
-        let minDist = Infinity;
-        
-        // Scan Window: High-Res trace can have 10k+ points. Full scan is safest to avoid local minima issues.
-        // Performance should be fine (< 5ms).
-        for (let i = 0; i < masterCoords.length; i++) {
-            const pt = masterCoords[i];
-            // Euclidean squared
-            const d = (pt[0]-targetCoord[0])**2 + (pt[1]-targetCoord[1])**2;
-            if (d < minDist) {
-                minDist = d;
-                bestIdx = i;
-            }
-        }
-        return bestIdx;
-    };
-
-    // Helper to resolve anchor index using PURE GEOMETRY (since indices are incompatible)
-    const getSmartCutIndex = (anchorIndex, variantEndpoint) => {
-        // If we have a variant endpoint, find the TRULY closest master point.
-        if (variantEndpoint) {
-            const geoIdx = findNearestIndex(variantEndpoint, 0);
-            // console.log(`[DEBUG] Snapping to HighRes Index: ${geoIdx}`);
-            return geoIdx;
-        }
-        // Fallback if no endpoint (shouldn't happen for anchors): return 0
-        return 0;
-    };
-
-    const features = []; // For colored segments
-    let currentMasterIndex = 0;
-    let combinedCoords = [];
-    
-    // Sort modifications by anchor index (still useful for ordering blocks)
-    const sortedMods = [...modifications].map((m, i) => ({
-        ...m,
-        originalIndex: i
-    })).sort((a, b) => {
-        let idxA = 0;
-        if (a.type === 'DEPART_DEPORTE' || a.type === 'DEPART') idxA = -1;
-        else if (a.type === 'ARRIVEE_REPORTEE' || a.type === 'ARRIVEE') idxA = Number.MAX_SAFE_INTEGER;
-        else idxA = a.anchorStart ? a.anchorStart.index : (a.anchorIndexOnMaster || 0);
-
-        let idxB = 0;
-        if (b.type === 'DEPART_DEPORTE' || b.type === 'DEPART') idxB = -1;
-        else if (b.type === 'ARRIVEE_REPORTEE' || b.type === 'ARRIVEE') idxB = Number.MAX_SAFE_INTEGER;
-        else idxB = b.anchorStart ? b.anchorStart.index : (b.anchorIndexOnMaster || 0);
-
-        return idxA - idxB;
-    });
-
-    sortedMods.forEach(mod => {
-        // Determine Start/End indices for the cut on Master Trace
-        let cutStart = currentMasterIndex;
-        let cutEnd = currentMasterIndex;
-        let variantCoords = [];
-
-        // Extract variant geometry
-        // The modifications from 'get_variant_details' contain 'points' (raw) and 'fullGeometry' (if generated)
-        // We prefer 'fullGeometry' if available for smoothness, or 'points' if raw.
-        if (mod.fullGeometry && mod.fullGeometry.length > 0) {
-            variantCoords = mod.fullGeometry.map(p => [p.lon, p.lat]);
-        } else if (mod.points) {
-             variantCoords = mod.points.map(p => [p.coords ? p.coords[0] : p.lon, p.coords ? p.coords[1] : p.lat]);
-        }
-
-        if (mod.type === 'DEPART_DEPORTE' || mod.type === 'DEPART') {
-            cutStart = 0;
-            // Variant ENDS, Master RESUMES.
-            // Point to check is Variant's LAST point.
-            // Master should resume at the point closest to Variant End.
-            const lastVarPoint = variantCoords.length > 0 ? variantCoords[variantCoords.length - 1] : null;
-            cutEnd = getSmartCutIndex(mod.anchorIndexOnMaster, lastVarPoint);
-            
-            // STITCH END: Variant End -> Master Anchor (cutEnd)
-            if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
-                const anchorPoint = masterCoords[cutEnd];
-                if (anchorPoint) {
-                    const dist = Math.sqrt(Math.pow(lastVarPoint[0]-anchorPoint[0], 2) + Math.pow(lastVarPoint[1]-anchorPoint[1], 2));
-                    if (dist > 1e-7) {
-                         variantCoords.push(anchorPoint);
-                    }
-                }
-            }
-
-            // Add Variant Segment (Blue)
-             features.push({
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: variantCoords },
-                properties: { status: 'NEW', modType: mod.type }
-            });
-            combinedCoords.push(...variantCoords);
-
-            currentMasterIndex = cutEnd;
-
-        } else if (mod.type === 'ARRIVEE_REPORTEE' || mod.type === 'ARRIVEE') {
-            // Master PAUSES, Variant STARTS.
-            // Point to check is Variant's FIRST point.
-            const firstVarPoint = variantCoords.length > 0 ? variantCoords[0] : null;
-            const rawAnchorIdx = mod.anchorIndexOnMaster;
-            
-            // If rawAnchorIdx undefined, assume end of trace.
-            cutEnd = rawAnchorIdx !== undefined ? getSmartCutIndex(rawAnchorIdx, firstVarPoint) : masterCoords.length - 1;
-
-            if (cutEnd > cutStart) {
-                const originalSegment = masterCoords.slice(cutStart, cutEnd + 1); // +1 to include anchor
-                features.push({
-                    type: 'Feature',
-                    geometry: { type: 'LineString', coordinates: originalSegment },
-                    properties: { status: 'COMMON' }
-                });
-                combinedCoords.push(...originalSegment);
-            }
-            
-            // STITCH START: Master Anchor (cutEnd) -> Variant Start
-             if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
-                const anchorPoint = masterCoords[cutEnd];
-                if (anchorPoint && firstVarPoint) { // check firstVarPoint again
-                     const dist = Math.sqrt(Math.pow(firstVarPoint[0]-anchorPoint[0], 2) + Math.pow(firstVarPoint[1]-anchorPoint[1], 2));
-                    if (dist > 1e-7) {
-                         variantCoords.unshift(anchorPoint);
-                    }
-                }
-            }
-
-            // Add Variant (Blue)
-             features.push({
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: variantCoords },
-                properties: { status: 'NEW', modType: mod.type }
-            });
-            combinedCoords.push(...variantCoords);
-
-            currentMasterIndex = masterCoords.length; // Finished
-
-        } else {
-            // SEGMENT
-            cutStart = currentMasterIndex;
-            
-            const firstVarPoint = variantCoords.length > 0 ? variantCoords[0] : null;
-            const lastVarPoint = variantCoords.length > 0 ? variantCoords[variantCoords.length - 1] : null;
-
-            const rawAnchorStart = mod.anchorStart ? mod.anchorStart.index : 0;
-            const rawAnchorEnd = mod.anchorEnd ? mod.anchorEnd.index : 0;
-            
-            // Cut Master at Start Anchor (Closest to Variant Start)
-            cutEnd = getSmartCutIndex(rawAnchorStart, firstVarPoint);
-            // Resume Master at End Anchor (Closest to Variant End)
-            const resumeIndex = getSmartCutIndex(rawAnchorEnd, lastVarPoint);
-
-            // Add Original Segment (Green) up to Start Anchor
-            if (cutEnd > cutStart) {
-                 const originalSegment = masterCoords.slice(cutStart, cutEnd + 1); 
-                features.push({
-                    type: 'Feature',
-                    geometry: { type: 'LineString', coordinates: originalSegment },
-                    properties: { status: 'COMMON' }
-                });
-                combinedCoords.push(...originalSegment);
-            }
-            
-            // STITCHING: Ensuring Continuity
-            
-            // 1. Force Start: Master Anchor (cutEnd) -> Variant Start
-             if (variantCoords.length > 0 && cutEnd < masterCoords.length) {
-                const anchorPoint = masterCoords[cutEnd];
-                 if (anchorPoint && firstVarPoint) {
-                    const dist = Math.sqrt(Math.pow(firstVarPoint[0]-anchorPoint[0], 2) + Math.pow(firstVarPoint[1]-anchorPoint[1], 2));
-                    console.log(`[DEBUG] SEGMENT START GAP: ${dist.toFixed(7)}`);
-                    if (dist > 1e-7) {
-                        variantCoords.unshift(anchorPoint);
-                    }
-                }
-            }
-            
-            // 2. Force End: Variant End -> Master Anchor (resumeIndex)
-            if (variantCoords.length > 0 && resumeIndex < masterCoords.length) {
-                const resumePoint = masterCoords[resumeIndex];
-                
-                if (resumePoint && lastVarPoint) {
-                    const dist = Math.sqrt(Math.pow(lastVarPoint[0]-resumePoint[0], 2) + Math.pow(lastVarPoint[1]-resumePoint[1], 2));
-                    console.log(`[DEBUG] SEGMENT END GAP: ${dist.toFixed(7)}`);
-                    if (dist > 1e-7) { 
-                        variantCoords.push(resumePoint);
-                    }
-                }
-            }
-
-            // Add Variant (Blue)
-            features.push({
-                type: 'Feature',
-                geometry: { type: 'LineString', coordinates: variantCoords },
-                properties: { status: 'NEW', modType: mod.type }
-            });
-            combinedCoords.push(...variantCoords);
-
-            currentMasterIndex = resumeIndex;
-        }
-    });
-
-    // Add remaining master trace (if any)
-    if (currentMasterIndex < masterCoords.length - 1) {
-        const remaining = masterCoords.slice(currentMasterIndex);
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: remaining },
-            properties: { status: 'COMMON' }
-        });
-        combinedCoords.push(...remaining);
-    }
-    
-    // Create Stats
-    // We already have combined coordinates, we can calculate length directly!
-    // Or use calculator? Calculator is better for consistency with Editor logic.
-    // But since we built the line, turf.length is the absolute truth for visuals.
-    const fullLineString = turf.lineString(combinedCoords);
-    const totalLen = turf.length(fullLineString, { units: 'kilometers' });
-
-    // Use Calculator primarily for verify? No, if we reconstructed, use the reconstruction length.
-    // It's the visual truth.
-    
-    return {
-        fullLineString,
-        coloredSegments: { type: 'FeatureCollection', features },
-        stats: { total: totalLen, current: 0 }
-    };
-}
-
-// 3. Robust Distance Correction (Geometric Projection)
-// Linear scaling isn't enough because local variations between Low-Res (Tracking) and High-Res (Comet) cause drift.
-// We must project each tracking point onto the High-Res line to get its TRUE distance.
-function applyFrontendDistanceCorrection(trackingData, fullLineString) {
-    if (!trackingData || trackingData.length === 0 || !fullLineString) return trackingData;
-
-    // VisualizeView logic (via process_tracking_data):
-    // Distance matches increment * 100m exactly. No projection.
-    // This ensures alignment with the simplified grid used by the Camera.
-    
-    trackingData.forEach(p => {
-        // p.increment is the 100m step index.
-        const nominalDistKm = (p.increment * 100) / 1000;
-        p.distance = nominalDistKm;
-        
-        // We do NOT update p.coordonnee (keep original drift).
-    });
-
-    return trackingData;
-}
 
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown);

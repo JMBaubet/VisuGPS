@@ -152,6 +152,25 @@
     <v-dialog v-model="isDocDialogVisible" max-width="900px">
       <DocDisplay doc-path="docs/DocUtilisateur/route_builder.md" @close="isDocDialogVisible = false" />
     </v-dialog>
+
+    <!-- Critical Error Dialog -->
+    <v-dialog v-model="showConfigErrorDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="bg-error text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-alert-octagon"></v-icon>
+          Erreur de Configuration
+        </v-card-title>
+        <v-card-text class="pa-4">
+          {{ configErrorMessage }}
+          <br><br>
+          Veuillez vérifier vos clés API dans les <strong>Paramètres</strong> de l'application.
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn color="error" variant="flat" @click="showConfigErrorDialog = false">Fermer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -205,6 +224,10 @@ const variantToRenameId = ref(null);
 // Delete Confirmation Dialog State
 const showDeleteDialog = ref(false);
 const variantToDelete = ref(null);
+
+// Config Error Dialog State
+const showConfigErrorDialog = ref(false);
+const configErrorMessage = ref('');
 
 const variantConfig = ref({
   routingService: 'GraphHopper',
@@ -1157,11 +1180,21 @@ const generatePreviewForMod = async (modIndex) => {
         console.error("Routing error for mod", modIndex, e);
         
         let msg = "Erreur routage : Tracé direct utilisé. (" + e + ")";
-        if (variantConfig.value.routingProfile === 'racingbike') {
+        let color = "warning";
+        let timeout = 5000;
+
+        // Detection spécifique des problèmes de clés API
+        if (e.toString().includes("Clé API") || e.toString().includes("API key")) {
+            configErrorMessage.value = e.toString();
+            showConfigErrorDialog.value = true;
+            color = "error";
+            timeout = 10000;
+        } else if (variantConfig.value.routingProfile === 'racingbike') {
              msg += " Essayez le profil 'VTT' ou 'Route + Pistes'.";
              routingErrorProfile.value = 'racingbike';
         }
-        showSnackbar(msg, "warning");
+        
+        showSnackbar(msg, color, timeout);
         
         // Fallback: Create straight line
         const fallbackCoords = mod.points.map(p => p.coords);

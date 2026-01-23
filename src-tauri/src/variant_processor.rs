@@ -63,8 +63,8 @@ impl VariantModification {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AnchorPoint {
-    index: usize,
-    coords: [f64; 2],
+    pub index: usize,
+    pub coords: [f64; 2],
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -93,8 +93,8 @@ pub struct VariantMetadata {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Archive {
-    metadata: VariantMetadata,
-    modifications: Vec<VariantModification>,
+    pub metadata: VariantMetadata,
+    pub modifications: Vec<VariantModification>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -614,7 +614,7 @@ pub async fn create_variant_files(
     // 4. Générer segments_metadata (Détection des overlaps)
     // 🔴 CORRECTION: Utiliser lineString_FULL (haute résolution) au lieu de tracking_FULL
     // Cela permet d'avoir des index de métadonnées cohérents avec la géométrie brute, comme pour la trace principale.
-    let distance_threshold = crate::get_setting_value(&settings, "data.groupes.Visualisation.parametres.overlapDetectionThreshold")
+    let distance_threshold = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.seuilDetectionSuperposition")
         .and_then(|v| v.as_f64())
         .unwrap_or(20.0); // 20 mètres par défaut
 
@@ -1570,7 +1570,8 @@ fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f6
             "cap": cap,
             "zoom": 16.0,
             "pitch": 55.0,
-            "pointDeControl": i == 0 || i == count - 1
+            "pointDeControl": i == 0 || i == count - 1,
+            "typeTroncon": "Segment"
         }));
     }
     results

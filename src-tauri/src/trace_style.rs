@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use tauri::State;
 use geo::algorithm::haversine_distance::HaversineDistance;
 use geo::Point;
+use crate::variant_processor::{Archive, VariantModification};
 
 #[derive(serde::Deserialize, Debug)]
 
@@ -622,8 +623,8 @@ pub async fn get_colored_segments_geojson(
     }
 
     // Charger tracking (pour infos segments et pentes)
-    let tracking_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
-    let tracking_points: Vec<TrackingPoint> =
+    let tracking_content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
+    let tracking_points: Vec<crate::geo_processor::TrackingPointJs> =
         serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
 
     // Charger LineString (pour géométrie haute résolution)
@@ -674,11 +675,10 @@ pub async fn get_colored_segments_geojson(
         let p2_track = &tracking_points[i + 1];
 
         // Définir la fenêtre de distance pour ce segment
-        // On utilise i * segment_length comme approximation fiable de la progression
         let start_dist_m = i as f64 * segment_length;
         let end_dist_m = (i + 1) as f64 * segment_length;
 
-        // Calcul pente (inchangé)
+        // Calcul pente
         let altitude_change = p2_track.altitude - p1_track.altitude;
         let slope = if segment_length > 0.0 {
             (altitude_change / segment_length) * 100.0
@@ -687,68 +687,156 @@ pub async fn get_colored_segments_geojson(
         };
         let color_raw = get_slope_color(slope, &slope_colors);
 
-        // Déterminer info segment
-        let segment_km = start_dist_m / 1000.0;
-        let mut segment_type = "normal";
-        let mut zone_id = -1;
-        if let Some(ref meta) = metadata {
-            for (idx, zone) in meta.overlapping_zones.iter().enumerate() {
-                let mid_km = segment_km + (segment_length / 2000.0); // Check au milieu
-                let is_aller = mid_km >= zone.aller_start_km && mid_km <= zone.aller_end_km;
-                let is_retour = mid_km >= zone.retour_start_km && mid_km <= zone.retour_end_km;
-                if is_aller { segment_type = "aller_overlap"; zone_id = idx as i32; break; }
-                if is_retour { segment_type = "retour_overlap"; zone_id = idx as i32; break; }
+        // Déterminer le statut pour les variants (NEW, COMMON)
+        let mut status = "COMMON";
+        if let Some(ref t_type) = p1_track.type_troncon {
+            if t_type == "Segment" || t_type == "Depart" || t_type == "Arrivee" || t_type == "Départ" || t_type == "Arrivée" {
+                status = "NEW";
             }
         }
 
-        // Construire la géométrie détaillée pour ce segment
+        // Déterminer le type de segment (Normal, Aller Overlap, Retour Overlap)
+        let mut segment_type = "normal";
+        if let Some(ref meta) = metadata {
+            let mid_km = (start_dist_m + end_dist_m) / 2000.0;
+            for zone in &meta.overlapping_zones {
+                if mid_km >= zone.aller_start_km && mid_km <= zone.aller_end_km {
+                    segment_type = "aller_overlap";
+                    break;
+                }
+                if mid_km >= zone.retour_start_km && mid_km <= zone.retour_end_km {
+                    segment_type = "retour_overlap";
+                    break;
+                }
+            }
+        }
+
+        // Construire la géométrie détaillée
         let mut segment_coords = Vec::new();
-        
-        // Ajouter le point de départ théorique (ou le dernier point réel proche)
-        // Pour éviter les trous, on commence par le point tracking exact ? 
-        // Non, on utilise les points High Res inclus dans l'intervalle.
-        
-        // On inclut les points de lineString dont la distance cumulée est dans ]start, end]
-        // On ajoute aussi p1_track au début si nécessaire pour coller ?
-        // Mieux : On prend coord[current_coord_idx] comme départ si dispo.
-        
-        // Start Point (Approximation High Res)
-        // On cherche le premier point LineString >= start_dist si on a perdu le fil
         while current_coord_idx < high_res_dists.len() && high_res_dists[current_coord_idx] < start_dist_m {
             current_coord_idx += 1;
         }
         
-        // Ajouter le point précédent (interpolé) ou le point tracking pour pas avoir de trou au début
-        segment_coords.push(p1_track.coordonnee);
-
-        // Ajouter tous les points intermédiaires
+        segment_coords.push(vec![p1_track.coordonnee[0], p1_track.coordonnee[1]]);
         let mut temp_idx = current_coord_idx;
         while temp_idx < high_res_dists.len() && high_res_dists[temp_idx] <= end_dist_m {
              let c = &raw_coords[temp_idx];
-             segment_coords.push([c[0].as_f64().unwrap_or(0.0), c[1].as_f64().unwrap_or(0.0)]);
+             segment_coords.push(vec![c[0].as_f64().unwrap_or(0.0), c[1].as_f64().unwrap_or(0.0)]);
              temp_idx += 1;
         }
-        // Ne pas avancer current_coord_idx trop vite pour le prochain segment ?
-        // Si on a consommé les points, le prochain segment commencera après.
-        // Mais attention si segment_length est très grand et qu'on saute des points ? Non.
-        
-        // Ajouter le point de fin tracking pour fermer le segment proprement
-        segment_coords.push(p2_track.coordonnee);
+        segment_coords.push(vec![p2_track.coordonnee[0], p2_track.coordonnee[1]]);
 
-        let feature = serde_json::json!({
-            "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": segment_coords
-            },
-            "properties": {
-                "color_raw": color_raw,
-                "segment_type": segment_type,
-                "zone_id": zone_id,
-                "index": i
-            }
+        let mut props = serde_json::json!({
+            "color_raw": color_raw,
+            "segment_type": segment_type,
+            "index": i
         });
-        features.push(feature);
+
+        if variant_id.is_some() {
+            if let Some(obj) = props.as_object_mut() {
+                obj.insert("status".to_string(), serde_json::json!(status));
+            }
+        }
+
+        features.push(serde_json::json!({
+            "type": "Feature",
+            "geometry": { "type": "LineString", "coordinates": segment_coords },
+            "properties": props
+        }));
+    }
+
+    // --- LOGIQUE ABANDONED (Si variante active) ---
+    if let Some(ref vid) = variant_id {
+        let data_dir = state.lock().unwrap().app_env_path.clone().join("data").join(&circuit_id);
+        let archive_path = data_dir.join(format!("variant_{}.json", vid));
+        
+        if archive_path.exists() {
+            if let Ok(archive_content) = fs::read_to_string(&archive_path) {
+                if let Ok(archive) = serde_json::from_str::<Archive>(&archive_content) {
+                    // Charger Master Tracking et LineString
+                    let master_track_path = data_dir.join("tracking.json");
+                    let master_ls_path = data_dir.join("lineString.json");
+
+                    if master_track_path.exists() && master_ls_path.exists() {
+                        if let (Ok(track_c), Ok(ls_c)) = (fs::read_to_string(master_track_path), fs::read_to_string(master_ls_path)) {
+                            if let (Ok(master_tracking), Ok(master_ls_json)) = (
+                                serde_json::from_str::<Vec<crate::geo_processor::TrackingPointJs>>(&track_c),
+                                serde_json::from_str::<serde_json::Value>(&ls_c)
+                            ) {
+                                // Coordonnées Master
+                                let master_raw_coords = master_ls_json.get("coordinates")
+                                    .or_else(|| master_ls_json.get("geometry").and_then(|g| g.get("coordinates")))
+                                    .and_then(|c| c.as_array())
+                                    .ok_or("Invalid master coordinates")?;
+
+                                // Distances Master
+                                let mut master_high_res_dists = Vec::with_capacity(master_raw_coords.len());
+                                master_high_res_dists.push(0.0);
+                                let mut total_m_dist = 0.0;
+                                for i in 0..master_raw_coords.len() - 1 {
+                                    let p1 = Point::new(master_raw_coords[i][0].as_f64().unwrap_or(0.0), master_raw_coords[i][1].as_f64().unwrap_or(0.0));
+                                    let p2 = Point::new(master_raw_coords[i+1][0].as_f64().unwrap_or(0.0), master_raw_coords[i+1][1].as_f64().unwrap_or(0.0));
+                                    total_m_dist += p1.haversine_distance(&p2);
+                                    master_high_res_dists.push(total_m_dist);
+                                }
+
+                                // Identifier les plages abandonnées
+                                for modif in archive.modifications {
+                                    let (start_idx, end_idx) = match modif {
+                                        VariantModification::DepartDeporte { anchor_index_on_master, .. } => (0, anchor_index_on_master),
+                                        VariantModification::ArriveeReportee { anchor_index_on_master, .. } => (anchor_index_on_master, master_tracking.len() - 1),
+                                        VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => (anchor_start.index, anchor_end.index),
+                                    };
+
+                                    if start_idx >= end_idx || end_idx >= master_tracking.len() { continue; }
+
+                                    let mut m_current_coord_idx = 0;
+                                    for i in start_idx..end_idx {
+                                        let p1 = &master_tracking[i];
+                                        let p2 = &master_tracking[i+1];
+                                        let s_dist = i as f64 * segment_length;
+                                        let e_dist = (i + 1) as f64 * segment_length;
+
+                                        let slope = if segment_length > 0.0 { ((p2.altitude - p1.altitude) / segment_length) * 100.0 } else { 0.0 };
+                                        let color = get_slope_color(slope, &slope_colors);
+
+                                        let mut s_coords = Vec::new();
+                                        while m_current_coord_idx < master_high_res_dists.len() && master_high_res_dists[m_current_coord_idx] < s_dist {
+                                            m_current_coord_idx += 1;
+                                        }
+
+                                        // Déterminer le type de segment master pour ABANDONED (optionnel mais propre)
+                                        let m_segment_type = "normal";
+                                        // On pourrait charger les métadonnées du maître ici aussi si besoin
+                                        // Mais restons sur "normal" pour ABANDONED pour l'instant.
+
+                                        s_coords.push(vec![p1.coordonnee[0], p1.coordonnee[1]]);
+                                        let mut t_idx = m_current_coord_idx;
+                                        while t_idx < master_high_res_dists.len() && master_high_res_dists[t_idx] <= e_dist {
+                                            let c = &master_raw_coords[t_idx];
+                                            s_coords.push(vec![c[0].as_f64().unwrap_or(0.0), c[1].as_f64().unwrap_or(0.0)]);
+                                            t_idx += 1;
+                                        }
+                                        s_coords.push(vec![p2.coordonnee[0], p2.coordonnee[1]]);
+
+                                        features.push(serde_json::json!({
+                                            "type": "Feature",
+                                            "geometry": { "type": "LineString", "coordinates": s_coords },
+                                            "properties": {
+                                                "color_raw": color,
+                                                "segment_type": m_segment_type,
+                                                "status": "ABANDONED",
+                                                "index": i
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Ok(serde_json::json!({
