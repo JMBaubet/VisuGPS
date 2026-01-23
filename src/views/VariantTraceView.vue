@@ -1443,11 +1443,64 @@ const confirmSaveVariant = async () => {
                     name: mod.name
                 };
             } else if (mod.type === 'DEPART') {
-                return {
+                 // --- TRIMMING LOGIC FOR DEPART (Modulo 100m) ---
+                 if (longueur > 0) {
+                     const lenMeters = longueur * 1000;
+                     const remainder = lenMeters % 100;
+                     
+                     // If remainder is significant (e.g. > 0.5m), we trim it from the START
+                     if (remainder > 0.5) {
+                         console.log(`[SaveVariant] Trimming DEPART segment by ${remainder.toFixed(2)}m to reach modulo 100.`);
+                         
+                         try {
+                             const line = turf.lineString(coords);
+                             // Cut point is at 'remainder' distance from start
+                             // turf.along takes distance in unit of line (km usually)
+                             const trimDistKm = remainder / 1000.0;
+                             const newStartPt = turf.along(line, trimDistKm, { units: 'kilometers' });
+                             const endPt = turf.point(coords[coords.length - 1]);
+                             
+                             // Slice from new start to end
+                             const sliced = turf.lineSlice(newStartPt, endPt, line);
+                             coords = sliced.geometry.coordinates;
+                             
+                             // Recalculate length
+                             longueur = turf.length(turf.lineString(coords), { units: 'kilometers' });
+                             console.log(`[SaveVariant] New DEPART length: ${(longueur * 1000).toFixed(2)}m`);
+                             
+                             // Update fullGeometry with trimmed coords
+                             // (Note: we need to re-map fullGeometry because coords changed)
+                         } catch(e) {
+                             console.error("[SaveVariant] Error trimming DEPART:", e);
+                         }
+                     }
+                 }
+                 
+                 // Re-generate fullGeometry in case coords changed
+                 const trimmedFullGeometry = coords.map(c => ({ lat: c[1], lon: c[0], alt: c[2] || 0 }));
+
+                 // Update the Start Point in the points list to match the new geometry start
+                 let finalPoints = rawPoints();
+                 if (coords.length > 0 && finalPoints.length > 0) {
+                     // For a Departure, we want to update the point that is NOT the anchor
+                     // (the one at the trimmed end of the LineString)
+                     const startPointIdx = finalPoints.findIndex(p => p.type !== 'anchor');
+                     
+                     if (startPointIdx !== -1) {
+                         finalPoints[startPointIdx].lon = coords[0][0];
+                         finalPoints[startPointIdx].lat = coords[0][1];
+                     } else {
+                         // Fallback to index 0 if no waypoint found
+                         finalPoints[0].lon = coords[0][0];
+                         finalPoints[0].lat = coords[0][1];
+                     }
+                 }
+
+                 return {
                     type: 'DEPART_DEPORTE',
                     anchorIndexOnMaster: anchors[0].index,
-                    points: rawPoints(),
-                    fullGeometry: fullGeometry,
+                    points: finalPoints,
+                    fullGeometry: trimmedFullGeometry,
                     longueur: longueur,
                     name: mod.name
                 };
