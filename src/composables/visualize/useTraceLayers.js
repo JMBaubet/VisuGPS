@@ -199,18 +199,18 @@ export function useTraceLayers(map) {
         if (!map.value) return;
 
         // Variant Layers
-        if (map.value.getLayer('trace-main-abandoned')) {
-            map.value.setLayoutProperty('trace-main-abandoned', 'visibility', isVisible ? 'visible' : 'none');
+        // Variant Segments (Common/New)
+        // Note: 'Main/Abandoned' is now controlled separately via specific call
+        if (typeof layerTypeIsSegments === 'boolean') {
+            ['trace-variant-segment-common', 'trace-variant-segment-new'].forEach(id => {
+                if (map.value.getLayer(id)) {
+                    map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
+                }
+            });
         }
-        ['trace-variant-segment-common', 'trace-variant-segment-new'].forEach(id => {
-            if (map.value.getLayer(id)) {
-                map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
-            }
-        });
 
-        // Standard Layers
+        // Standard Layers / Specific Layer Toggle
         if (typeof layerTypeIsSegments === 'string') {
-            // Legacy call support: updateLayerVisibility('trace-slope', val)
             const id = layerTypeIsSegments;
             if (map.value.getLayer(id)) {
                 map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');

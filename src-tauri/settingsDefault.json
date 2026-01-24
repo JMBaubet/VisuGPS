@@ -1386,7 +1386,8 @@
                 "libelle": "Couleur de la trace",
                 "description": "Couleur de la trace (si Pente désactivée).",
                 "type": "couleur",
-                "defaut": "#FF9800",
+                "defaut": "orange",
+                "materialDesign": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/couleurTrace.md"
               },
               {
@@ -1394,7 +1395,8 @@
                 "libelle": "Couleur Nouveau tronçon",
                 "description": "Couleur des segments correspondant aux variantes ajoutées.",
                 "type": "couleur",
-                "defaut": "#0000FF",
+                "defaut": "blue",
+                "materialDesign": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/couleurNouveau.md"
               },
               {
@@ -1402,7 +1404,8 @@
                 "libelle": "Couleur Tronçon commun",
                 "description": "Couleur des segments communs.",
                 "type": "couleur",
-                "defaut": "#00FF00",
+                "defaut": "green",
+                "materialDesign": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/couleurCommun.md"
               },
               {
@@ -1410,8 +1413,17 @@
                 "libelle": "Couleur Tronçon abandonné",
                 "description": "Couleur des segments abandonnés.",
                 "type": "couleur",
-                "defaut": "#000000",
+                "defaut": "black",
+                "materialDesign": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/couleurAbandonne.md"
+              },
+              {
+                "identifiant": "afficherSegmentAbandonne",
+                "libelle": "Afficher Segment Abandonné",
+                "description": "Afficher ou masquer les tronçons abandonnés.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Variante/Visualisation/afficherSegmentAbandonne.md"
               }
             ]
           },

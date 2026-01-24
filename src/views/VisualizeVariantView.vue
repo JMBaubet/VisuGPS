@@ -248,6 +248,7 @@ const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/co
 const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
 const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
 const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace')));
+const showAbandoned = computed(() => getSettingValue('Variante/Visualisation/afficherSegmentAbandonne'));
 
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
@@ -532,6 +533,7 @@ const initializeVisualization = async () => {
         // Apply Initial Visibility
         // Segments Layers (Main+Variant) controlled by showSegments
         updateLayerVisibility(true, showSegments.value);
+        updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
         
         // Slope Layer Mode (Gradient vs Flat Color)
         updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
@@ -539,6 +541,10 @@ const initializeVisualization = async () => {
         // Watches for live setting updates
         watch(showSegments, (newVal) => {
             updateLayerVisibility(true, newVal);
+        });
+        
+        watch(showAbandoned, (newVal) => {
+             updateLayerVisibility('trace-main-abandoned', newVal);
         });
         
         watch(showSlope, (newVal) => {
