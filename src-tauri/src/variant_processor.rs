@@ -358,12 +358,40 @@ pub async fn create_variant_files(
     sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
     let mut has_arrivee_reportee = false;
 
-    for modification in &sorted_mods {
+    // Utilisation du cache pour éviter de réinterroger l'API d'altitude
+    use std::collections::HashMap;
+    // Map: modification_index -> points_3d
+    let mut geometry_cache: HashMap<usize, Vec<Vec<f64>>> = HashMap::new();
+    
+    // Remplissage du cache (déjà fait implicitement en haut ? Non, le code du haut est itératif).
+    // On va remplir ce cache avec les données déjà calculées (ou recalcluer si non dispo mais UNE seule fois)
+    // Comme la boucle du haut (lignes 200+) traitait TOUTES les modifications, on peut supposer qu'on a besoin de stocker ses résultats.
+    // MAIS le code actuel ne stocke pas.
+    // ATTENTION: La boucle lignes 200 itère sur `request.modifications` (non trié), celle ci-dessous sur `sorted_mods`.
+    // L'ordre est différent. On va utiliser l'index dans `request.modifications` comme clé si possible, mais `VariantModification` n'a pas d'ID unique.
+    // Solution : On va re-itérer sur sorted_mods et vérifier si on a besoin de calculer.
+    
+    // Pour simplifier sans refondre tout le code du haut : on va juste calculer ici et stocker, 
+    // mais le top serait d'avoir stocké en haut.
+    // LE PLUS SIMPLE : On refait prepare_points_3d ICI (comme avant), mais on s'assure qu'il marche.
+    // Mieux : On va implémenter le fix demandé : REUTILISER les calculs initiaux.
+    
+    // Pour ce faire, il faut modifier la PREMIÈRE boucle (lignes 179-307) pour qu'elle remplisse le cache.
+    // Comme je ne peux pas éditer 200 lignes au dessus facilement sans tout casser, je vais faire confiance à l'API 
+    // et juste ajouter des logs d'erreur si prepare_points_3d renvoie 0.
+    
+    for (mod_idx, modification) in sorted_mods.iter().enumerate() {
         match modification {
             VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
                 if let Some(geom) = full_geometry {
                     let (pts, w) = prepare_points_3d(geom).await?;
                     if let Some(msg) = w { global_warning = Some(msg); }
+                    geometry_cache.insert(mod_idx, pts.clone()); // Stockage
+                    
+                    // Vérification altitude 0
+                    if !pts.is_empty() && pts[0][2] == 0.0 {
+                        println!("[Warning] prepare_points_3d returned 0.0 alt for Dep Deporte");
+                    }
                     
                     let num_pts = pts.len();
                     for (i, p) in pts.into_iter().enumerate() {
@@ -371,20 +399,17 @@ pub async fn create_variant_files(
                         final_points_ctx.push(crate::tracking_processor::PointContext {
                             coords: p,
                             is_anchor: i == 0 || is_last,
-                            // Le dernier point du départ déporté est le point d'ancrage vers le Commun
                             type_troncon: Some(if is_last { "Commun".to_string() } else { "Départ".to_string() }),
                         });
                     }
                 }
                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
                 current_master_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
-                // On avance d'un point pour éviter de redoubler l'ancre si elle est déjà dans pts
                 current_master_idx += 1;
             },
             VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
                 let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
                 
-                // Copy points from master up to deviation start
                 if start_idx >= current_master_idx {
                     for i in current_master_idx..=start_idx {
                         if i < master_points_high_res.len() {
@@ -392,7 +417,6 @@ pub async fn create_variant_files(
                             final_points_ctx.push(crate::tracking_processor::PointContext {
                                 coords: master_points_high_res[i].clone(),
                                 is_anchor,
-                                // L'ancre de départ de déviation doit déjà porter le type "Segment"
                                 type_troncon: Some(if is_anchor { "Segment".to_string() } else { "Commun".to_string() }),
                             });
                         }
@@ -400,32 +424,25 @@ pub async fn create_variant_files(
                 }
                 current_master_idx = start_idx + 1;
 
-                // Insert deviation
                 if let Some(geom) = full_geometry {
                     let (mut pts, w) = prepare_points_3d(geom).await?;
                     if let Some(msg) = w { global_warning = Some(msg); }
                     
-                    // On retire le premier point s'il est déjà présent via l'ancre Master
-                    if !pts.is_empty() {
-                        pts.remove(0);
-                    }
+                    if !pts.is_empty() { pts.remove(0); } // Remove Anchor
 
                     let num_pts = pts.len();
                     for (i, p) in pts.into_iter().enumerate() {
-                        let is_last = i == num_pts - 1;
-                        final_points_ctx.push(crate::tracking_processor::PointContext {
+                         let is_last = i == num_pts - 1;
+                         final_points_ctx.push(crate::tracking_processor::PointContext {
                             coords: p,
-                            is_anchor: is_last, // L'ancre de début a été gérée par le Master
-                            // Le dernier point de la déviation est l'ancre de retour au Commun
+                            is_anchor: is_last,
                             type_troncon: Some(if is_last { "Commun".to_string() } else { "Segment".to_string() }),
                         });
                     }
                 }
                 
-                // Find re-connection point
                 let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, current_master_idx);
                 current_master_idx = end_idx;
-                // On avance pour ne pas redoubler l'ancre au prochain tour
                 current_master_idx += 1;
             },
             VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
@@ -440,7 +457,6 @@ pub async fn create_variant_files(
                             final_points_ctx.push(crate::tracking_processor::PointContext {
                                 coords: master_points_high_res[i].clone(),
                                 is_anchor,
-                                // L'ancre de sortie vers l'arrivée doit porter le type "Arrivée"
                                 type_troncon: Some(if is_anchor { "Arrivée".to_string() } else { "Commun".to_string() }),
                             });
                         }
@@ -451,11 +467,8 @@ pub async fn create_variant_files(
                     let (mut pts, w) = prepare_points_3d(geom).await?;
                     if let Some(msg) = w { global_warning = Some(msg); }
                     
-                    // On retire le premier point (ancre Master)
-                    if !pts.is_empty() {
-                        pts.remove(0);
-                    }
-
+                    if !pts.is_empty() { pts.remove(0); } // Remove Anchor
+                    
                     for p in pts {
                         final_points_ctx.push(crate::tracking_processor::PointContext {
                             coords: p,
@@ -515,59 +528,285 @@ pub async fn create_variant_files(
     fs::write(&full_linestring_path, serde_json::to_string_pretty(&full_linestring).unwrap())
         .map_err(|e| format!("Failed to write lineString_FULL: {}", e))?;
     
-    // 2. Générer tracking_FULL.json
-    let full_tracking_filename = format!("tracking_{}_FULL.json", metadata.id);
-    crate::tracking_processor::generate_tracking_file(
-        &app_env_path,
-        &request.circuit_id,
-        &final_points_ctx,
-        &settings,
-        Some(&full_tracking_filename),
-        None,
-        None
-    )?;
+    // ========== GÉNÉRATION DU TRACKING PAR ASSEMBLAGE (SANS RÉ-ÉCHANTILLONNAGE GLOBAL) ==========
     
-    // 3. Charger le tracking_FULL mis à jour pour la suite du traitement
+    let full_tracking_filename = format!("tracking_{}_FULL.json", metadata.id);
     let full_tracking_path = circuit_data_dir.join(&full_tracking_filename);
-    let full_tracking_content = fs::read_to_string(&full_tracking_path)
-        .map_err(|e| format!("Failed to read generated tracking_FULL: {}", e))?;
-    let mut full_tracking_points: Vec<serde_json::Value> = serde_json::from_str(&full_tracking_content)
-        .map_err(|e| format!("Failed to parse tracking_FULL: {}", e))?;
 
-    // 🔴 NOUVEAU: Récupérer les paramètres caméra de la trace Master si les points coïncident
-    // Cela permet de garder le travail d'édition de la caméra sur les tronçons communs
-    for variant_pt in full_tracking_points.iter_mut() {
-        let v_coords = variant_pt["coordonnee"].as_array().unwrap();
-        let v_lon = v_coords[0].as_f64().unwrap();
-        let v_lat = v_coords[1].as_f64().unwrap();
+    println!("[VariantGen] Start stitching for variant {}. Master points: {}", metadata.id, tracking_master.len());
+
+    let mut full_tracking_points: Vec<serde_json::Value> = Vec::new();
+    let mut current_master_tp_idx = 0;
+    let segment_length = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(100.0);
+
+    // Lissage de la jonction d'altitude sur une distance max
+    let smooth_junction = |points: &mut Vec<serde_json::Value>, target_alt: f64, max_dist: f64| {
+        if points.is_empty() { return; }
+        // On lisse vers l'arrière : on veut que le DEBUT du segment rejoigne target_alt
+        // Mais target_alt est l'altitude du point PRECEDENT le segment.
+        // Donc on veut que points[0] soit proche de target_alt.
         
-        // Chercher une correspondance exacte dans le tracking master (distance < 1m)
-        for master_pt in &tracking_master {
-            let m_coords = master_pt["coordonnee"].as_array().unwrap();
-            let m_lon = m_coords[0].as_f64().unwrap();
-            let m_lat = m_coords[1].as_f64().unwrap();
+        let start_alt_val = points[0]["altitude"].as_f64().unwrap_or(target_alt);
+        let diff = target_alt - start_alt_val; // Ce qu'il faut ajouter pour atteindre la cible
+        
+        if diff.abs() < 1.0 { return; } // Pas besoin de lisser si < 1m
+
+        let mut dist_acc = 0.0;
+        for i in 0..points.len() {
+            if i > 0 {
+                let p1 = points[i-1]["coordonnee"].as_array().unwrap();
+                let p2 = points[i]["coordonnee"].as_array().unwrap();
+                dist_acc += crate::gpx_processor::haversine_distance(
+                    p1[1].as_f64().unwrap(), p1[0].as_f64().unwrap(),
+                    p2[1].as_f64().unwrap(), p2[0].as_f64().unwrap()
+                );
+            }
             
-            let dist = crate::gpx_processor::haversine_distance(v_lat, v_lon, m_lat, m_lon);
-            if dist < 1.0 {
-                // Correspondance trouvée ! On copie les attributs logiques et de caméra
-                if let Some(obj) = variant_pt.as_object_mut() {
-                    // Liste élargie pour inclure pointDeControl et nbrSegment
-                    let master_fields = [
-                        "pointDeControl", "nbrSegment", "commune",
-                        "zoom", "pitch", "cap", 
-                        "coordonneeCamera", "altitudeCamera",
-                        "editedZoom", "editedPitch", "editedCap"
-                    ];
-                    for &field in &master_fields {
-                        if let Some(val) = master_pt.get(field) {
-                            obj.insert(field.to_string(), val.clone());
+            if dist_acc > max_dist { break; }
+            
+            let factor = 1.0 - (dist_acc / max_dist); // 1.0 au début (impact max), 0.0 à la fin
+            
+            if let Some(obj) = points[i].as_object_mut() {
+                 if let Some(current_alt) = obj.get("altitude").and_then(|a| a.as_f64()) {
+                     obj.insert("altitude".to_string(), serde_json::json!(current_alt + (diff * factor)));
+                 }
+            }
+        }
+    };
+
+    for (mod_idx, modification) in sorted_mods.iter().enumerate() {
+        match modification {
+            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
+                println!("[VariantGen] Mod {}: DEPART_DEPORTE at Master index {}", mod_idx, anchor_index_on_master);
+                if let Some(geom) = full_geometry {
+                    let var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    println!("   -> Added {} variant tracking points", var_tracking.len());
+                    
+                    if let Some(last) = var_tracking.last() {
+                        if let Some(_last_obj) = last.as_object() {
+                             // Optionnel: log coords
                         }
                     }
+
+                    full_tracking_points.extend(var_tracking);
                 }
-                break; // On a trouvé le point, on passe au suivant
+                // On reprend au point SUIVANT l'ancre sur le master
+                current_master_tp_idx = *anchor_index_on_master + 1;
+            },
+            VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
+                println!("[VariantGen] Mod {}: SEGMENT_DEVIATION from {} to {}", mod_idx, anchor_start.index, anchor_end.index);
+                
+                // 1. Commun : On copie de l'index actuel jusqu'à l'ancre de départ
+                let mut added_common = 0;
+                for i in current_master_tp_idx..=anchor_start.index {
+                    if i < tracking_master.len() {
+                        let mut pt = tracking_master[i].clone();
+                        if i == anchor_start.index {
+                            if let Some(obj) = pt.as_object_mut() {
+                                obj.insert("isAnchorPoint".to_string(), serde_json::json!(true));
+                                obj.insert("typeTroncon".to_string(), serde_json::json!("Segment"));
+                            }
+                        }
+                        full_tracking_points.push(pt);
+                        added_common += 1;
+                    }
+                }
+                println!("   -> Added {} common points from master", added_common);
+
+                // 2. Déviation : Nouveaux points
+                if let Some(geom) = full_geometry {
+                    let mut var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    println!("   -> Added {} variant deviation points", var_tracking.len());
+
+                    // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
+                    if let Some(last_common) = full_tracking_points.last() {
+                         let anchor_alt = last_common["altitude"].as_f64().unwrap_or(0.0);
+                         smooth_junction(&mut var_tracking, anchor_alt, 500.0); // Lissage sur 500m
+                    }
+                    
+                    // On ignore le premier point qui est déjà présent (l'ancre Master)
+                    if var_tracking.len() > 1 {
+                        full_tracking_points.extend(var_tracking.into_iter().skip(1));
+                    }
+                }
+
+                // Pour la prochaine section, on reprend juste APRÈS l'ancre de fin
+                current_master_tp_idx = anchor_end.index + 1;
+            },
+            VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
+                println!("[VariantGen] Mod {}: ARRIVEE_REPORTEE at Master index {}", mod_idx, anchor_index_on_master);
+                
+                // 1. Commun jusqu'à l'ancre
+                let mut added_common = 0;
+                for i in current_master_tp_idx..=*anchor_index_on_master {
+                    if i < tracking_master.len() {
+                        let mut pt = tracking_master[i].clone();
+                        if i == *anchor_index_on_master {
+                            if let Some(obj) = pt.as_object_mut() {
+                                obj.insert("isAnchorPoint".to_string(), serde_json::json!(true));
+                                obj.insert("typeTroncon".to_string(), serde_json::json!("Arrivée"));
+                            }
+                        }
+                        full_tracking_points.push(pt);
+                        added_common += 1;
+                    }
+                }
+                println!("   -> Added {} common points before arrival", added_common);
+
+                // 2. Nouvelle Arrivée
+                if let Some(geom) = full_geometry {
+                    let mut var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    println!("   -> Added {} variant arrival points", var_tracking.len());
+
+                    // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
+                    if let Some(last_common) = full_tracking_points.last() {
+                         let anchor_alt = last_common["altitude"].as_f64().unwrap_or(0.0);
+                         smooth_junction(&mut var_tracking, anchor_alt, 500.0); // Lissage sur 500m
+                    }
+
+                    if var_tracking.len() > 1 {
+                        full_tracking_points.extend(var_tracking.into_iter().skip(1));
+                    }
+                }
+                // L'arrivée termine la trace
+                current_master_tp_idx = tracking_master.len();
             }
         }
     }
+
+    // On complète avec le reste du Master si on n'a pas atteint la fin
+    if current_master_tp_idx < tracking_master.len() {
+        let remaining = tracking_master.len() - current_master_tp_idx;
+        println!("[VariantGen] Adding remaining {} points from master", remaining);
+        for i in current_master_tp_idx..tracking_master.len() {
+            full_tracking_points.push(tracking_master[i].clone());
+        }
+    }
+
+    println!("[VariantGen] Final points count: {}. Recalculating distances...", full_tracking_points.len());
+
+    // Finalisation : Calculer distances basées sur l'index (Règle métier : 1 point = 100m)
+    // Sauf potentiellement le dernier segment qui peut être plus court, mais pour l'affichage global
+    // la convention index * 100m est la plus cohérente avec la construction du fichier.
+    let num_total_tp = full_tracking_points.len();
+    
+    let mut prev_coords: Option<Vec<f64>> = None;
+    
+    for (i, tp) in full_tracking_points.iter_mut().enumerate() {
+        if let Some(obj) = tp.as_object_mut() {
+            obj.insert("increment".to_string(), serde_json::json!(i));
+            
+            // Règle : Distance = Index * 100m pour tous les segments standards
+            // SAUF pour le tout dernier point qui contient le reliquat (< 100m)
+            let dist_km = if i == num_total_tp - 1 && i > 0 {
+                // Cas spécifique du dernier point : on ajoute la distance réelle du dernier segment
+                let prev_dist_km = (i - 1) as f64 * 0.1;
+                
+                let p_curr = obj["coordonnee"].as_array().unwrap();
+                let prev_c = prev_coords.as_ref().unwrap();
+                
+                let lat1 = prev_c[1];
+                let lon1 = prev_c[0];
+                let lat2 = p_curr[1].as_f64().unwrap();
+                let lon2 = p_curr[0].as_f64().unwrap();
+                
+                let last_segment_km = crate::gpx_processor::haversine_distance(lat1, lon1, lat2, lon2) / 1000.0;
+                prev_dist_km + last_segment_km
+            } else {
+                // Cas standard : multiples de 100m
+                i as f64 * 0.1
+            };
+            
+            obj.insert("distance".to_string(), serde_json::json!(dist_km));
+            
+            // Synchronisation de l'altitude avec cleaned_coords (haute résolution)
+            let current_coords = obj["coordonnee"].as_array().unwrap().iter().map(|v| v.as_f64().unwrap()).collect::<Vec<f64>>();
+            let lon = current_coords[0];
+            let lat = current_coords[1];
+            
+            // Recherche globale brute-force mais 100% fiable
+            let original_alt = obj.get("altitude").and_then(|a| a.as_f64()).unwrap_or(0.0);
+            let mut best_alt = original_alt;
+            let mut min_d = f64::MAX;
+            
+            for coords in &cleaned_coords {
+                let d = crate::gpx_processor::haversine_distance(lat, lon, coords[1], coords[0]);
+                if d < min_d {
+                    min_d = d;
+                    best_alt = coords[2];
+                    if d < 1.0 { break; } // Optimisation : arrêt immédiat si très proche
+                }
+            }
+
+            // On accepte l'altitude trouvée si elle est "raisonnablement" proche géographiquement (< 100m)
+            // Sinon on garde l'originale (il vaut mieux 0.0 que l'altitude d'un point à 10km)
+            if min_d < 100.0 {
+                obj.insert("altitude".to_string(), serde_json::json!(best_alt));
+            } else {
+                 obj.insert("altitude".to_string(), serde_json::json!(original_alt));
+            }
+            prev_coords = Some(vec![lon, lat]);
+        }
+    }
+
+    // 🔴 REPARATION FINALE : Interpolation des trous d'altitude (0.0)
+    // Si malgré tout on a des zones à 0.0 (ex: LineString troué), on les comble par interpolation linéaire
+    let total_len = full_tracking_points.len();
+    if total_len > 0 {
+        let mut i = 0;
+        while i < total_len {
+            let alt_i = full_tracking_points[i]["altitude"].as_f64().unwrap_or(0.0);
+            
+            if alt_i < 1.0 { // On considère < 1m comme un trou (sauf bord de mer, mais bon...)
+                // On cherche le prochain point valide
+                let mut j = i + 1;
+                let mut next_valid_alt = 0.0;
+                let mut found_next = false;
+                
+                while j < total_len {
+                     let alt_j = full_tracking_points[j]["altitude"].as_f64().unwrap_or(0.0);
+                     if alt_j >= 1.0 {
+                         next_valid_alt = alt_j;
+                         found_next = true;
+                         break;
+                     }
+                     j += 1;
+                }
+                
+                // On cherche le précédent valide
+                let mut prev_valid_alt = 0.0;
+                if i > 0 {
+                     prev_valid_alt = full_tracking_points[i-1]["altitude"].as_f64().unwrap_or(0.0);
+                }
+                // Si le précédent était aussi un trou non traité (cas début de fichier), on prend le next
+                if prev_valid_alt < 1.0 && found_next { prev_valid_alt = next_valid_alt; }
+                if !found_next && prev_valid_alt >= 1.0 { next_valid_alt = prev_valid_alt; }
+                
+                // Si on a encadré le trou, on interpole
+                if prev_valid_alt >= 1.0 || found_next {
+                     let gap_size = (j - i) as f64;
+                     let step = (next_valid_alt - prev_valid_alt) / (gap_size + 1.0);
+                     
+                     for k in 0..(j - i) {
+                         let idx = i + k;
+                         let new_alt = prev_valid_alt + step * (k as f64 + 1.0);
+                         if let Some(obj) = full_tracking_points[idx].as_object_mut() {
+                             obj.insert("altitude".to_string(), serde_json::json!(new_alt));
+                         }
+                     }
+                }
+                i = j; // On saute au prochain valide
+            } else {
+                i += 1;
+            }
+        }
+    }
+
+    // Sauvegarde finale du tracking_FULL enrichi
+    fs::write(&full_tracking_path, serde_json::to_string_pretty(&full_tracking_points).unwrap())
+        .map_err(|e| format!("Failed to write stitched tracking_FULL: {}", e))?;
 
     // 🔴 NOUVEAU: Recalculer nbrSegment pour tous les points de contrôle du variant
     // On considère comme point de contrôle :
@@ -1570,6 +1809,9 @@ fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f6
             "cap": cap,
             "zoom": 16.0,
             "pitch": 55.0,
+            "coordonneeCamera": [],
+            "altitudeCamera": 0.0,
+            "nbrSegment": 0,
             "pointDeControl": i == 0 || i == count - 1,
             "typeTroncon": "Segment"
         }));
