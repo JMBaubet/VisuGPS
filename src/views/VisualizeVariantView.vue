@@ -1,28 +1,23 @@
 <template>
-  <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
+  <VisualizeMapArea
+    ref="visualizeMapAreaRef"
+    :is-cursor-hidden="isCursorHidden"
+    :is-center-marker-visible="isCenterMarkerVisible"
+    :center-marker-color="couleurCroixCentrale"
+    :show-back-button="!isInitializing && isBackButtonVisibleFinal"
+    @go-back="goBack"
+    @register-map-container="(el) => { mapContainer = el }"
+  />
 
-  <center-marker v-if="isCenterMarkerVisible" :color="couleurCroixCentrale" />
-
-  <transition name="fade">
-    <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
-  </transition>
-
-  <transition name="fade-opacity">
-    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }" @wheel.stop>
-      <span class="font-weight-bold">{{ currentCommuneName }}</span>
-    </div>
-  </transition>
-
-  <div class="top-center-container">
-    <transition name="fade-opacity">
-      <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
-            <div class="d-flex align-center justify-center fill-height px-4">
-              <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ (totalDistanceRef / 1000).toFixed(2) }} km</span>
-            </div>  
-      </v-card>
-    </transition>
-  </div>
+  <VisualizeInfoDisplay
+    :is-visible="!isInitializing"
+    :show-distance="isDistanceDisplayVisible"
+    :distance-display="distanceDisplay"
+    :total-distance="totalDistanceRef / 1000"
+    :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
+    :commune-name="currentCommuneName"
+    :commune-border-color="communeWidgetBorderColor"
+  />
 
   <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
@@ -52,10 +47,23 @@
     </transition>
   </div>
 
-  <div class="bottom-center-container">
-    <transition name="fade">
-      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
-          <altitude-s-v-g 
+  <VisualizeControls
+    v-if="!isInitializing"
+    :is-visible="!isInitializing"
+    :is-altitude-visible="isAltitudeVisible"
+    v-model:is-paused="isPaused"
+    :is-animation-finished="isAnimationFinished"
+    v-model:is-rewinding="isRewinding"
+    v-model:current-speed="currentSpeed"
+    :controls-visible="isControlsCardVisible"
+    :min-speed="minSpeedValue"
+    :max-speed="maxSpeedValue"
+    :default-speed="defaultSpeedValue"
+    @reset="resetAnimation"
+    @trigger-final-view="handleEndSequence"
+  >
+    <template #altitude-chart>
+        <altitude-s-v-g 
             :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
             :circuit-id="props.circuitId" 
             :current-distance="currentDistanceInMeters" 
@@ -65,69 +73,31 @@
             :main-trace-points="null"
             :variant-segments="[]"
             :current-segment-index="null"
-          />
-      </div>
-    </transition>
-    <transition name="fade">
-      <v-btn v-if="!isInitializing && isPaused && !isControlsCardVisible"
-             color="warning"
-             @click="isAnimationFinished ? resetAnimation() : isPaused = false"
-             class="bottom-controls"
-             size="x-large"
-             rounded
-             title="Reprendre l'animation (P)"
-             @wheel.stop
-      >
-        Reprise
-      </v-btn>
-    </transition>
-    <transition name="fade-opacity">
-      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
-        <v-card variant="elevated" class="controls-card">
-            <div class="d-flex align-center pa-1">
-                            <v-btn icon="mdi-rewind" variant="text" size="x-small"
-                                   @mousedown="isRewinding = true"
-                                   @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-                            <v-btn :icon="isAnimationFinished ? 'mdi-replay' : (isPaused ? 'mdi-play' : 'mdi-pause')" variant="text" @click="togglePlayPauseOrReset"></v-btn>
-                            <v-divider vertical class="mx-2"></v-divider>
-                            <v-slider
-                                v-model="sliderPosition"
-                                :min="0"
-                                :max="100"
-                                :step="1"
-                                hide-details
-                                class="align-center speed-slider"
-                                :disabled="isAnimationFinished"
-                            >
-                                <template v-slot:append>
-                                    <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
-                                    <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
-                                </template>
-                            </v-slider>
-                             <!-- Variant Link (Placeholder for now) -->
-                             <!-- Variant Switching & Return -->
-                             <v-divider vertical class="mx-2"></v-divider>
-                             
-                             <!-- Select another variant (if multiple) -->
-                             <v-btn v-if="availableVariants.length > 1" 
-                                    icon="mdi-format-list-bulleted" 
-                                    variant="text" 
-                                    title="Changer de variante" 
-                                    @click="showVariantSelection = true">
-                             </v-btn>
+        />
+    </template>
 
-                             <!-- Return to Main Trace -->
-                             <v-btn icon="mdi-arrow-u-left-top" 
-                                    variant="text" 
-                                    color="secondary"
-                                    title="Retour Trace Principale" 
-                                    @click="returnToMainTrace">
-                             </v-btn>
-          </div>
-        </v-card>
-      </div>
-    </transition>
-  </div>
+    <template #extra-controls>
+        <!-- Variant Switching & Return -->
+        <v-divider vertical class="mx-2"></v-divider>
+        
+        <!-- Select another variant (if multiple) -->
+        <v-btn v-if="availableVariants.length > 1" 
+            icon="mdi-format-list-bulleted" 
+            variant="text" 
+            title="Changer de variante" 
+            @click="showVariantSelection = true">
+        </v-btn>
+
+        <!-- Return to Main Trace -->
+        <v-btn icon="mdi-arrow-u-left-top" 
+            variant="text" 
+            color="secondary"
+            title="Retour Trace Principale" 
+            :disabled="!isPaused"
+            @click="returnToMainTrace">
+        </v-btn>
+    </template>
+  </VisualizeControls>
 
     <!-- Variant Selection Dialog -->
     <v-dialog v-model="showVariantSelection" persistent max-width="500" scrim="black" opacity="0.5">
@@ -166,10 +136,13 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
-import CenterMarker from '@/components/CenterMarker.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
+// Shared Components
+import VisualizeMapArea from '@/components/Visualize/Shared/VisualizeMapArea.vue';
+import VisualizeInfoDisplay from '@/components/Visualize/Shared/VisualizeInfoDisplay.vue';
+import VisualizeControls from '@/components/Visualize/Shared/VisualizeControls.vue';
 
 // --- Nouveaux Composables ---
 import { useMapEngine } from '@/composables/visualize/useMapEngine.js';
@@ -324,47 +297,32 @@ const currentWeather = ref(null);
 const showWeatherTable = ref(false);
 const circuitScenarios = ref([]);
 
-// Speed Slider Logic
-const sliderPosition = computed({
-    get: () => mapSpeedToSlider(currentSpeed.value),
-    set: (val) => currentSpeed.value = mapSliderToSpeed(val)
-});
+// Speed Slider Constants
 const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value'));
 const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value'));
 const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value'));
 
-function mapSliderToSpeed(sliderValue) {
-    const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 100.0;
-    
-    // Logarithmic scale: speed = min * (max/min)^(slider/100)
-    if (sliderValue <= 0) return min;
-    if (sliderValue >= 100) return max;
-    
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
-    
-    // Interpolate in log domain
-    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
-    return Math.exp(logVal);
-}
-
-function mapSpeedToSlider(speed) {
-    const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 100.0;
-    
-    if (speed <= min) return 0;
-    if (speed >= max) return 100;
-    
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
-    
-    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
-}
-
 // --- Methods ---
 
-const returnToMainTrace = () => { router.push({ name: 'Visualize', params: { id: props.circuitId } }); };
+const returnToMainTrace = () => { 
+    let query = { directStart: 'true' };
+    if (map.value) {
+        const center = map.value.getCenter();
+        query = {
+            ...query,
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.value.getZoom(),
+            bearing: map.value.getBearing(),
+            pitch: map.value.getPitch()
+        };
+    }
+    router.push({ 
+        name: 'Visualize', 
+        params: { circuitId: props.circuitId },
+        query: query
+    }); 
+};
 const goBack = () => { router.push({ name: 'Main' }); };
 const getToHexImproved = (n) => toHex(getSettingValue(n));
 
@@ -956,6 +914,11 @@ const executeFlytoSequence = async (flytoData) => {
 
 const handleEndSequence = async () => {
     if(!map.value) return;
+
+    // Explicitly set state to Finished (needed if triggered manually via button)
+    isAnimationFinished.value = true;
+    isPaused.value = true;
+    
     animationState.value = 'Vol_Final';
     // Hide UI
     isDistanceDisplayVisible.value = false;
@@ -1063,8 +1026,20 @@ async function initWeather(circuit, trackingPoints) {
     let startDate = null;
     if (!circuit || !circuit.dateDepart) {
         startDate = new Date();
+        startDate.setDate(startDate.getDate() + 1); // Default to tomorrow
+        startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
     } else {
         startDate = new Date(circuit.dateDepart);
+        // If date is older than 30 days, fallback to tomorrow (Open-Meteo Forecast limit)
+        const now = new Date();
+        const diffTime = now - startDate; // positive if past
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 30 || diffDays < -14) {
+             console.warn("Date trop ancienne/lointaine pour météo, utilisation date du lendemain:", startDate);
+             startDate = new Date();
+             startDate.setDate(startDate.getDate() + 1);
+             startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
+        }
     }
     simulationStartDate.value = startDate;
     try {

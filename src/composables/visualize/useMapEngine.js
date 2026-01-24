@@ -22,7 +22,7 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
         });
     };
 
-    const initializeMap = async (center, zoom) => {
+    const initializeMap = async (center, zoom, styleOverride = null) => {
         if (!mapboxToken.value || !mapContainer.value) {
             console.error("Map Init Aborted:", { token: !!mapboxToken.value, container: !!mapContainer.value, containerRef: mapContainer.value });
             return;
@@ -32,7 +32,7 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
         return new Promise((resolve) => {
             map.value = new mapboxgl.Map({
                 container: mapContainer.value,
-                style: mapStyle.value,
+                style: styleOverride || mapStyle.value,
                 center: center,
                 zoom: zoom,
                 pitch: 0,

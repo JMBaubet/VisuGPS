@@ -1,28 +1,23 @@
 <template>
-  <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
+  <VisualizeMapArea
+    ref="visualizeMapAreaRef"
+    :is-cursor-hidden="isCursorHidden"
+    :is-center-marker-visible="isCenterMarkerVisible"
+    :center-marker-color="couleurCroixCentrale"
+    :show-back-button="!isInitializing && isBackButtonVisibleFinal"
+    @go-back="goBack"
+    @register-map-container="(el) => { mapContainer = el }"
+  />
 
-  <center-marker v-if="isCenterMarkerVisible" :color="couleurCroixCentrale" />
-
-  <transition name="fade">
-    <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
-  </transition>
-
-  <transition name="fade-opacity">
-    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }" @wheel.stop>
-      <span class="font-weight-bold">{{ currentCommuneName }}</span>
-    </div>
-  </transition>
-
-  <div class="top-center-container">
-    <transition name="fade-opacity">
-      <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
-            <div class="d-flex align-center justify-center fill-height px-4">
-              <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ (totalDistanceRef).toFixed(2) }} km</span>
-            </div>  
-      </v-card>
-    </transition>
-  </div>
+  <VisualizeInfoDisplay
+    :is-visible="!isInitializing"
+    :show-distance="isDistanceDisplayVisible"
+    :distance-display="distanceDisplay"
+    :total-distance="totalDistanceRef"
+    :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
+    :commune-name="currentCommuneName"
+    :commune-border-color="communeWidgetBorderColor"
+  />
 
   <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
@@ -52,10 +47,23 @@
     </transition>
   </div>
 
-  <div class="bottom-center-container">
-    <transition name="fade">
-      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
-          <altitude-s-v-g 
+  <VisualizeControls
+    v-if="!isInitializing"
+    :is-visible="!isInitializing"
+    :is-altitude-visible="isAltitudeVisible"
+    v-model:is-paused="isPaused"
+    :is-animation-finished="isAnimationFinished"
+    v-model:is-rewinding="isRewinding"
+    v-model:current-speed="currentSpeed"
+    :controls-visible="isControlsCardVisible"
+    :min-speed="minSpeedValue"
+    :max-speed="maxSpeedValue"
+    :default-speed="defaultSpeedValue"
+    @reset="resetAnimation"
+    @trigger-final-view="handleEndSequence"
+  >
+    <template #altitude-chart>
+       <altitude-s-v-g 
             :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
             :circuit-id="props.circuitId" 
             :current-distance="currentDistanceInMeters" 
@@ -66,65 +74,29 @@
             :variant-segments="[]"
             :current-segment-index="null"
           />
-      </div>
-    </transition>
-    <transition name="fade">
-      <div v-if="!isInitializing && isPaused && !isControlsCardVisible" class="d-flex flex-column align-center bottom-controls" @wheel.stop>
-          <v-btn
-                 color="warning"
-                 @click="isAnimationFinished ? resetAnimation() : isPaused = false"
-                 class="mb-2"
-                 size="x-large"
-                 rounded
-                 title="Reprendre l'animation (P)"
-          >
-            Reprise
-          </v-btn>
-          <v-btn v-if="isAnimationFinished && hasVariants"
-                 color="primary"
-                 @click="goToVariantView"
-                 size="x-large"
-                 rounded
-                 prepend-icon="mdi-source-branch"
-                 title="Voir les variantes"
-          >
-            Variantes
-          </v-btn>
-      </div>
-    </transition>
-    <transition name="fade-opacity">
-      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
-        <v-card variant="elevated" class="controls-card">
-            <div class="d-flex align-center pa-1">
-                            <v-btn icon="mdi-rewind" variant="text" size="x-small"
-                                   @mousedown="isRewinding = true"
-                                   @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-                            <v-btn :icon="isAnimationFinished ? 'mdi-replay' : (isPaused ? 'mdi-play' : 'mdi-pause')" variant="text" @click="togglePlayPauseOrReset"></v-btn>
-                            <v-divider vertical class="mx-2"></v-divider>
-                            <v-slider
-                                v-model="sliderPosition"
-                                :min="0"
-                                :max="100"
-                                :step="1"
-                                hide-details
-                                class="align-center speed-slider"
-                                :disabled="isAnimationFinished"
-                            >
-                                <template v-slot:append>
-                                    <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
-                                    <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
-                                </template>
-                            </v-slider>
-                             <!-- Variant Link (Placeholder for now) -->
-                             <template v-if="hasVariants">
-                                 <v-divider vertical class="mx-2"></v-divider>
-                                 <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
-                             </template>
-          </div>
-        </v-card>
-      </div>
-    </transition>
-  </div>
+    </template>
+
+    <template #extra-overlay-actions>
+       <v-btn v-if="isAnimationFinished && hasVariants"
+             color="primary"
+             @click="goToVariantView"
+             size="x-large"
+             rounded
+             prepend-icon="mdi-source-branch"
+             title="Voir les variantes"
+      >
+        Variantes
+      </v-btn>
+    </template>
+
+    <template #extra-controls>
+        <template v-if="hasVariants">
+            <v-divider vertical class="mx-2"></v-divider>
+            <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
+        </template>
+    </template>
+  </VisualizeControls>
+
     <!-- Variant Selection Dialog -->
     <v-dialog v-model="showVariantSelection" max-width="500">
         <v-card>
@@ -150,7 +122,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import mapboxgl from 'mapbox-gl';
@@ -162,10 +134,13 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
-import CenterMarker from '@/components/CenterMarker.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
+// Shared Components
+import VisualizeMapArea from '@/components/Visualize/Shared/VisualizeMapArea.vue';
+import VisualizeInfoDisplay from '@/components/Visualize/Shared/VisualizeInfoDisplay.vue';
+import VisualizeControls from '@/components/Visualize/Shared/VisualizeControls.vue';
 
 // --- Nouveaux Composables ---
 import { useMapEngine } from '@/composables/visualize/useMapEngine.js';
@@ -175,11 +150,13 @@ import { useTraceLayers } from '@/composables/visualize/useTraceLayers.js';
 import { useAnimationController } from '@/composables/visualize/useAnimationController.js';
 import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpolator.js'; // NEW
 
+
 const props = defineProps({
   circuitId: { type: String, required: true },
 });
 
 const router = useRouter();
+const route = useRoute();
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
@@ -287,43 +264,10 @@ const currentWeather = ref(null);
 const showWeatherTable = ref(false);
 const circuitScenarios = ref([]);
 
-// Speed Slider Logic
-const sliderPosition = computed({
-    get: () => mapSpeedToSlider(currentSpeed.value),
-    set: (val) => currentSpeed.value = mapSliderToSpeed(val)
-});
+// Speed Slider Constants
 const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value'));
 const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value'));
 const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value'));
-
-function mapSliderToSpeed(sliderValue) {
-    const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 100.0;
-    
-    // Logarithmic scale: speed = min * (max/min)^(slider/100)
-    if (sliderValue <= 0) return min;
-    if (sliderValue >= 100) return max;
-    
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
-    
-    // Interpolate in log domain
-    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
-    return Math.exp(logVal);
-}
-
-function mapSpeedToSlider(speed) {
-    const min = minSpeedValue.value || 0.1;
-    const max = maxSpeedValue.value || 100.0;
-    
-    if (speed <= min) return 0;
-    if (speed >= max) return 100;
-    
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
-    
-    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
-}
 
 // --- Methods ---
 
@@ -447,10 +391,47 @@ const initializeVisualization = async () => {
             } catch(e) { console.error("Colored segments error", e); }
         }
 
-        const mapInstance = await initMapEngine(centerEurope.value, zoomEurope.value);
+        const startPoint = trackingPointsWithDistanceRef.value[0]; 
+        
+        // Determine Initial Map State
+        let initialCenter = centerEurope.value;
+        let initialZoom = zoomEurope.value;
+        const isDirectStart = route.query.directStart === 'true';
+        const hasCameraParams = route.query.lat && route.query.lng && route.query.zoom;
+
+        if (hasCameraParams) {
+             initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
+             initialZoom = parseFloat(route.query.zoom);
+        } else if (isDirectStart && startPoint) {
+            initialCenter = startPoint.coordonnee;
+            initialZoom = startPoint.editedZoom ?? startPoint.zoom ?? 14;
+        }
+
+        // Init Map with correct style immediately
+        // If DirectStart, use mapStyle (3D), otherwise use default
+        const styleToUse = isDirectStart ? mapStyle.value : null; 
+        
+        const mapInstance = await initMapEngine(initialCenter, initialZoom, styleToUse);
         if(!mapInstance) throw new Error("Map failed to init");
         
         mapInstance.setMinZoom(zoomMinimum.value);
+
+        // Immediate Positioning (JumpTo)
+        if (hasCameraParams) {
+             mapInstance.jumpTo({
+                 center: initialCenter,
+                 zoom: initialZoom,
+                 pitch: parseFloat(route.query.pitch || 0),
+                 bearing: parseFloat(route.query.bearing || 0)
+             });
+        } else if (isDirectStart && startPoint) {
+             mapInstance.jumpTo({
+                 center: initialCenter,
+                 zoom: initialZoom,
+                 pitch: startPoint.editedPitch ?? startPoint.pitch ?? 0,
+                 bearing: startPoint.editedCap ?? startPoint.cap ?? 0
+             });
+        }
 
         startBearingTracking();
 
@@ -460,34 +441,47 @@ const initializeVisualization = async () => {
             coloredSegmentsData: coloredSegmentsGeoJsonRef.value
         });
         
-        animationState.value = 'Vol_Vers_Vue_Globale';
-        const traceBbox = turf.bbox(lineStringRef.value);
-        const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
-        
-        await flyToPromise(globalView, { duration: durationEuropeToTrace.value });
+        if (isDirectStart) {
+             // Direct Start: Skip Global View logic
+             animationState.value = 'Vol_Vers_Depart';
+             
+             // No need to switch style, we initialized with it.
+        } else {
+            // Normal Sequence
+            animationState.value = 'Vol_Vers_Vue_Globale';
+            const traceBbox = turf.bbox(lineStringRef.value);
+            const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+            
+            await flyToPromise(globalView, { duration: durationEuropeToTrace.value });
 
-        animationState.value = 'Pause_Observation';
-        await new Promise(r => setTimeout(r, pauseBeforeStart.value));
-
-        animationState.value = 'Vol_Vers_Depart';
-        if (mapStyle.value !== styleLancement.value) {
-            mapInstance.setStyle(mapStyle.value);
-            await new Promise(resolve => mapInstance.once('style.load', resolve));
-            setupTraceLayers({
-                traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-                lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-                coloredSegmentsData: coloredSegmentsGeoJsonRef.value
-            }); 
+            animationState.value = 'Pause_Observation';
+            await new Promise(r => setTimeout(r, pauseBeforeStart.value));
+            
+            animationState.value = 'Vol_Vers_Depart';
+            if (mapStyle.value !== styleLancement.value) {
+                mapInstance.setStyle(mapStyle.value);
+                await new Promise(resolve => mapInstance.once('style.load', resolve));
+                setupTraceLayers({
+                    traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
+                    lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+                    coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+                }); 
+            }
         }
 
-        const startPoint = trackingPointsWithDistanceRef.value[0];
-        await flyToPromise({
-            center: startPoint.coordonnee,
-            zoom: startPoint.editedZoom ?? startPoint.zoom,
-            pitch: startPoint.editedPitch ?? startPoint.pitch,
-            bearing: startPoint.editedCap ?? startPoint.cap,
-            duration: durationTraceToStart.value
-        });
+        // Final Positioning at Start (FlyTo)
+        // Execute if:
+        // 1. Standard Start (!isDirectStart)
+        // 2. OR Direct Start but coming from somewhere else (hasCameraParams) -> Fly from there to start.
+        if (!isDirectStart || hasCameraParams) {
+            await flyToPromise({
+                center: startPoint.coordonnee,
+                zoom: startPoint.editedZoom ?? startPoint.zoom,
+                pitch: startPoint.editedPitch ?? startPoint.pitch,
+                bearing: startPoint.editedCap ?? startPoint.cap,
+                duration: durationTraceToStart.value
+            });
+        }
 
         animationState.value = 'En_Pause_au_Depart';
         isInitializing.value = false;
@@ -759,6 +753,11 @@ const executeFlytoSequence = async (flytoData) => {
 
 const handleEndSequence = async () => {
     if(!map.value) return;
+    
+    // Explicitly set state to Finished (needed if triggered manually via button)
+    isAnimationFinished.value = true;
+    isPaused.value = true;
+
     animationState.value = 'Vol_Final';
     // Hide UI
     isDistanceDisplayVisible.value = false;
@@ -855,8 +854,20 @@ async function initWeather(circuit, trackingPoints) {
     let startDate = null;
     if (!circuit || !circuit.dateDepart) {
         startDate = new Date();
+        startDate.setDate(startDate.getDate() + 1); // Default to tomorrow
+        startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
     } else {
         startDate = new Date(circuit.dateDepart);
+        // If date is older than 30 days, fallback to tomorrow (Open-Meteo Forecast limit)
+        const now = new Date();
+        const diffTime = now - startDate; // positive if past
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 30 || diffDays < -14) {
+             console.warn("Date trop ancienne/lointaine pour météo, utilisation date du lendemain:", startDate);
+             startDate = new Date();
+             startDate.setDate(startDate.getDate() + 1);
+             startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
+        }
     }
     simulationStartDate.value = startDate;
     try {
