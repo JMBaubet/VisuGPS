@@ -173,8 +173,19 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
             attempts += 1;
             match client.get(&url).send().await {
                 Ok(resp) => {
-                    loop_resp = Some(resp);
-                    break;
+                    let status = resp.status();
+                    if status.is_success() {
+                        loop_resp = Some(resp);
+                        break;
+                    } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        println!("Open-Meteo Rate Limit 429 (attempt {}/{}). Retrying...", attempts, max_attempts);
+                        if attempts < max_attempts {
+                            let wait_time = std::time::Duration::from_millis(1000 * 2_u64.pow(attempts as u32));
+                            tokio::time::sleep(wait_time).await;
+                        }
+                    } else {
+                         return Err(format!("Open-Meteo API Error: {}", status));
+                    }
                 },
                 Err(e) => {
                     println!("Open-Meteo Request failed (attempt {}/{}): {}", attempts, max_attempts, e);
@@ -187,11 +198,10 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
             }
         }
 
-        let resp = loop_resp.unwrap();
-
-        if !resp.status().is_success() {
-            return Err(format!("Open-Meteo API Error: {}", resp.status()));
+        if loop_resp.is_none() {
+             return Err(format!("Open-Meteo API failed after {} attempts (likely Rate Limit)", max_attempts));
         }
+        let resp = loop_resp.unwrap();
 
         let json: serde_json::Value = resp.json().await.map_err(|e| format!("Open-Meteo Parse error: {}", e))?;
 
@@ -202,6 +212,9 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
         } else {
             return Err("Format de réponse Open-Meteo invalide".to_string());
         }
+        
+        // Throttle - Be nice to the API (500ms pause)
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     }
 
     Ok(altitudes)

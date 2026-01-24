@@ -1382,6 +1382,14 @@
                 "doc": "docs/DocParametrage/Variante/Visualisation/opacitePente.md"
               },
               {
+                "identifiant": "couleurTrace",
+                "libelle": "Couleur de la trace",
+                "description": "Couleur de la trace (si Pente désactivée).",
+                "type": "couleur",
+                "defaut": "#FF9800",
+                "doc": "docs/DocParametrage/Variante/Visualisation/couleurTrace.md"
+              },
+              {
                 "identifiant": "couleurNouveau",
                 "libelle": "Couleur Nouveau tronçon",
                 "description": "Couleur des segments correspondant aux variantes ajoutées.",

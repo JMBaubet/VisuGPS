@@ -247,6 +247,7 @@ const slopeOpacity = computed(() => getSettingValue('Variante/Visualisation/opac
 const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurNouveau')));
 const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
 const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
+const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace')));
 
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
@@ -274,7 +275,7 @@ const isFlytoActive = ref(false); // Mode FlyTo exclusif
 const preFlytoCameraOptions = ref(null);
 
 // 4. Trace Layers
-const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, updateVariantSlopeMode, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
+const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, updateVariantSlopeMode, updateVariantStyle, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
@@ -507,6 +508,10 @@ const initializeVisualization = async () => {
                 segmentLength: segmentLength.value
             });
             coloredSegmentsGeoJsonRef.value = geojson;
+            
+            // DEBUG: Count abandoned segments
+            const abandonedCount = geojson.features.filter(f => f.properties.status === 'ABANDONED').length;
+            console.log(`[VisualizeVariant] Loaded ${geojson.features.length} segments. ABANDONED segments: ${abandonedCount}`);
         } catch(e) {
             console.error("Colored segments load error", e);
             coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
@@ -514,9 +519,10 @@ const initializeVisualization = async () => {
 
         // 3. Map Layers (Once data is loaded)
         setupTraceLayers({
-            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: colorTraceVariant.value, // Use Variant Trace Color
             coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            masterTraceData: masterTraceGeoJson.value, // Pass Master Trace for 'Main' layer
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
             slopeExpression: slopeExpressionRef.value,
             segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
             slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
@@ -524,31 +530,40 @@ const initializeVisualization = async () => {
         });
 
         // Apply Initial Visibility
-        updateLayerVisibility('trace-slope', showSlope.value);
-        if (!showSegments.value) {
-             updateLayerVisibility('trace-variant-common-aller', false);
-             updateLayerVisibility('trace-variant-common-retour', false);
-             updateLayerVisibility('trace-variant-new-aller', false);
-             updateLayerVisibility('trace-variant-new-retour', false);
-             updateLayerVisibility('trace-variant-abandoned', false);
-        }
+        // Segments Layers (Main+Variant) controlled by showSegments
+        updateLayerVisibility(true, showSegments.value);
+        
+        // Slope Layer Mode (Gradient vs Flat Color)
+        updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
         
         // Watches for live setting updates
         watch(showSegments, (newVal) => {
-            updateLayerVisibility('trace-variant-common-aller', newVal);
-            updateLayerVisibility('trace-variant-common-retour', false);
-            updateLayerVisibility('trace-variant-new-aller', newVal);
-            updateLayerVisibility('trace-variant-new-retour', false);
-            updateLayerVisibility('trace-variant-abandoned', false);
-        });
-        watch(showSlope, (newVal) => {
-            updateVariantSlopeMode(newVal, { common: colorCommon.value, new: colorNew.value });
+            updateLayerVisibility(true, newVal);
         });
         
-        // Initial state for slope mode on segments
-        if (showSlope.value) {
-             updateVariantSlopeMode(true, { common: colorCommon.value, new: colorNew.value });
-        }
+        watch(showSlope, (newVal) => {
+            updateVariantSlopeMode(newVal, { trace: colorTraceVariant.value });
+        });
+        
+        // Watchers for Style Updates (Thickness, Opacity, Colors)
+        watch([segmentThickness, segmentOpacity, colorNew, colorCommon, colorAbandoned, colorTraceVariant, slopeThickness, slopeOpacity], () => {
+             updateVariantStyle({
+                 thickness: segmentThickness.value,
+                 opacity: segmentOpacity.value,
+                 colorNew: colorNew.value,
+                 colorCommon: colorCommon.value,
+                 colorAbandoned: colorAbandoned.value,
+                 colorTrace: colorTraceVariant.value,
+                 slopeThickness: slopeThickness.value,
+                 slopeOpacity: slopeOpacity.value
+             });
+             
+             // Refresh Slope Mode to ensure correct color is applied if mode didn't change but color did
+             updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+        });
+        
+        // Initial Overlap Check (to hide loops on start if any)
+        checkLayers(0); 
         
         // 3. Animation Sequence (Simplified for Variants: Direct to Start)
         

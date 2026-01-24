@@ -4,11 +4,11 @@ export function useTraceLayers(map) {
     const coloredSegmentsGeoJsonRef = shallowRef(null);
     const slopeExpressionRef = shallowRef(null);
 
-    // Configuration par défaut, pourra être surchargée
+    // Default configuration
     const config = {
         traceWidth: 4,
         traceOpacity: 1,
-        traceColor: '#0000FF',
+        traceColor: '#FF9800', // Default Variant Track Color (if slope disabled)
         cometWidth: 5,
         cometColor: '#FF0000',
         cometOpacity: 0.8
@@ -19,166 +19,161 @@ export function useTraceLayers(map) {
 
         const {
             traceWidth, traceOpacity, traceColor,
-            lineStringData, coloredSegmentsData,
+            lineStringData, // Standard Trace Source
+            coloredSegmentsData, // Variant Source (Priority)
+            masterTraceData, // Master Trace for Variant Main Layer
             cometWidth, cometColor, cometOpacity,
-            // Variant specific info
+            // Variant specific
             segmentThickness, segmentOpacity,
             colorNew, colorCommon, colorAbandoned,
-            // Slope specific info
+            // Slope specific
             slopeThickness, slopeOpacityLogic, slopeExpression
         } = { ...config, ...configs };
 
-        if (slopeExpression) {
-            slopeExpressionRef.value = slopeExpression;
-        }
+        if (slopeExpression) slopeExpressionRef.value = slopeExpression;
+        if (coloredSegmentsData) coloredSegmentsGeoJsonRef.value = coloredSegmentsData;
 
-        if (coloredSegmentsData) {
-            coloredSegmentsGeoJsonRef.value = coloredSegmentsData;
-        }
+        // --- MODE 1: VARIANT (3-Layer Architecture) ---
+        if (coloredSegmentsGeoJsonRef.value) {
 
-        // 1. Source Trace Principale
-        if (!map.value.getSource('trace') && lineStringData) {
-            map.value.addSource('trace', { type: 'geojson', data: lineStringData, lineMetrics: true });
-        }
+            // Source: Colored Segments
+            if (!map.value.getSource('colored-segments')) {
+                map.value.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJsonRef.value, lineMetrics: true });
+            } else {
+                // Force update data if source exists (critical for switching variants)
+                map.value.getSource('colored-segments').setData(coloredSegmentsGeoJsonRef.value);
+            }
 
-        // 2. Source Segments Colorés
-        if (coloredSegmentsGeoJsonRef.value && !map.value.getSource('colored-segments')) {
-            map.value.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJsonRef.value });
-        }
+            // Source: Master Trace (for Main/Abandoned layer)
+            if (masterTraceData) {
+                if (!map.value.getSource('trace-master-source')) {
+                    map.value.addSource('trace-master-source', { type: 'geojson', data: masterTraceData, lineMetrics: true });
+                } else {
+                    map.value.getSource('trace-master-source').setData(masterTraceData);
+                }
+            }
 
-        // 3. Layer Trace Complete (Fallback)
-        if (!map.value.getLayer('trace-complete')) {
-            if (map.value.getSource('trace')) {
+            // Layer 1: Main / Abandoned (using Master Trace)
+            // Use masterTraceData if available, otherwise fallback (though masterTraceData is expected in Variant mode)
+            const mainSourceId = masterTraceData ? 'trace-master-source' : 'colored-segments';
+            const mainFilter = masterTraceData ? undefined : ['==', ['get', 'status'], 'ABANDONED']; // No filter if using full master trace
+
+            if (!map.value.getLayer('trace-main-abandoned')) {
+                const layerOptions = {
+                    id: 'trace-main-abandoned',
+                    type: 'line',
+                    source: mainSourceId,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                    paint: {
+                        'line-width': Math.max(1, (segmentThickness || traceWidth) - 1),
+                        'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity,
+                        'line-color': colorAbandoned || '#000000'
+                    }
+                };
+
+                if (mainFilter) {
+                    layerOptions.filter = mainFilter;
+                }
+
+                map.value.addLayer(layerOptions);
+            }
+
+            // Layer 2: Segments (Common)
+            const layerCommonId = 'trace-variant-segment-common';
+            if (!map.value.getLayer(layerCommonId)) {
                 map.value.addLayer({
-                    id: 'trace-complete',
+                    id: layerCommonId,
+                    type: 'line',
+                    source: 'colored-segments',
+                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                    paint: {
+                        'line-width': segmentThickness || traceWidth,
+                        'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity,
+                        'line-color': colorCommon || '#4CAF50'
+                    },
+                    filter: ['==', ['get', 'status'], 'COMMON']
+                });
+            }
+
+            // Layer 2: Segments (New)
+            const layerNewId = 'trace-variant-segment-new';
+            if (!map.value.getLayer(layerNewId)) {
+                map.value.addLayer({
+                    id: layerNewId,
+                    type: 'line',
+                    source: 'colored-segments',
+                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                    paint: {
+                        'line-width': segmentThickness || traceWidth,
+                        'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity,
+                        'line-color': colorNew || '#2196F3'
+                    },
+                    filter: ['==', ['get', 'status'], 'NEW']
+                });
+            }
+
+            // Layer 3: Slope / Full Trace (Aller)
+            map.value.addLayer({
+                id: 'trace-slope-aller',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                paint: {
+                    'line-width': slopeThickness || traceWidth,
+                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
+                    'line-color': ['get', 'color_raw']
+                },
+                filter: ['all', ['!=', ['get', 'segment_type'], 'retour_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
+            });
+
+            // Layer 3: Slope / Full Trace (Retour)
+            map.value.addLayer({
+                id: 'trace-slope-retour',
+                type: 'line',
+                source: 'colored-segments',
+                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Default hidden
+                paint: {
+                    'line-width': slopeThickness || traceWidth,
+                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
+                    'line-color': ['get', 'color_raw']
+                },
+                filter: ['all', ['!=', ['get', 'segment_type'], 'aller_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
+            });
+
+            // Hide legacy standard layers if they exist
+            updateLayerVisibility('trace-complete', false);
+            updateLayerVisibility('trace-slope', false);
+
+        }
+        // --- MODE 2: STANDARD TRACE (Fallback) ---
+        else if (lineStringData) {
+
+            // Source: Standard Trace
+            if (!map.value.getSource('trace')) {
+                map.value.addSource('trace', { type: 'geojson', data: lineStringData, lineMetrics: true });
+            }
+
+            // Single Layer (Slope or Simple)
+            const useSlope = !!slopeExpressionRef.value;
+            const layerId = useSlope ? 'trace-slope' : 'trace-complete';
+
+            if (!map.value.getLayer(layerId)) {
+                map.value.addLayer({
+                    id: layerId,
                     type: 'line',
                     source: 'trace',
                     layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
                     paint: {
                         'line-width': traceWidth,
                         'line-opacity': traceOpacity,
-                        'line-color': traceColor
+                        'line-gradient': useSlope ? slopeExpressionRef.value : undefined,
+                        'line-color': !useSlope ? traceColor : '#000000'
                     }
                 });
             }
         }
 
-        // 4. Layers Overlap (Si segments disponibles)
-        if (coloredSegmentsGeoJsonRef.value && map.value.getSource('colored-segments')) {
-            // Aller
-            if (!map.value.getLayer('trace-overlap-aller')) {
-                map.value.addLayer({
-                    id: 'trace-overlap-aller',
-                    type: 'line',
-                    source: 'colored-segments',
-                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                    paint: {
-                        'line-width': traceWidth,
-                        'line-opacity': traceOpacity,
-                        'line-color': ['get', 'color_raw']
-                    },
-                    filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
-                });
-            }
-            // Retour
-            if (!map.value.getLayer('trace-overlap-retour')) {
-                map.value.addLayer({
-                    id: 'trace-overlap-retour',
-                    type: 'line',
-                    source: 'colored-segments',
-                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
-                    paint: {
-                        'line-width': traceWidth,
-                        'line-opacity': traceOpacity,
-                        'line-color': ['get', 'color_raw']
-                    },
-                    filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
-                });
-            }
-        }
-
-        // 6. Layers Variantes
-        if (coloredSegmentsGeoJsonRef.value) {
-            const hasStatus = coloredSegmentsGeoJsonRef.value.features?.some(f => f.properties && f.properties.status);
-            if (hasStatus) {
-                // Background: Abandoned
-                if (!map.value.getLayer('trace-variant-abandoned')) {
-                    map.value.addLayer({
-                        id: 'trace-variant-abandoned',
-                        type: 'line',
-                        source: 'colored-segments',
-                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
-                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorAbandoned || '#000000' },
-                        filter: ['==', ['get', 'status'], 'ABANDONED']
-                    });
-                }
-
-                // Common segments
-                if (!map.value.getLayer('trace-variant-common-aller')) {
-                    map.value.addLayer({
-                        id: 'trace-variant-common-aller',
-                        type: 'line',
-                        source: 'colored-segments',
-                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorCommon || '#4CAF50' },
-                        filter: ['all', ['==', ['get', 'status'], 'COMMON'], ['!=', ['get', 'segment_type'], 'retour_overlap']]
-                    });
-                }
-                if (!map.value.getLayer('trace-variant-common-retour')) {
-                    map.value.addLayer({
-                        id: 'trace-variant-common-retour',
-                        type: 'line',
-                        source: 'colored-segments',
-                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
-                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorCommon || '#4CAF50' },
-                        filter: ['all', ['==', ['get', 'status'], 'COMMON'], ['!=', ['get', 'segment_type'], 'aller_overlap']]
-                    });
-                }
-
-                // New segments
-                if (!map.value.getLayer('trace-variant-new-aller')) {
-                    map.value.addLayer({
-                        id: 'trace-variant-new-aller',
-                        type: 'line',
-                        source: 'colored-segments',
-                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorNew || '#2196F3' },
-                        filter: ['all', ['==', ['get', 'status'], 'NEW'], ['!=', ['get', 'segment_type'], 'retour_overlap']]
-                    });
-                }
-                if (!map.value.getLayer('trace-variant-new-retour')) {
-                    map.value.addLayer({
-                        id: 'trace-variant-new-retour',
-                        type: 'line',
-                        source: 'colored-segments',
-                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
-                        paint: { 'line-width': segmentThickness || traceWidth, 'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity, 'line-color': colorNew || '#2196F3' },
-                        filter: ['all', ['==', ['get', 'status'], 'NEW'], ['!=', ['get', 'segment_type'], 'aller_overlap']]
-                    });
-                }
-
-                updateLayerVisibility('trace-complete', false);
-                updateLayerVisibility('trace-overlap-aller', false);
-                updateLayerVisibility('trace-overlap-retour', false);
-            }
-        }
-
-        // 7. Layer Pente (Slope) - For Main Trace
-        if (slopeExpressionRef.value && !map.value.getLayer('trace-slope')) {
-            map.value.addLayer({
-                id: 'trace-slope',
-                type: 'line',
-                source: 'trace',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
-                paint: {
-                    'line-width': slopeThickness || traceWidth,
-                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
-                    'line-gradient': slopeExpressionRef.value
-                }
-            });
-        }
-
-        // 5. Layer Comète
+        // 4. Layer Comète (Shared)
         if (!map.value.getSource('comet-source')) {
             map.value.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
         }
@@ -196,44 +191,117 @@ export function useTraceLayers(map) {
         }
     };
 
-    const updateLayerVisibility = (layerId, isVisible) => {
-        if (!map.value || !map.value.getLayer(layerId)) return;
-        map.value.setLayoutProperty(layerId, 'visibility', isVisible ? 'visible' : 'none');
-    };
-
-    const updateTraceOverlapVisibility = (zoneId, direction, forceVisible = true) => {
+    /**
+     * Controls visibility of 'Main' and 'Segment' layers.
+     * 'Slope' layer is always visible (but its style changes).
+     */
+    const updateLayerVisibility = (layerTypeIsSegments, isVisible) => {
         if (!map.value) return;
 
-        const showAllerOverlay = forceVisible && (direction === 'aller');
-        const showRetourOverlay = forceVisible && (direction === 'retour');
+        // Variant Layers
+        if (map.value.getLayer('trace-main-abandoned')) {
+            map.value.setLayoutProperty('trace-main-abandoned', 'visibility', isVisible ? 'visible' : 'none');
+        }
+        ['trace-variant-segment-common', 'trace-variant-segment-new'].forEach(id => {
+            if (map.value.getLayer(id)) {
+                map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
+            }
+        });
 
-        updateLayerVisibility('trace-overlap-aller', showAllerOverlay);
-        updateLayerVisibility('trace-overlap-retour', showRetourOverlay);
-
-        updateLayerVisibility('trace-variant-common-aller', showAllerOverlay);
-        updateLayerVisibility('trace-variant-common-retour', showRetourOverlay);
-        updateLayerVisibility('trace-variant-new-aller', showAllerOverlay);
-        updateLayerVisibility('trace-variant-new-retour', showRetourOverlay);
-
-        if (coloredSegmentsGeoJsonRef.value) {
-            updateLayerVisibility('trace-complete', false);
-        } else {
-            updateLayerVisibility('trace-complete', forceVisible);
+        // Standard Layers
+        if (typeof layerTypeIsSegments === 'string') {
+            // Legacy call support: updateLayerVisibility('trace-slope', val)
+            const id = layerTypeIsSegments;
+            if (map.value.getLayer(id)) {
+                map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
+            }
         }
     };
 
-    const updateVariantSlopeMode = (enabled, colors = {}) => {
+    /**
+     * Handles Aller/Retour switching for the 'Slope' layer ONLY (Variant Mode).
+     */
+    const updateTraceOverlapVisibility = (zoneId, direction) => {
         if (!map.value) return;
-        const layers = ['trace-variant-common-aller', 'trace-variant-common-retour', 'trace-variant-new-aller', 'trace-variant-new-retour'];
-        layers.forEach(layerId => {
+        // Only applies to Variant Mode layers
+        const showAller = (direction === 'aller');
+        const showRetour = (direction === 'retour');
+
+        if (map.value.getLayer('trace-slope-aller')) {
+            map.value.setLayoutProperty('trace-slope-aller', 'visibility', showAller ? 'visible' : 'none');
+        }
+        if (map.value.getLayer('trace-slope-retour')) {
+            map.value.setLayoutProperty('trace-slope-retour', 'visibility', showRetour ? 'visible' : 'none');
+        }
+    };
+
+    /**
+     * Switches Slope Layer style between Gradient (Pente) and Flat Color.
+     */
+    const updateVariantSlopeMode = (showSlopeGradient, colors = {}) => {
+        if (!map.value) return;
+
+        // Variant Mode Layers
+        const flatColor = colors.trace || '#FF9800';
+        ['trace-slope-aller', 'trace-slope-retour'].forEach(layerId => {
             if (map.value.getLayer(layerId)) {
-                let baseColor = colors.common || '#4CAF50';
-                if (layerId.includes('-new-')) baseColor = colors.new || '#2196F3';
-                map.value.setPaintProperty(layerId, 'line-color', enabled ? ['get', 'color_raw'] : baseColor);
+                if (showSlopeGradient) {
+                    // Mode Pente : Utiliser la couleur brute du segment (calculée par le backend)
+                    map.value.setPaintProperty(layerId, 'line-color', ['get', 'color_raw']);
+                } else {
+                    // Mode Trace : Utiliser la couleur unie configurée
+                    map.value.setPaintProperty(layerId, 'line-color', flatColor);
+                }
             }
         });
-        // Also toggle the main trace-slope if it exists (for loop parts)
-        updateLayerVisibility('trace-slope', enabled && !coloredSegmentsGeoJsonRef.value);
+
+        // Standard Mode Layers (trace-slope vs trace-complete switch?)
+        // In Standard mode, we usually just toggle visibility if we have separate layers, 
+        // OR we switch style if we have one layer. 
+        // Here we implemented one layer 'trace-slope' OR 'trace-complete' at init.
+        // If we want to toggle live, we might need to handle it. 
+        // But Standard View usually doesn't toggle slope/flat live in this specific way via this function.
+    };
+
+    /**
+     * Updates Styles (Thickness, Opacity, Colors) for all layers live.
+     */
+    const updateVariantStyle = (styles = {}) => {
+        if (!map.value) return;
+        const { thickness, opacity, colorNew, colorCommon, colorAbandoned, colorTrace,
+            slopeThickness, slopeOpacity } = styles;
+
+        // 1. Update Main (Abandoned)
+        if (map.value.getLayer('trace-main-abandoned')) {
+            if (thickness !== undefined) map.value.setPaintProperty('trace-main-abandoned', 'line-width', Math.max(1, thickness - 1));
+            if (opacity !== undefined) map.value.setPaintProperty('trace-main-abandoned', 'line-opacity', opacity);
+            if (colorAbandoned !== undefined) map.value.setPaintProperty('trace-main-abandoned', 'line-color', colorAbandoned);
+        }
+
+        // 2. Update Segments (Common/New)
+        if (map.value.getLayer('trace-variant-segment-common')) {
+            if (thickness !== undefined) map.value.setPaintProperty('trace-variant-segment-common', 'line-width', thickness);
+            if (opacity !== undefined) map.value.setPaintProperty('trace-variant-segment-common', 'line-opacity', opacity);
+            if (colorCommon !== undefined) map.value.setPaintProperty('trace-variant-segment-common', 'line-color', colorCommon);
+        }
+        if (map.value.getLayer('trace-variant-segment-new')) {
+            if (thickness !== undefined) map.value.setPaintProperty('trace-variant-segment-new', 'line-width', thickness);
+            if (opacity !== undefined) map.value.setPaintProperty('trace-variant-segment-new', 'line-opacity', opacity);
+            if (colorNew !== undefined) map.value.setPaintProperty('trace-variant-segment-new', 'line-color', colorNew);
+        }
+
+        // 3. Update Slope (Top)
+        ['trace-slope-aller', 'trace-slope-retour'].forEach(id => {
+            if (map.value.getLayer(id)) {
+                if (slopeThickness !== undefined) map.value.setPaintProperty(id, 'line-width', slopeThickness);
+                if (slopeOpacity !== undefined) map.value.setPaintProperty(id, 'line-opacity', slopeOpacity);
+
+                const currentGradient = map.value.getPaintProperty(id, 'line-gradient');
+                if (!currentGradient && colorTrace !== undefined) {
+                    map.value.setPaintProperty(id, 'line-color', colorTrace);
+                }
+            }
+        });
     };
 
     return {
@@ -241,6 +309,7 @@ export function useTraceLayers(map) {
         updateLayerVisibility,
         updateTraceOverlapVisibility,
         updateVariantSlopeMode,
+        updateVariantStyle,
         coloredSegmentsGeoJsonRef,
         slopeExpressionRef
     };
