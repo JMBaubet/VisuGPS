@@ -123,6 +123,8 @@
               y1="0"
               :x2="progressX"
               :y2="svgHeight - 30"
+              stroke="#D32F2F"
+              stroke-width="2"
           ></line>
           
           <!-- Hover Line -->
@@ -409,16 +411,112 @@ async function processData() {
     });
     altitudeConnectors.value = connectors;
 
-    // 4. Ticks
+    // 4. Ticks (with Mapping Master -> Variant Distance)
     xTicks.value = [];
     const tickInterval = (getSettingValue('Visualisation/Profil Altitude/Graphe/RepereDistance') || 10) * 1000; 
     
+    // Helper to calculate variant distance at a specific master distance
+    const getVarDistAtMasterM = (dm) => {
+        // Prepare list of modifications with horizontal bounds and variant distance ranges
+        const sortedModifs = props.variantBlueSegments.map(b => {
+            const isDepart = b.type === 'DEPART';
+            const isArrivee = b.type === 'ARRIVEE';
+            const widthM = b.lengthM; 
+            let mMin = 0; // Start of blue segment on x-axis
+            let mMax = 0; // End of blue segment on x-axis
+            
+            // Master abandoned range [mStart, mEnd]
+            let mStart = 0;
+            let mEnd = 0;
+
+            if (isDepart) {
+                mEnd = b.anchorM;
+                mStart = 0;
+                mMin = b.anchorM - widthM;
+                mMax = b.anchorM;
+            } else if (isArrivee) {
+                mStart = b.anchorM;
+                mEnd = props.totalMainDistance;
+                mMin = b.anchorM;
+                mMax = b.anchorM + widthM;
+            } else {
+                mStart = b.anchorM;
+                mEnd = b.anchorEndM;
+                const mCenter = (b.anchorM + b.anchorEndM) / 2;
+                mMin = mCenter - widthM / 2;
+                mMax = mMin + widthM;
+            }
+            
+            return {
+                ...b,
+                mStart,
+                mEnd,
+                mMin,
+                mMax,
+                vDistStart: b.points?.[0]?.distance || 0,
+                vDistEnd: b.points?.[b.points.length - 1]?.distance || 0
+            };
+        }).sort((a,b) => a.mStart - b.mStart);
+
+        let dv = 0;
+        let lastMasterM = 0;
+
+        for (const m of sortedModifs) {
+            // 1. Common section before this modification
+            if (dm < m.mStart) {
+                return Math.max(0, dv + (dm - lastMasterM));
+            }
+            dv += (m.mStart - lastMasterM);
+            
+            // 2. We are inside the master abandoned range [mStart, mEnd]
+            if (dm <= m.mEnd) {
+                if (dm < m.mMin) {
+                   // Gray zone before blue: distance is fixed at start of variant
+                   return Math.max(0, m.vDistStart * 1000);
+                } else if (dm <= m.mMax) {
+                   // Blue zone: distance increases
+                   const ratio = (dm - m.mMin) / (m.mMax - m.mMin || 1);
+                   return Math.max(0, (m.vDistStart + ratio * (m.vDistEnd - m.vDistStart)) * 1000);
+                } else {
+                   // Gray zone after blue: distance is fixed at end of variant
+                   return Math.max(0, m.vDistEnd * 1000);
+                }
+            }
+            
+            // We are past this modification
+            dv = m.vDistEnd * 1000;
+            lastMasterM = m.mEnd;
+        }
+
+        // 3. Final common section
+        return Math.max(0, dv + (dm - lastMasterM));
+    };
+
     if (tickInterval > 0) {
         for (let d = 0; d <= contextTotalDistMeters; d += tickInterval) {
-             let labelValKm = d / 1000;
+             const variantDistM = getVarDistAtMasterM(d);
+             let labelValKm = variantDistM / 1000;
              xTicks.value.push({ value: d, position: getX(d), label: `${labelValKm.toFixed(1)}km` });
         }
     }
+    
+    // Define updateProgressPosition inside processData to access getX and local scope
+    // But assign it to a shared ref or export it? 
+    // Easier: just expose getX or use a computed for progressX?
+    // Let's use a computed property or a watcher that re-calculates.
+    // But `getX` uses pixelScaleX etc.
+    
+    // Solution: Assign the update function to a module-level variable or ref that the watcher can call?
+    // Or simply define a standalone getX helper at script setup level?
+    // Let's stick to defining it inside for now, but we need to solve the watch.
+    
+    // Actually, let's just make the watch effective *inside* processData? No.
+    // Let's refactor getX to be available. 
+    
+    // WAIT. I can just copy the getX logic. 
+    // getX = (d) => (d / contextTotalDistMeters) * (viewBoxWidth.value - props.padding.left - props.padding.right); (roughly)
+    
+    // Let's try to find getX first to be sure.
 
     yTicks.value = [];
     for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
@@ -429,6 +527,76 @@ async function processData() {
 watch([() => props.totalMainDistance, () => props.abandonedSegments, () => props.mainTracePoints, () => props.variantBlueSegments], () => {
     processData();
 });
+
+const updateProgressPosition = () => {
+    if (props.totalMainDistance === 0) return;
+    // Re-calculate getX locally since it depends on ref viewBoxWidth and prop
+    const getX = (d) => (d / props.totalMainDistance) * viewBoxWidth.value;
+    
+    const vDist = props.currentDistance; // In Meters
+
+    // Prepare list of modifications as in getVarDistAtMasterM
+    const sortedModifs = props.variantBlueSegments.map(b => {
+        const isDepart = b.type === 'DEPART';
+        const isArrivee = b.type === 'ARRIVEE';
+        const widthM = b.lengthM; 
+        let mMin = 0;
+        if (isDepart) mMin = b.anchorM - widthM;
+        else if (isArrivee) mMin = b.anchorM;
+        else {
+            const mCenter = (b.anchorM + b.anchorEndM) / 2;
+            mMin = mCenter - widthM / 2;
+        }
+        const mMax = mMin + widthM;
+        
+        return {
+            ...b,
+            mStart: isDepart ? 0 : b.anchorM,
+            mEnd: isArrivee ? props.totalMainDistance : (b.anchorEndM || b.anchorM),
+            mMin,
+            mMax
+        };
+    }).sort((a,b) => a.mStart - b.mStart);
+
+    let cursorV = 0; // Cumulative variant distance
+    let cursorM = 0; // Cumulative master distance
+    
+    for (const m of sortedModifs) {
+        // 1. Common section before this modification
+        const commonLen = m.mStart - cursorM;
+        
+        if (vDist <= (cursorV + commonLen)) {
+            const delta = vDist - cursorV;
+            progressX.value = getX(cursorM + delta);
+            // console.log("ProgressX Common", progressX.value);
+            return;
+        }
+        
+        cursorV += commonLen;
+        cursorM = m.mStart;
+        
+        // 2. Variant section (Blue)
+        const variantLen = m.lengthM;
+        
+        if (vDist <= (cursorV + variantLen)) {
+            const ratio = (vDist - cursorV) / (variantLen || 1);
+            const visualMasterM = m.mMin + ratio * (m.mMax - m.mMin);
+            progressX.value = getX(visualMasterM);
+            // console.log("ProgressX Variant", progressX.value);
+            return;
+        }
+        
+        cursorV += variantLen;
+        cursorM = m.mEnd; 
+    }
+    
+    // 3. Final common section
+    const delta = vDist - cursorV;
+    progressX.value = getX(cursorM + delta);
+    // console.log("ProgressX Final", progressX.value);
+};
+
+watch(() => props.currentDistance, updateProgressPosition);
 
 function handleMouseMove(event) {
     if (!containerRef.value || props.totalMainDistance === 0) return;

@@ -11,6 +11,9 @@
       <v-col cols="9" class="fill-height pa-0" style="position: relative;">
         <div id="map" class="fill-height"></div>
         
+        <!-- Cross in the middle of the map -->
+        <div class="map-center-cross"></div>
+        
         <!-- Widget de données sur la carte -->
         <v-card v-if="currentPointData && showPointData" class="debug-overlay-card elevation-4" border>
           <v-card-title class="text-subtitle-2 bg-primary text-white py-1 d-flex justify-space-between">
@@ -113,6 +116,37 @@
   overflow-y: auto;
   opacity: 0.8;
   pointer-events: auto;
+}
+
+.map-center-cross {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+}
+.map-center-cross::before,
+.map-center-cross::after {
+  content: '';
+  position: absolute;
+  background-color: black;
+}
+.map-center-cross::before {
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.map-center-cross::after {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 100%;
+  transform: translateX(-50%);
 }
 </style>
 

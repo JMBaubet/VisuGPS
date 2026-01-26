@@ -230,6 +230,47 @@ const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, c
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
 const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
 
+// --- Speed Control Logic (Restore Logarithmic) ---
+const sliderPosition = ref(25); // Default start pos ~ 1.0x if min=0.1 max=100
+const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value') || 0.1);
+const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value') || 100.0);
+
+function mapSliderToSpeed(sliderValue) {
+    const min = minSpeedValue.value;
+    const max = maxSpeedValue.value;
+    if (sliderValue <= 0) return min;
+    if (sliderValue >= 100) return max;
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+    return Math.exp(logVal);
+}
+
+function mapSpeedToSlider(speed) {
+    const min = minSpeedValue.value;
+    const max = maxSpeedValue.value;
+    if (speed <= min) return 0;
+    if (speed >= max) return 100;
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const val = (Math.log(speed) - minLog) / (maxLog - minLog);
+    return val * 100;
+}
+
+// Sync Slider -> Speed
+watch(sliderPosition, (newVal) => {
+    currentSpeed.value = mapSliderToSpeed(newVal);
+});
+
+// Sync Speed -> Slider (Init)
+watch(currentSpeed, (newVal) => {
+    // Avoid feedback loop if diff is small
+    const calculatedSlider = mapSpeedToSlider(newVal);
+    if (Math.abs(calculatedSlider - sliderPosition.value) > 1) {
+        sliderPosition.value = calculatedSlider;
+    }
+}, { immediate: true });
+
 // 6. Camera Interpolator (NEW)
 const { updateCameraPosition } = useCameraInterpolator(map);
 
@@ -266,10 +307,7 @@ const currentWeather = ref(null);
 const showWeatherTable = ref(false);
 const circuitScenarios = ref([]);
 
-// Speed Slider Constants
-const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value'));
-const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value'));
-const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value'));
+// Speed Slider Constants (Removed duplicates)
 
 // --- Methods ---
 
@@ -988,7 +1026,7 @@ const handleKeydown = (e) => {
              break;
         case '1':
         case '&': // Support AZERTY '1'
-             sliderPosition.value = mapSpeedToSlider(1.0); // Reset speed to 1x
+             sliderPosition.value = mapSpeedToSlider(1.0);
              break;
         case 'w':
         case 'W':
