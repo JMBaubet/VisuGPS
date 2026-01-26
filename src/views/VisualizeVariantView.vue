@@ -73,6 +73,7 @@
             :main-trace-points="null"
             :variant-segments="[]"
             :current-segment-index="null"
+            @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
         />
     </template>
 
@@ -209,6 +210,7 @@ const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/l
 const dynamicZoomIntensity = computed(() => getSettingValue('Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique') || 10);
 const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/colorerSelonPente')); // Fixed path - wait, verify Visualisation vs Edition?
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
+const jumpDuration = computed(() => getSettingValue('Visualisation/Lecture/jumpDuration') ?? 2.0);
 
 // --- Variant Visualization Settings ---
 const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
@@ -253,7 +255,7 @@ const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, u
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
-const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime } = useAnimationController();
+const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
 
 // 6. Camera Interpolator (NEW)
 const { updateCameraPosition } = useCameraInterpolator(map);
@@ -698,11 +700,11 @@ const animateLoop = (timestamp) => {
     checkLayers(distanceTraveled);
 
     // 5. Camera Interpolation (Using New Composable) - Expects KM for tracking comparison
-    const newBearing = updateCameraPosition(distanceTraveled, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+    const { bearing: newBearing } = updateCameraPosition(distanceTraveled, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
         dynamicZoomIntensity: dynamicZoomIntensity.value,
         currentSpeed: currentSpeed.value,
         lineStringRef: lineStringRef,
-        isMultisegment: false, // Phase 1
+        isMultisegment: false, 
         activeVariantSegments: []
     });
     if (newBearing !== null) {
@@ -743,6 +745,88 @@ const animateLoop = (timestamp) => {
         isAnimationFinished.value = true;
         isPaused.value = true;
         handleEndSequence();
+    }
+};
+
+const handleJumpRequest = async (targetDistanceKm) => {
+    // 1. Suspension
+    const wasPlaying = !isPaused.value;
+    isPaused.value = true;
+    isFlytoActive.value = true;
+    
+    const targetDistanceM = targetDistanceKm * 1000;
+    
+    // 2. Mise à jour État (Instantanée)
+    // Attention: totalDistanceRef est en Mètres ici, mais setTimeFromDistance attend des KM pour les deux ?
+    // Check setTimeFromDistance: (targetDistanceInKm, totalDistanceKm, totalDurationMs)
+    // Ici totalDistanceRef est en Mètres.
+    setTimeFromDistance(targetDistanceKm, totalDistanceRef.value / 1000, totalDurationAt1xRef.value);
+
+    
+    // Comet Update
+    updateComet(targetDistanceKm); 
+    
+    // Layers Logic (Aller/Retour)
+    checkLayers(targetDistanceKm);
+    
+    // Weather
+    if (simulationStartDate.value && weatherForecasts.value?.length > 0) {
+         const timeMs = accumulatedTime.value || 0;
+         const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
+         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, weatherForecasts.value);
+         if (newWeather) currentWeather.value = newWeather;
+    }
+    
+    // 3. Calcul Cible Caméra
+    // Interpolated Bearing
+    const { bearing: interpolatedBearing, target: targetCameraParams } = updateCameraPosition(targetDistanceKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+        dynamicZoomIntensity: dynamicZoomIntensity.value,
+        currentSpeed: currentSpeed.value,
+        lineStringRef: lineStringRef,
+        isMultisegment: false, 
+        activeVariantSegments: [],
+        apply: false // IMPORTANT: Do not move map yet
+    });
+    
+    if (interpolatedBearing !== null) currentTraceBearing.value = interpolatedBearing;
+    
+    let targetCamera = targetCameraParams;
+    
+    if (!targetCamera) {
+        const pts = trackingPointsWithDistanceRef.value;
+        let bestPoint = pts[0];
+        for (let i = pts.length - 1; i >= 0; i--) {
+            if (pts[i].distance <= targetDistanceKm) {
+                bestPoint = pts[i];
+                break;
+            }
+        }
+        targetCamera = {
+            center: bestPoint.coordonnee, 
+            zoom: bestPoint.editedZoom ?? bestPoint.zoom,
+            pitch: bestPoint.editedPitch ?? bestPoint.pitch,
+            bearing: bestPoint.editedCap ?? bestPoint.cap
+        };
+    }
+
+    try {
+        const pointOnLine = turf.along(lineStringRef.value, targetDistanceKm, { units: 'kilometers' });
+        targetCamera.center = pointOnLine.geometry.coordinates;
+    } catch(e) { }
+
+    // 4. FlyTo Transition
+    await flyToPromise({
+        ...targetCamera,
+        duration: jumpDuration.value * 1000 
+    });
+    
+    // 5. Reprise
+    isFlytoActive.value = false;
+    
+    if (wasPlaying) {
+        isPaused.value = false;
+    } else {
+        if(map.value) map.value.triggerRepaint();
     }
 };
 

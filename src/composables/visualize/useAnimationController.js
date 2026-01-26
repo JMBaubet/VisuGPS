@@ -59,6 +59,34 @@ export function useAnimationController() {
         return { phase, distanceTraveled };
     };
 
+    /**
+     * Force l'état de l'animation à une distance donnée.
+     * Recalcule accumulatedTime pour correspondre à cette distance.
+     */
+    const setTimeFromDistance = (targetDistanceInKm, totalDistanceKm, totalDurationMs) => {
+        // Protection division par zéro
+        if (totalDistanceKm <= 0) return;
+
+        // Clamp distance
+        const clampedDist = Math.max(0, Math.min(targetDistanceInKm, totalDistanceKm));
+
+        // Calcul du ratio
+        const ratio = clampedDist / totalDistanceKm;
+
+        // Mise à jour du temps interne
+        accumulatedTime = ratio * totalDurationMs;
+
+        // Mise à jour immédiate des refs exposées
+        currentDistanceInMeters.value = clampedDist * 1000;
+        distanceDisplay.value = clampedDist.toFixed(2);
+
+        return { phase: ratio, distanceTraveled: clampedDist };
+    };
+
+    const setSpeed = (newSpeed) => {
+        currentSpeed.value = newSpeed;
+    };
+
     // Helper Math
     const lerp = (start, end, amt) => (1 - amt) * start + amt * end;
     const lerpAngle = (start, end, amt) => {
@@ -80,6 +108,8 @@ export function useAnimationController() {
         pauseAnimation,
         resetTime,
         updateTime,
+        setTimeFromDistance,
+        setSpeed,
         lerp,
         lerpAngle
     };

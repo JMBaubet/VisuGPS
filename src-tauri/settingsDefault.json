@@ -1807,6 +1807,18 @@
                 "doc": "docs/DocParametrage/Visualisation/Lecture/vitesse.md"
               },
               {
+                "identifiant": "jumpDuration",
+                "libelle": "Durée déplacement",
+                "description": "Durée de la transition lors d'un saut temporel (clic sur graphe).",
+                "type": "reel",
+                "defaut": 2.0,
+                "min": 0,
+                "max": 10,
+                "step": 0.25,
+                "unite": "sec",
+                "doc": "docs/DocParametrage/Visualisation/Lecture/jumpDuration.md"
+              },
+              {
                 "defaut": 1.0,
                 "description": "Durée en secondes du survol pour revenir à la position de la caméra après une pause.",
                 "identifiant": "timerReprisePause",

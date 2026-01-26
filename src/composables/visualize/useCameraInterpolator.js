@@ -16,22 +16,24 @@ export function useCameraInterpolator(map) {
      * @param {number} distanceTraveled - Distance parcourue en km
      * @param {Array} trackingPoints - Liste des points avec distance
      * @param {Array} controlPointIndices - Indices des points de contrôle
-     * @param {Object} options - Options { dynamicZoomCoefficient, lineStringRef, isMultisegment, activeVariantSegments }
-     * @returns {number|null} Le bearing calculé de la trace (ou null si inchangé)
+     * @param {Object} options - Options { dynamicZoomCoefficient, lineStringRef, isMultisegment, activeVariantSegments, apply }
+     * @returns {{ bearing: number|null, target: Object|null }} Le bearing calculé de la trace et l'objet cible de la caméra.
      */
     const updateCameraPosition = (distanceTraveled, trackingPoints, controlPointIndices, options = {}) => {
-        if (!map.value || !trackingPoints || trackingPoints.length < 2) return null;
+        if (!map.value || !trackingPoints || trackingPoints.length < 2) return { bearing: null, target: null };
 
         const {
             dynamicZoomIntensity = 10,
             currentSpeed = 1.0,
             lineStringRef,
             isMultisegment,
-            activeVariantSegments
+            activeVariantSegments,
+            apply = true // New option, default true
         } = options;
 
         let prevCamKeyframe, nextCamKeyframe;
         let constructedBearing = null;
+        let target = null; // Will hold { center, zoom, pitch, bearing }
 
         // 1. Recherche du dernier point de contrôle passé
         let lastPassedControlPointIndex = -1;
@@ -82,10 +84,12 @@ export function useCameraInterpolator(map) {
             const pitch = lerp(prevPitch, nextPitch, progressInSegment);
             const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
 
-            map.value.setZoom(zoom);
-            map.value.setPitch(pitch);
-            map.value.setBearing(bearing);
-            map.value.setCenter([lookAtPointLng, lookAtPointLat]);
+            target = {
+                center: [lookAtPointLng, lookAtPointLat],
+                zoom,
+                pitch,
+                bearing
+            };
 
             // Calcul du bearing instantané de la trace (pour la boussole/vent)
             if (lineStringRef && lineStringRef.value) {
@@ -140,13 +144,12 @@ export function useCameraInterpolator(map) {
                     const pitch = lerp(prevPitch, nextPitch, progressInSegment);
                     const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
 
-                    map.value.setZoom(zoom);
-                    map.value.setPitch(pitch);
-                    map.value.setBearing(bearing);
-
-
-
-                    map.value.setCenter([lookAtPointLng, lookAtPointLat]);
+                    target = {
+                        center: [lookAtPointLng, lookAtPointLat],
+                        zoom,
+                        pitch,
+                        bearing
+                    };
 
                     // Calcul du bearing de la trace
 
@@ -183,16 +186,29 @@ export function useCameraInterpolator(map) {
                     const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
                     const bearing = currentPoint.editedCap ?? currentPoint.cap;
 
-                    map.value.setZoom(zoom);
-                    map.value.setPitch(pitch);
-                    map.value.setBearing(bearing);
-                    map.value.setCenter(currentPoint.coordonnee);
+                    target = {
+                        center: currentPoint.coordonnee,
+                        zoom,
+                        pitch,
+                        bearing
+                    };
                     constructedBearing = bearing;
                 }
             }
         }
 
-        return constructedBearing;
+        // Apply if requested
+        if (apply && target && map.value) {
+            map.value.setZoom(target.zoom);
+            map.value.setPitch(target.pitch);
+            map.value.setBearing(target.bearing);
+            map.value.setCenter(target.center);
+        }
+
+        return {
+            bearing: constructedBearing,
+            target
+        };
     };
 
     return {

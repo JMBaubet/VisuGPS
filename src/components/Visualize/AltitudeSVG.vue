@@ -8,7 +8,12 @@
     </div>
 
     <!-- Scrolling SVG Container -->
-    <div class="svg-container" ref="containerRef" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave">
+    <div class="svg-container" ref="containerRef" 
+         @mousemove="handleMouseMove" 
+         @mouseleave="handleMouseLeave"
+         @click="handleGraphClick"
+         style="cursor: pointer;"
+    >
       <div
         v-if="tooltipVisible"
         class="tooltip"
@@ -110,6 +115,8 @@
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+
+const emits = defineEmits(['jump-requested']);
 
 const props = defineProps({
     circuitId: { type: String, required: true },
@@ -651,6 +658,42 @@ function handleMouseMove(event) {
 
 function handleMouseLeave() {
     tooltipVisible.value = false;
+}
+
+function handleGraphClick(event) {
+    if (!containerRef.value || totalDrawableDistance.value === 0) return;
+
+    const rect = containerRef.value.getBoundingClientRect();
+    const clickXFn = event.clientX - rect.left; // X relative to viewport of container
+    const scrollLeft = containerRef.value.scrollLeft;
+    
+    // Position X absolue dans le SVG (ViewBox space)
+    // Attention: viewBoxWidth.value corresponds à la largeur TOTALE du dessin (virtuel)
+    // Mais on clique sur une DIV qui a une largeur fixe (clientWidth).
+    // On doit convertir le click écran + scroll en position "mètres".
+    
+    // Le ratio X -> Mètres est: TotalMeters / ViewBoxWidth
+    
+    const clickXInSvg = clickXFn + scrollLeft;
+    
+    // Eviter de cliquer dans le padding gauche si on scroll est 0?
+    // Le paddingLeft est inclus dans le SVG mais le container scrolle le SVG.
+    // L'axe X commence à 0 (qui inclut padding.left pour les labels?)
+    // Non, les labels sont en dehors du svg-container ("y-axis-labels-container").
+    // Donc svg-container contient exactement le SVG qui a viewBoxWidth.
+    
+    // Calcul de la distance
+    // x = (dist / totalDist) * viewBoxWidth
+    // So: dist = (x * totalDist) / viewBoxWidth
+    
+    let targetDistanceMeters = (clickXInSvg * totalDrawableDistance.value) / viewBoxWidth.value;
+    
+    // Clamp
+    targetDistanceMeters = Math.max(0, Math.min(targetDistanceMeters, totalDrawableDistance.value));
+    
+    // Emit
+    // Debug: console.log("Jump to:", targetDistanceMeters, "m");
+    emits('jump-requested', targetDistanceMeters);
 }
 </script>
 
