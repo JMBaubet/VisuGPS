@@ -234,6 +234,7 @@ const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanc
 const sliderPosition = ref(25); // Default start pos ~ 1.0x if min=0.1 max=100
 const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value') || 0.1);
 const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value') || 100.0);
+const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value') || 25.0);
 
 function mapSliderToSpeed(sliderValue) {
     const min = minSpeedValue.value;

@@ -522,6 +522,11 @@ async function processData() {
     for (let alt = graphMinY; alt <= graphMaxY; alt += altitudeTickInterval) {
         yTicks.value.push({ y: yScale(alt), label: `${alt}m` });
     }
+
+    // Reset scroll when data reloaded
+    nextTick(() => {
+        if (containerRef.value) containerRef.value.scrollLeft = 0;
+    });
 }
 
 watch([() => props.totalMainDistance, () => props.abandonedSegments, () => props.mainTracePoints, () => props.variantBlueSegments], () => {
@@ -593,8 +598,21 @@ const updateProgressPosition = () => {
     // 3. Final common section
     const delta = vDist - cursorV;
     progressX.value = getX(cursorM + delta);
-    // console.log("ProgressX Final", progressX.value);
 };
+
+// Horizontal Scroll Management (Moved to a separate watcher to avoid early return issues)
+watch(progressX, (newX) => {
+    if (containerRef.value) {
+        const containerWidth = containerRef.value.clientWidth;
+        if (viewBoxWidth.value > containerWidth) {
+            // Scroll to center the cursor if it passes the middle
+            let targetScroll = newX - (containerWidth / 2);
+            // Clamp scroll
+            targetScroll = Math.max(0, Math.min(targetScroll, viewBoxWidth.value - containerWidth));
+            containerRef.value.scrollLeft = targetScroll;
+        }
+    }
+});
 
 watch(() => props.currentDistance, updateProgressPosition);
 
