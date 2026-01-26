@@ -47,9 +47,27 @@
               <v-list-item
                 v-bind="groupProps"
                 :title="getModTitle(mod, mod.originalIndex)"
-                :subtitle="getModSubtitle(mod)"
                 :class="{ 'border-s-4 border-primary': !mod.finalized && mod.type === activeMode }"
               >
+                <template v-slot:subtitle>
+                  <div class="d-flex align-center mt-1">
+                    <v-tooltip location="bottom">
+                       <template v-slot:activator="{ props: tooltipProps }">
+                          <v-icon v-bind="tooltipProps" size="14" class="mr-1" color="grey-darken-1">{{ getRoutingProfileIcon(mod.routingProfile) }}</v-icon>
+                       </template>
+                       <span>Profil : {{ mod.routingProfile || 'Défaut' }}</span>
+                    </v-tooltip>
+                    
+                    <v-tooltip location="bottom">
+                       <template v-slot:activator="{ props: tooltipProps }">
+                          <v-icon v-bind="tooltipProps" size="14" class="mr-2" color="grey-darken-1">{{ getServiceIcon(mod.routingService) }}</v-icon>
+                       </template>
+                       <span>Service : {{ mod.routingService || 'Défaut' }}</span>
+                    </v-tooltip>
+
+                    <span class="text-caption text-grey-darken-1">{{ getModSubtitle(mod) }}</span>
+                  </div>
+                </template>
                 <template v-slot:prepend>
                   <v-icon :color="getModColor(mod.type)" class="mr-2">{{ getModIcon(mod.type) }}</v-icon>
                 </template>
@@ -75,13 +93,13 @@
                       title="Renommer ce segment"
                     ></v-btn>
                     <v-btn
-                      icon="mdi-eye"
+                      :icon="getRoutingProfileIcon(mod.routingProfile)"
                       size="x-small"
                       variant="text"
                       color="primary"
                       class="mr-1"
-                      @click.stop="$emit('flyto-mod', mod.originalIndex)"
-                      title="Centrer sur ce segment"
+                      @click.stop="$emit('update-routing', mod.originalIndex)"
+                      :title="`Appliquer le routage actuel (${mod.routingProfile || 'défaut'})`"
                     ></v-btn>
                     <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click.stop="$emit('delete-mod', mod.originalIndex)"></v-btn>
                     <v-icon size="small" color="grey">{{ groupProps.appendIcon }}</v-icon>
@@ -112,22 +130,16 @@
           </v-list-group>
         </v-list>
 
-        <!-- Save Button -->
+        <!-- Stats Section -->
         <div class="pa-4" v-if="modifications.length > 0">
-          <div v-if="projectedStats.total > 0" class="text-center text-caption font-weight-bold text-primary mb-3">
+          <div v-if="projectedStats.total > 0" class="text-center text-caption font-weight-bold text-primary mb-1">
              <v-icon size="small" start>mdi-social-distance</v-icon>
-             Distance projetée : {{ projectedStats.total.toFixed(2) }} km
+             Distance totale : {{ projectedStats.total.toFixed(2) }} km
           </div>
-          <v-btn
-            block
-            variant="flat"
-            color="success"
-            :disabled="!isValid || (isEditing && !isModified)"
-            @click="$emit('save')"
-          >
-            <v-icon start>mdi-content-save</v-icon>
-            {{ isEditing ? 'Mettre à jour' : 'Enregistrer Variante' }}
-          </v-btn>
+          <div class="text-center text-caption text-grey">
+            <v-icon size="x-small" start color="success">mdi-sync</v-icon>
+            Sauvegarde automatique active
+          </div>
         </div>
       </div>
 
@@ -291,7 +303,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'flyto-mod', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
+const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'update-routing', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
 
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
@@ -353,5 +365,22 @@ const getPointSubtitle = (point) => {
         return `Position : ${distKm.toFixed(1)} km`;
     }
     return ''; 
+};
+
+const getRoutingProfileIcon = (profile) => {
+    const map = {
+        'bike': 'mdi-image-filter-hdr',     // VTT / Chemin
+        'mtb': 'mdi-terrain',
+        'racingbike': 'mdi-bike-fast',      // Route uniquement
+        'car': 'mdi-bike',                  // Route + Pistes
+        'foot': 'mdi-walk'
+    };
+    return map[profile] || 'mdi-help-circle-outline';
+};
+
+const getServiceIcon = (service) => {
+    if (service === 'GraphHopper') return 'mdi-VectorLine'; // Or something similar
+    if (service === 'OpenRouteService') return 'mdi-map-marker-path';
+    return 'mdi-server';
 };
 </script>

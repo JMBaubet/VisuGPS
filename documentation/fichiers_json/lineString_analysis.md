@@ -8,7 +8,7 @@ Il représente une trace GPS sous forme d’une liste ordonnée de coordonnées.
 - `type` → toujours `"Feature"`.  
 - `geometry` → description de la géométrie.  
   - `type` → toujours `"LineString"`.  
-  - `coordinates` → tableau de points `[longitude, latitude, altitude_brute, altitude_corrigée]`.  
+  - `coordinates` → tableau de points `[longitude, latitude, altitude]`.  
 - `properties` → objet pouvant contenir des métadonnées supplémentaires (souvent libre).  
 
 ---

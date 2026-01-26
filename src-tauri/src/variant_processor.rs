@@ -25,6 +25,10 @@ pub enum VariantModification {
         full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_service: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_profile: Option<String>,
     },
     #[serde(rename = "ARRIVEE_REPORTEE", rename_all = "camelCase")]
     ArriveeReportee {
@@ -35,6 +39,10 @@ pub enum VariantModification {
         full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_service: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_profile: Option<String>,
     },
     #[serde(rename = "SEGMENT_DEVIATION", rename_all = "camelCase")]
     SegmentDeviation {
@@ -47,6 +55,10 @@ pub enum VariantModification {
         full_geometry: Option<Vec<VariantPoint>>, // Detailed route
         longueur: f64,
         name: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_service: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_profile: Option<String>,
     },
 }
 
@@ -180,6 +192,19 @@ pub async fn create_variant_files(
     let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
 
     let mut global_warning: Option<String> = None;
+    let variant_id = &request.metadata.id;
+
+    // --- CLEANUP: Remove old segment files for this variant ---
+    if let Ok(entries) = fs::read_dir(&circuit_data_dir) {
+        for entry in entries.flatten() {
+            let filename = entry.file_name().to_string_lossy().into_owned();
+            if (filename.starts_with(&format!("lineString_{}", variant_id)) || 
+                filename.starts_with(&format!("tracking_{}", variant_id))) &&
+               !filename.contains("_FULL") {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
 
     // Process each modification for individual files
     for (index, modification) in request.modifications.iter().enumerate() {
@@ -2076,4 +2101,9 @@ pub async fn get_variant_tracking_internal(
     }
     
     Ok(final_tracking)
+}
+
+#[tauri::command]
+pub async fn get_altitudes(points: Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
+    crate::elevation_provider::fetch_altitudes(&points).await
 }

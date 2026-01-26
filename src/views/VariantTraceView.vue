@@ -34,7 +34,7 @@
       <VariantSidebar
         :circuit-name="circuitName"
         :active-mode="currentMode"
-        v-model:config="variantConfig"
+        :config="variantConfig"
         :modifications="modifications"
         :saved-variants="savedVariants"
         :can-generate-preview="canGeneratePreview"
@@ -45,14 +45,13 @@
         :trackingPoints="trackingPoints"
         :segment-length="trackingSegmentLength"
         :projected-stats="variantProjectedStats"
-        @update:config="variantConfig = $event"
         @generate="generatePreview"
         @save="saveVariant"
         @delete-point="handleDeletePoint"
         @delete-mod="handleDeleteMod"
         @finalize-mod="finalizeMod"
         @rename-mod="handleRenameMod"
-        @flyto-mod="handleFlyToMod"
+        @update-routing="handleUpdateRouting"
         @load-variant="handleLoadVariant"
         @delete-saved-variant="handleDeleteSavedVariant"
         @rename-saved-variant="handleRenameSavedVariant"
@@ -175,7 +174,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import VariantToolbar from '../components/Variant/VariantToolbar.vue';
@@ -206,6 +205,7 @@ const showSidebar = ref(true);
 const isLoading = ref(true);
 const isDocDialogVisible = ref(false);
 const routingErrorProfile = ref(null);
+const isSaving = ref(false);
 
 // Renaming Dialog State
 const showRenameDialog = ref(false);
@@ -229,7 +229,7 @@ const variantToDelete = ref(null);
 const showConfigErrorDialog = ref(false);
 const configErrorMessage = ref('');
 
-const variantConfig = ref({
+const variantConfig = reactive({
   routingService: 'GraphHopper',
   routingProfile: 'bike'
 });
@@ -270,9 +270,23 @@ const isValid = computed(() => {
   return modifications.value.length > 0 && modifications.value.every(m => m.finalized);
 });
 
-watch(() => variantConfig.value.routingProfile, () => {
-    if (modifications.value.length > 0) {
-        generatePreview();
+// Watch specific to the active mod (dynamic during first creation only)
+watch(() => variantConfig.routingProfile, (newVal) => {
+    // Only affects segments that are NOT yet finalized AND have never been locked
+    const activeMod = modifications.value.find(m => !m.finalized && !m.routingLocked && m.type === currentMode.value);
+    if (activeMod) {
+        activeMod.routingProfile = newVal;
+        const modIndex = modifications.value.indexOf(activeMod);
+        generatePreviewForMod(modIndex);
+    }
+});
+
+watch(() => variantConfig.routingService, (newVal) => {
+    const activeMod = modifications.value.find(m => !m.finalized && !m.routingLocked && m.type === currentMode.value);
+    if (activeMod) {
+        activeMod.routingService = newVal;
+        const modIndex = modifications.value.indexOf(activeMod);
+        generatePreviewForMod(modIndex);
     }
 });
 
@@ -313,7 +327,7 @@ const initMap = async () => {
     }
     
     // Load behavior settings
-    variantConfig.value.routingService = getSettingValue('Variante/Parametres/routingService') || 'GraphHopper';
+    variantConfig.routingService = getSettingValue('Variante/Parametres/routingService') || 'GraphHopper';
     
     // Mapping French labels from settings to technical keys for Toolbar/API
     const profileLabel = getSettingValue('Variante/Parametres/routingType') || 'Route uniquement';
@@ -322,15 +336,13 @@ const initMap = async () => {
         'Route uniquement': 'racingbike',
         'VTT / Chemin': 'bike'
     };
-    variantConfig.value.routingProfile = profileMap[profileLabel] || 'racingbike';
+    variantConfig.routingProfile = profileMap[profileLabel] || 'racingbike';
     
-    console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.value.routingProfile}"`);
-    console.log(`[Init] Using routing service: ${variantConfig.value.routingService}`);
+    console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.routingProfile}"`);
+    console.log(`[Init] Using routing service: ${variantConfig.routingService}`);
 
     // Watch for profile changes to reset error state
-    watch(() => variantConfig.value.routingProfile, () => {
-        routingErrorProfile.value = null;
-    });
+    // Watch moved for better scoping
 
     mapboxgl.accessToken = token;
 
@@ -726,7 +738,24 @@ const handleMapClick = (e) => {
 
     // Create new group if none found for this mode that is active
     if (!activeMod) {
-        activeMod = { type: currentMode.value, points: [], preview: null, finalized: false };
+        // --- INITIATE NEW VARIANT NAMING ---
+        if (!loadedVariantId.value) {
+            loadedVariantId.value = `var_${crypto.randomUUID()}`;
+            // Set a default and show dialog
+            variantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            showSaveDialog.value = true;
+            console.log(`[AutoSave] New Variant ID generated, waiting for name...`);
+        }
+
+        activeMod = { 
+            type: currentMode.value, 
+            points: [], 
+            preview: null, 
+            finalized: false,
+            routingLocked: false, // New flag to distinguish first creation from later edits
+            routingService: variantConfig.routingService,
+            routingProfile: variantConfig.routingProfile
+        };
         modifications.value.push(activeMod);
     }
 
@@ -913,15 +942,21 @@ const handleMapClick = (e) => {
     activeMod.points.push(newPoint);
     isModified.value = true;
 
-    // Auto-finalize SEGMENT if it has 2 anchors
+    // Auto-finalize if SEGMENT is complete (2 anchors)
     if (activeMod.type === 'SEGMENT' && activeMod.points.filter(p => p.type === 'ANCHOR').length >= 2) {
         activeMod.finalized = true;
+        activeMod.routingLocked = true;
     }
 
     updateMarkers();
     if (activeMod.points.length >= 2) {
         const modIndex = modifications.value.indexOf(activeMod);
-        generatePreviewForMod(modIndex);
+        generatePreviewForMod(modIndex).then(() => {
+            if (activeMod && activeMod.finalized) {
+                console.log("[AutoSave] Segment auto-finalized, triggering save...");
+                triggerAutoSave();
+            }
+        });
     }
 };
 
@@ -929,10 +964,26 @@ const finalizeMod = (modIndex) => {
     const mod = modifications.value[modIndex];
     if (mod) {
         mod.finalized = true;
+        mod.routingLocked = true; // Lock settings
         isModified.value = true;
-        generatePreviewForMod(modIndex);
+        generatePreviewForMod(modIndex).then(() => {
+            triggerAutoSave();
+        });
         updateMarkers();
     }
+};
+
+const triggerAutoSave = async () => {
+    if (isSaving.value || modifications.value.length === 0) return;
+    
+    // Ensure ID exists before triggering auto-save
+    if (!loadedVariantId.value) {
+        loadedVariantId.value = `var_${crypto.randomUUID()}`;
+        loadedVariantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    console.log("[AutoSave] Triggering for ID:", loadedVariantId.value);
+    await confirmSaveVariant(true); // true = silent
 };
 
 const handleRenameMod = (modIndex) => {
@@ -942,6 +993,23 @@ const handleRenameMod = (modIndex) => {
     renameIndex.value = modIndex;
     renameValue.value = mod.name || (mod.type === 'SEGMENT' ? `Segment ${modIndex + 1}` : mod.type);
     showRenameDialog.value = true;
+};
+
+const handleUpdateRouting = async (modIndex) => {
+    const mod = modifications.value[modIndex];
+    if (!mod) return;
+    
+    // Assign current global config to this specific mod
+    mod.routingService = variantConfig.routingService;
+    mod.routingProfile = variantConfig.routingProfile;
+    
+    const label = mod.name || (mod.type === 'SEGMENT' ? `le segment ${modIndex + 1}` : mod.type);
+    showSnackbar(`Mise à jour du profil vers "${mod.routingProfile}" pour ${label}...`, "info");
+    
+    // Regenerate preview (and altitude if finalized)
+    await generatePreviewForMod(modIndex);
+    isModified.value = true;
+    triggerAutoSave();
 };
 
 const handleFlyToMod = (modIndex) => {
@@ -986,8 +1054,11 @@ const handleLoadVariant = async (variantId) => {
                 type: '',
                 points: [],
                 finalized: true,
+                routingLocked: true, // Loaded mods are always locked by default
                 preview: null,
-                name: rm.name || null
+                name: rm.name || null,
+                routingService: rm.routingService || null,
+                routingProfile: rm.routingProfile || null
             };
 
             if (rm.type === 'SEGMENT_DEVIATION') {
@@ -1096,6 +1167,7 @@ const handleDeleteMod = (modIndex) => {
     isModified.value = true;
     updateMarkers();
     updatePreviewSource();
+    triggerAutoSave();
 };
 
 const updateMarkers = () => {
@@ -1142,21 +1214,12 @@ const generatePreviewForMod = async (modIndex) => {
         }
 
         const routeResultStr = await invoke('calculate_route', {
-            service: variantConfig.value.routingService,
-            profile: variantConfig.value.routingProfile,
+            service: mod.routingService || variantConfig.routingService,
+            profile: mod.routingProfile || variantConfig.routingProfile,
             points: coords
         });
         
-        // Deserialize response (it matches Rust RouteResult { geojson: String, warning: Option<String> })
-        // Note: Invoke returns serialization of Rust struct. If Rust returns Result<RouteResult, String>, 
-        // on success we get the object properties directly.
-        // Wait, invoke usually returns the object directly if Serialize is implemented.
-        // Let's check: RouteResult has { geojson: String, warning: Option<String> }. 
-        // So 'routeResultStr' is actually an OBJECT, not a string, if tauri handles it standardly.
-        // However, looking at Rust: Result<RouteResult, String>. 
-        // On success -> RouteResult object.
-        
-        const routeResult = routeResultStr; // It's already the object
+        const routeResult = routeResultStr; 
         
         if (routeResult.warning) {
              showSnackbar(routeResult.warning, "warning");
@@ -1164,6 +1227,20 @@ const generatePreviewForMod = async (modIndex) => {
 
         mod.preview = JSON.parse(routeResult.geojson);
         
+        // --- IMMEDIATELY FETCH ALTITUDES IF FINALIZED ---
+        if (mod.finalized && mod.preview && mod.preview.coordinates) {
+             try {
+                const pointsToFetch = mod.preview.coordinates.map(c => [c[0], c[1]]);
+                const altitudes = await invoke('get_altitudes', { points: pointsToFetch });
+                
+                // Inject altitudes into preview coordinates
+                mod.preview.coordinates = mod.preview.coordinates.map((c, i) => [c[0], c[1], altitudes[i] || 0]);
+                console.log(`[Preview] Altitudes fetched for finalized mod ${modIndex}`);
+             } catch (altError) {
+                console.warn("Could not fetch altitudes during preview:", altError);
+             }
+        }
+
         // Calculate length
         if (mod.preview && mod.preview.coordinates) {
              try {
@@ -1262,19 +1339,39 @@ const saveVariant = () => {
 
 
 
-const confirmSaveVariant = async () => {
-    const finalName = loadedVariantId.value ? loadedVariantName.value : variantName.value.trim();
+const confirmSaveVariant = async (silent = false) => {
+    if (isSaving.value) return;
+
+    // Only process fully finalized modifications for the permanent files
+    const finalizedModsOnly = modifications.value.filter(m => m.finalized);
     
-    if (!finalName) {
-        showSnackbar("Veuillez saisir un nom pour la variante.", "warning");
+    // During the very first save (naming), we might not have finalized mods yet, 
+    // but we need to save the archive to persist the name.
+    if (!silent && finalizedModsOnly.length === 0 && modifications.value.length > 0) {
+        // Allow saving just to set the name even if nothing is green yet
+    } else if (finalizedModsOnly.length === 0 && !isModified.value) {
+        if (!silent) showSnackbar("Aucune modification à enregistrer.", "warning");
         return;
     }
 
+    // Ensure we have an ID and name
+    if (!loadedVariantId.value) {
+        loadedVariantId.value = `var_${crypto.randomUUID()}`;
+    }
+    
+    // Capture the name from the dialog if it's the first save
+    if (!loadedVariantName.value && variantName.value.trim()) {
+        loadedVariantName.value = variantName.value.trim();
+    }
+    
+    const finalName = loadedVariantName.value || variantName.value.trim() || `Variante ${new Date().toLocaleDateString()}`;
+
     showSaveDialog.value = false;
-    isLoading.value = true;
+    isSaving.value = true;
+    if (!silent) isLoading.value = true;
     
     try {
-        const mods = modifications.value.map(mod => {
+        const mods = finalizedModsOnly.map(mod => {
             const anchors = mod.points.filter(p => p.type === 'ANCHOR');
             
             // For the archive, we save RAW editing points (clicks), not the full geometry
@@ -1473,7 +1570,9 @@ const confirmSaveVariant = async () => {
                     waypoints: waypoints,
                     fullGeometry: fullGeometry,
                     longueur: longueur,
-                    name: mod.name
+                    name: mod.name,
+                    routingService: mod.routingService,
+                    routingProfile: mod.routingProfile
                 };
             } else if (mod.type === 'DEPART') {
                  // --- TRIMMING LOGIC FOR DEPART (Modulo 100m) ---
@@ -1535,7 +1634,9 @@ const confirmSaveVariant = async () => {
                     points: finalPoints,
                     fullGeometry: trimmedFullGeometry,
                     longueur: longueur,
-                    name: mod.name
+                    name: mod.name,
+                    routingService: mod.routingService,
+                    routingProfile: mod.routingProfile
                 };
             } else if (mod.type === 'ARRIVEE') {
                 return {
@@ -1544,7 +1645,9 @@ const confirmSaveVariant = async () => {
                     points: rawPoints(),
                     fullGeometry: fullGeometry,
                     longueur: longueur,
-                    name: mod.name
+                    name: mod.name,
+                    routingService: mod.routingService,
+                    routingProfile: mod.routingProfile
                 };
             }
         });
@@ -1571,21 +1674,21 @@ const confirmSaveVariant = async () => {
         
         if (warning) {
             showSnackbar(warning, "warning");
-        } else {
-            showSnackbar("Variante sauvegardée !", "success");
         }
         
-        resetPoints();
         await loadSavedVariants();
         
-        // Reset dirty state after successful save
+        if (!silent) {
+            showSnackbar("Variante enregistrée.", "success");
+        }
         isModified.value = false;
         
     } catch (e) {
         console.error("Save failed", e);
-        showSnackbar("Erreur lors de la sauvegarde: " + e, "error");
+        showSnackbar("Erreur lors de l'enregistrement: " + e, "error");
     } finally {
-        isLoading.value = false;
+        isSaving.value = false;
+        if (!silent) isLoading.value = false;
     }
 };
 
