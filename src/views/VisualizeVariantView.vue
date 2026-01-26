@@ -63,19 +63,16 @@
     @trigger-final-view="handleEndSequence"
   >
     <template #altitude-chart>
-        <altitude-s-v-g 
-            :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
-            :circuit-id="props.circuitId" 
+        <AltitudeVariantSVG 
+            :key="`altitude-variant-${props.circuitId}`"
             :current-distance="currentDistanceInMeters" 
-            :total-distance="totalDistanceRef > 0 ? totalDistanceRef : 1"
-            :tracking-points="trackingPointsWithDistanceRef"
-            :is-variant-comparison="false"
-            :main-trace-points="null"
-            :variant-segments="[]"
-            :current-segment-index="null"
-            @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
+            :total-main-distance="masterTraceTotalDistance"
+            :main-trace-points="masterTrackingPoints"
+            :abandoned-segments="abandonedSegmentsRef"
+            :variant-blue-segments="variantBlueSegmentsRef"
         />
     </template>
+
 
     <template #extra-controls>
         <!-- Variant Switching & Return -->
@@ -137,6 +134,7 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
+import AltitudeVariantSVG from '@/components/Visualize/AltitudeVariantSVG.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
@@ -265,6 +263,12 @@ const fullRouteGeoJson = ref(null);
 const masterTraceGeoJson = ref(null);
 const variantStats = ref({ total: 0, current: 0 });
 
+// New Refs for AltitudeVariantSVG
+const masterTraceTotalDistance = ref(1);
+const masterTrackingPoints = ref([]);
+const abandonedSegmentsRef = ref([]);
+const variantBlueSegmentsRef = ref([]);
+
 
 
 // --- Legacy State ---
@@ -379,6 +383,24 @@ const initializeVisualization = async () => {
         // A. Load MASTER Trace (Source of truth for original segments - High Resolution)
         const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
         masterTraceGeoJson.value = masterGeoJson;
+        
+        // Calculate Master Trace Total Distance (using Turf)
+        if (masterGeoJson && masterGeoJson.coordinates) {
+             const line = turf.lineString(masterGeoJson.coordinates);
+             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+        } else if (masterGeoJson && masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
+             const line = turf.lineString(masterGeoJson.geometry.coordinates);
+             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+        }
+        
+        // A.0 Load MASTER Tracking Points (for Altitude Profile)
+        const masterTrackingRaw = await invoke('read_tracking_file', { circuitId: props.circuitId, filename: 'tracking.json' });
+        const masterProcessed = await invoke('process_tracking_data', { 
+            lineStringGeojson: masterGeoJson,
+            trackingPointsJs: masterTrackingRaw 
+        });
+        masterTrackingPoints.value = masterProcessed.processedPoints;
+
 
         // A. Load Variant Details (Metadata + Stats)
         const variantArchive = await invoke('get_variant_details', { circuitId: props.circuitId, variantId: selectedVariantId.value });
@@ -470,12 +492,127 @@ const initializeVisualization = async () => {
             });
             coloredSegmentsGeoJsonRef.value = geojson;
             
-            // DEBUG: Count abandoned segments
-            const abandonedCount = geojson.features.filter(f => f.properties.status === 'ABANDONED').length;
-            console.log(`[VisualizeVariant] Loaded ${geojson.features.length} segments. ABANDONED segments: ${abandonedCount}`);
+            coloredSegmentsGeoJsonRef.value = geojson;
+            
+            // Extract Abandoned Segments directly from Variant Modifications (Archive)
+            const abandonedRanges = [];
+            const segLen = segmentLength.value;
+            
+            if (modifications.value && modifications.value.length > 0) {
+                 modifications.value.forEach(modif => {
+                     let startIdx = 0;
+                     let endIdx = 0;
+                     let type = '';
+                     
+                     // Helper to check modification type keys (Using keys from logs: anchorIndexOnMaster, type)
+                     if (modif.type === 'DEPART_DEPORTE') {
+                         startIdx = 0;
+                         endIdx = modif.anchorIndexOnMaster;
+                         type = 'DEPART';
+                     } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                         startIdx = modif.anchorIndexOnMaster;
+                         endIdx = 999999; 
+                         type = 'ARRIVEE';
+                     } else if (modif.anchorStart && modif.anchorEnd) {
+                         startIdx = modif.anchorStart.index;
+                         endIdx = modif.anchorEnd.index;
+                         type = 'SEGMENT';
+                     } else if (modif.type === 'SEGMENT_DEVIATION') {
+                         startIdx = modif.anchorStart?.index || 0;
+                         endIdx = modif.anchorEnd?.index || 0;
+                         type = 'SEGMENT';
+                     }
+                     
+                     if (endIdx > startIdx) {
+                         const startM = startIdx * segLen;
+                         let endM = endIdx * segLen;
+                         if (endM > masterTraceTotalDistance.value) endM = masterTraceTotalDistance.value;
+                         abandonedRanges.push({ start: startM, end: endM });
+                     }
+                 });
+            }
+            
+            abandonedSegmentsRef.value = abandonedRanges;
+            
+            // Extract Blue Variant Segments
+            const blueSegments = [];
+            
+            if (trackingData && trackingData.length > 0 && modifications.value && modifications.value.length > 0) {
+                // 1. Sort modifications by their position on the MASTER trace
+                const sortedModifs = [...modifications.value].sort((a, b) => {
+                    const getStart = (m) => {
+                        if (m.type === 'DEPART_DEPORTE') return 0;
+                        if (m.type === 'ARRIVEE_REPORTEE') return 9999999;
+                        return m.anchorStart?.index || 0;
+                    };
+                    return getStart(a) - getStart(b);
+                });
+
+                // 2. Track cursors to calculate cumulative distance in VARIANT track
+                let masterCursorIdx = 0;
+                let variantCursorM = 0;
+
+                sortedModifs.forEach(modif => {
+                    let startAnchorIdx = 0;
+                    let endAnchorIdx = 0;
+                    let type = '';
+                    
+                    if (modif.type === 'DEPART_DEPORTE') {
+                        type = 'DEPART';
+                        startAnchorIdx = 0;
+                        endAnchorIdx = modif.anchorIndexOnMaster;
+                    } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                        type = 'ARRIVEE';
+                        startAnchorIdx = modif.anchorIndexOnMaster;
+                        endAnchorIdx = 9999999; // Will be clamped
+                    } else {
+                        type = 'SEGMENT';
+                        startAnchorIdx = modif.anchorStart?.index || 0;
+                        endAnchorIdx = modif.anchorEnd?.index || 0;
+                    }
+
+                    // A. The variant tracking contains a "common" section before this modification
+                    // Distance of common section = (Start of modif - End of previous modif) * segmentLength
+                    const commonLenM = (startAnchorIdx - masterCursorIdx) * segLen;
+                    variantCursorM += commonLenM;
+
+                    // B. The modification itself starts here
+                    const variantStartM = variantCursorM;
+                    const variantLenM = (modif.longueur || 0) * 1000;
+                    const variantEndM = variantCursorM + variantLenM;
+
+                    // C. Extract points from trackingData based on calculated distances
+                    // Use a small 1m buffer for precision
+                    const startIndex = trackingData.findIndex(p => p.distance * 1000 >= (variantStartM - 1));
+                    const endIndex = trackingData.findLastIndex(p => p.distance * 1000 <= (variantEndM + 1));
+
+                    if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
+                        const slice = trackingData.slice(startIndex, endIndex + 1).map(p => ({
+                            distance: p.distance,
+                            altitude: p.altitude
+                        }));
+                        
+                        blueSegments.push({
+                            type,
+                            // Junction point on Master is the anchor
+                            anchorM: type === 'DEPART' ? endAnchorIdx * segLen : startAnchorIdx * segLen,
+                            anchorEndM: type === 'SEGMENT' ? endAnchorIdx * segLen : 0,
+                            lengthM: variantLenM,
+                            points: slice
+                        });
+                    }
+
+                    // D. Advance cursors
+                    variantCursorM = variantEndM;
+                    masterCursorIdx = endAnchorIdx;
+                });
+            }
+            variantBlueSegmentsRef.value = blueSegments;
         } catch(e) {
             console.error("Colored segments load error", e);
             coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
+            abandonedSegmentsRef.value = [];
+            variantBlueSegmentsRef.value = [];
         }
 
         // 3. Map Layers (Once data is loaded)
