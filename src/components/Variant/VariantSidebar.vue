@@ -46,30 +46,23 @@
             <template v-slot:activator="{ props: groupProps }">
               <v-list-item
                 v-bind="groupProps"
-                :title="getModTitle(mod, mod.originalIndex)"
                 :class="{ 'border-s-4 border-primary': !mod.finalized && mod.type === activeMode }"
               >
+                <template v-slot:title>
+                  <span :title="mod.routingService || 'Service par défaut'">{{ getModTitle(mod, mod.originalIndex) }}</span>
+                </template>
                 <template v-slot:subtitle>
-                  <div class="d-flex align-center mt-1">
-                    <v-tooltip location="bottom">
-                       <template v-slot:activator="{ props: tooltipProps }">
-                          <v-icon v-bind="tooltipProps" size="14" class="mr-1" color="grey-darken-1">{{ getRoutingProfileIcon(mod.routingProfile) }}</v-icon>
-                       </template>
-                       <span>Profil : {{ mod.routingProfile || 'Défaut' }}</span>
-                    </v-tooltip>
-                    
-                    <v-tooltip location="bottom">
-                       <template v-slot:activator="{ props: tooltipProps }">
-                          <v-icon v-bind="tooltipProps" size="14" class="mr-2" color="grey-darken-1">{{ getServiceIcon(mod.routingService) }}</v-icon>
-                       </template>
-                       <span>Service : {{ mod.routingService || 'Défaut' }}</span>
-                    </v-tooltip>
-
-                    <span class="text-caption text-grey-darken-1">{{ getModSubtitle(mod) }}</span>
-                  </div>
+                  <span class="text-caption text-grey-darken-1">{{ getModSubtitle(mod) }}</span>
                 </template>
                 <template v-slot:prepend>
-                  <v-icon :color="getModColor(mod.type)" class="mr-2">{{ getModIcon(mod.type) }}</v-icon>
+                  <v-icon 
+                    :color="getModIconColor(mod.type)" 
+                    class="mr-2"
+                    style="cursor: pointer;"
+                    @click.stop="$emit('fly-to-mod', mod.originalIndex)"
+                  >
+                    {{ getModIcon(mod.type) }}
+                  </v-icon>
                 </template>
                 <template v-slot:append>
                     <v-btn 
@@ -96,8 +89,9 @@
                       :icon="getRoutingProfileIcon(mod.routingProfile)"
                       size="x-small"
                       variant="text"
-                      color="primary"
+                      :color="getModColor(mod)"
                       class="mr-1"
+                      :disabled="mod.routingStatus === 'SUCCESS' && mod.routingProfile === config.routingProfile && mod.routingService === config.routingService && mod.finalized"
                       @click.stop="$emit('update-routing', mod.originalIndex)"
                       :title="`Appliquer le routage actuel (${mod.routingProfile || 'défaut'})`"
                     ></v-btn>
@@ -179,7 +173,7 @@
                       icon="mdi-eye"
                       size="x-small"
                       variant="text"
-                      color="primary"
+                      :color="getVariantEyeColor(v)"
                       class="mr-1"
                       :disabled="isValid && (!isEditing || isModified)"
                       @click.stop="$emit('load-variant', v.id)"
@@ -303,7 +297,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'update-routing', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
+const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'update-routing', 'fly-to-mod', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
 
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
@@ -328,9 +322,25 @@ const getModIcon = (type) => {
     return 'mdi-source-branch';
 };
 
-const getModColor = (type) => {
+const getModIconColor = (type) => {
     if (type === 'DEPART') return 'success';
     if (type === 'ARRIVEE') return 'error';
+    return 'primary';
+};
+
+const getModColor = (mod) => {
+    if (mod.routingStatus === 'ROUTE_FAIL') return 'error'; // Red
+    if (mod.routingStatus === 'ALT_FAIL') return 'warning';   // Orange
+    if (mod.routingStatus === 'SUCCESS') return 'success';   // Green
+    
+    return 'primary'; // Blue (default, not yet determined or legacy data)
+};
+
+const getVariantEyeColor = (variant) => {
+    const status = variant.globalStatus;
+    if (status === 'ROUTE_FAIL') return 'error';
+    if (status === 'ALT_FAIL') return 'warning';
+    if (status === 'SUCCESS') return 'success';
     return 'primary';
 };
 

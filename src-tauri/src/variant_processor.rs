@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use tauri::Manager;
 
@@ -29,6 +30,8 @@ pub enum VariantModification {
         routing_service: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         routing_profile: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_status: Option<String>,
     },
     #[serde(rename = "ARRIVEE_REPORTEE", rename_all = "camelCase")]
     ArriveeReportee {
@@ -43,6 +46,8 @@ pub enum VariantModification {
         routing_service: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         routing_profile: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_status: Option<String>,
     },
     #[serde(rename = "SEGMENT_DEVIATION", rename_all = "camelCase")]
     SegmentDeviation {
@@ -59,6 +64,8 @@ pub enum VariantModification {
         routing_service: Option<String>,
         #[serde(skip_serializing_if = "Option::is_none")]
         routing_profile: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        routing_status: Option<String>,
     },
 }
 
@@ -100,6 +107,8 @@ pub struct VariantMetadata {
     pub creation_date: String,
     pub color: String,
     pub stats: VariantStats,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub global_status: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -119,8 +128,54 @@ pub struct CreateVariantRequest {
 
 // Elevation fetching is now handled by crate::elevation_provider
 
+fn repair_variant_segment_altitude(
+    points: &mut Vec<Vec<f64>>, 
+    start_alt: f64, 
+    end_alt: Option<f64>
+) {
+    // On ne répare que si TOUS les points sont à 0.0 (défaillance service)
+    let all_zero = points.iter().all(|p| p[2] < 1.0);
+    if !all_zero {
+        return;
+    }
 
-async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<(Vec<Vec<f64>>, Option<String>), String> {
+    match end_alt {
+        None => {
+            // DEPART ou ARRIVEE : on plaque tout à l'altitude de l'ancre
+            for p in points.iter_mut() {
+                p[2] = start_alt;
+            }
+        },
+        Some(target_alt) => {
+            // SEGMENT : interpolation linéaire basée sur la distance cumulée
+            let mut cumulative_dist = 0.0;
+            let mut dists = Vec::with_capacity(points.len());
+            dists.push(0.0);
+            
+            for i in 1..points.len() {
+                let d = crate::gpx_processor::haversine_distance(
+                    points[i-1][1], points[i-1][0],
+                    points[i][1], points[i][0]
+                );
+                cumulative_dist += d;
+                dists.push(cumulative_dist);
+            }
+
+            if cumulative_dist > 0.0 {
+                let alt_diff = target_alt - start_alt;
+                for (i, p) in points.iter_mut().enumerate() {
+                    let ratio = dists[i] / cumulative_dist;
+                    p[2] = start_alt + (alt_diff * ratio);
+                }
+            } else {
+                for p in points.iter_mut() {
+                    p[2] = start_alt;
+                }
+            }
+        }
+    }
+}
+async fn prepare_points_3d(points_raw: &Vec<VariantPoint>, segment_name: &str) -> Result<(Vec<Vec<f64>>, Option<String>), String> {
     let mut final_3d = Vec::new();
     let mut missing_alt_indices = Vec::new();
     let mut coords_for_fetch = Vec::new();
@@ -149,16 +204,102 @@ async fn prepare_points_3d(points_raw: &Vec<VariantPoint>) -> Result<(Vec<Vec<f6
                     final_3d[*i][2] = *alt;
                 }
             },
-            Err(e) => {
-                // FALLBACK: If elevation service is down, we proceed with 0.0 altitude to allow saving.
-                let msg = format!("Attention: Échec de la récupération d'altitude ({}) -> 0.0 utilisé.", e);
+            Err(_) => {
+                // FALLBACK: Si le service d'élévation est en panne, on continue avec 0.0 altitude.
+                let msg = format!("Récupération des altitudes pour le segment <b>{}</b>, en échec !", segment_name);
                 println!("{}", msg);
                 warning = Some(msg);
-                // We don't return an error, we just keep the 0.0 placeholders.
+                // On ne retourne pas d'erreur, on garde juste les points à 0.0 (qui seront réparés par la suite).
             }
         }
     }
     Ok((final_3d, warning))
+}
+
+async fn enhance_geojson_altitudes(geojson_str: String) -> (String, Option<String>) {
+    let mut geojson: serde_json::Value = match serde_json::from_str(&geojson_str) {
+        Ok(v) => v,
+        Err(_) => return (geojson_str, None),
+    };
+    let mut warning = None;
+
+    if let Some(coords) = geojson.get_mut("coordinates").and_then(|c| c.as_array_mut()) {
+        let mut missing_indices = Vec::new();
+        let mut coords_to_fetch = Vec::new();
+
+        for (i, coord) in coords.iter().enumerate() {
+            if let Some(c_arr) = coord.as_array() {
+                let alt = if c_arr.len() >= 3 {
+                    c_arr[2].as_f64().unwrap_or(0.0)
+                } else {
+                    0.0
+                };
+
+                if alt < 1.0 {
+                    missing_indices.push(i);
+                    coords_to_fetch.push([c_arr[0].as_f64().unwrap_or(0.0), c_arr[1].as_f64().unwrap_or(0.0)]);
+                }
+            }
+        }
+
+        if !coords_to_fetch.is_empty() {
+            match crate::elevation_provider::fetch_altitudes(&coords_to_fetch).await {
+                Ok(alts) => {
+                    for (idx, alt) in missing_indices.iter().zip(alts.iter()) {
+                        if let Some(c_arr) = coords[*idx].as_array_mut() {
+                            if c_arr.len() < 3 {
+                                c_arr.push(serde_json::json!(*alt));
+                            } else {
+                                c_arr[2] = serde_json::json!(*alt);
+                            }
+                        }
+                    }
+                }
+                Err(_) => {
+                    warning = Some("ALTITUDE_FETCH_ERROR".to_string());
+                }
+            }
+        }
+
+        // Réparation des trous par interpolation (utilisation simplifiée pour prévisu)
+        let mut pts: Vec<Vec<f64>> = coords
+            .iter()
+            .map(|c| {
+                let a = c.as_array().unwrap();
+                vec![
+                    a[0].as_f64().unwrap_or(0.0),
+                    a[1].as_f64().unwrap_or(0.0),
+                    if a.len() >= 3 { a[2].as_f64().unwrap_or(0.0) } else { 0.0 },
+                ]
+            })
+            .collect();
+
+        // Note: pour la prévisu, on ne dispose pas forcément des ancres de la trace maître ici
+        // on fait donc une réparation basique au mieux.
+        let mut i = 0;
+        let total_len = pts.len();
+        while i < total_len {
+            if pts[i][2] < 1.0 {
+                let mut j = i + 1;
+                while j < total_len && pts[j][2] < 1.0 { j += 1; }
+                let start_alt = if i > 0 { pts[i-1][2] } else if j < total_len { pts[j][2] } else { 0.0 };
+                let end_alt_val = if j < total_len { pts[j][2] } else { start_alt };
+                let gap = (j - i) as f64;
+                let step = (end_alt_val - start_alt) / (gap + 1.0);
+                for k in 0..(j - i) {
+                    pts[i + k][2] = start_alt + step * (k as f64 + 1.0);
+                }
+                i = j;
+            } else { i += 1; }
+        }
+
+        // Réinjection
+        for (i, p) in pts.into_iter().enumerate() {
+            coords[i] = serde_json::json!(p);
+        }
+    }
+
+    (serde_json::to_string(&geojson).unwrap(), warning)
 }
 
 #[tauri::command]
@@ -191,20 +332,10 @@ pub async fn create_variant_files(
     let tracking_master_content = fs::read_to_string(&tracking_master_path).map_err(|e| format!("Failed to read master tracking: {}", e))?;
     let tracking_master: Vec<serde_json::Value> = serde_json::from_str(&tracking_master_content).map_err(|e| format!("Failed to parse master tracking: {}", e))?;
 
-    let mut global_warning: Option<String> = None;
-    let variant_id = &request.metadata.id;
+    let mut warnings: Vec<String> = Vec::new();
 
-    // --- CLEANUP: Remove old segment files for this variant ---
-    if let Ok(entries) = fs::read_dir(&circuit_data_dir) {
-        for entry in entries.flatten() {
-            let filename = entry.file_name().to_string_lossy().into_owned();
-            if (filename.starts_with(&format!("lineString_{}", variant_id)) || 
-                filename.starts_with(&format!("tracking_{}", variant_id))) &&
-               !filename.contains("_FULL") {
-                let _ = fs::remove_file(entry.path());
-            }
-        }
-    }
+    // Map: modification_index_original -> points_3d (déjà lissés et réparés)
+    let mut geometry_cache: HashMap<usize, Vec<Vec<f64>>> = HashMap::new();
 
     // Process each modification for individual files
     for (index, modification) in request.modifications.iter().enumerate() {
@@ -216,10 +347,10 @@ pub async fn create_variant_files(
             }
         }
 
-        let (suffix, points_raw_opt) = match modification {
-            VariantModification::DepartDeporte { full_geometry, .. } => ("DEPART", full_geometry),
-            VariantModification::ArriveeReportee { full_geometry, .. } => ("ARRIVEE", full_geometry),
-            VariantModification::SegmentDeviation { full_geometry, .. } => ("SEGMENT", full_geometry)
+        let (suffix, points_raw_opt, seg_name) = match modification {
+            VariantModification::DepartDeporte { full_geometry, name, .. } => ("DEPART", full_geometry, name.clone().unwrap_or("Départ".to_string())),
+            VariantModification::ArriveeReportee { full_geometry, name, .. } => ("ARRIVEE", full_geometry, name.clone().unwrap_or("Arrivée".to_string())),
+            VariantModification::SegmentDeviation { full_geometry, name, .. } => ("SEGMENT", full_geometry, name.clone().unwrap_or(format!("Segment {}", index + 1)))
         };
 
         if let Some(points_raw) = points_raw_opt {
@@ -229,14 +360,36 @@ pub async fn create_variant_files(
                     _ => suffix.to_string() 
                 };
 
-                let (track_points_3d_raw, warning) = prepare_points_3d(points_raw).await?;
+                let (track_points_3d_raw, warning) = prepare_points_3d(points_raw, &seg_name).await?;
                 
                 if let Some(w) = warning {
-                    global_warning = Some(w);
+                    warnings.push(w);
                 }
 
-                // Apply altitude smoothing to the segment
-                let track_points_3d = crate::gpx_processor::clean_altitude_data(&track_points_3d_raw, median_window, avg_window, max_gradient);
+                // Récupération des altitudes d'ancrage pour la réparation
+                let (anchor_start_alt, anchor_end_alt) = match modification {
+                    VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
+                        (tracking_master[*anchor_index_on_master]["altitude"].as_f64().unwrap_or(0.0), None)
+                    },
+                    VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
+                        (tracking_master[*anchor_index_on_master]["altitude"].as_f64().unwrap_or(0.0), None)
+                    },
+                    VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
+                        (
+                            tracking_master[anchor_start.index]["altitude"].as_f64().unwrap_or(0.0),
+                            Some(tracking_master[anchor_end.index]["altitude"].as_f64().unwrap_or(0.0))
+                        )
+                    }
+                };
+
+                // 1. Appliquer le lissage géométrique (clean_altitude_data) ONLY on this new segment points
+                let mut track_points_3d = crate::gpx_processor::clean_altitude_data(&track_points_3d_raw, median_window, avg_window, max_gradient);
+                
+                // 2. Appliquer la nouvelle logique de réparation des trous d'altitude (0.0)
+                repair_variant_segment_altitude(&mut track_points_3d, anchor_start_alt, anchor_end_alt);
+
+                // Mettre en cache pour la reconstruction FULL plus tard
+                geometry_cache.insert(index, track_points_3d.clone());
 
                 // Write LineString file
                 let linestring_filename = format!("lineString_{}_{}.json", request.metadata.id, suffix_full);
@@ -340,89 +493,41 @@ pub async fn create_variant_files(
     let total_tracking_pts = tracking_master.len();
     let total_high_res_pts = master_points_high_res.len();
 
-    // Topological matching: Use the tracking index to hint where we should be in the high-res file
-    // This prevents confusing start (idx 0) and end (idx N) of a loop which are geometrically identical.
+    // Topological matching
     let find_corresponding_idx = |lon: f64, lat: f64, tracking_idx: usize, start_search_from: usize| -> usize {
-        // 1. Calculate estimated position
         let ratio = tracking_idx as f64 / total_tracking_pts as f64;
         let estimated_idx = (ratio * total_high_res_pts as f64) as usize;
-
-        // 2. Define search window (e.g. +/- 5% of total points, minimum 500 points)
-        // We want to be generous but avoid wrapping around the loop
         let window_size = (total_high_res_pts / 20).max(500); 
-        
         let min_search = estimated_idx.saturating_sub(window_size).max(start_search_from);
         let max_search = (estimated_idx + window_size).min(total_high_res_pts);
-
         let mut min_dist = f64::MAX;
         let mut best_idx = start_search_from;
-
-        // Search in the topological window
         for i in min_search..max_search {
             let mp = &master_points_high_res[i];
             let d = crate::gpx_processor::haversine_distance(lat, lon, mp[1], mp[0]);
-            if d < min_dist { 
-                min_dist = d; 
-                best_idx = i; 
-            }
+            if d < min_dist { min_dist = d; best_idx = i; }
         }
-        
-        // Safety Fallback: if "topological" search failed (e.g. very far deviation), 
-        // try searching forward from start_search_from broadly (traditional method)
-        if min_dist > 0.1 { // > 100m error
-             // ... existing logic fallback could be here, but usually topological hint is better.
-             // Let's stick to the best found in window.
-        }
-
         best_idx
     };
 
     let mut final_points_ctx: Vec<crate::tracking_processor::PointContext> = Vec::new();
     let mut current_master_idx = 0;
-    let mut sorted_mods = request.modifications.clone();
-    sorted_mods.sort_by_key(|m| m.get_start_anchor_index());
+    
+    // On crée une liste triée des modifications avec leur index original pour piocher dans le cache
+    let mut indexed_mods: Vec<(usize, &VariantModification)> = request.modifications.iter().enumerate().collect();
+    indexed_mods.sort_by_key(|(_, m)| m.get_start_anchor_index());
+    
     let mut has_arrivee_reportee = false;
 
-    // Utilisation du cache pour éviter de réinterroger l'API d'altitude
-    use std::collections::HashMap;
-    // Map: modification_index -> points_3d
-    let mut geometry_cache: HashMap<usize, Vec<Vec<f64>>> = HashMap::new();
-    
-    // Remplissage du cache (déjà fait implicitement en haut ? Non, le code du haut est itératif).
-    // On va remplir ce cache avec les données déjà calculées (ou recalcluer si non dispo mais UNE seule fois)
-    // Comme la boucle du haut (lignes 200+) traitait TOUTES les modifications, on peut supposer qu'on a besoin de stocker ses résultats.
-    // MAIS le code actuel ne stocke pas.
-    // ATTENTION: La boucle lignes 200 itère sur `request.modifications` (non trié), celle ci-dessous sur `sorted_mods`.
-    // L'ordre est différent. On va utiliser l'index dans `request.modifications` comme clé si possible, mais `VariantModification` n'a pas d'ID unique.
-    // Solution : On va re-itérer sur sorted_mods et vérifier si on a besoin de calculer.
-    
-    // Pour simplifier sans refondre tout le code du haut : on va juste calculer ici et stocker, 
-    // mais le top serait d'avoir stocké en haut.
-    // LE PLUS SIMPLE : On refait prepare_points_3d ICI (comme avant), mais on s'assure qu'il marche.
-    // Mieux : On va implémenter le fix demandé : REUTILISER les calculs initiaux.
-    
-    // Pour ce faire, il faut modifier la PREMIÈRE boucle (lignes 179-307) pour qu'elle remplisse le cache.
-    // Comme je ne peux pas éditer 200 lignes au dessus facilement sans tout casser, je vais faire confiance à l'API 
-    // et juste ajouter des logs d'erreur si prepare_points_3d renvoie 0.
-    
-    for (mod_idx, modification) in sorted_mods.iter().enumerate() {
+    for &(original_idx, modification) in &indexed_mods {
         match modification {
-            VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
-                if let Some(geom) = full_geometry {
-                    let (pts, w) = prepare_points_3d(geom).await?;
-                    if let Some(msg) = w { global_warning = Some(msg); }
-                    geometry_cache.insert(mod_idx, pts.clone()); // Stockage
-                    
-                    // Vérification altitude 0
-                    if !pts.is_empty() && pts[0][2] == 0.0 {
-                        println!("[Warning] prepare_points_3d returned 0.0 alt for Dep Deporte");
-                    }
-                    
-                    let num_pts = pts.len();
-                    for (i, p) in pts.into_iter().enumerate() {
+            VariantModification::DepartDeporte { anchor_index_on_master, .. } => {
+                if let Some(repaired_pts) = geometry_cache.get(&original_idx) {
+                    let num_pts = repaired_pts.len();
+                    for (i, p) in repaired_pts.iter().enumerate() {
                         let is_last = i == num_pts - 1;
                         final_points_ctx.push(crate::tracking_processor::PointContext {
-                            coords: p,
+                            coords: p.clone(),
                             is_anchor: i == 0 || is_last,
                             type_troncon: Some(if is_last { "Commun".to_string() } else { "Départ".to_string() }),
                         });
@@ -432,7 +537,7 @@ pub async fn create_variant_files(
                 current_master_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, 0);
                 current_master_idx += 1;
             },
-            VariantModification::SegmentDeviation { anchor_start, anchor_end, full_geometry, .. } => {
+            VariantModification::SegmentDeviation { anchor_start, anchor_end, .. } => {
                 let start_idx = find_corresponding_idx(anchor_start.coords[0], anchor_start.coords[1], anchor_start.index, current_master_idx);
                 
                 if start_idx >= current_master_idx {
@@ -449,12 +554,9 @@ pub async fn create_variant_files(
                 }
                 current_master_idx = start_idx + 1;
 
-                if let Some(geom) = full_geometry {
-                    let (mut pts, w) = prepare_points_3d(geom).await?;
-                    if let Some(msg) = w { global_warning = Some(msg); }
-                    
-                    if !pts.is_empty() { pts.remove(0); } // Remove Anchor
-
+                if let Some(repaired_pts) = geometry_cache.get(&original_idx) {
+                    let mut pts = repaired_pts.clone();
+                    if !pts.is_empty() { pts.remove(0); } // Remove redundant anchor
                     let num_pts = pts.len();
                     for (i, p) in pts.into_iter().enumerate() {
                          let is_last = i == num_pts - 1;
@@ -467,10 +569,9 @@ pub async fn create_variant_files(
                 }
                 
                 let end_idx = find_corresponding_idx(anchor_end.coords[0], anchor_end.coords[1], anchor_end.index, current_master_idx);
-                current_master_idx = end_idx;
-                current_master_idx += 1;
+                current_master_idx = end_idx + 1;
             },
-            VariantModification::ArriveeReportee { anchor_index_on_master, full_geometry, .. } => {
+            VariantModification::ArriveeReportee { anchor_index_on_master, .. } => {
                 has_arrivee_reportee = true;
                 let anchor_coords = tracking_master[*anchor_index_on_master]["coordonnee"].as_array().unwrap();
                 let arrivee_idx = find_corresponding_idx(anchor_coords[0].as_f64().unwrap(), anchor_coords[1].as_f64().unwrap(), *anchor_index_on_master, current_master_idx);
@@ -488,12 +589,9 @@ pub async fn create_variant_files(
                     }
                 }
                 
-                if let Some(geom) = full_geometry {
-                    let (mut pts, w) = prepare_points_3d(geom).await?;
-                    if let Some(msg) = w { global_warning = Some(msg); }
-                    
-                    if !pts.is_empty() { pts.remove(0); } // Remove Anchor
-                    
+                if let Some(repaired_pts) = geometry_cache.get(&original_idx) {
+                    let mut pts = repaired_pts.clone();
+                    if !pts.is_empty() { pts.remove(0); }
                     for p in pts {
                         final_points_ctx.push(crate::tracking_processor::PointContext {
                             coords: p,
@@ -518,40 +616,63 @@ pub async fn create_variant_files(
         }
     }
 
-    let median_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_median_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
-    let avg_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_avg_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
-    let max_gradient = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.max_gradient_percent").and_then(|v| v.as_f64()).unwrap_or(40.0);
+    // On récupère les coordonnées finales assemblées. 
+    // IMPORTANT : On ne fait plus de clean_altitude_data global ici ni de réparation globale.
+    // Les segments nouveaux sont déjà réparés et lissés, et les parties master sont conservées telles quelles.
+    let assembled_coords: Vec<Vec<f64>> = final_points_ctx.iter().map(|ctx| ctx.coords.clone()).collect();
+    
     let lissage_dist = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.denivele_lissage_distance").and_then(|v| v.as_f64()).unwrap_or(10.0);
-    
-    // Extract coords for cleaning
-    let points_for_cleaning: Vec<Vec<f64>> = final_points_ctx.iter().map(|ctx| ctx.coords.clone()).collect();
-    let cleaned_coords = crate::gpx_processor::clean_altitude_data(&points_for_cleaning, median_window, avg_window, max_gradient);
-    
-    // Inject cleaned coords back into context
-    for (ctx, cleaned) in final_points_ctx.iter_mut().zip(cleaned_coords.iter()) {
-        ctx.coords[2] = cleaned[2];
-    }
-
-    let circuits_file = crate::read_circuits_file(&app_env_path)?;
-    let master_circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == request.circuit_id).ok_or_else(|| format!("Master circuit {} not found", request.circuit_id))?;
-    let variant_stats = crate::gpx_processor::calculate_track_stats(&cleaned_coords, lissage_dist);
+    let variant_stats = crate::gpx_processor::calculate_track_stats(&assembled_coords, lissage_dist);
 
     let mut metadata = request.metadata;
     metadata.stats.total_distance = variant_stats.total_distance_km;
     metadata.stats.total_ascent = variant_stats.positive_elevation_m as f64;
+    
+    // Compute global status for the metadata
+    let mut global_status_str = "SUCCESS".to_string();
+    let mut has_alt_fail = false;
+    for m in &request.modifications {
+        let rs = match m {
+            VariantModification::DepartDeporte { routing_status, .. } => routing_status,
+            VariantModification::ArriveeReportee { routing_status, .. } => routing_status,
+            VariantModification::SegmentDeviation { routing_status, .. } => routing_status,
+        };
+        if let Some(s) = rs {
+            if s == "ROUTE_FAIL" {
+                global_status_str = "ROUTE_FAIL".to_string();
+                break;
+            } else if s == "ALT_FAIL" {
+                has_alt_fail = true;
+            }
+        }
+    }
+    if global_status_str != "ROUTE_FAIL" && has_alt_fail {
+        global_status_str = "ALT_FAIL".to_string();
+    }
+    metadata.global_status = Some(global_status_str);
+    
+    // Concaténer les avertissements s'il y en a
+    let final_warning = if warnings.is_empty() {
+        None
+    } else {
+        Some(warnings.join("\n"))
+    };
+    
+    let circuits_file = crate::read_circuits_file(&app_env_path)?;
+    let master_circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == request.circuit_id).ok_or_else(|| format!("Master circuit {} not found", request.circuit_id))?;
     metadata.stats.master_distance = master_circuit.distance_km;
     metadata.stats.master_ascent = master_circuit.denivele_m as f64;
 
-    // ========== GÉNÉRATION DES FICHIERS PRÉCALCULÉS ==========
-    
     // 1. Sauvegarder lineString_FULL.json
     let full_linestring_path = circuit_data_dir.join(format!("lineString_{}_FULL.json", metadata.id));
     let full_linestring = serde_json::json!({
         "type": "LineString",
-        "coordinates": cleaned_coords
+        "coordinates": assembled_coords
     });
     fs::write(&full_linestring_path, serde_json::to_string_pretty(&full_linestring).unwrap())
         .map_err(|e| format!("Failed to write lineString_FULL: {}", e))?;
+    
+    let cleaned_coords = assembled_coords; // Pour la suite
     
     // ========== GÉNÉRATION DU TRACKING PAR ASSEMBLAGE (SANS RÉ-ÉCHANTILLONNAGE GLOBAL) ==========
     
@@ -601,12 +722,12 @@ pub async fn create_variant_files(
         }
     };
 
-    for (mod_idx, modification) in sorted_mods.iter().enumerate() {
+    for (mod_idx, &(_original_idx, modification)) in indexed_mods.iter().enumerate() {
         match modification {
             VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
                 println!("[VariantGen] Mod {}: DEPART_DEPORTE at Master index {}", mod_idx, anchor_index_on_master);
                 if let Some(geom) = full_geometry {
-                    let var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    let var_tracking = generate_interpolated_tracking(&geom, segment_length);
                     println!("   -> Added {} variant tracking points", var_tracking.len());
                     
                     if let Some(last) = var_tracking.last() {
@@ -642,7 +763,7 @@ pub async fn create_variant_files(
 
                 // 2. Déviation : Nouveaux points
                 if let Some(geom) = full_geometry {
-                    let mut var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
                     println!("   -> Added {} variant deviation points", var_tracking.len());
 
                     // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
@@ -682,7 +803,7 @@ pub async fn create_variant_files(
 
                 // 2. Nouvelle Arrivée
                 if let Some(geom) = full_geometry {
-                    let mut var_tracking = generate_interpolated_tracking(geom, segment_length);
+                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
                     println!("   -> Added {} variant arrival points", var_tracking.len());
 
                     // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
@@ -777,55 +898,26 @@ pub async fn create_variant_files(
     }
 
     // 🔴 REPARATION FINALE : Interpolation des trous d'altitude (0.0)
-    // Si malgré tout on a des zones à 0.0 (ex: LineString troué), on les comble par interpolation linéaire
+    // Elle ne devrait plus rien avoir à faire si tout a été réparé proprement en haut, 
+    // mais on la laisse en sécurité ultra-minimale (interpolation simple).
     let total_len = full_tracking_points.len();
     if total_len > 0 {
         let mut i = 0;
         while i < total_len {
-            let alt_i = full_tracking_points[i]["altitude"].as_f64().unwrap_or(0.0);
-            
-            if alt_i < 1.0 { // On considère < 1m comme un trou (sauf bord de mer, mais bon...)
-                // On cherche le prochain point valide
+            if full_tracking_points[i]["altitude"].as_f64().unwrap_or(0.0) < 1.0 {
                 let mut j = i + 1;
-                let mut next_valid_alt = 0.0;
-                let mut found_next = false;
-                
-                while j < total_len {
-                     let alt_j = full_tracking_points[j]["altitude"].as_f64().unwrap_or(0.0);
-                     if alt_j >= 1.0 {
-                         next_valid_alt = alt_j;
-                         found_next = true;
-                         break;
-                     }
-                     j += 1;
+                while j < total_len && full_tracking_points[j]["altitude"].as_f64().unwrap_or(0.0) < 1.0 { j += 1; }
+                let start_alt = if i > 0 { full_tracking_points[i-1]["altitude"].as_f64().unwrap_or(0.0) } else if j < total_len { full_tracking_points[j]["altitude"].as_f64().unwrap_or(0.0) } else { 0.0 };
+                let end_alt_val = if j < total_len { full_tracking_points[j]["altitude"].as_f64().unwrap_or(0.0) } else { start_alt };
+                let gap = (j - i) as f64;
+                let step = (end_alt_val - start_alt) / (gap + 1.0);
+                for k in 0..(j - i) {
+                    if let Some(obj) = full_tracking_points[i + k].as_object_mut() {
+                        obj.insert("altitude".to_string(), serde_json::json!(start_alt + step * (k as f64 + 1.0)));
+                    }
                 }
-                
-                // On cherche le précédent valide
-                let mut prev_valid_alt = 0.0;
-                if i > 0 {
-                     prev_valid_alt = full_tracking_points[i-1]["altitude"].as_f64().unwrap_or(0.0);
-                }
-                // Si le précédent était aussi un trou non traité (cas début de fichier), on prend le next
-                if prev_valid_alt < 1.0 && found_next { prev_valid_alt = next_valid_alt; }
-                if !found_next && prev_valid_alt >= 1.0 { next_valid_alt = prev_valid_alt; }
-                
-                // Si on a encadré le trou, on interpole
-                if prev_valid_alt >= 1.0 || found_next {
-                     let gap_size = (j - i) as f64;
-                     let step = (next_valid_alt - prev_valid_alt) / (gap_size + 1.0);
-                     
-                     for k in 0..(j - i) {
-                         let idx = i + k;
-                         let new_alt = prev_valid_alt + step * (k as f64 + 1.0);
-                         if let Some(obj) = full_tracking_points[idx].as_object_mut() {
-                             obj.insert("altitude".to_string(), serde_json::json!(new_alt));
-                         }
-                     }
-                }
-                i = j; // On saute au prochain valide
-            } else {
-                i += 1;
-            }
+                i = j;
+            } else { i += 1; }
         }
     }
 
@@ -921,8 +1013,6 @@ pub async fn create_variant_files(
     fs::write(&metadata_path, serde_json::to_string_pretty(&segments_metadata).unwrap())
         .map_err(|e| format!("Failed to write segments_metadata: {}", e))?;
     
-    // TODO Phase 2: Implémenter lissage d'altitude aux points d'ancrage
-
     let archive_path = circuit_data_dir.join(format!("archive_{}.json", metadata.id));
     let mut modifications = request.modifications;
     for m in modifications.iter_mut() {
@@ -931,7 +1021,7 @@ pub async fn create_variant_files(
         }
     }
     fs::write(&archive_path, serde_json::to_string_pretty(&Archive { metadata, modifications }).unwrap()).map_err(|e| e.to_string())?;
-    Ok(global_warning)
+    Ok(final_warning)
 }
 
 #[tauri::command]
@@ -960,7 +1050,30 @@ pub async fn get_variants(
             let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
             if filename.starts_with("archive_var_") {
                 let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-                let archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+                let mut archive: Archive = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+                
+                // Compute global status on the fly if missing or just to be sure
+                let mut status = "SUCCESS".to_string();
+                let mut has_alt_fail = false;
+                for mv in &archive.modifications {
+                    let rs = match mv {
+                        VariantModification::DepartDeporte { routing_status, .. } => routing_status,
+                        VariantModification::ArriveeReportee { routing_status, .. } => routing_status,
+                        VariantModification::SegmentDeviation { routing_status, .. } => routing_status,
+                    };
+                    if let Some(s) = rs {
+                        if s == "ROUTE_FAIL" {
+                            status = "ROUTE_FAIL".to_string();
+                            break;
+                        } else if s == "ALT_FAIL" {
+                            has_alt_fail = true;
+                        }
+                    }
+                }
+                if status != "ROUTE_FAIL" && has_alt_fail {
+                    status = "ALT_FAIL".to_string();
+                }
+                archive.metadata.global_status = Some(status);
                 variants.push(archive.metadata);
             }
         }
@@ -1378,12 +1491,23 @@ pub async fn calculate_route(
             };
 
             match result {
-                Ok(geojson) => {
-                    let warning = if is_fallback {
+                Ok(geojson_raw) => {
+                    // Enrichissement des altitudes et réparation des trous
+                    let (geojson, alt_warning) = enhance_geojson_altitudes(geojson_raw).await;
+                    
+                    let mut warning = if is_fallback {
                         Some(format!("Service préférentiel indisponible. Bascule automatique sur {}.", svc_name))
                     } else {
                         None
                     };
+                    
+                    if let Some(aw) = alt_warning {
+                        warning = match warning {
+                            Some(w) => Some(format!("{} | {}", w, aw)),
+                            None => Some(aw)
+                        };
+                    }
+
                     return Ok(RouteResult { geojson, warning });
                 },
                 Err(e) => {

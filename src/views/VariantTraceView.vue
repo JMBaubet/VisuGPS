@@ -52,6 +52,7 @@
         @finalize-mod="finalizeMod"
         @rename-mod="handleRenameMod"
         @update-routing="handleUpdateRouting"
+        @fly-to-mod="handleFlyToMod"
         @load-variant="handleLoadVariant"
         @delete-saved-variant="handleDeleteSavedVariant"
         @rename-saved-variant="handleRenameSavedVariant"
@@ -754,7 +755,8 @@ const handleMapClick = (e) => {
             finalized: false,
             routingLocked: false, // New flag to distinguish first creation from later edits
             routingService: variantConfig.routingService,
-            routingProfile: variantConfig.routingProfile
+            routingProfile: variantConfig.routingProfile,
+            routingStatus: 'SUCCESS'
         };
         modifications.value.push(activeMod);
     }
@@ -1004,7 +1006,7 @@ const handleUpdateRouting = async (modIndex) => {
     mod.routingProfile = variantConfig.routingProfile;
     
     const label = mod.name || (mod.type === 'SEGMENT' ? `le segment ${modIndex + 1}` : mod.type);
-    showSnackbar(`Mise à jour du profil vers "${mod.routingProfile}" pour ${label}...`, "info");
+    // showSnackbar(`Mise à jour du profil vers "${mod.routingProfile}" pour ${label}...`, "info");
     
     // Regenerate preview (and altitude if finalized)
     await generatePreviewForMod(modIndex);
@@ -1049,7 +1051,7 @@ const handleLoadVariant = async (variantId) => {
         modifications.value = [];
         
         // Map back
-        for (const rm of archive.modifications) {
+        for (const [index, rm] of archive.modifications.entries()) {
             let mod = {
                 type: '',
                 points: [],
@@ -1058,8 +1060,11 @@ const handleLoadVariant = async (variantId) => {
                 preview: null,
                 name: rm.name || null,
                 routingService: rm.routingService || null,
-                routingProfile: rm.routingProfile || null
+                routingProfile: rm.routingProfile || null,
+                routingStatus: rm.routingStatus || null
             };
+
+            console.log(`[LoadVariant] Mod ${index} status:`, rm.routingStatus);
 
             if (rm.type === 'SEGMENT_DEVIATION') {
                 mod.type = 'SEGMENT';
@@ -1098,7 +1103,7 @@ const handleLoadVariant = async (variantId) => {
             if (rm.fullGeometry && Array.isArray(rm.fullGeometry)) {
                 mod.preview = {
                     type: 'LineString',
-                    coordinates: rm.fullGeometry.map(p => [p.lon, p.lat])
+                    coordinates: rm.fullGeometry.map(p => [p.lon, p.lat, p.alt || 0])
                 };
             }
             
@@ -1221,12 +1226,35 @@ const generatePreviewForMod = async (modIndex) => {
         
         const routeResult = routeResultStr; 
         
+        let status = 'SUCCESS';
+        let altErrorShown = false;
+
         if (routeResult.warning) {
-             showSnackbar(routeResult.warning, "warning");
+             console.log("[Preview] Routing warning:", routeResult.warning);
+             // Detect specific types of warnings
+             if (routeResult.warning.includes("ALTITUDE_FETCH_ERROR")) {
+                 status = 'ALT_FAIL';
+                 // On n'affiche le snackbar que si le segment est finalisé (demande utilisateur)
+                 if (mod.finalized) {
+                    const label = mod.name || (mod.type === 'SEGMENT' ? `le segment ${modIndex + 1}` : mod.type);
+                    showSnackbar(`Récupération des altitudes pour le segment <b>${label}</b>, en échec !`, "warning");
+                    altErrorShown = true;
+                 }
+             } else if (routeResult.warning.toLowerCase().includes("direct") || routeResult.warning.toLowerCase().includes("échec du routage")) {
+                 status = 'ROUTE_FAIL';
+                 showSnackbar(routeResult.warning, "error");
+             } else {
+                 showSnackbar(routeResult.warning, "warning");
+             }
         }
+        mod.routingStatus = status;
 
         mod.preview = JSON.parse(routeResult.geojson);
         
+        // --- ZOOM ET MISE À JOUR VISUELLE AVANT ALTITUDES ---
+        updatePreviewSource();
+        handleFlyToMod(modIndex);
+
         // --- IMMEDIATELY FETCH ALTITUDES IF FINALIZED ---
         if (mod.finalized && mod.preview && mod.preview.coordinates) {
              try {
@@ -1236,8 +1264,16 @@ const generatePreviewForMod = async (modIndex) => {
                 // Inject altitudes into preview coordinates
                 mod.preview.coordinates = mod.preview.coordinates.map((c, i) => [c[0], c[1], altitudes[i] || 0]);
                 console.log(`[Preview] Altitudes fetched for finalized mod ${modIndex}`);
+                
              } catch (altError) {
                 console.warn("Could not fetch altitudes during preview:", altError);
+                if (mod.routingStatus !== 'ROUTE_FAIL') {
+                    mod.routingStatus = 'ALT_FAIL';
+                    if (!altErrorShown) {
+                        const label = mod.name || (mod.type === 'SEGMENT' ? `le segment ${modIndex + 1}` : mod.type);
+                        showSnackbar(`Récupération des altitudes pour le segment <b>${label}</b>, en échec !`, "warning");
+                    }
+                }
              }
         }
 
@@ -1291,7 +1327,7 @@ const generatePreviewForMod = async (modIndex) => {
         updatePreviewSource();
     } finally {
         isLoading.value = false;
-    }
+      triggerAutoSave(); }
 };
 
 const updatePreviewSource = () => {
@@ -1572,7 +1608,7 @@ const confirmSaveVariant = async (silent = false) => {
                     longueur: longueur,
                     name: mod.name,
                     routingService: mod.routingService,
-                    routingProfile: mod.routingProfile
+                    routingProfile: mod.routingProfile, routingStatus: mod.routingStatus
                 };
             } else if (mod.type === 'DEPART') {
                  // --- TRIMMING LOGIC FOR DEPART (Modulo 100m) ---
@@ -1636,7 +1672,7 @@ const confirmSaveVariant = async (silent = false) => {
                     longueur: longueur,
                     name: mod.name,
                     routingService: mod.routingService,
-                    routingProfile: mod.routingProfile
+                    routingProfile: mod.routingProfile, routingStatus: mod.routingStatus
                 };
             } else if (mod.type === 'ARRIVEE') {
                 return {
@@ -1647,7 +1683,8 @@ const confirmSaveVariant = async (silent = false) => {
                     longueur: longueur,
                     name: mod.name,
                     routingService: mod.routingService,
-                    routingProfile: mod.routingProfile
+                    routingProfile: mod.routingProfile,
+                    routingStatus: mod.routingStatus
                 };
             }
         });
@@ -1672,9 +1709,15 @@ const confirmSaveVariant = async (silent = false) => {
             }
         });
         
-        if (warning) {
-            showSnackbar(warning, "warning");
+        /* 
+        if (warning && !silent) {
+            // Uniquement si on a des segments en échec (orange ou rouge)
+            const hasIssues = finalizedModsOnly.some(m => m.routingStatus !== 'SUCCESS');
+            if (hasIssues) {
+                showSnackbar(warning, "warning");
+            }
         }
+        */
         
         await loadSavedVariants();
         

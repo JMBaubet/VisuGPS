@@ -5,7 +5,7 @@
     :timeout="snackbar.timeout"
     location="bottom left"
   >
-    {{ snackbar.message }}
+    <div v-html="snackbar.message"></div>
     
   </v-snackbar>
 </template>
