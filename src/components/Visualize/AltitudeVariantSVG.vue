@@ -10,19 +10,10 @@
     <!-- Scrolling SVG Container -->
     <div class="svg-container" ref="containerRef" 
          @mousemove="handleMouseMove" 
-         @mouseleave="handleMouseLeave"
+         @mouseleave="tooltipVisible = false"
          @click="handleGraphClick"
          style="cursor: pointer;"
     >
-      <div
-        v-if="tooltipVisible"
-        class="tooltip"
-        :style="{ top: tooltipPosition.y + 'px', left: tooltipPosition.x + 'px' }"
-      >
-        <div v-if="tooltipData.altitude">{{ Math.round(tooltipData.altitude) }} m</div>
-        <div>{{ Math.round(tooltipData.distance / 100) / 10 }} km</div>
-        <div>{{ tooltipData.type }}</div>
-      </div>
       <svg :viewBox="`0 0 ${viewBoxWidth} ${svgHeight}`" :height="svgHeight" :width="viewBoxWidth" preserveAspectRatio="xMinYMin meet">
         <g>
           <!-- Y-Axis Grid Lines -->
@@ -127,15 +118,6 @@
               stroke-width="2"
           ></line>
           
-          <!-- Hover Line -->
-          <line
-              v-if="tooltipVisible"
-              class="hover-line"
-              :x1="hoverLineX"
-              y1="0"
-              :x2="hoverLineX"
-              :y2="svgHeight - 30"
-          ></line>
         </g>
       </svg>
     </div>
@@ -168,6 +150,9 @@ const viewBoxWidth = ref(1000);
 const svgHeight = ref(210); // Standard height from AltitudeSVG
 const progressX = ref(0);
 const pixelScaleX = ref(2); // Pixels per 100m
+const minVisualM = ref(0);
+const visualSpanM = ref(1);
+
 const pathSegments = ref([]);
 const abandonedRects = ref([]); 
 const blueRects = ref([]);
@@ -181,15 +166,107 @@ const maxAltitude = ref(0);
 const innerWidth = computed(() => viewBoxWidth.value - props.padding.left - props.padding.right);
 const innerHeight = computed(() => svgHeight.value - props.padding.top - props.padding.bottom);
 
-// --- Tooltip Refs ---
+// --- Hover Refs ---
 const tooltipVisible = ref(false);
-const tooltipData = ref({ distance: 0, altitude: 0, type: '' });
-const tooltipPosition = ref({ x: 0, y: 0 });
 const hoverLineX = ref(0);
 
 // --- Composables ---
 const { getSettingValue } = useSettings();
 const { toHex } = useVuetifyColors();
+
+// --- Computed Mapping Structure ---
+const sortedModifications = computed(() => {
+    return props.variantBlueSegments.map(b => {
+        const isDepart = b.type === 'DEPART';
+        const isArrivee = b.type === 'ARRIVEE';
+        const widthM = b.lengthM; 
+        
+        let mMin = 0; // Blue Start in Master Scale
+        if (isDepart) mMin = b.anchorM - widthM;
+        else if (isArrivee) mMin = b.anchorM;
+        else {
+            const mCenter = (b.anchorM + b.anchorEndM) / 2;
+            mMin = mCenter - widthM / 2;
+        }
+        const mMax = mMin + widthM; // Blue End in Master Scale
+        
+        return {
+            ...b,
+            mStart: isDepart ? 0 : b.anchorM,
+            mEnd: isArrivee ? props.totalMainDistance : (b.anchorEndM || b.anchorM),
+            mMin,
+            mMax,
+            vDistStart: (b.points?.[0]?.distance || 0) * 1000,
+            vDistEnd: (b.points?.[b.points.length - 1]?.distance || 0) * 1000
+        };
+    }).sort((a,b) => a.mStart - b.mStart);
+});
+
+// Helper: Visual Master Meters (X-axis distance) -> Variant Journey Meters
+const visualMasterMetersToVariantMeters = (dm) => {
+    let dv = 0;
+    let lastMasterM = 0;
+
+    for (const m of sortedModifications.value) {
+        // 1. Common section before this modification
+        if (dm < m.mStart) {
+            return Math.max(0, dv + (dm - lastMasterM));
+        }
+        dv += (m.mStart - lastMasterM);
+        
+        // 2. We are inside the master abandoned range [mStart, mEnd]
+        if (dm <= m.mEnd) {
+            if (dm < m.mMin) {
+                // Gray zone before blue: jump to start of variant
+                return m.vDistStart;
+            } else if (dm <= m.mMax) {
+                // Blue zone: linear interpolation
+                const ratio = (dm - m.mMin) / (m.mMax - m.mMin || 1);
+                return m.vDistStart + ratio * (m.vDistEnd - m.vDistStart);
+            } else {
+                // Gray zone after blue: jump to end of variant (resuming master)
+                return m.vDistEnd;
+            }
+        }
+        
+        // Past this modification
+        dv = m.vDistEnd;
+        lastMasterM = m.mEnd;
+    }
+    // 3. Final common section
+    return Math.max(0, dv + (dm - lastMasterM));
+};
+
+// Helper: Variant Journey Meters -> Visual Master Meters (X-axis distance)
+const variantMetersToVisualMasterMeters = (vDist) => {
+    let cursorV = 0;
+    let cursorM = 0;
+    const EPS = 0.01; // Small epsilon for float comparison
+    
+    for (const m of sortedModifications.value) {
+        // 1. Common section before this modification
+        const commonLen = m.mStart - cursorM;
+        // Optimization: if commonLen is 0 (direct start of variant), we skip common check
+        // Also use a negative buffer (-EPS) so that if vDist is exactly at the boundary, 
+        // we fall into the modification check instead of the preceding common check.
+        if (commonLen > 0 && vDist <= (cursorV + commonLen - EPS)) {
+            return cursorM + Math.max(0, vDist - cursorV);
+        }
+        cursorV += commonLen;
+        cursorM = m.mStart;
+        
+        // 2. Variant section (Blue)
+        const variantLen = m.vDistEnd - m.vDistStart;
+        if (vDist <= (cursorV + variantLen + EPS)) {
+            const ratio = Math.min(1, Math.max(0, (vDist - cursorV) / (variantLen || 1)));
+            return m.mMin + ratio * (m.mMax - m.mMin);
+        }
+        cursorV += variantLen;
+        cursorM = m.mEnd; 
+    }
+    // 3. Final common section
+    return cursorM + Math.max(0, vDist - cursorV);
+};
 
 onMounted(() => {
     processData();
@@ -199,12 +276,20 @@ onMounted(() => {
 async function processData() {
     if (!props.mainTracePoints || props.mainTracePoints.length === 0) return;
 
-    const contextTotalDistMeters = props.totalMainDistance;
-    
-    // Scaling Factors
     pixelScaleX.value = getSettingValue('Visualisation/Profil Altitude/Graphe/Abscisse') || 2;
-    viewBoxWidth.value = (contextTotalDistMeters / 100) * pixelScaleX.value;
-    const getX = (distFromStartMeters) => (distFromStartMeters / contextTotalDistMeters) * viewBoxWidth.value;
+    
+    // 1. Calculate the Visual Bound of the graph
+    let minX = 0;
+    let maxX = props.totalMainDistance;
+    sortedModifications.value.forEach(m => {
+        if (m.mMin < minX) minX = m.mMin;
+        if (m.mMax > maxX) maxX = m.mMax;
+    });
+    minVisualM.value = minX;
+    visualSpanM.value = Math.max(1, maxX - minX);
+
+    viewBoxWidth.value = (visualSpanM.value / 100) * pixelScaleX.value;
+    const getX = (distFromStartMeters) => ((distFromStartMeters - minVisualM.value) / visualSpanM.value) * viewBoxWidth.value;
 
     // Altitude Range & Y Scale
     const pixelsFor10Meters = getSettingValue('Visualisation/Profil Altitude/Graphe/Ordonnee') || 10;
@@ -493,8 +578,8 @@ async function processData() {
     };
 
     if (tickInterval > 0) {
-        for (let d = 0; d <= contextTotalDistMeters; d += tickInterval) {
-             const variantDistM = getVarDistAtMasterM(d);
+        for (let d = 0; d <= props.totalMainDistance; d += tickInterval) {
+             const variantDistM = visualMasterMetersToVariantMeters(d);
              let labelValKm = variantDistM / 1000;
              xTicks.value.push({ value: d, position: getX(d), label: `${labelValKm.toFixed(1)}km` });
         }
@@ -534,70 +619,11 @@ watch([() => props.totalMainDistance, () => props.abandonedSegments, () => props
 });
 
 const updateProgressPosition = () => {
-    if (props.totalMainDistance === 0) return;
-    // Re-calculate getX locally since it depends on ref viewBoxWidth and prop
-    const getX = (d) => (d / props.totalMainDistance) * viewBoxWidth.value;
+    if (props.totalMainDistance === 0 || visualSpanM.value <= 0) return;
+    const getX = (d) => ((d - minVisualM.value) / visualSpanM.value) * viewBoxWidth.value;
     
-    const vDist = props.currentDistance; // In Meters
-
-    // Prepare list of modifications as in getVarDistAtMasterM
-    const sortedModifs = props.variantBlueSegments.map(b => {
-        const isDepart = b.type === 'DEPART';
-        const isArrivee = b.type === 'ARRIVEE';
-        const widthM = b.lengthM; 
-        let mMin = 0;
-        if (isDepart) mMin = b.anchorM - widthM;
-        else if (isArrivee) mMin = b.anchorM;
-        else {
-            const mCenter = (b.anchorM + b.anchorEndM) / 2;
-            mMin = mCenter - widthM / 2;
-        }
-        const mMax = mMin + widthM;
-        
-        return {
-            ...b,
-            mStart: isDepart ? 0 : b.anchorM,
-            mEnd: isArrivee ? props.totalMainDistance : (b.anchorEndM || b.anchorM),
-            mMin,
-            mMax
-        };
-    }).sort((a,b) => a.mStart - b.mStart);
-
-    let cursorV = 0; // Cumulative variant distance
-    let cursorM = 0; // Cumulative master distance
-    
-    for (const m of sortedModifs) {
-        // 1. Common section before this modification
-        const commonLen = m.mStart - cursorM;
-        
-        if (vDist <= (cursorV + commonLen)) {
-            const delta = vDist - cursorV;
-            progressX.value = getX(cursorM + delta);
-            // console.log("ProgressX Common", progressX.value);
-            return;
-        }
-        
-        cursorV += commonLen;
-        cursorM = m.mStart;
-        
-        // 2. Variant section (Blue)
-        const variantLen = m.lengthM;
-        
-        if (vDist <= (cursorV + variantLen)) {
-            const ratio = (vDist - cursorV) / (variantLen || 1);
-            const visualMasterM = m.mMin + ratio * (m.mMax - m.mMin);
-            progressX.value = getX(visualMasterM);
-            // console.log("ProgressX Variant", progressX.value);
-            return;
-        }
-        
-        cursorV += variantLen;
-        cursorM = m.mEnd; 
-    }
-    
-    // 3. Final common section
-    const delta = vDist - cursorV;
-    progressX.value = getX(cursorM + delta);
+    const visualMasterM = variantMetersToVisualMasterMeters(props.currentDistance);
+    progressX.value = getX(visualMasterM);
 };
 
 // Horizontal Scroll Management (Moved to a separate watcher to avoid early return issues)
@@ -624,34 +650,8 @@ function handleMouseMove(event) {
     const scrollLeft = containerRef.value.scrollLeft;
     const clickXInSvg = hitX + scrollLeft;
     
-    let targetDistanceMeters = (clickXInSvg * props.totalMainDistance) / viewBoxWidth.value;
-    targetDistanceMeters = Math.max(0, Math.min(targetDistanceMeters, props.totalMainDistance));
-    
     hoverLineX.value = clickXInSvg;
-    tooltipPosition.value = { x: hitX + 10, y: event.clientY - rect.top + 10 };
-    
-    const isAbandoned = props.abandonedSegments.some(s => targetDistanceMeters >= s.start && targetDistanceMeters <= s.end);
-    
-    // Find closest altitude
-    // This is expensive in mousemove, but ok for small data
-    let foundAlt = 0;
-    const dKm = targetDistanceMeters / 1000;
-    // Binary search or just find closest
-    const closestP = props.mainTracePoints.reduce((prev, curr) => {
-        return (Math.abs(curr.distance - dKm) < Math.abs(prev.distance - dKm)) ? curr : prev;
-    }, props.mainTracePoints[0]);
-    if (closestP) foundAlt = closestP.altitude;
-
-    tooltipData.value = {
-        distance: targetDistanceMeters,
-        altitude: foundAlt,
-        type: isAbandoned ? 'Abandonné (Gris)' : 'Commun (Vert)'
-    };
     tooltipVisible.value = true;
-}
-
-function handleMouseLeave() {
-    tooltipVisible.value = false;
 }
 
 function handleGraphClick(event) {
@@ -659,11 +659,14 @@ function handleGraphClick(event) {
      const rect = containerRef.value.getBoundingClientRect();
      const scrollLeft = containerRef.value.scrollLeft;
      const clickXInSvg = (event.clientX - rect.left) + scrollLeft;
-     let targetDistanceMeters = (clickXInSvg * props.totalMainDistance) / viewBoxWidth.value;
-     targetDistanceMeters = Math.max(0, Math.min(targetDistanceMeters, props.totalMainDistance));
      
-     // Note: This emits Main Trace Distance. VisualizeVariantView might need conversion
-     // but the user just asked for visualized altitude for now.
+     let targetVisualMasterMeters = ((clickXInSvg / viewBoxWidth.value) * visualSpanM.value) + minVisualM.value;
+     targetVisualMasterMeters = Math.max(minVisualM.value, Math.min(targetVisualMasterMeters, minVisualM.value + visualSpanM.value));
+     
+     const variantDistM = visualMasterMetersToVariantMeters(targetVisualMasterMeters);
+     const variantDistKm = variantDistM / 1000;
+     
+     emits('jump-requested', variantDistKm);
 }
 </script>
 
@@ -686,5 +689,4 @@ svg { display: block; }
 .progress-bar { stroke: white; stroke-width: 1.5; }
 rect { shape-rendering: crispEdges; }
 .hover-line { stroke: rgba(255, 255, 255, 0.7); stroke-width: 1; stroke-dasharray: 4 2; }
-.tooltip { position: absolute; background: rgba(255,255,255,0.75); padding: 8px; border-radius: 5px; font-size: 12px; pointer-events: none; z-index: 9999; }
 </style>

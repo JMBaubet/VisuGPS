@@ -70,7 +70,26 @@
             :main-trace-points="masterTrackingPoints"
             :abandoned-segments="abandonedSegmentsRef"
             :variant-blue-segments="variantBlueSegmentsRef"
+            @jump-requested="handleJumpRequest"
         />
+    </template>
+
+    <template #final-action>
+        <v-menu location="top center" offset="10" open-on-hover>
+            <template v-slot:activator="{ props: menuProps }">
+                <v-btn icon="mdi-map-marker-radius-outline" variant="text" size="small" v-bind="menuProps"
+                       :disabled="!isPaused || isAnimationFinished"
+                ></v-btn>
+            </template>
+            <v-list density="compact" class="bg-surface pa-0 elevation-10" style="border-radius: 8px; min-width: 40px;">
+                <v-list-item v-for="(item, i) in navigationItems" :key="i" @click="handleNavigationClick(item)"
+                             link class="pa-0 justify-center">
+                    <div class="d-flex justify-center w-100 py-2">
+                        <v-icon :icon="item.icon" :color="item.color" size="small"></v-icon>
+                    </div>
+                </v-list-item>
+            </v-list>
+        </v-menu>
     </template>
 
 
@@ -309,6 +328,58 @@ const masterTraceTotalDistance = ref(1);
 const masterTrackingPoints = ref([]);
 const abandonedSegmentsRef = ref([]);
 const variantBlueSegmentsRef = ref([]);
+
+// --- Navigation Menu Computed ---
+const navigationItems = computed(() => {
+    const list = [];
+    
+    // Sort variant segments by distance
+    const sorted = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
+    
+    sorted.forEach((seg, index) => {
+        let icon = 'mdi-source-branch';
+        let color = 'primary';
+        let name = seg.name;
+        
+        if (seg.type === 'DEPART') {
+            icon = 'mdi-ray-start-arrow';
+            color = 'success';
+            if (!name) name = 'Départ';
+        } else if (seg.type === 'ARRIVEE') {
+            icon = 'mdi-ray-end-arrow';
+            color = 'error';
+            if (!name) name = 'Arrivée';
+        } else {
+             if (!name) name = `Segment ${index + 1}`;
+        }
+        
+        list.push({
+            icon,
+            color,
+            name,
+            distanceKm: seg.points[0].distance,
+            type: seg.type
+        });
+    });
+    
+    // Final View Item
+    list.push({
+        icon: 'mdi-clock-end',
+        color: 'grey-darken-1',
+        name: 'Vue Finale',
+        isFinalView: true
+    });
+    
+    return list;
+});
+
+const handleNavigationClick = (item) => {
+    if (item.isFinalView) {
+        handleEndSequence();
+    } else if (typeof item.distanceKm === 'number') {
+        handleJumpRequest(item.distanceKm);
+    }
+};
 
 
 
@@ -632,6 +703,7 @@ const initializeVisualization = async () => {
                         
                         blueSegments.push({
                             type,
+                            name: modif.name, // Support custom segment names
                             // Junction point on Master is the anchor
                             anchorM: type === 'DEPART' ? endAnchorIdx * segLen : startAnchorIdx * segLen,
                             anchorEndM: type === 'SEGMENT' ? endAnchorIdx * segLen : 0,

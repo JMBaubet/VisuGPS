@@ -60,11 +60,13 @@
 
                 <v-divider vertical class="mx-2"></v-divider>
                  
-                 <v-btn icon="mdi-clock-end" variant="text" size="small"
-                        title="Vue Finale (Fin de trace)"
-                        :disabled="!isPaused || isAnimationFinished"
-                        @click="$emit('trigger-final-view')"
-                ></v-btn>
+                 <slot name="final-action">
+                    <v-btn icon="mdi-clock-end" variant="text" size="small"
+                            title="Vue Finale (Fin de trace)"
+                            :disabled="!isPaused || isAnimationFinished"
+                            @click="$emit('trigger-final-view')"
+                    ></v-btn>
+                 </slot>
 
                  <!-- Extra Controls Slot (Variant Link etc) -->
                  <slot name="extra-controls"></slot>
