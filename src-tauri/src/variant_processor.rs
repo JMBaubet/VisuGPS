@@ -326,6 +326,8 @@ pub async fn create_variant_files(
     let median_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_median_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
     let avg_window = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.altitude_smoothing_avg_window").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
     let max_gradient = crate::get_setting_value(&settings, "data.groupes.Importation.parametres.max_gradient_percent").and_then(|v| v.as_f64()).unwrap_or(40.0);
+    let default_zoom = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Camera.parametres.Zoom").and_then(|v| v.as_f64()).unwrap_or(16.0);
+    let default_pitch = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Camera.parametres.Pitch").and_then(|v| v.as_f64()).unwrap_or(60.0);
 
     // Load master tracking.json to copy anchor point data
     let tracking_master_path = circuit_data_dir.join("tracking.json");
@@ -727,7 +729,7 @@ pub async fn create_variant_files(
             VariantModification::DepartDeporte { anchor_index_on_master, full_geometry, .. } => {
                 println!("[VariantGen] Mod {}: DEPART_DEPORTE at Master index {}", mod_idx, anchor_index_on_master);
                 if let Some(geom) = full_geometry {
-                    let var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                    let var_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
                     println!("   -> Added {} variant tracking points", var_tracking.len());
                     
                     if let Some(last) = var_tracking.last() {
@@ -763,7 +765,7 @@ pub async fn create_variant_files(
 
                 // 2. Déviation : Nouveaux points
                 if let Some(geom) = full_geometry {
-                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
                     println!("   -> Added {} variant deviation points", var_tracking.len());
 
                     // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
@@ -803,7 +805,7 @@ pub async fn create_variant_files(
 
                 // 2. Nouvelle Arrivée
                 if let Some(geom) = full_geometry {
-                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                    let mut var_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
                     println!("   -> Added {} variant arrival points", var_tracking.len());
 
                     // LISSAGE : On récupère l'altitude du dernier point commun (l'ancre)
@@ -1895,7 +1897,7 @@ fn simple_bearing(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     (brng * 10.0).round() / 10.0
 }
 
-fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f64) -> Vec<serde_json::Value> {
+fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f64, default_zoom: f64, default_pitch: f64) -> Vec<serde_json::Value> {
     if points.is_empty() { return Vec::new(); }
     
     // 1. Convert to simple coordinates for calculation
@@ -1956,8 +1958,8 @@ fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f6
             "altitude": p[2],
             "distance": 0.0,
             "cap": cap,
-            "zoom": 16.0,
-            "pitch": 60.0,
+            "zoom": default_zoom,
+            "pitch": default_pitch,
             "coordonneeCamera": [],
             "altitudeCamera": 0.0,
             "nbrSegment": 0,
@@ -2069,6 +2071,8 @@ pub async fn get_variant_tracking_internal(
     let segment_length = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
         .and_then(|v| v.as_f64())
         .unwrap_or(100.0);
+    let default_zoom = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Camera.parametres.Zoom").and_then(|v| v.as_f64()).unwrap_or(16.0);
+    let default_pitch = crate::get_setting_value(&settings, "data.groupes.Importation.groupes.Camera.parametres.Pitch").and_then(|v| v.as_f64()).unwrap_or(60.0);
 
     // 1. Load Master Tracking
     let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
@@ -2099,7 +2103,7 @@ pub async fn get_variant_tracking_internal(
                       let last = geom.last().unwrap();
                       let connect_idx = find_closest_tracking_idx(&master_tracking, last.lat, last.lon, 0);
                       
-                      let mut variant_tracking = generate_interpolated_tracking(&geom, segment_length);
+                      let mut variant_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
 
                       // Copy camera params from anchor to first point
                       if let Some(anchor_tp) = master_tracking.get(connect_idx) {
@@ -2141,7 +2145,7 @@ pub async fn get_variant_tracking_internal(
                          }
                          
                          // Add New Segment (skip first point as it's the anchor in master)
-                         let var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                         let var_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
                          // Update master anchor's cap to point to the FIRST NEW point of variant
                          if let (Some(anchor_tp), Some(next_var_tp)) = (final_tracking.last_mut(), var_tracking.get(1)) {
                              if let (Some(anchor_obj), Some(next_obj)) = (anchor_tp.as_object_mut(), next_var_tp.as_object()) {
@@ -2172,7 +2176,7 @@ pub async fn get_variant_tracking_internal(
                          }
                          
                          // Add New Segment (skip first point as it's the anchor in master)
-                         let mut var_tracking = generate_interpolated_tracking(&geom, segment_length);
+                         let mut var_tracking = generate_interpolated_tracking(&geom, segment_length, default_zoom, default_pitch);
                          
                          // 1. Update master anchor to point to variant[1]
                          if let (Some(anchor_tp), Some(next_var_tp)) = (final_tracking.last_mut(), var_tracking.get(1)) {
