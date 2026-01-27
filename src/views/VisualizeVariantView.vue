@@ -1056,10 +1056,6 @@ const handleJumpRequest = async (targetDistanceKm) => {
         };
     }
 
-    try {
-        const pointOnLine = turf.along(lineStringRef.value, targetDistanceKm, { units: 'kilometers' });
-        targetCamera.center = pointOnLine.geometry.coordinates;
-    } catch(e) { }
 
     // 4. FlyTo Transition
     await flyToPromise({
