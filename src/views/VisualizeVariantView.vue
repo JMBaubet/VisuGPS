@@ -1192,7 +1192,7 @@ const checkEvents = async (distanceTraveled) => {
                newVisibleIds.forEach(id => {
                    if (!currentVisibleIds.has(id)) {
                        const m = rangeEvents.value.find(ev => ev.eventId === id);
-                       if(m && m.message) {
+                       if(m && m.message && map.value) {
                            const content = createMessageSVG(m);
                            const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
                             const p = new mapboxgl.Popup({ 
@@ -1542,13 +1542,39 @@ onMounted(async () => {
 });
 
 // Sync isPaused with animationState for UI visibility
-watch(isPaused, (newVal) => {
+watch(isPaused, async (newVal, oldVal) => {
     if (newVal) {
         if (animationState.value === 'En_Animation') {
             animationState.value = 'En_Pause';
         }
     } else {
-        if (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart') {
+        if (oldVal === true && (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart')) {
+             // Fix: Smooth Resume if user moved the camera during pause
+            if (map.value && trackingPointsWithDistanceRef.value.length > 0) {
+                const currentDistKm = (currentDistanceInMeters.value || 0) / 1000;
+                
+                // Find the theoretical camera position on track
+                const { target } = updateCameraPosition(currentDistKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+                    dynamicZoomIntensity: dynamicZoomIntensity.value,
+                    currentSpeed: currentSpeed.value,
+                    lineStringRef: lineStringRef,
+                    isMultisegment: false, 
+                    activeVariantSegments: [],
+                    apply: false
+                });
+
+                if (target) {
+                    isFlytoActive.value = true;
+                    await flyToPromise({
+                        center: target.center, 
+                        zoom: target.zoom, 
+                        pitch: target.pitch, 
+                        bearing: target.bearing,
+                        duration: 1200 // Smooth transition
+                    });
+                    isFlytoActive.value = false;
+                }
+            }
             animationState.value = 'En_Animation';
         }
     }
