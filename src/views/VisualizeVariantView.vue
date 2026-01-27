@@ -563,10 +563,32 @@ const initializeVisualization = async () => {
             .map((p, i) => (p.pointDeControl ? i : -1))
             .filter(i => i !== -1);
 
-        // Reset Events (Variants don't imply events yet)
-        pauseIncrements.value = [];
-        flytoEvents.value = {};
-        rangeEvents.value = [];
+        // G. Load Events (using _FULL suffix matches EditView save logic)
+        try {
+            const events = await invoke('get_events', { 
+                circuitId: props.circuitId, 
+                variantId: `${selectedVariantId.value}_FULL` 
+            });
+
+            if (events && events.pointEvents) {
+                pauseIncrements.value = Object.keys(events.pointEvents)
+                    .filter(k => events.pointEvents[k].some(e => e.type === 'Pause'))
+                    .map(Number);
+
+                const flytos = {};
+                Object.keys(events.pointEvents).forEach(k => {
+                    const ev = events.pointEvents[k].find(e => e.type === 'Flyto');
+                    if (ev) flytos[Number(k)] = ev.data;
+                });
+                flytoEvents.value = flytos;
+            }
+            rangeEvents.value = events?.rangeEvents || [];
+        } catch (e) {
+            console.warn("[VisualizeVariant] No events found for this variant:", e);
+            pauseIncrements.value = [];
+            flytoEvents.value = {};
+            rangeEvents.value = [];
+        }
 
         await initWeather(circuit, trackingPointsWithDistanceRef.value);
 
@@ -982,8 +1004,8 @@ const animateLoop = (timestamp) => {
     }
 
     // 6. Check Events (Pause/Flyto)
-    // 6. Check Events (Pause/Flyto) - Expects M
-    checkEvents(distanceTraveled * 1000);
+    // 6. Check Events (Pause/Flyto)
+    checkEvents(distanceTraveled);
 
     // 7. Loop or End
     if (phase < 1 || isRewinding.value) {
