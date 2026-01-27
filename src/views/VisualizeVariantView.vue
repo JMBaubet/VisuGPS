@@ -1261,21 +1261,41 @@ const handleEndSequence = async () => {
           map.value.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
      }
     
+    // Force visibility of master trace layers for comparison
+    updateLayerVisibility('trace-main-abandoned', true);
+    
     // Switch to launch style if needed
     if (styleLancement.value !== mapStyle.value) {
         map.value.setStyle(styleLancement.value);
         await new Promise(r => map.value.once('style.load', r));
         setupTraceLayers({
             traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+            lineStringData: lineStringRef.value, 
+            masterTraceData: masterTraceGeoJson.value,
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
         });
     }
 
-    const traceBbox = turf.bbox(lineStringRef.value);
+    // Combined BBox for both traces
+    let combinedBbox = null;
+    try {
+        const variantFeature = { type: 'Feature', geometry: lineStringRef.value.geometry || lineStringRef.value, properties: {} };
+        const masterFeature = { type: 'Feature', geometry: masterTraceGeoJson.value.geometry || masterTraceGeoJson.value, properties: {} };
+        combinedBbox = turf.bbox({
+            type: 'FeatureCollection',
+            features: [variantFeature, masterFeature]
+        });
+    } catch (e) {
+        console.warn("BBox calculation failed, as fallback using alone variant", e);
+        combinedBbox = turf.bbox(lineStringRef.value);
+    }
+
     /* Safe implementation of Final FlyTo */
     try {
-        const camParams = map.value.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+        const camParams = map.value.cameraForBounds(combinedBbox, { padding: 80, bearing: 0, pitch: 0 });
         if (camParams) {
              await flyToPromise({
                 center: camParams.center,
