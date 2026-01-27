@@ -1194,7 +1194,13 @@ const checkEvents = async (distanceTraveled) => {
                        const m = rangeEvents.value.find(ev => ev.eventId === id);
                        if(m && m.message) {
                            const content = createMessageSVG(m);
-                           const p = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, className: 'map-message-popup' })
+                           const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+                            const p = new mapboxgl.Popup({ 
+                                closeButton: false, 
+                                closeOnClick: false, 
+                                className: 'map-message-popup',
+                                anchor: anchor
+                            })
                                 .setLngLat(m.coord).setHTML(content).addTo(map.value);
                            activePopups.set(id, p);
                        }
