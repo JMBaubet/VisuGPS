@@ -14,6 +14,17 @@
         <!-- Zone d'avancement -->
         <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" :opacity="progressZoneOpacity" />
 
+        <!-- Zones de variante -->
+        <rect
+          v-for="(zone, idx) in variantZones"
+          :key="`variant-zone-${idx}`"
+          :x="(zone.start * kmToPx) + startOffsetPx"
+          :y="0"
+          :width="(zone.end - zone.start) * kmToPx"
+          :height="svgHeight"
+          fill="rgba(255, 167, 38, 0.25)"
+        />
+
         <!-- Graphiques des données éditées (drawn first, to be in the background) -->
         <path v-if="props.showEditedZoom" :d="editedZoomPath" :style="{ stroke: editedZoomColor }" />
         <path v-if="props.showEditedPitch" :d="editedPitchPath" :style="{ stroke: editedPitchColor }" />
@@ -142,6 +153,7 @@ const props = defineProps({
   defaultCameraZoom: { type: Number, default: 0 },
   currentCameraPitch: { type: Number, default: 0 },
   defaultCameraPitch: { type: Number, default: 0 },
+  variantZones: { type: Array, default: () => [] },
 });
 
 const controlPoints = computed(() => {

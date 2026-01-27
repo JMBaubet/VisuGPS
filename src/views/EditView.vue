@@ -80,92 +80,14 @@
           <!-- Divider -->
           <v-divider vertical class="mx-2" v-if="currentVariantId"></v-divider>
     
-          <!-- Selected Variant Name (Interactive Menu if > 1, Static if == 1) -->
+          <!-- Selected Variant Name (Static) -->
           <template v-if="currentVariantId && selectedVariant">
-              <v-menu v-if="variants.length > 1">
-                <template v-slot:activator="{ props }">
-                   <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
-                     <div class="d-flex align-center">
-                        <v-icon size="small" class="mr-1">mdi-menu</v-icon>
-                        <span class="widget-text">{{ selectedVariant.name }}</span>
-                     </div>
-                     <span class="widget-label">Variante</span>
-                   </div>
-                </template>
-                <v-list density="compact">
-                  <v-list-item 
-                    v-for="variant in variants" 
-                    :key="variant.id" 
-                    :title="variant.name"
-                    prepend-icon="mdi-source-branch"
-                    @click="handleSelectVariant(variant)"
-                  ></v-list-item>
-                </v-list>
-              </v-menu>
-              <div v-else class="d-flex flex-column align-center mx-1">
+              <div class="d-flex flex-column align-center mx-1">
                  <span class="widget-text">{{ selectedVariant.name }}</span>
                  <span class="widget-label">Variante</span>
               </div>
           </template>
     
-          <!-- Divider -->
-          <v-divider vertical class="mx-2" v-if="currentSegmentType"></v-divider>
-    
-          <!-- Segment Selection (Dynamic Menu) -->
-          <v-menu v-if="variants.find(v => v.id === currentVariantId) && getVariantSegments(selectedVariant).length > 1">
-            <template v-slot:activator="{ props }">
-               <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
-                 <!-- Case: Segment Selected -->
-                 <div v-if="currentSegmentType" class="d-flex align-center">
-                    <v-icon size="small" class="mr-1">mdi-menu</v-icon>
-                    <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
-                        {{ getSegmentTitle({ type: currentSegmentType, originalIndex: currentSegmentIndex }) }}
-                    </span>
-                 </div>
-                 <!-- Case: No Segment Selected (Prompt) -->
-                 <div v-else class="d-flex align-center">
-                    <v-icon size="small" class="mr-1">mdi-menu</v-icon>
-                    <span class="widget-label">Sélectionnez un</span>
-                 </div>
-                 <span class="widget-label">Segment</span>
-               </div>
-            </template>
-             <v-list density="compact">
-               <v-list-item 
-                  v-for="(mod, index) in getVariantSegments(selectedVariant)" 
-                  :key="index"
-                  @click="loadVariantSegment(selectedVariant.id, mod, mod.originalIndex)"
-                >
-                 <template v-slot:prepend>
-                    <v-icon :color="getSegmentColor(mod)" class="mr-2">{{ getModIcon(mod) }}</v-icon>
-                 </template>
-                 <v-list-item-title :class="'text-' + getSegmentColor(mod)">{{ getSegmentTitle(mod) }}</v-list-item-title>
-                </v-list-item>
-            </v-list>
-          </v-menu>
-          <!-- Static Segment Name (Single Segment) -->
-          <div v-else-if="currentSegmentType" class="d-flex flex-column align-center mx-1">
-             <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
-                 {{ getSegmentTitle({ type: currentSegmentType, originalIndex: currentSegmentIndex }) }}
-             </span>
-             <span class="widget-label">Segment</span>
-          </div>
-
-          <!-- Progression (Segment) -->
-          <template v-if="currentSegmentType">
-            <v-divider vertical class="mx-2"></v-divider>
-            <div class="d-flex flex-column align-center mx-2">
-               <span class="widget-text" :class="'text-' + getSegmentColor({ type: currentSegmentType })">
-                   <template v-if="activeModification && (activeModification.longueur === undefined || activeModification.longueur < 0.001)">
-                       Point fixe
-                   </template>
-                   <template v-else>
-                       {{ currentProgressDistance.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;" class="text-white">/ {{ totalLineLength.toFixed(2) }} km</span>
-                   </template>
-               </span>
-               <span class="widget-label">Prog. Segment</span>
-            </div>
-          </template>
       </div>
     </div>
 
@@ -183,6 +105,7 @@
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
+        :variant-zones="variantZones"
         :show-bearing-delta="showCalculeeBearingDelta"
         :show-bearing-total-delta="showCalculeeBearingTotalDelta"
         :show-edited-zoom="showEditeeZoom"
@@ -202,6 +125,7 @@
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
+        :variant-zones="variantZones"
         :range-events="eventsFile.rangeEvents"
         @seek-distance="handleSeekDistance"
         :message-graph-height="messageGraphHeight"
@@ -212,6 +136,7 @@
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
+        :variant-zones="variantZones"
         :pointEventsData="eventsFile.pointEvents"
         @seek-distance="handleSeekDistance"
         @verify-flyto="handleVerifyFlyto"
@@ -331,10 +256,6 @@ import DistanceMarkersDialog from '@/components/Edit/DistanceMarkersDialog.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
-import { useVariantCalculator } from '@/composables/useVariantCalculator';
-
-const { calculateVariantStats } = useVariantCalculator();
-
 const showMissingMessageErrorModal = ref(false);
 const missingMessageErrorDetails = ref({ messageId: '', messageName: '', circuitId: '', increment: 0, eventId: '' });
 const resolveMissingMessageError = ref(null);
@@ -391,7 +312,6 @@ const lastAppliedZoomArriveeDistance = ref(0);
 const variants = ref([]);
 const currentVariantId = ref(null);
 const isVariantSelectionOpen = ref(false);
-const currentSegmentType = ref(null); // 'DEPART_DEPORTE', 'SEGMENT_DEVIATION', 'ARRIVEE_REPORTEE' or null (Main)
 const mapboxBackgroundTraceColorHex = ref('#000000');
 const backgroundTraceWidth = ref(4);
 const backgroundTraceOpacity = ref(0.3);
@@ -415,150 +335,72 @@ const fetchVariants = async () => {
 
 const segmentLengthRef = ref(0.1); // Default 100m, updated from settings
 
-const variantCompositeStats = computed(() => {
-    if (!selectedVariant.value || !selectedVariant.value.details) return { total: 0, current: 0 };
-    if (!backgroundLineStringCoordinates.value && !totalLineLength.value) return { total: 0, current: 0 };
-
-    const fullBGLength = backgroundLineStringCoordinates.value && backgroundLineStringCoordinates.value.length > 1
-        ? turf.length(turf.lineString(backgroundLineStringCoordinates.value), { units: 'kilometers' })
-        : (totalLineLength.value || 0);
-
-    return calculateVariantStats(
-        fullBGLength,
-        selectedVariant.value.details.modifications,
-        segmentLengthRef.value,
-        currentSegmentIndex.value,
-        currentProgressDistance.value
-    );
-});
-
-const globalCurrent = computed(() => currentVariantId.value ? variantCompositeStats.value.current : currentProgressDistance.value);
-const globalTotal = computed(() => currentVariantId.value ? variantCompositeStats.value.total : totalLineLength.value);
+const globalCurrent = computed(() => currentProgressDistance.value);
+const globalTotal = computed(() => totalLineLength.value);
 
 const shouldShowGraphs = computed(() => {
     return true;
 });
 
-const getVariantSegments = (variant) => {
-    if (!variant.details || !variant.details.modifications) return [];
-    
-    // Attach original index to each modification to preserve file mapping reference
-    const modsWithIndex = variant.details.modifications.map((m, i) => ({...m, originalIndex: i}));
-
-    // Sort modifications by position on master trace
-    return modsWithIndex.sort((a, b) => {
-        // Force DEPART to be first, ARRIVEE to be last
-        let idxA = 0;
-        if (a.type === 'DEPART_DEPORTE') idxA = -1;
-        else if (a.type === 'ARRIVEE_REPORTEE') idxA = Number.MAX_SAFE_INTEGER;
-        else idxA = a.anchorStart ? a.anchorStart.index : 0;
-
-        let idxB = 0;
-        if (b.type === 'DEPART_DEPORTE') idxB = -1;
-        else if (b.type === 'ARRIVEE_REPORTEE') idxB = Number.MAX_SAFE_INTEGER;
-        else idxB = b.anchorStart ? b.anchorStart.index : 0;
-
-        return idxA - idxB;
-    });
-};
-
-const getSegmentTitle = (mod) => {
-    if (mod.name) return mod.name;
-    if (mod.type === 'DEPART_DEPORTE') return 'Départ';
-    if (mod.type === 'ARRIVEE_REPORTEE') return 'Arrivée';
-    // Use originalIndex if available (for consistency with file naming), otherwise 0
-    const idx = typeof mod.originalIndex === 'number' ? mod.originalIndex : 0;
-    if (mod.type === 'SEGMENT_DEVIATION') return `Segment ${idx + 1}`;
-    return 'Segment';
-};
-
-const getModIcon = (mod) => {
-    if (mod.type === 'DEPART_DEPORTE') return 'mdi-ray-start-arrow';
-    if (mod.type === 'ARRIVEE_REPORTEE') return 'mdi-ray-end-arrow';
-    return 'mdi-source-branch';
-};
-
-const getSegmentColor = (mod) => {
-    if (mod.type === 'DEPART_DEPORTE') return 'success';
-    if (mod.type === 'ARRIVEE_REPORTEE') return 'error';
-    if (mod.type === 'SEGMENT_DEVIATION') return 'primary';
-    return 'grey';
-};
-
 const selectedVariant = computed(() => variants.value.find(v => v.id === currentVariantId.value));
 
-const activeModification = computed(() => {
-    if (!selectedVariant.value || !selectedVariant.value.details || currentSegmentIndex.value === null) return null;
-    return selectedVariant.value.details.modifications.find((m, i) => i === currentSegmentIndex.value);
+const variantZones = computed(() => {
+    if (!trackingPoints.value.length || !currentVariantId.value) return [];
+    const zones = [];
+    let currentZone = null;
+    
+    for (const p of trackingPoints.value) {
+        const isVariant = p.typeTroncon && p.typeTroncon !== 'Commun';
+        if (isVariant) {
+            if (!currentZone) {
+                currentZone = { start: p.distance, end: p.distance };
+            } else {
+                currentZone.end = p.distance;
+            }
+        } else {
+            if (currentZone) {
+                zones.push(currentZone);
+                currentZone = null;
+            }
+        }
+    }
+    if (currentZone) {
+        zones.push(currentZone);
+    }
+    return zones;
 });
 
 const handleSelectVariant = (variant) => {
-    const segments = getVariantSegments(variant);
-    if (segments.length === 1) {
-        // Use the originalIndex embedded in the segment object
-        loadVariantSegment(variant.id, segments[0], segments[0].originalIndex);
-    } else {
-        currentVariantId.value = variant.id;
-        currentSegmentType.value = null;
-        currentSegmentIndex.value = null;
-    }
+    loadFullVariant(variant.id);
 };
 
-const loadVariantSegment = async (variantId, modification, index) => {
+const loadFullVariant = async (variantId) => {
     currentVariantId.value = variantId;
-    currentSegmentType.value = modification.type;
-    currentSegmentIndex.value = index;
+    isVariantSelectionOpen.value = false;
     
-    let suffix = "";
-    if (modification.type === 'DEPART_DEPORTE') suffix = "DEPART";
-    else if (modification.type === 'ARRIVEE_REPORTEE') suffix = "ARRIVEE";
-    else if (modification.type === 'SEGMENT_DEVIATION') suffix = `SEGMENT_${index}`;
-    
-    const variantSuffix = suffix;
-    const trackingFilename = `tracking_${variantId}_${suffix}.json`;
-    const lineStringFilename = `lineString_${variantId}_${suffix}.json`;
-    const variantIdForEvents = `${variantId}_${suffix}`;
-    currentVariantIdForEvents.value = variantIdForEvents; // Set the global ref
-    currentTrackingFilename.value = trackingFilename; // Set tracking filename ref
+    const trackingFilename = `tracking_${variantId}_FULL.json`;
+    const lineStringFilename = `lineString_${variantId}_FULL.json`;
+    const variantIdForEvents = `${variantId}_FULL`;
+    currentVariantIdForEvents.value = variantIdForEvents;
+    currentTrackingFilename.value = trackingFilename;
 
     try {
-        // 1. Load LineString for Active Trace Layer
-        // 1. Load LineString for Active Trace Layer
+        // 1. Load LineString
         const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId, filename: lineStringFilename });
         lineStringCoordinates.value = rawLineStringData.coordinates || [];
         
         if (map && map.getSource('circuit-line')) {
-            if (lineStringCoordinates.value.length >= 2) {
-                map.getSource('circuit-line').setData({
-                    type: 'Feature',
-                    geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
-                });
-                // Clear pin
-                if (map.getSource('variant-pin')) {
-                    map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
-                }
-            } else {
-                // Not enough points for a LineString (e.g. just a start point marker), hide the line
-                map.getSource('circuit-line').setData({
-                    type: 'FeatureCollection',
-                    features: []
-                });
-                
-                // Show PIN if it's a DEPART or ARRIVEE with 1 point
-                if (map.getSource('variant-pin') && lineStringCoordinates.value.length === 1) {
-                    const color = modification.type === 'DEPART_DEPORTE' ? '#4CAF50' : (modification.type === 'ARRIVEE_REPORTEE' ? '#F44336' : '#9E9E9E');
-                    map.getSource('variant-pin').setData({
-                        type: 'Feature',
-                        properties: { color: color },
-                        geometry: { type: 'Point', coordinates: lineStringCoordinates.value[0] }
-                    });
-                }
+            map.getSource('circuit-line').setData({
+                type: 'Feature',
+                geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
+            });
+            if (map.getSource('variant-pin')) {
+                map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
             }
         }
         
         // 2. Load Tracking Data
         const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId, filename: trackingFilename });
-        const segmentLengthKm = 0.1;
         
         if (lineStringCoordinates.value.length >= 2) {
              try {
@@ -571,21 +413,16 @@ const loadVariantSegment = async (variantId, modification, index) => {
             totalLineLength.value = 0;
         }
         
-        const processedTrackingPoints = rawTrackingData.map((point, idx) => {
-          let distance = parseFloat((idx * segmentLengthKm).toFixed(2));
-          // Adjustment for last point
-          if (idx === rawTrackingData.length - 1 && totalLineLength.value > 0) {
-              distance = parseFloat(totalLineLength.value.toFixed(2));
-          }
+        const processedTrackingPoints = rawTrackingData.map((point) => {
           return {
             ...point,
-            distance,
             editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
             editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
             editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
           };
         });
-        // 2.5 CLEAR EVENTS BEFORE UPDATING TRACKINGPOINTS
+
+        // 2.5 Clear events before updating trackingPoints
         eventsFile.value.pointEvents = {};
         eventsFile.value.rangeEvents = [];
 
@@ -597,10 +434,9 @@ const loadVariantSegment = async (variantId, modification, index) => {
         eventsFile.value.rangeEvents = events.rangeEvents;
         
         // 4. Update UI State
-        // 4. Update UI State
         trackProgress.value = 0;
         currentPointIndex.value = 0;
-        updateCameraPosition(0); // Force update to reset distance and camera
+        updateCameraPosition(0);
         
         // 5. Apply Variant Styling
         try {
@@ -612,7 +448,6 @@ const loadVariantSegment = async (variantId, modification, index) => {
                 map.setPaintProperty('circuit-line', 'line-width', variantWidth);
                 
                 if (variantSlopeColoring) {
-                     // Reuse slope coloring logic
                      const slopeColors = {
                         TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
                         Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
@@ -631,30 +466,20 @@ const loadVariantSegment = async (variantId, modification, index) => {
                     });
                     
                     map.setPaintProperty('circuit-line', 'line-gradient', colorExpression);
-                    
-                    // If get_slope_color_expression reads 'tracking.json', it will read the MASTER trace, not the variant.
-                    // I MUST checking backend for get_slope_color_expression.
-                    
-                    // Assuming for now I can't easily fix backend in this step, I might fallback to solid color
-                    // OR fix backend first.
-                    // Let's assume I fix backend.
                 } 
                 
-                // Fallback or Solid Color if not slope coloring or if slope coloring fails
                 if (!variantSlopeColoring) {
                     const hexColor = await invoke('convert_vuetify_color', { colorName: variantColor });
                     map.setPaintProperty('circuit-line', 'line-color', hexColor);
-                    map.setPaintProperty('circuit-line', 'line-gradient', null); // Remove gradient if any
+                    map.setPaintProperty('circuit-line', 'line-gradient', null);
                 }
             }
         } catch (styleErr) {
             console.error("Failed to apply variant styling:", styleErr);
         }
 
-        // Force Camera Update
         forceUpdateCamera();
         
-        // FlyTo Start Point
         if (processedTrackingPoints && processedTrackingPoints.length > 0) {
              const startPoint = processedTrackingPoints[0];
              if (startPoint && startPoint.coordonnee) {
@@ -669,10 +494,10 @@ const loadVariantSegment = async (variantId, modification, index) => {
              }
         }
         
-        showSnackbar(`Segment chargé: ${getSegmentTitle(modification, index)}`, 'success');
+        showSnackbar(`Variante ${variantId} chargée`, 'success');
 
     } catch (e) {
-        console.error("Failed to load variant segment", e);
+        console.error("Failed to load full variant", e);
         showSnackbar(`Erreur de chargement: ${e}`, 'error');
     }
 };
@@ -680,8 +505,6 @@ const loadVariantSegment = async (variantId, modification, index) => {
 const loadMainTrace = async () => {
     console.log("Loading Main Trace");
     currentVariantId.value = null;
-    currentSegmentType.value = null;
-    currentSegmentIndex.value = null;
     currentVariantIdForEvents.value = null; // Reset for main trace
     currentTrackingFilename.value = null; // Reset tracking filename
     isVariantSelectionOpen.value = false;
@@ -797,7 +620,6 @@ const incrementBearingShift = ref(5); // New: Bearing shift increment for mouse 
 
 // New: Background trace reference
 const backgroundLineStringCoordinates = ref([]);
-const currentSegmentIndex = ref(null);
 
 // New: Central cross color for Edition mode (reactive)
 const couleurCroixCentraleEdition = computed(() => {
@@ -1026,7 +848,6 @@ const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraSyncMode = ref('edited'); // 'off', 'edited'
 const showCenterMarker = ref(false);
-// const currentSegmentIndex = ref(null); // REMOVED DUPLICATE
 const currentVariantIdForEvents = ref(null); // New ref for event variant ID
 const currentTrackingFilename = ref(null); // New ref for tracking filename
 const trackProgress = ref(0);

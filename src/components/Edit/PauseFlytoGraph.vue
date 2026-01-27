@@ -17,6 +17,17 @@
         <!-- Zone d'avancement -->
         <rect x="0" y="0" :width="progressIndicatorX + 2" :height="svgHeight" :fill="progressZoneColor" :opacity="progressZoneOpacity" />
 
+        <!-- Zones de variante -->
+        <rect
+          v-for="(zone, idx) in variantZones"
+          :key="`variant-zone-${idx}`"
+          :x="(zone.start * kmToPx) + startOffsetPx"
+          :y="0"
+          :width="(zone.end - zone.start) * kmToPx"
+          :height="svgHeight"
+          fill="rgba(255, 167, 38, 0.25)"
+        />
+
         <!-- Indicateur de progression actuel -->
         <line
           :x1="progressIndicatorX + 2"
@@ -114,7 +125,8 @@ const props = defineProps({
   trackingPoints: { type: Array, required: true },
   totalLength: { type: Number, required: true },
   currentDistance: { type: Number, required: true },
-  pointEventsData: { type: Object, default: () => ({}) }, // Changed prop
+  pointEventsData: { type: Object, default: () => ({}) },
+  variantZones: { type: Array, default: () => [] },
 });
 
 const handleGraphClick = (event) => {

@@ -80,6 +80,10 @@ export function useVariantCalculator() {
                 else if (mod.type === 'ARRIVEE_REPORTEE') currentMasterPos = Math.round(masterLength / segLenKm);
                 else if (mod.type === 'SEGMENT_DEVIATION') currentMasterPos = mod.anchorEnd?.index;
             }
+        } else {
+            // If no segment index is provided, we assume we are in "FULL" mode or main trace
+            // where currentProgressDistance already represents the absolute distance.
+            currentDistance = currentProgressDistance;
         }
 
         return {

@@ -1957,7 +1957,7 @@ fn generate_interpolated_tracking(points: &Vec<VariantPoint>, segment_length: f6
             "distance": 0.0,
             "cap": cap,
             "zoom": 16.0,
-            "pitch": 55.0,
+            "pitch": 60.0,
             "coordonneeCamera": [],
             "altitudeCamera": 0.0,
             "nbrSegment": 0,

@@ -17,6 +17,17 @@
         <!-- Zone d'avancement -->
         <rect x="0" y="0" :width="progressIndicatorX + 2" :height="xAxisY" :fill="progressZoneColor" :opacity="progressZoneOpacity" />
 
+        <!-- Zones de variante -->
+        <rect
+          v-for="(zone, idx) in variantZones"
+          :key="`variant-zone-${idx}`"
+          :x="(zone.start * kmToPx) + startOffsetPx"
+          :y="0"
+          :width="(zone.end - zone.start) * kmToPx"
+          :height="xAxisY"
+          fill="rgba(255, 167, 38, 0.25)"
+        />
+
         <!-- Range Events (Messages) -->
         <g v-for="(event, index) in processedRangeEvents" :key="`re-${index}`">
           <rect
@@ -99,6 +110,7 @@ const props = defineProps({
   rangeEvents: { type: Array, default: () => [] },
   messageGraphHeight: { type: Number, default: 10 },
   messageLibrary: { type: Array, default: () => [] },
+  variantZones: { type: Array, default: () => [] },
 });
 
 const handleGraphClick = (event) => {
