@@ -41,7 +41,10 @@
   ],
   "ipc": {
     "allow": [
-      "reply_to_pairing_request"
+      "reply_to_pairing_request",
+      "get_network_interfaces",
+      "generate_qrcode_base64",
+      "get_remote_control_status"
     ]
   }
 }

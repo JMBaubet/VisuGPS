@@ -1,5 +1,6 @@
 const mainTitle = document.getElementById('main-title');
 let g_current_app_state = null;
+let g_last_animation_state = null;
 
 let g_speed_min_value = 0.1;
 let g_speed_max_value = 20.0;
@@ -42,7 +43,7 @@ function showRetryButton() {
         retryButton.addEventListener('click', () => {
             retryButton.remove();
             resetRetryCount();
-            connectWebSocket();
+            connectRemote();
         });
         statusDiv.parentNode.insertBefore(retryButton, statusDiv.nextSibling);
     }
@@ -57,6 +58,12 @@ function updateRemoteInterface(appState) {
     // Adapter l'interface de la télécommande selon l'état de l'application
     const statusText = document.getElementById('status');
     const visualizeViewTitle = document.getElementById('visualize-view-title');
+    const pairingCodeDiv = document.getElementById('pairing-code');
+
+    // Masquer le code de couplage si on change de vue
+    if (pairingCodeDiv) {
+        pairingCodeDiv.style.display = 'none';
+    }
 
     // Réinitialiser l'affichage du statut et du titre de la vue visualisation
     statusText.style.display = 'block';
@@ -65,8 +72,13 @@ function updateRemoteInterface(appState) {
     switch (appState) {
         case 'Visualize':
         case 'Visualisation':
-            document.getElementById('page-visualize').style.display = 'block';
-            mainTitle.textContent = 'VisuGPS Visualisation';
+            if (g_last_animation_state === 'En_Pause' || g_last_animation_state === 'En_Pause_au_Depart') {
+                document.getElementById('page-camera-edit').style.display = 'block';
+                mainTitle.textContent = 'Contrôle Caméra';
+            } else {
+                document.getElementById('page-visualize').style.display = 'block';
+                mainTitle.textContent = 'VisuGPS Visualisation';
+            }
             statusText.style.display = 'none'; // Masquer le statut
             visualizeViewTitle.style.display = 'none'; // Masquer le titre de la vue visualisation
             break;
@@ -109,19 +121,36 @@ function handleHijackedConnection() {
         retryButton.remove();
     }
 
-    ws.close();
+    if (window.evtSource) {
+        window.evtSource.close();
+    }
 }
 
 function setupButtonListeners() {
     // --- Page VisualizeView ---
     // Le bouton play-pause est maintenant géré dynamiquement
-
-    // Switches
-    const toggleCommandsSwitch = document.getElementById('toggle-commands');
-    if (toggleCommandsSwitch) {
-        toggleCommandsSwitch.addEventListener('change', () => sendCommand('toggle_commands_widget'));
+    // Initialiser avec une action par défaut pour éviter qu'il ne soit inerte
+    const playPauseButton = document.getElementById('play-pause');
+    if (playPauseButton) {
+        playPauseButton.onclick = () => {
+            // Fallback default action
+            if (window.logToScreen) window.logToScreen("Default Play/Pause Click Handler");
+            sendCommand('toggle_play');
+        };
     }
 
+    const rewindBtn = document.getElementById('rewind');
+    if (rewindBtn) {
+        const startRewind = () => sendCommand('start_rewind');
+        const stopRewind = () => sendCommand('stop_rewind');
+        rewindBtn.onmousedown = startRewind;
+        rewindBtn.onmouseup = stopRewind;
+        rewindBtn.onmouseleave = stopRewind;
+        rewindBtn.ontouchstart = (e) => { e.preventDefault(); startRewind(); };
+        rewindBtn.ontouchend = stopRewind;
+    }
+
+    // Switches
     const toggleProfileSwitch = document.getElementById('toggle-profile');
     if (toggleProfileSwitch) {
         toggleProfileSwitch.addEventListener('change', () => sendCommand('toggle_altitude_profile'));
@@ -132,11 +161,6 @@ function setupButtonListeners() {
         toggleCommunesSwitch.addEventListener('change', () => sendCommand('toggle_communes_display'));
     }
 
-    const toggleDistanceSwitch = document.getElementById('toggle-distance');
-    if (toggleDistanceSwitch) {
-        toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
-    }
-
     const toggleWeatherDynamicSwitch = document.getElementById('toggle-weather-dynamic');
     if (toggleWeatherDynamicSwitch) {
         toggleWeatherDynamicSwitch.addEventListener('change', () => sendCommand('toggle_weather_dynamic'));
@@ -145,6 +169,16 @@ function setupButtonListeners() {
     const toggleWeatherStaticSwitch = document.getElementById('toggle-weather-static');
     if (toggleWeatherStaticSwitch) {
         toggleWeatherStaticSwitch.addEventListener('change', () => sendCommand('toggle_weather_static'));
+    }
+
+    const toggleCommandsSwitch = document.getElementById('toggle-commands');
+    if (toggleCommandsSwitch) {
+        toggleCommandsSwitch.addEventListener('change', () => sendCommand('toggle_commands_widget'));
+    }
+
+    const toggleDistanceSwitch = document.getElementById('toggle-distance');
+    if (toggleDistanceSwitch) {
+        toggleDistanceSwitch.addEventListener('change', () => sendCommand('toggle_distance_display'));
     }
 
     // Speed Slider
@@ -219,6 +253,7 @@ function handleFullStateUpdate(state) {
 }
 
 function updatePlayPauseButton(state) {
+    g_last_animation_state = state;
     const playPauseButton = document.getElementById('play-pause');
     const rewindBtn = document.getElementById('rewind');
 
@@ -227,6 +262,7 @@ function updatePlayPauseButton(state) {
     // --- Reset all handlers to null first ---
     playPauseButton.onclick = null;
     rewindBtn.onclick = null;
+    // ... clear other handlers ...
     rewindBtn.onmousedown = null;
     rewindBtn.onmouseup = null;
     rewindBtn.onmouseleave = null;
@@ -234,7 +270,9 @@ function updatePlayPauseButton(state) {
     rewindBtn.ontouchend = null;
 
     // --- Set default visual state ---
-    playPauseButton.onclick = () => sendCommand('toggle_play');
+    playPauseButton.onclick = () => {
+        sendCommand('toggle_play');
+    };
     rewindBtn.style.display = 'block';
     rewindBtn.innerHTML = '⏪';
 
@@ -249,6 +287,7 @@ function updatePlayPauseButton(state) {
         case 'En_Pause_au_Depart':
         case 'En_Pause':
             playPauseButton.disabled = false;
+            playPauseButton.innerHTML = '▶️ Play';
 
             if (g_current_app_state === 'Visualize' || g_current_app_state === 'Visualisation') {
                 // In Visualize view, switch to camera page and configure rewind as camera button
@@ -276,6 +315,8 @@ function updatePlayPauseButton(state) {
 
         case 'En_Animation':
             playPauseButton.disabled = false;
+            playPauseButton.innerHTML = '⏸️ Pause';
+            window.logToScreen("Button Enabled (Animation) -> Set Text Pause");
 
             // Si on est sur la page d'édition de la caméra, on retourne à la vue principale
             if (document.getElementById('page-camera-edit').style.display === 'block') {

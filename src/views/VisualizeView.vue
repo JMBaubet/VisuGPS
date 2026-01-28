@@ -418,6 +418,7 @@ const initializeVisualization = async () => {
         await initWeather(circuit, trackingPointsWithDistanceRef.value);
 
         if (colorTraceBySlope.value) {
+             // ... colored segments logic ...
              const slopeColors = {
                 TrancheNegative: getToHexImproved('Visualisation/Profil Altitude/Couleurs/TrancheNegative'),
                 Tranche1: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche1'),
@@ -436,6 +437,8 @@ const initializeVisualization = async () => {
                 coloredSegmentsGeoJsonRef.value = geojson;
             } catch(e) { console.error("Colored segments error", e); }
         }
+
+        // LISTENERS REMOVED FROM HERE - MOVED TO setupRemoteControl FUNCTION
 
         const startPoint = trackingPointsWithDistanceRef.value[0]; 
         
@@ -1228,6 +1231,7 @@ watch(currentSpeed, (newSpeed) => {
 });
 
 // --- Lifecycle ---
+
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);

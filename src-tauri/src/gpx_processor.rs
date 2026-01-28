@@ -1,14 +1,11 @@
-use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use geo::{prelude::*, LineString as GeoLineString, Point};
-use image::ImageFormat;
 use qrcode::QrCode;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
@@ -19,47 +16,7 @@ use crate::distance_markers;
 use crate::event;
 use crate::tracking_processor;
 
-#[tauri::command]
-pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
-    let code = QrCode::new(url.as_bytes())
-        .map_err(|e| format!("Erreur lors de la création du QR code: {}", e))?;
-    let image = code.render::<image::Luma<u8>>().build();
-
-    let mut buf = Cursor::new(Vec::new());
-    image
-        .write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Erreur lors de l'écriture du PNG: {}", e))?;
-    let png_data = buf.into_inner();
-
-    let base64_string = general_purpose::STANDARD.encode(&png_data);
-    Ok(format!("data:image/png;base64,{}", base64_string))
-}
-
-#[tauri::command]
-pub async fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
-    let my_local_ip = crate::network_utils::get_best_ip().await;
-
-    let app_env_path = {
-        let app_state = app_handle.state::<Mutex<AppState>>();
-        let app_state_lock = app_state.lock().unwrap();
-        app_state_lock.app_env_path.clone()
-    };
-
-    let settings_path = app_env_path.join("settings.json");
-    let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value =
-        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
-
-    let remote_port = get_setting_value(
-        &settings,
-        "data.groupes.Système.groupes.Télécommande.parametres.Port",
-    )
-    .and_then(|v| v.as_i64())
-    .map(|p| p as u16)
-    .unwrap_or(9001);
-
-    Ok(format!("http://{}:{}/remote", my_local_ip, remote_port))
-}
+// Les commandes generate_qrcode_base64 et get_remote_control_url ont été déplacées dans remote_setup.rs
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

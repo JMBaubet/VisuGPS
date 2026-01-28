@@ -51,11 +51,20 @@ const router = createRouter({
   routes
 })
 
+
+let isRouterReady = false;
+
+router.isReady().then(() => {
+  isRouterReady = true;
+});
+
 router.afterEach(async (to) => {
+  if (!isRouterReady) return; // Ignore initial navigation during setup
+
   try {
     await invoke('update_current_view', { newView: to.name || 'Main' });
   } catch (error) {
-    console.error("Erreur lors de la mise à jour de la vue courante dans le backend:", error);
+    console.warn("Mise à jour de la vue ignorée (backend non prêt ou erreur):", error);
   }
 });
 

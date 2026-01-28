@@ -51,14 +51,16 @@ const frameColorClass = computed(() => {
 
 // Load settings on app mount
 onMounted(async () => {
-  await initSettings();
+  // await initSettings(); // Commented out to avoid double call with main.js for now, to be safe.
+  // Actually, let's keep it commented if main.js does it effectively. 
+  // But wait, the original code had both.
+  // main.js awaits it BEFORE mounting app. So settings should be ready here.
+  
   // Restore theme from localStorage
   const savedTheme = window.localStorage.getItem('theme');
   if (savedTheme) {
     theme.change(savedTheme);
   }
-
-
 
   // --- DIAGNOSTIC TEST RE-ADD ---
   listen('test-event', (event) => {

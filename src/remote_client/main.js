@@ -1,20 +1,11 @@
-const WS_SERVER_IP = "192.168.1.65"; // À remplacer par l'IP de votre machine desktop
-const WS_SERVER_PORT = 9001;
-const WS_URL = `ws://${WS_SERVER_IP}:${WS_SERVER_PORT}`;
+// Main entry point for Remote Client V2
 
-// Variables globales explicitement attachées à window pour l'accès depuis d'autres scripts
-window.ws = null;
+// Variables globales attachées à window
 window.clientId = localStorage.getItem('visugps_remote_client_id');
 window.pairingCode = generateRandomCode(8);
 window.manualDisconnect = false;
 
-// Variables pour la gestion des tentatives de reconnexion
-window.retryCount = 0;
-window.MAX_RETRY_ATTEMPTS = 3;
-window.isRetrying = false;
-window.retryTimeout = null;
-
-// Éléments UI globaux
+// Variables UI
 window.statusDiv = document.getElementById('status');
 window.pairingCodeDiv = document.getElementById('pairing-code');
 window.controlsDiv = document.getElementById('controls');
@@ -25,17 +16,32 @@ window.noSleepEnabled = false;
 window.nosleepControl = document.getElementById('nosleep-control');
 window.nosleepButton = document.getElementById('toggle-nosleep');
 
+// Fonction utilitaire si pas dans remote-utils
+function generateRandomCode(length) {
+    const chars = '0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 // Initialisation
 window.onload = () => {
-    if (!clientId) {
-        pairingCodeDiv.textContent = `Génération d'un ID client...`;
+    // Appel à la fonction définie dans remote-client-v2.js
+    if (window.connectRemote) {
+        window.connectRemote();
+    } else {
+        console.error("remote-client-v2.js non chargé !");
+        if (window.statusDiv) window.statusDiv.textContent = "Erreur: script client manquant";
     }
-    connectWebSocket();
 
     // Ajout des écouteurs d'événements pour les boutons
-    setupButtonListeners();
+    if (window.setupButtonListeners) {
+        window.setupButtonListeners();
+    }
 
-    // Initialize NoSleep if available
+    // Initialize NoSleep
     const NoSleepClass = window.NoSleep || (typeof NoSleep !== 'undefined' ? NoSleep : null);
 
     if (NoSleepClass) {
@@ -55,7 +61,6 @@ window.onload = () => {
             }
         };
 
-        // Initial UI state update to change from "Veuillez patienter..."
         updateNoSleepUI();
 
         if (nosleepButton) {
@@ -63,11 +68,9 @@ window.onload = () => {
                 if (!noSleepEnabled) {
                     window.noSleep.enable();
                     window.noSleepEnabled = true;
-                    console.log("NoSleep enabled");
                 } else {
                     window.noSleep.disable();
                     window.noSleepEnabled = false;
-                    console.log("NoSleep disabled");
                 }
                 updateNoSleepUI();
             });
@@ -77,25 +80,14 @@ window.onload = () => {
             nosleepButton.textContent = "NoSleep non disponible";
             nosleepButton.classList.add('btn-danger');
         }
-        if (statusDiv) {
-            statusDiv.innerHTML += "<br><span style='color:orange;'>Avertissement: La bibliothèque NoSleep n'a pas été détectée.</span>";
-        }
-        console.warn("NoSleep library not found");
     }
 
-    // Auto-reconnect when tab becomes visible (wake up from sleep)
+    // Auto-reconnect when tab becomes visible
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-            if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+            if (window.evtSource && window.evtSource.readyState === EventSource.CLOSED) {
                 console.log("App became visible, attempting to reconnect...");
-                // Remove manual disconnect flag to allow auto-reconnect logic to work
-                manualDisconnect = false;
-                // Remove retry button if it exists to avoid duplicates/confusion
-                const retryBtn = document.getElementById('retry-button');
-                if (retryBtn) retryBtn.remove();
-
-                resetRetryCount();
-                connectWebSocket();
+                window.connectRemote();
             }
         }
     });

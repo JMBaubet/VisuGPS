@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use tokio::sync::broadcast;
+use crate::remote_sse::SseMessage;
 
 pub mod colors;
 pub mod communes_updater;
@@ -22,6 +24,8 @@ pub mod network_utils;
 pub mod remote_blacklist;
 pub mod remote_clients;
 pub mod remote_control;
+pub mod remote_sse;
+pub mod remote_server;
 pub mod remote_setup;
 pub mod segment_analyzer;
 pub mod settings_migration;
@@ -369,6 +373,9 @@ pub struct AppState {
     pub visualize_view_state: Mutex<Option<remote_control::VisualizeViewState>>,
     pub migration_report: Mutex<Option<String>>,
     pub migration_version_changed: Mutex<bool>,
+    pub pending_clients: Mutex<std::collections::HashMap<String, String>>, // clientId -> code
+    #[serde(skip)]
+    pub sse_sender: Option<broadcast::Sender<SseMessage>>,
 }
 
 impl Clone for AppState {
@@ -386,6 +393,8 @@ impl Clone for AppState {
             visualize_view_state: Mutex::new(self.visualize_view_state.lock().unwrap().clone()),
             migration_report: Mutex::new(self.migration_report.lock().unwrap().clone()),
             migration_version_changed: Mutex::new(*self.migration_version_changed.lock().unwrap()),
+            pending_clients: Mutex::new(self.pending_clients.lock().unwrap().clone()),
+            sse_sender: self.sse_sender.clone(),
         }
     }
 }
@@ -1677,7 +1686,10 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     .unwrap_or_else(|| "".to_string());
 
     // Initialize remote control server
-    remote_setup::init_remote_control(app, &app_env_path, &settings)?;
+    // Create SSE channel
+    let (sse_sender, _) = broadcast::channel(100);
+
+    // Initialisation du serveur déplacée dans run() pour garantir que AppState est géré
 
     Ok(AppState {
         app_env,
@@ -1686,12 +1698,14 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         mapbox_token,
         updating_circuit_id: None, // Initialize to None
         updating_circuit_name: None,
-        current_view: "MainView".to_string(), // Initialize current_view
+        current_view: "Main".to_string(), // Initialize current_view
         animation_state: Mutex::new("".to_string()),
         animation_speed: Mutex::new(1.0),
         visualize_view_state: Mutex::new(None),
         migration_report: Mutex::new(migration_report_content),
         migration_version_changed: Mutex::new(migration_version_changed),
+        pending_clients: Mutex::new(std::collections::HashMap::new()),
+        sse_sender: Some(sse_sender),
     })
 }
 
@@ -1794,8 +1808,11 @@ fn update_current_view(
     state: State<Mutex<AppState>>,
     new_view: String,
 ) -> Result<(), String> {
-    let mut app_state = state.lock().unwrap();
-    app_state.current_view = new_view.clone();
+    {
+        // Scope pour le verrou
+        let mut app_state = state.lock().unwrap();
+        app_state.current_view = new_view.clone();
+    } // Le verrou est relâché ici
 
     // Notifier toutes les télécommandes connectées du changement de vue
     use crate::remote_control::send_app_state_update;
@@ -2292,6 +2309,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init())
+        // .plugin(remote_setup::init()) // Converted to global commands
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -2400,6 +2419,24 @@ pub fn run() {
                             });
                         }
                     }
+
+                    // Start Remote Control (Now that AppState is managed)
+                    let settings_path = state.app_env_path.join("settings.json");
+                    if let Ok(content) = std::fs::read_to_string(&settings_path) {
+                        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
+                             if let Some(sender) = state.sse_sender.clone() {
+                                // We need a mutable app reference? No, init_remote_control takes &mut App.
+                                // But here we are in a closure setup(|app|). 'app' is accessible!
+                                // But app.manage was called on 'app'.
+                                
+                                // remote_setup::init_remote_control takes &mut App.
+                                // Calling it here is fine.
+                                if let Err(e) = remote_setup::init_remote_control(app, &state.app_env_path, &settings, sender) {
+                                    eprintln!("Failed to init remote control: {}", e);
+                                }
+                             }
+                        }
+                    }
                 }
                 Err(e) => {
                     if cfg!(debug_assertions) {
@@ -2499,9 +2536,12 @@ pub fn run() {
             remote_control::set_speed_to_1x_from_remote,
             remote_setup::reply_to_pairing_request,
             remote_setup::get_remote_control_status,
+            remote_setup::get_network_interfaces,
+            remote_setup::generate_qrcode_base64,
             remote_control::disconnect_active_remote_client,
-            gpx_processor::generate_qrcode_base64,
-            gpx_processor::get_remote_control_url,
+            remote_control::approve_remote_client,
+            remote_control::refuse_remote_client,
+            // Commandes déplacées dans le plugin remote_setup
             update_animation_state,
             error_logger::save_error_event,
             get_orphans,

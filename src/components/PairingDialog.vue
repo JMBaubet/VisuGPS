@@ -29,7 +29,7 @@
 
   onMounted(() => {
     console.log("PairingDialog mounted, listening for events.");
-    listen('ask_pairing_approval', (event) => {
+    listen('remote_pairing_request', (event) => {
       console.log('Received pairing request:', event);
       if (event.payload) {
           clientId.value = event.payload.clientId;
@@ -45,11 +45,11 @@
   const reply = async (accepted) => {
     dialog.value = false;
     try {
-      await invoke('reply_to_pairing_request', {
-        clientId: clientId.value,
-        accepted: accepted,
-        clientName: `Client ${clientId.value.substring(0, 8)}` // Placeholder name
-      });
+      if (accepted) {
+        await invoke('approve_remote_client', { clientId: clientId.value });
+      } else {
+        await invoke('refuse_remote_client', { clientId: clientId.value });
+      }
     } catch (error) {
       console.error("Erreur lors de l'envoi de la réponse de couplage:", error);
     }
