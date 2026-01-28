@@ -272,6 +272,8 @@ const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, u
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
+const cameraMoved = ref(false);
+
 const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
 
 // --- Speed Control Logic (Restore Logarithmic) ---
@@ -468,6 +470,13 @@ const initializeVisualization = async () => {
             if(!instance) throw new Error("Map failed to init");
             instance.setMinZoom(zoomMinimum.value);
             
+            // Detect manual camera movement during pause
+            instance.on('movestart', (e) => {
+                if (isPaused.value && e.originalEvent) {
+                    cameraMoved.value = true;
+                }
+            });
+
             if (route.query.bearing && route.query.pitch) {
                 instance.jumpTo({
                     bearing: parseFloat(route.query.bearing),
@@ -1544,13 +1553,14 @@ onMounted(async () => {
 // Sync isPaused with animationState for UI visibility
 watch(isPaused, async (newVal, oldVal) => {
     if (newVal) {
+        cameraMoved.value = false;
         if (animationState.value === 'En_Animation') {
             animationState.value = 'En_Pause';
         }
     } else {
         if (oldVal === true && (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart')) {
              // Fix: Smooth Resume if user moved the camera during pause
-            if (map.value && trackingPointsWithDistanceRef.value.length > 0) {
+            if (cameraMoved.value && map.value && trackingPointsWithDistanceRef.value.length > 0) {
                 const currentDistKm = (currentDistanceInMeters.value || 0) / 1000;
                 
                 // Find the theoretical camera position on track
