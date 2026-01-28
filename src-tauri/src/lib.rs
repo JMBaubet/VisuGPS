@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::atomic::AtomicI64;
 use tokio::sync::broadcast;
 use crate::remote_sse::SseMessage;
 
@@ -41,8 +43,6 @@ use geo_processor::{
     process_tracking_data, ProcessedTrackingDataResult, ProcessedTrackingPoint, TrackingPointJs,
 };
 use gpx_processor::{Circuit, CircuitSommet, DraftCircuit};
-
-use std::sync::Mutex;
 
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
@@ -376,6 +376,10 @@ pub struct AppState {
     pub pending_clients: Mutex<std::collections::HashMap<String, String>>, // clientId -> code
     #[serde(skip)]
     pub sse_sender: Option<broadcast::Sender<SseMessage>>,
+}
+
+pub struct HeartbeatState {
+    pub last_heartbeat: AtomicI64,
 }
 
 impl Clone for AppState {
@@ -1809,7 +1813,6 @@ fn update_current_view(
     new_view: String,
 ) -> Result<(), String> {
     {
-        // Scope pour le verrou
         let mut app_state = state.lock().unwrap();
         app_state.current_view = new_view.clone();
     } // Le verrou est relâché ici
@@ -1827,8 +1830,10 @@ fn update_animation_state(
     state: State<Mutex<AppState>>,
     new_state: String,
 ) -> Result<(), String> {
-    let app_state = state.lock().unwrap();
-    *app_state.animation_state.lock().unwrap() = new_state.clone();
+    {
+        let app_state = state.lock().unwrap();
+        *app_state.animation_state.lock().unwrap() = new_state.clone();
+    }
 
     // Notifier la télécommande
     remote_control::send_animation_state_update(&app_handle, &new_state);
@@ -2399,6 +2404,9 @@ pub fn run() {
             match setup_environment(app) {
                 Ok(state) => {
                     app.manage(Mutex::new(state.clone()));
+                    app.manage(HeartbeatState {
+                        last_heartbeat: AtomicI64::new(0),
+                    });
 
                     // Apply window size and position from settings
                     let settings_path = state.app_env_path.join("settings.json");

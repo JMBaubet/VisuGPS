@@ -20,6 +20,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useSharedUiState } from '@/composables/useSharedUiState';
+import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 import PairingDialog from '@/components/PairingDialog.vue';
 import MigrationReportModal from '@/components/MigrationReportModal.vue';
@@ -31,6 +32,7 @@ const { initSettings, status, updateReferenceField } = useSettings();
 const theme = useTheme();
 const { toggleBackButtonVisibility } = useSharedUiState();
 useCommunesUpdate(); // Initialize the composable
+useRemoteControlStatus(); // Start global remote control status tracking
 
 const showMigrationModal = ref(false);
 const migrationReport = ref('');

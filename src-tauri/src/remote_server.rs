@@ -5,20 +5,19 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use log::{error, info};
+use log::{debug, info, error};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 use tauri::{AppHandle, Manager, Emitter};
 
-use crate::remote_sse::{sse_handler, healthcheck_handler, SseState};
+use crate::remote_sse::{sse_handler, healthcheck_handler, SseMessage, SseState};
 use crate::remote_clients;
 use crate::remote_blacklist;
 use crate::AppState;
 use crate::get_setting_value;
-use std::sync::Mutex;
-use tokio::sync::broadcast;
-use crate::remote_sse::SseMessage;
+use std::sync::atomic::Ordering;
 
 /// État partagé du serveur remote control
 #[derive(Clone)]
@@ -28,7 +27,6 @@ pub struct RemoteServerState {
     pub settings: serde_json::Value,
 }
 
-// Implémentation de FromRef pour permettre l'extraction de SseState depuis RemoteServerState
 impl FromRef<RemoteServerState> for Arc<SseState> {
     fn from_ref(state: &RemoteServerState) -> Self {
         state.sse_state.clone()
@@ -82,7 +80,7 @@ async fn pair_handler(
     State(state): State<RemoteServerState>,
     Json(request): Json<PairingRequest>,
 ) -> impl IntoResponse {
-    info!("Requête de pairing reçue pour client: {}", request.client_id);
+    debug!("Requête de pairing reçue pour client: {}", request.client_id);
 
     let app_env_path = {
         let app_state = state.app_handle.state::<Mutex<AppState>>();
@@ -98,7 +96,7 @@ async fn pair_handler(
 
     // Vérifier si le client est blacklisté
     if remote_blacklist::is_client_blacklisted(&app_env_path, &request.client_id).unwrap_or(false) {
-        info!("Client blacklisté: {}", request.client_id);
+        debug!("Nouveau client mis en attente: {}", request.client_id);
         return (StatusCode::FORBIDDEN, Json(PairingResponse {
             status: "refused".to_string(),
             reason: Some("Cet appareil a été bloqué.".to_string()),
@@ -113,7 +111,7 @@ async fn pair_handler(
         .unwrap_or(false);
 
     if is_authorized {
-        info!("Client déjà autorisé: {}", request.client_id);
+        debug!("Client déjà autorisé: {}", request.client_id);
         
         // Générer un token de session et retourner les settings
         let session_token = uuid::Uuid::new_v4().to_string();
@@ -142,7 +140,7 @@ async fn pair_handler(
 
     // Vérifier si le pairing est autorisé depuis la vue actuelle
     if current_app_view != "Main" && current_app_view != "Settings" && current_app_view != "Visualize" {
-        info!("Pairing refusé: vue non autorisée ({})", current_app_view);
+        debug!("Pairing refusé: vue non autorisée ({})", current_app_view);
         return (StatusCode::FORBIDDEN, Json(PairingResponse {
             status: "refused".to_string(),
             reason: Some("Le couplage est uniquement autorisé depuis l'accueil, les paramètres ou en visualisation.".to_string()),
@@ -153,7 +151,7 @@ async fn pair_handler(
     }
 
     // --- PROPER PAIRING LOGIC ---
-    info!("Demande de couplage reçue pour le client: {}", request.client_id);
+    debug!("Demande de couplage reçue pour le client: {}", request.client_id);
     
     {
         let app_state = state.app_handle.state::<Mutex<AppState>>();
@@ -182,7 +180,7 @@ async fn command_handler(
     State(state): State<RemoteServerState>,
     Json(request): Json<RemoteCommandRequest>,
 ) -> impl IntoResponse {
-    info!("Commande reçue: {}", request.command);
+    debug!("Commande reçue: {}", request.command);
 
     // Todo: Vérifier le token de session (à implémenter)
 
@@ -201,6 +199,23 @@ async fn command_handler(
             }))
         }
     }
+}
+
+/// Handler pour GET /api/heartbeat
+async fn heartbeat_handler(
+    State(state): State<RemoteServerState>,
+) -> impl IntoResponse {
+    let hb_state = state.app_handle.state::<crate::HeartbeatState>();
+    let now = chrono::Utc::now().timestamp();
+    let last = hb_state.last_heartbeat.swap(now, Ordering::SeqCst);
+    
+    // Si c'était 0 ou trop vieux, on signale la reconnexion
+    if last == 0 || (now - last) > 10 {
+        let _ = state.app_handle.emit("remote_control_status_changed", "connected");
+        debug!("Télécommande reconnectée (via heartbeat atomique)");
+    }
+    
+    StatusCode::OK
 }
 
 /// Handler pour GET /api/state (fallback si SSE ne fonctionne pas)
@@ -230,6 +245,7 @@ pub fn create_router(state: RemoteServerState, static_path: PathBuf) -> Router {
         // Routes API
         .route("/api/health", get(healthcheck_handler))
         .route("/api/events", get(sse_handler))
+        .route("/api/heartbeat", get(heartbeat_handler))
         .route("/api/pair", post(pair_handler))
         .route("/api/command", post(command_handler))
         .route("/api/state", get(state_handler))
@@ -245,11 +261,11 @@ pub async fn start_axum_server(
     port: u16,
     settings: serde_json::Value,
     sse_sender: broadcast::Sender<SseMessage>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let sse_state = Arc::new(SseState::new(sse_sender));
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let sse_state = Arc::new(SseState { tx: sse_sender });
     
     let server_state = RemoteServerState {
-        sse_state: sse_state.clone(),
+        sse_state,
         app_handle: app_handle.clone(),
         settings,
     };
@@ -278,7 +294,7 @@ pub async fn start_axum_server(
     let app = create_router(server_state, static_path);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    info!("Démarrage du serveur Remote Control Axum sur {}", addr);
+    debug!("Démarrage du serveur Remote Control Axum sur {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

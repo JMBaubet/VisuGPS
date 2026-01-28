@@ -1221,6 +1221,7 @@ watch([
     isCompassVisible,
     animationState
 ], () => {
+    invoke('update_animation_state', { newState: animationState.value });
     sendVisualizeStateUpdate();
 });
 

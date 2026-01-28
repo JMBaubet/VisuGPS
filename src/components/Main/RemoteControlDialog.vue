@@ -94,6 +94,13 @@ onMounted(() => {
         // making room for the Approval Dialog
         dialog.value = false;
     });
+
+    listen('remote_control_status_changed', (event) => {
+        // If a remote control (already paired) connects, close the QR code dialog
+        if (event.payload === 'connected') {
+            dialog.value = false;
+        }
+    });
 });
 
 watch(() => props.modelValue, (newValue) => {

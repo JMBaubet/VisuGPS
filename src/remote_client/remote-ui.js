@@ -67,7 +67,7 @@ function updateRemoteInterface(appState) {
 
     // Réinitialiser l'affichage du statut et du titre de la vue visualisation
     statusText.style.display = 'block';
-    visualizeViewTitle.style.display = 'block';
+    if (visualizeViewTitle) visualizeViewTitle.style.display = 'block';
 
     switch (appState) {
         case 'Visualize':
@@ -80,7 +80,7 @@ function updateRemoteInterface(appState) {
                 mainTitle.textContent = 'VisuGPS Visualisation';
             }
             statusText.style.display = 'none'; // Masquer le statut
-            visualizeViewTitle.style.display = 'none'; // Masquer le titre de la vue visualisation
+            if (visualizeViewTitle) visualizeViewTitle.style.display = 'none'; // Masquer le titre de la vue visualisation
             break;
         case 'Edit':
         case 'EditView':
@@ -133,8 +133,6 @@ function setupButtonListeners() {
     const playPauseButton = document.getElementById('play-pause');
     if (playPauseButton) {
         playPauseButton.onclick = () => {
-            // Fallback default action
-            if (window.logToScreen) window.logToScreen("Default Play/Pause Click Handler");
             sendCommand('toggle_play');
         };
     }
@@ -316,7 +314,6 @@ function updatePlayPauseButton(state) {
         case 'En_Animation':
             playPauseButton.disabled = false;
             playPauseButton.innerHTML = '⏸️ Pause';
-            window.logToScreen("Button Enabled (Animation) -> Set Text Pause");
 
             // Si on est sur la page d'édition de la caméra, on retourne à la vue principale
             if (document.getElementById('page-camera-edit').style.display === 'block') {

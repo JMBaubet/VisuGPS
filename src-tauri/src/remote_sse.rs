@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
 };
 use tokio_stream::{Stream, StreamExt};
-use log::{debug, error, info};
+use log::{debug, error};
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -87,7 +87,7 @@ impl SseState {
 pub async fn sse_handler(
     State(state): State<Arc<SseState>>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    info!("Nouvelle connexion SSE établie");
+    debug!("Nouvelle connexion SSE établie");
     
     let rx = state.tx.subscribe();
     

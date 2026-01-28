@@ -1,4 +1,4 @@
-use tauri::App;
+use tauri::{App, Manager, Emitter};
 use std::path::PathBuf;
 use crate::get_setting_value;
 use crate::remote_server::start_axum_server;
@@ -8,7 +8,9 @@ use image::Luma;
 use std::io::Cursor;
 use base64::{Engine as _, engine::general_purpose};
 use tokio::sync::broadcast;
-use crate::remote_sse::SseMessage; // Ensure this is accessible
+use crate::remote_sse::SseMessage;
+use crate::HeartbeatState;
+use std::sync::atomic::Ordering;
 
 pub fn init_remote_control(
     app: &mut App,
@@ -22,7 +24,7 @@ pub fn init_remote_control(
     let remote_port = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
         .and_then(|v| v.as_i64())
         .map(|p| p as u16)
-        .unwrap_or(9001); // Default to 9001 if not found or invalid
+        .unwrap_or(9001);
 
     // Spawn le serveur Axum dans une tâche async séparée
     tauri::async_runtime::spawn(async move {
@@ -31,13 +33,44 @@ pub fn init_remote_control(
         }
     });
 
+    // Surveillance du heartbeat pour détecter les déconnexions (fermeture onglet, etc.)
+    let app_handle_for_monitor = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+        loop {
+            interval.tick().await;
+            if let Some(hb_state) = app_handle_for_monitor.try_state::<HeartbeatState>() {
+                let last_val = hb_state.last_heartbeat.load(Ordering::SeqCst);
+                let now = chrono::Utc::now().timestamp();
+                
+                if last_val != 0 {
+                    if (now - last_val) > 10 {
+                        // Timeout: considérer déconnecté
+                        hb_state.last_heartbeat.store(0, Ordering::SeqCst);
+                        let _ = app_handle_for_monitor.emit("remote_control_status_changed", "disconnected");
+                        log::debug!("Télécommande déconnectée (timeout heartbeat atomique)");
+                    }
+                }
+            }
+        }
+    });
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn get_remote_control_status() -> String {
-    // TODO: Implémenter avec la nouvelle architecture (vérifier les clients SSE connectés)
-    "disconnected".to_string()
+pub fn get_remote_control_status(hb_state: tauri::State<HeartbeatState>) -> String {
+    let last_val = hb_state.last_heartbeat.load(Ordering::SeqCst);
+    if last_val == 0 {
+        return "disconnected".to_string();
+    }
+    
+    let now = chrono::Utc::now().timestamp();
+    if (now - last_val) < 10 {
+        "connected".to_string()
+    } else {
+        "disconnected".to_string()
+    }
 }
 
 #[tauri::command]

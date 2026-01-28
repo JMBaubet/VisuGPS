@@ -4,23 +4,13 @@
 // Global variables (shared with main.js)
 window.evtSource = null;
 
-window.logToScreen = function (msg) {
-    const logDiv = document.getElementById('debug-log');
-    if (logDiv) {
-        logDiv.innerHTML += `<div>${new Date().toLocaleTimeString()} ${msg}</div>`;
-        logDiv.scrollTop = logDiv.scrollHeight;
-    }
-    console.log(msg);
-}
-
-window.logToScreen("V2 Client Script Loaded");
-
 
 function updateStatus(message, isError = false, isConnecting = false) {
     const statusDiv = document.getElementById('status');
     const mainTitle = document.getElementById('main-title');
     if (!statusDiv || !mainTitle) return;
 
+    console.log(`Status update: ${message} (error: ${isError}, connecting: ${isConnecting})`);
     statusDiv.textContent = `Statut: ${message}`;
     statusDiv.style.display = 'block';
 
@@ -53,10 +43,14 @@ window.sendCommand = function (command, payload = {}) {
     });
 };
 
+window.sseReconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 function connectRemote() {
     if (window.evtSource) {
         window.evtSource.close();
     }
+    stopHeartbeat(); // Security
 
     updateStatus("Connexion SSE...", false, true);
 
@@ -70,23 +64,43 @@ function connectRemote() {
     }
 
     // Connect to SSE endpoint
-    logToScreen("Connecting to SSE /api/events...");
     window.evtSource = new EventSource('/api/events');
 
     window.evtSource.onopen = function (e) {
-        logToScreen("SSE Connected!");
+        window.sseReconnectAttempts = 0; // Reset counter on success
         updateStatus("Connecté (SSE)", false);
 
-        // Démarrer la procédure de pairing
+        // Démarrer la procédure de pairing et le heartbeat
         initiatePairing();
+        startHeartbeat();
     };
 
     window.evtSource.onerror = function (e) {
-        logToScreen(`SSE Error: readyState=${window.evtSource.readyState}`);
         if (window.evtSource.readyState == EventSource.CLOSED) {
             updateStatus("Déconnecté (SSE)", true);
+            stopHeartbeat();
         } else {
-            updateStatus("Reconnexion SSE...", false, true);
+            window.sseReconnectAttempts++;
+            if (window.sseReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                console.warn("Max SSE reconnect attempts reached. Stopping.");
+                window.evtSource.close();
+                updateStatus("Échec de connexion (5 tentatives).", true);
+
+                // Show a manual retry button in the status
+                const statusDiv = document.getElementById('status');
+                if (statusDiv) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-sm btn-outline-danger ms-2';
+                    btn.textContent = 'Réessayer';
+                    btn.onclick = () => {
+                        window.sseReconnectAttempts = 0;
+                        connectRemote();
+                    };
+                    statusDiv.appendChild(btn);
+                }
+            } else {
+                updateStatus(`Reconnexion SSE (${window.sseReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, false, true);
+            }
         }
     };
 
@@ -94,6 +108,7 @@ function connectRemote() {
 
     window.evtSource.addEventListener("app_state_update", function (e) {
         const data = JSON.parse(e.data);
+        updateStatus("Connecté", false); // Refresh status to green
         updateRemoteInterface(data.appState);
     });
 
@@ -145,13 +160,13 @@ function connectRemote() {
     window.evtSource.addEventListener("pairing_approved", function (e) {
         const data = JSON.parse(e.data);
         if (data.clientId === window.clientId) {
-            logToScreen("Pairing approved! Re-initiating to get session...");
             // Hide the pairing code div immediately
             if (window.pairingCodeDiv) window.pairingCodeDiv.style.display = 'none';
             // Stop blinking or blue status
             updateStatus("Couplage accepté", false);
             // Re-initiate pairing to get the session token and settings
             initiatePairing();
+            startHeartbeat();
         }
     });
 
@@ -161,6 +176,7 @@ function connectRemote() {
             updateStatus(`Pairing refusé: ${data.reason}`, true);
             // On arrête de polluer le serveur
             if (window.evtSource) window.evtSource.close();
+            stopHeartbeat();
         }
     });
 
@@ -172,6 +188,7 @@ function connectRemote() {
         pages.forEach(page => page.style.display = 'none');
         // On arrête le SSE
         if (window.evtSource) window.evtSource.close();
+        stopHeartbeat();
     });
 }
 
@@ -211,6 +228,7 @@ function initiatePairing() {
                 if (data.appState) {
                     updateRemoteInterface(data.appState);
                 }
+                startHeartbeat();
 
                 // Request full state refresh just in case
                 fetch('/api/state').then(r => r.json()).then(state => {
@@ -225,9 +243,10 @@ function initiatePairing() {
                 });
 
             } else if (data.status === "already_paired") {
-                updateStatus("Déjà connecté", false);
+                updateStatus("Connecté (A)", false);
                 if (window.pairingCodeDiv) window.pairingCodeDiv.style.display = 'none';
                 if (data.appState) updateRemoteInterface(data.appState);
+                startHeartbeat();
             }
         })
         .catch(err => {
@@ -252,6 +271,39 @@ if (!window.generateUUID) {
             return v.toString(16);
         });
     };
+}
+
+let heartbeatInterval = null;
+let lastHeartbeatSent = 0;
+
+function startHeartbeat() {
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+    const sendPulse = () => {
+        fetch('/api/heartbeat')
+            .then(() => { lastHeartbeatSent = Date.now(); })
+            .catch(err => console.debug("Heartbeat error", err));
+    };
+
+    sendPulse(); // Immediate
+    heartbeatInterval = setInterval(() => {
+        // Watchdog: if last successful heartbeat was more than 10s ago, try sending again immediately
+        if (lastHeartbeatSent > 0 && (Date.now() - lastHeartbeatSent) > 10000) {
+            console.warn("Heartbeat watchdog triggered");
+            sendPulse();
+        } else {
+            sendPulse();
+        }
+    }, 3000);
+    console.log("Heartbeat started with watchdog");
+}
+
+function stopHeartbeat() {
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+    }
+    console.log("Heartbeat stopped");
 }
 
 // Make connectRemote available globally

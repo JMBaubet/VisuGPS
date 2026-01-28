@@ -3,7 +3,7 @@
 
 use tauri::{command, AppHandle, Manager, Emitter};
 use serde::{Serialize, Deserialize};
-use log::info;
+use log::{debug, info};
 use std::sync::Mutex;
 use crate::AppState;
 use crate::remote_sse::SseMessage;
@@ -52,7 +52,7 @@ pub fn update_animation_speed(app_handle: AppHandle, speed: f32) {
 #[tauri::command]
 pub fn notify_pause_state_changed(paused: bool) {
     // TODO: Envoyer via SSE
-    info!("Pause state changed: {}", paused);
+    debug!("Pause state changed: {}", paused);
 }
 
 #[tauri::command]
@@ -90,7 +90,7 @@ pub fn approve_remote_client(app_handle: AppHandle, client_id: String) -> Result
 
     // 2. Remove from pending
     {
-        let mut guard = state.lock().unwrap();
+        let guard = state.lock().unwrap();
         guard.pending_clients.lock().unwrap().remove(&client_id);
     }
 
@@ -108,7 +108,7 @@ pub fn approve_remote_client(app_handle: AppHandle, client_id: String) -> Result
     // 4. Update Desktop UI icon (blue -> green)
     let _ = app_handle.emit("remote_control_status_changed", "connected");
 
-    info!("Client approved: {}", client_id);
+    debug!("Client approved: {}", client_id);
     Ok(())
 }
 
@@ -125,7 +125,7 @@ pub fn refuse_remote_client(app_handle: AppHandle, client_id: String) -> Result<
 
     // 2. Remove from pending
     {
-        let mut guard = state.lock().unwrap();
+        let guard = state.lock().unwrap();
         guard.pending_clients.lock().unwrap().remove(&client_id);
     }
 
@@ -139,7 +139,7 @@ pub fn refuse_remote_client(app_handle: AppHandle, client_id: String) -> Result<
         }
     }
 
-    info!("Client refused: {}", client_id);
+    debug!("Client refused: {}", client_id);
     Ok(())
 }
 
@@ -157,7 +157,7 @@ pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), Stri
         }
     }
 
-    info!("Disconnect request received - notifying clients");
+    debug!("Disconnect request received - notifying clients");
     app_handle.emit("remote_control_status_changed", "disconnected").unwrap();
     Ok(())
 }
