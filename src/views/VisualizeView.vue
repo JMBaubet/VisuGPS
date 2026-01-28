@@ -365,11 +365,16 @@ const getToHexImproved = (n) => toHex(getSettingValue(n));
 
 // --- User Interactions ---
 const togglePlayPauseOrReset = () => {
-    if (isAnimationFinished.value) {
+    if (animationState.value === 'Termine' || animationState.value === 'Vol_Final' || isAnimationFinished.value) {
         resetAnimation();
-        isPaused.value = false;
     } else {
-        isPaused.value = !isPaused.value;
+        if (isPaused.value) {
+            startAnimation();
+            animationState.value = 'En_Animation';
+        } else {
+            pauseAnimation();
+            animationState.value = 'En_Pause';
+        }
     }
 };
 
@@ -1087,10 +1092,146 @@ const handleKeyup = (e) => {
     }
 };
 
+
+
+// --- Remote Control Logic ---
+const setupRemoteControl = async () => {
+    // 1. Listeners for Remote Commands
+    const listeners = [
+        // Play/Pause
+        await listen('remote_command::toggle_play', () => togglePlayPauseOrReset()),
+        
+        // Restart
+        await listen('remote_command::restart_animation', () => resetAnimation()),
+        
+        // Rewind
+        await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
+        await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
+        
+        // Speed
+        await listen('remote_command::increase_speed', () => {
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+        }),
+        await listen('remote_command::decrease_speed', () => {
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+        }),
+        await listen('remote_command::update_speed', (event) => {
+             if (event.payload !== undefined) {
+                 // Handle both raw value and { speed: val } object
+                 let newSpeed;
+                 if (typeof event.payload === 'object' && event.payload !== null) {
+                     newSpeed = parseFloat(event.payload.speed);
+                 } else {
+                     newSpeed = parseFloat(event.payload);
+                 }
+                 
+                 if (!isNaN(newSpeed)) {
+                     sliderPosition.value = mapSpeedToSlider(newSpeed);
+                 }
+             }
+        }),
+        await listen('remote_command::set_speed_to_1x', () => {
+             sliderPosition.value = mapSpeedToSlider(1.0);
+        }),
+        
+         // Widget Toggles
+        await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
+        await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
+        await listen('remote_command::toggle_communes_display', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
+        await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
+
+        // MAPPING FIXES based on Remote client HTML labels:
+        // "Boussole" (Compass) uses ID "toggle-weather-dynamic" -> toggle_weather_dynamic
+        await listen('remote_command::toggle_weather_dynamic', () => { isCompassVisible.value = !isCompassVisible.value; }),
+        
+        // "Météo" (Weather) uses ID "toggle-weather-static" -> toggle_weather_static
+        await listen('remote_command::toggle_weather_static', () => { isWeatherInfoVisible.value = !isWeatherInfoVisible.value; }),
+        
+        // Camera Control
+        await listen('remote_command::update_camera', (event) => {
+            if (!map.value || !event.payload) return;
+            const { type, dx, dy } = event.payload;
+            
+            // Convert to numbers explicitly
+            const fDx = parseFloat(dx) || 0;
+            const fDy = parseFloat(dy) || 0;
+
+            switch(type) {
+                case 'pan':
+                    // Invert deltas for natural panning (dragging moves map under camera)
+                    map.value.panBy([-fDx, -fDy], { animate: false });
+                    break;
+                case 'zoom':
+                    // Sensitivity: 100px = 1 zoom level
+                    const currentZoom = map.value.getZoom();
+                    map.value.setZoom(currentZoom - (fDy * 0.015)); 
+                    break;
+                case 'bearing':
+                    // Sensitivity: 1px = 0.5 degree
+                    const currentBearing = map.value.getBearing();
+                    map.value.setBearing(currentBearing + (fDx * 0.5));
+                    break;
+                case 'tilt':
+                    // Sensitivity: 1px = 0.5 degree
+                    const currentPitch = map.value.getPitch();
+                    map.value.setPitch(currentPitch - (fDy * 0.5));
+                    break;
+            }
+            // Force map repaint to reflect immediate changes
+            map.value.triggerRepaint();
+        }),
+        
+        // Keep these if original intent persists, but map is now specific
+        // ...
+    ];
+    unlistenFunctions.push(...listeners);
+    
+    // 2. Initial State Sync
+    sendVisualizeStateUpdate();
+    invoke('update_animation_speed', { speed: currentSpeed.value });
+};
+
+const sendVisualizeStateUpdate = () => {
+    const state = {
+        isControlsCardVisible: isControlsCardVisible.value,
+        isAltitudeVisible: isAltitudeVisible.value,
+        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+        
+        // Map State -> Remote IDs
+        isStaticWeatherVisible: isWeatherInfoVisible.value,
+        isDynamicWeatherVisible: isCompassVisible.value,
+        
+        currentSpeed: currentSpeed.value,
+        animationState: animationState.value
+    };
+    invoke('update_visualize_view_state', { state });
+};
+
+// Watchers for State Sync
+watch([
+    isControlsCardVisible, 
+    isAltitudeVisible, 
+    isCommuneWidgetVisible, 
+    isDistanceDisplayVisible, 
+    isWeatherInfoVisible,
+    isCompassVisible,
+    animationState
+], () => {
+    sendVisualizeStateUpdate();
+});
+
+// Watch Speed separately
+watch(currentSpeed, (newSpeed) => {
+    invoke('update_animation_speed', { speed: newSpeed });
+    sendVisualizeStateUpdate();
+});
+
 // --- Lifecycle ---
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
+    setupRemoteControl();
     // Do not call init here directly. Wait for settings.
 });
 
