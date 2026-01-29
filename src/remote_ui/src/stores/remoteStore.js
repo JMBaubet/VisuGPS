@@ -231,7 +231,7 @@ export const useRemoteStore = defineStore('remote', () => {
         });
 
         es.addEventListener("visualize_view_state_update", (e) => {
-            // logDebug('VISU_STATE', JSON.parse(e.data)); // Trop verbeux ?
+            logDebug('VISU_STATE', JSON.parse(e.data));
             const data = JSON.parse(e.data);
             visualizeViewState.value = data;
         });
@@ -247,6 +247,9 @@ export const useRemoteStore = defineStore('remote', () => {
             const data = JSON.parse(e.data);
             if (visualizeViewState.value) {
                 visualizeViewState.value.animationState = data.animationState;
+                if (data.currentSegmentIndex !== undefined && data.currentSegmentIndex !== null) {
+                    visualizeViewState.value.currentSegmentIndex = data.currentSegmentIndex;
+                }
             }
         });
 

@@ -1407,7 +1407,10 @@ const resetAnimation = async () => {
 // --- Remote Control Logic ---
 const setupRemoteControl = async () => {
     // Notify starting view
-    invoke('update_current_view', { newView: 'VisualizeVariantView' });
+    await invoke('update_current_view', { newView: 'VisualizeVariantView' });
+    
+    // Send initial state including segments
+    await updateRemoteViewState();
 
     // 1. Listeners for Remote Commands
     const listeners = [
@@ -1427,6 +1430,18 @@ const setupRemoteControl = async () => {
         // Speed
         await listen('remote_command::increase_speed', () => {
              sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+        }),
+        
+        // Segment Navigation
+        await listen('remote_command::jump_to_segment', (event) => {
+            const index = event.payload?.index;
+            if (typeof index === 'number') {
+                const segments = buildFullSegmentList();
+                if (segments[index]) {
+                    // Use computed start for jump
+                    handleJumpRequest(segments[index].computedStart);
+                }
+            }
         }),
         await listen('remote_command::decrease_speed', () => {
              sliderPosition.value = Math.max(0, sliderPosition.value - 5);
@@ -1478,13 +1493,6 @@ const setupRemoteControl = async () => {
         }),
         await listen('remote_command::toggle_commune_widget', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
         
-        // Jump to segment
-        await listen('remote_command::jump_to_segment', (event) => {
-            if (event.payload && event.payload.index !== undefined) {
-                const item = navigationItems.value[event.payload.index];
-                if (item) handleNavigationClick(item);
-            }
-        }),
         
         // Final View jump
         await listen('remote_command::trigger_final_view', () => handleEndSequence()),
@@ -1504,30 +1512,6 @@ const setupRemoteControl = async () => {
     unlistenFunctions.push(...listeners);
 };
 
-const sendVisualizeStateUpdate = () => {
-    const state = {
-        isControlsCardVisible: isControlsCardVisible.value,
-        isAltitudeVisible: isAltitudeVisible.value,
-        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
-        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
-        isStaticWeatherVisible: isWeatherInfoVisible.value, // Mapping for remote
-        isDynamicWeatherVisible: isCompassVisible.value, // Mapping for remote
-        
-        currentSpeed: currentSpeed.value,
-        animationState: animationState.value,
-        
-        // Variant specific
-        hasVariants: false, // We are already in a variant view
-        variantCount: 0,
-        variants: [],
-        segments: navigationItems.value.map((item, index) => ({
-            id: index,
-            name: item.name,
-            segmentType: item.type
-        }))
-    };
-    invoke('update_visualize_view_state', { state });
-};
 
 // --- Weather ---
 async function initWeather(circuit, trackingPoints) {
@@ -1664,7 +1648,7 @@ onMounted(async () => {
     await nextTick();
 
     if (mapboxToken.value) {
-        initializeVisualization();
+        await initializeVisualization();
         setupRemoteControl();
     } else {
         const unwatch = watch(mapboxToken, (token) => {
@@ -1737,7 +1721,7 @@ watch([
     animationState
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });
-    sendVisualizeStateUpdate();
+    updateRemoteViewState();
 });
 
 function generateSlopeSegments(trackingPoints) {
@@ -1755,6 +1739,137 @@ onUnmounted(() => {
     activePopups.clear();
      unlistenFunctions.forEach(fn => fn());
 });
+
+// --- Remote Control Sync ---
+const lastSentSegmentIndex = ref(-1);
+
+const buildFullSegmentList = () => {
+    const rawSegments = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
+    const fullList = [];
+    
+    for (let i = 0; i < rawSegments.length; i++) {
+        const seg = rawSegments[i];
+        const segStart = seg.points[0].distance;
+        
+        // Robust End Calculation:
+        // 1. Try lengthM
+        let segEnd = seg.lengthM ? (segStart + seg.lengthM/1000) : null;
+        
+        // 2. If valid points exist, check last point distance
+        if (seg.points.length > 1) {
+             const lastPtDist = seg.points[seg.points.length - 1].distance;
+             if (!segEnd || lastPtDist > segEnd) {
+                 segEnd = lastPtDist;
+             }
+        }
+
+        // 3. Fallback: If still invalid, assume short length or until next (will vary)
+        if (!segEnd) segEnd = segStart + 0.1; // Default 100m if nothing else
+
+        // Add the Variant Segment
+        fullList.push({
+            ...seg,
+            id: `seg_${i}`,
+            computedStart: segStart,
+            computedEnd: segEnd,
+            isGap: false,
+            originalIndex: i
+        });
+        
+        // Check for gap after
+        if (i < rawSegments.length - 1) {
+            const nextSeg = rawSegments[i+1];
+            const nextStart = nextSeg.points[0].distance;
+            
+            // If gap significant (> 10m)
+            if (segEnd && nextStart > segEnd + 0.01) { 
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    points: [{ distance: segEnd }], 
+                    computedStart: segEnd,
+                    computedEnd: nextStart,
+                    isGap: true,
+                    id: `gap_${i}`
+                });
+            } else if (segEnd && nextStart > segEnd) {
+                // Micro-gap: extend current segment to touch next to avoid "void"
+                fullList[fullList.length - 1].computedEnd = nextStart;
+            }
+        }
+    }
+    return fullList;
+};
+
+// Compute current segment index based on distance (using FULL list)
+const currentSegmentIndex = computed(() => {
+    const segments = buildFullSegmentList();
+    if (!segments.length) return -1;
+    
+    // Convert current distance to KM
+    const curDistKm = currentDistanceInMeters.value / 1000;
+    
+    // Default to handling start
+    if (curDistKm < segments[0].computedStart) return -1;
+
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        
+        // If last segment (or gap), it extends to infinity? Or just until next?
+        // Last segment logic:
+        if (i === segments.length - 1) {
+            if (curDistKm >= seg.computedStart) return i;
+            continue;
+        }
+
+        const end = seg.computedEnd !== null ? seg.computedEnd : Infinity;
+        
+        if (curDistKm >= seg.computedStart && curDistKm < end) {
+            return i;
+        }
+    }
+    
+    return segments.length - 1; // Fallback
+});
+
+// Watch for index change to update remote (Optimized)
+watch(currentSegmentIndex, (newIndex) => {
+    if (newIndex !== lastSentSegmentIndex.value) {
+        lastSentSegmentIndex.value = newIndex;
+        // Trigger update to send new index to remote
+        updateRemoteViewState(); 
+    }
+});
+
+const updateRemoteViewState = async () => {
+    // Transform segments for remote (using FULL list)
+    // Transform segments for remote (using FULL list)
+    const segments = buildFullSegmentList().map((seg, idx) => ({
+        id: idx, // Use list index as ID for remote convenience
+        name: seg.type === 'DEPART' ? 'Départ' : (seg.type === 'ARRIVEE' ? 'Arrivée' : (seg.name || seg.filename || `Segment ${idx + 1}`)),
+        segmentType: seg.type,
+        startDistance: seg.computedStart,
+        endDistance: seg.computedEnd
+    }));
+
+    const viewState = {
+        isControlsCardVisible: isControlsCardVisible.value,
+        isAltitudeVisible: isAltitudeVisible.value,
+        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+        isStaticWeatherVisible: isStaticWeatherVisible.value,
+        isDynamicWeatherVisible: isDynamicWeatherVisible.value,
+        currentSpeed: currentSpeed.value,
+        animationState: animationState.value,
+        hasVariants: true,
+        variantCount: availableVariants.value.length,
+        variants: availableVariants.value.map(v => ({ id: v.id, name: v.name })),
+        segments: segments,
+        currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+    };
+
+    await invoke('update_visualize_view_state', { state: viewState });
+};
 
 </script>
 

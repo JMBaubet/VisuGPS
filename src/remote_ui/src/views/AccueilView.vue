@@ -78,7 +78,7 @@
 
     <!-- Debug Toggle (Easter Egg or Small Button) -->
     <div class="mt-auto pt-8">
-        <v-btn variant="text" size="small" density="compact" color="grey" @click="showDebug = !showDebug">
+        <v-btn variant="text" size="small" density="compact" color="grey" @click="showDebug = !showDebug" class="low-contrast-debug">
             {{ showDebug ? 'Masquer Debug' : 'Afficher Debug' }}
         </v-btn>
     </div>
@@ -117,16 +117,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, inject, onMounted } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import { useTheme } from 'vuetify'
-import NoSleep from 'nosleep.js'
 
 const store = useRemoteStore()
 const theme = useTheme()
 const showDebug = ref(false)
-const noSleepEnabled = ref(false)
-const noSleep = new NoSleep()
+
+// Inject Global NoSleep Action
+const enableNoSleep = inject('enableNoSleep')
 
 // Theme Logic
 const isDarkTheme = computed({
@@ -147,38 +147,14 @@ const statusColor = computed(() => {
     }
 })
 
-// NoSleep Logic
-function toggleNoSleep(val) {
-    noSleepEnabled.value = val; // Update UI state
-    if (val) {
-        noSleep.enable().then(() => {
-            console.log("NoSleep enabled")
-        }).catch(err => {
-            console.error("NoSleep error", err)
-            noSleepEnabled.value = false // Revert if failed
-        })
-    } else {
-        noSleep.disable()
-        console.log("NoSleep disabled")
-    }
-}
-
-// Watch for disconnection to disable NoSleep automatically
-watch(() => store.connectionStatus, (newStatus) => {
-    if (newStatus === 'disconnected' && noSleepEnabled.value) {
-        toggleNoSleep(false)
-    }
-})
-
 // Enhanced Connect Action (Enable NoSleep on user gesture)
 function handleConnect() {
-    toggleNoSleep(true); // Enable immediately on click (gesture)
+    if (enableNoSleep) enableNoSleep(); // Trigger global noSleep on gesture
     store.connect();
 }
 
 function handleDisconnect() {
     store.disconnect();
-    // Watcher will handle NoSleep disable
 }
 
 // Auto-connect disabled to ensure user gesture for NoSleep
@@ -200,5 +176,12 @@ function handleDisconnect() {
 }
 .gap-4 {
     gap: 16px;
+}
+.low-contrast-debug {
+    opacity: 0.1;
+    transition: opacity 0.3s;
+}
+.low-contrast-debug:hover {
+    opacity: 0.5;
 }
 </style>

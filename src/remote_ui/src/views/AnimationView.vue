@@ -9,19 +9,12 @@
                 :color="isDark ? 'white' : 'grey-darken-3'" 
                 variant="text" 
                 class="text-h4 font-weight-bold"
-                @click="isVariantMode ? showSegmentDialog = true : resetSpeed()"
+                @click="resetSpeed()"
             >
-                <v-icon v-if="isVariantMode" icon="mdi-map-marker-radius-outline" size="64"></v-icon>
-                <template v-else>x1</template>
+                x1
             </v-btn>
         </template>
     </PlaybackControls>
-
-
-
-    <v-divider class="w-100 mb-6"></v-divider>
-    
-    <!-- 4. Toggles Grid - Forced 2 Rows -->
     <!-- Row 1: Top 3 (Altitude, Commandes, Boussole) -->
     <v-row class="w-100 flex-grow-0 mb-0" justify="space-between" align="center">
         <v-col cols="4" class="text-center pa-1" v-for="toggle in toggles.slice(0, 3)" :key="toggle.id">
@@ -55,12 +48,16 @@
             </v-btn>
         </v-col>
     </v-row>
-    <SegmentSelectorDialog
-      v-model="showSegmentDialog"
-      :segments="variantSegments"
-      :is-dark="isDark"
-      @select="onSegmentSelect"
-    />
+
+    <!-- NEW: Segment Bar (Bottom) -->
+    <div v-if="isVariantMode" class="w-100">
+        <v-divider class="w-75 mx-auto my-4"></v-divider>
+        <SegmentBar 
+            :segments="variantSegments"
+            :current-index="currentSegmentIndex"
+            @jump="onSegmentJump"
+        />
+    </div>
   </v-container>
 </template>
 
@@ -69,7 +66,7 @@ import { ref, computed } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import VariantSegmentList from '@/components/VariantSegmentList.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
-import SegmentSelectorDialog from '@/components/SegmentSelectorDialog.vue'
+import SegmentBar from '@/components/SegmentBar.vue' // Added import
 import { useTheme } from 'vuetify'
 
 const store = useRemoteStore()
@@ -77,13 +74,19 @@ const theme = useTheme()
 
 const isDark = computed(() => theme.global.current.value.dark)
 
-const isVariantMode = computed(() => store.appState?.viewName === 'VisualizeVariantView');
+const isVariantMode = computed(() => store.appState === 'VisualizeVariantView' || store.appState?.viewName === 'VisualizeVariantView');
 // Mock or real data from store
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
+// Get current index from SSE update
+const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? 0);
 
 const showSegmentDialog = ref(false);
 
 function onSegmentSelect({ segment, index }) {
+    store.sendCommand('jump_to_segment', { index });
+}
+
+function onSegmentJump(index) {
     store.sendCommand('jump_to_segment', { index });
 }
 

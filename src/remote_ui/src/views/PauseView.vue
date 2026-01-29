@@ -97,6 +97,7 @@
     <SegmentSelectorDialog
       v-model="showSegmentDialog"
       :segments="variantSegments"
+      :current-index="currentSegmentIndex"
       :is-dark="isDark"
       @select="onSegmentSelect"
     />
@@ -124,6 +125,7 @@ const isVariantMode = computed(() => {
     return appView === 'VisualizeVariant' || appView === 'VisualizeVariantView';
 });
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
+const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? -1);
 const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? false); 
 const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
 const variants = computed(() => store.visualizeViewState?.variants || []);

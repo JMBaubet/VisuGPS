@@ -1837,7 +1837,7 @@ fn update_animation_state(
     }
 
     // Notifier la télécommande
-    remote_control::send_animation_state_update(&app_handle, &new_state);
+    remote_control::send_animation_state_update(&app_handle, &new_state, None);
 
     Ok(())
 }

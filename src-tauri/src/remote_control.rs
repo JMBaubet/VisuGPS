@@ -23,6 +23,8 @@ pub struct RemoteSegment {
     pub id: usize,
     pub name: String,
     pub segment_type: Option<String>,
+    pub start_distance: Option<f64>,
+    pub end_distance: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -40,6 +42,7 @@ pub struct VisualizeViewState {
     pub variant_count: usize,
     pub variants: Vec<RemoteVariant>,
     pub segments: Vec<RemoteSegment>,
+    pub current_segment_index: Option<usize>,
 }
 
 // === Commandes Tauri (UI → Backend) ===
@@ -229,13 +232,16 @@ pub fn send_visualize_view_state_update(app_handle: &AppHandle, state_view: Visu
     };
 }
 
-pub fn send_animation_state_update(app_handle: &AppHandle, state_val: &str) {
+pub fn send_animation_state_update(app_handle: &AppHandle, state_val: &str, current_segment_index: Option<usize>) {
     let state = app_handle.state::<Mutex<AppState>>();
     if let Ok(guard) = state.lock() {
         if let Some(sender) = &guard.sse_sender {
             let _ = sender.send(SseMessage {
                 event_type: "animation_state_update".to_string(),
-                data: serde_json::json!({ "animationState": state_val }),
+                data: serde_json::json!({ 
+                    "animationState": state_val,
+                    "currentSegmentIndex": current_segment_index
+                }),
             });
         }
     };

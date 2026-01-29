@@ -7,14 +7,46 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import AccueilView from '@/views/AccueilView.vue'
 import AnimationView from '@/views/AnimationView.vue'
 import PauseView from '@/views/PauseView.vue'
+import NoSleep from 'nosleep.js'
 
 const store = useRemoteStore()
+const noSleep = new NoSleep()
+const noSleepEnabled = ref(false)
 
+// --- Global NoSleep Logic ---
+function enableNoSleep() {
+    noSleep.enable().then(() => {
+        console.log("Global NoSleep enabled")
+        noSleepEnabled.value = true
+    }).catch(err => {
+        console.error("Global NoSleep error", err)
+        noSleepEnabled.value = false
+    })
+}
+
+function disableNoSleep() {
+    noSleep.disable()
+    console.log("Global NoSleep disabled")
+    noSleepEnabled.value = false
+}
+
+// Watch global connection status to auto-disable
+watch(() => store.connectionStatus, (newStatus) => {
+    // If disconnected AND we think it's enabled, turn it off
+    if (newStatus === 'disconnected' && noSleepEnabled.value) {
+        disableNoSleep()
+    }
+})
+
+// Provide to children (specifically AccueilView for the Click Trigger)
+provide('enableNoSleep', enableNoSleep)
+
+// ... existing component logic ...
 const activeComponent = computed(() => {
     // Logic from requirements:
     // "Quand les vues VisalizeView.vue et VisualzeVariantView.vue seront sélectionnées sur l'application de bureau, 

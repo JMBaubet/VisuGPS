@@ -17,19 +17,23 @@
             :key="i"
             @click="selectSegment(segment, i)"
             class="rounded-lg mb-1"
-            link
+            :class="{ 'opacity-60': segment.segmentType === 'COMMON' && i !== currentIndex }"
+            :link="segment.segmentType !== 'COMMON'"
           >
             <template v-slot:prepend>
               <v-icon 
                 :icon="getIcon(segment.segmentType, segment.name)" 
-                :color="getIconColor(segment.segmentType, segment.name)" 
+                :color="getIconColor(segment.segmentType, segment.name, i)" 
                 size="28"
                 class="mr-4"
               ></v-icon>
             </template>
             
-            <v-list-item-title class="font-weight-bold">
-              {{ segment.name || `Segment ${i+1}` }}
+            <v-list-item-title 
+              class="font-weight-bold"
+              :class="{ 'text-white': i === currentIndex, 'text-grey': i !== currentIndex }"
+            >
+              {{ segment.name }}
             </v-list-item-title>
           </v-list-item>
         </v-list>
@@ -44,6 +48,7 @@ import { computed } from 'vue'
 const props = defineProps({
   modelValue: Boolean,
   segments: { type: Array, default: () => [] },
+  currentIndex: { type: Number, default: -1 },
   isDark: Boolean
 })
 
@@ -55,6 +60,7 @@ const modelValue = computed({
 })
 
 function selectSegment(segment, index) {
+  if (segment.segmentType === 'COMMON') return; // Disable click
   emit('select', { segment, index })
   modelValue.value = false
 }
@@ -64,16 +70,28 @@ function getIcon(type, name) {
   switch (type) {
     case 'DEPART': return 'mdi-ray-start-arrow'
     case 'ARRIVEE': return 'mdi-ray-end-arrow'
+    case 'COMMON': return 'mdi-link-variant'
     default: return 'mdi-map-marker-path'
   }
 }
 
-function getIconColor(type, name) {
-  if (name === 'Vue Finale' || type === 'FIN') return 'grey-darken-1'
-  switch (type) {
-    case 'DEPART': return 'success'
-    case 'ARRIVEE': return 'error'
-    default: return 'primary'
+function getIconColor(type, name, index) {
+  if (name === 'Vue Finale' || type === 'FIN') return 'grey'
+  
+  // Active Logic: Bright if active, defaults to Dark Logic
+  const isActive = (index === props.currentIndex);
+  
+  if (isActive) {
+      // ACTIVE: All White (user request for uniformity & visibility)
+      return 'white';
+  } else {
+      // INACTIVE: Dark Colors
+      if (type === 'COMMON') return 'grey-darken-2'; 
+      switch (type) {
+        case 'DEPART': return 'green-darken-4'
+        case 'ARRIVEE': return 'red-darken-4'
+        default: return 'blue-darken-4'
+      }
   }
 }
 
@@ -81,6 +99,7 @@ function formatType(type) {
   switch (type) {
     case 'DEPART': return 'Départ'
     case 'ARRIVEE': return 'Arrivée'
+    case 'COMMON': return 'Tronçon Commun'
     default: return 'Segment de variante'
   }
 }
