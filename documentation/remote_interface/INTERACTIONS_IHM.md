@@ -19,6 +19,10 @@ Ces commandes sont envoyées via `POST /api/command`.
 | `toggle_distance_display`| `null` | Affiche/masque le compteur de distance. |
 | `toggle_weather_static` | `null` | Affiche/masque le tableau météo. |
 | `toggle_weather_dynamic`| `null` | Affiche/masque le widget météo/boussole flottant. |
+| `select_variant` | `{ "variantId": string }` | Bascule l'affichage sur la variante demandée. |
+| `jump_to_segment` | `{ "index": number }` | Saute directement à un segment précis de la trace. |
+| `trigger_variant_selection`| `null` | Active/Désactive la vue variante (si une seule variante). |
+| `return_to_main_trace` | `null` | Quitte le mode variante pour revenir à la trace principale. |
 
 ---
 
@@ -35,6 +39,7 @@ Ces états sont poussés via SSE pour mettre à jour l'affichage de la télécom
 - **`Main`** : La télécommande affiche la page d'accueil (historique/choix).
 - **`Visualize`** : La télécommande active les contrôles de lecture et de caméra.
 - **`Settings`** : La télécommande affiche un message de configuration.
+- **`busy`** (état interne mobile) : Affiche "Un autre appareil est déjà connecté" et bloque l'UI.
 
 ### 2.3 Synchronisation des Switches
 Chaque widget activé sur le Desktop (via un raccourci clavier ou clic souris) est immédiatement reflété par l'allumage ou l'extinction du switch correspondant sur le téléphone via l'événement `visualize_view_state_update`.

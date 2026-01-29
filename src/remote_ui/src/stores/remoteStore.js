@@ -33,7 +33,12 @@ export const useRemoteStore = defineStore('remote', () => {
     }
 
     function generatePairingCode() {
-        return Math.floor(1000 + Math.random() * 9000).toString();
+        const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let result = '';
+        for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
     }
 
     function logDebug(type, data) {
@@ -106,9 +111,8 @@ export const useRemoteStore = defineStore('remote', () => {
 
     // 4. Pairing Logic
     async function initiatePairing() {
-        if (!pairingCode.value) {
-            pairingCode.value = generatePairingCode();
-        }
+        // Toujours régénérer le code pour chaque nouvelle tentative
+        pairingCode.value = generatePairingCode();
 
         // Show status "Pairing..."
         updateStatus('En attente de couplage...', 'pairing');
@@ -249,11 +253,7 @@ export const useRemoteStore = defineStore('remote', () => {
         es.addEventListener("pairing_approved", (e) => {
             logDebug('PAIR_APPROVED', JSON.parse(e.data));
             const data = JSON.parse(e.data);
-            if (data.clientId === clientId.value) {
-                updateStatus("Connecté", 'connected');
-                initiatePairing(); // Refresh session/settings
-                startHeartbeat();
-            }
+            handlePairingAccepted(data);
         });
 
         es.addEventListener("pairing_refused", (e) => {
@@ -261,6 +261,15 @@ export const useRemoteStore = defineStore('remote', () => {
             const data = JSON.parse(e.data);
             if (data.clientId === clientId.value) {
                 updateStatus("Couplage refusé", 'refused', data.reason);
+                es.close();
+                stopHeartbeat();
+            }
+        });
+
+        es.addEventListener("pairing_abandoned", (e) => {
+            const data = JSON.parse(e.data);
+            if (data.clientId === clientId.value) {
+                updateStatus("Couplage ignoré", 'disconnected', "Demande ignorée par l'utilisateur.");
                 es.close();
                 stopHeartbeat();
             }

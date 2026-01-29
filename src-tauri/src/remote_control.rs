@@ -163,6 +163,30 @@ pub fn refuse_remote_client(app_handle: AppHandle, client_id: String) -> Result<
 }
 
 #[tauri::command]
+pub fn abandon_remote_client(app_handle: AppHandle, client_id: String) -> Result<(), String> {
+    let state = app_handle.state::<Mutex<AppState>>();
+    
+    // 1. Remove from pending list
+    if let Ok(guard) = state.lock() {
+        let mut pending = guard.pending_clients.lock().unwrap();
+        pending.remove(&client_id);
+    }
+
+    // 2. Notify via SSE
+    if let Ok(guard) = state.lock() {
+        if let Some(sender) = &guard.sse_sender {
+            let _ = sender.send(SseMessage {
+                event_type: "pairing_abandoned".to_string(),
+                data: serde_json::json!({ "clientId": client_id }),
+            });
+        }
+    }
+
+    debug!("Client abandoned: {}", client_id);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), String> {
     let state = app_handle.state::<Mutex<AppState>>();
     

@@ -52,7 +52,10 @@ Lorsqu'un client appelle `POST /api/pair`, le serveur suit un arbre de décision
 
 ```mermaid
 graph TD
-    REQ[Requête /api/pair] --> BL{Blacklist ?}
+    REQ[Requête /api/pair] --> BUSY{Session Occupée ?}
+    BUSY -- Oui --> REF_BUSY[Refus 409 Conflict: Busy]
+    BUSY -- Non --> BL{Blacklist ?}
+    
     BL -- Oui --> REF_BL[Refus Immédiat 403 Forbidden]
     BL -- Non --> AUTH{Déjà Autorisé ?}
     
@@ -76,6 +79,7 @@ graph TD
 
 | Scénario | Code HTTP | JSON de Réponse | Conséquence Mobile |
 | :--- | :--- | :--- | :--- |
+| **Session Active** | `409` | `{"status": "busy", "reason": "Un autre appareil est déjà connecté."}` | Affiche un message de blocage orange. |
 | **Blacklisté** | `403` | `{"status": "refused", "reason": "Cet appareil a été bloqué."}` | Affiche un message d'erreur rouge permanent. |
 | **Vue Non Gérée** | `403` | `{"status": "refused", "reason": "Le couplage est uniquement autorisé depuis l'accueil..."}` | Demande à l'utilisateur de changer de page sur le PC. |
 | **Refus Utilisateur** | `403` | `{"status": "refused", "reason": "Accès refusé par l'utilisateur."}` | Blackliste l'appareil pour les futures tentatives. |

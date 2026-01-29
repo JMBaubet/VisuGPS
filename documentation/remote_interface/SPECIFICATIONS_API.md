@@ -9,10 +9,10 @@ Tous les appels API sont préfixés par `/api`.
 | Méthode | Endpoint | Description | Payload |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/health` | Vérification de l'état du serveur. | - |
-| **POST** | `/api/pair` | Demande de couplage (Pairing). | `{ clientId, pairingCode, clientName }` |
-| **POST** | `/api/command` | Envoi d'une commande au PC. | `{ command, payload, sessionToken }` |
+| **POST** | `/api/pair` | Demande de couplage (Pairing). Bloqué si un autre client est actif. | `{ clientId, pairingCode }` |
+| **POST** | `/api/command` | Envoi d'une commande au PC. | `{ command, payload }` |
 | **GET** | `/api/events` | Flux SSE des événements (PC -> Mobile). | - |
-| **GET** | `/api/heartbeat` | Signal de vie (Heartbeat). | - |
+| **GET** | `/api/heartbeat` | Signal de vie (Heartbeat). Nécessite le clientId. | `?clientId=UUID` |
 | **GET** | `/api/state` | Récupération forcée de l'état (Fallback). | - |
 
 ---
@@ -48,7 +48,16 @@ Indique si les widgets (Profil, Vitesse, etc.) sont visibles ou masqués.
     "isControlsCardVisible": true,
     "isAltitudeVisible": true,
     "isDistanceDisplayVisible": false,
-    "isStaticWeatherVisible": false
+    "hasVariants": true,
+    "variantCount": 2,
+    "variants": [
+      { "id": "v1", "name": "Option A" },
+      { "id": "v2", "name": "Option B" }
+    ],
+    "segments": [
+      { "id": 0, "name": "Départ", "segmentType": "start" },
+      { "id": 1, "name": "Variante 1", "segmentType": "variant" }
+    ]
   }
 }
 ```

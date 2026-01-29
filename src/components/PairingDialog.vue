@@ -11,6 +11,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
+          <v-btn color="grey darken-1" text @click="abandon()">Abandonner</v-btn>
           <v-btn color="red darken-1" text @click="reply(false)">Refuser</v-btn>
           <v-btn color="green darken-1" text @click="reply(true)">Accepter</v-btn>
         </v-card-actions>
@@ -41,6 +42,15 @@
       }
     });
   });
+
+  const abandon = async () => {
+    dialog.value = false;
+    try {
+      await invoke('abandon_remote_client', { clientId: clientId.value });
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'abandon du couplage:", error);
+    }
+  };
 
   const reply = async (accepted) => {
     dialog.value = false;
