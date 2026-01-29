@@ -247,7 +247,16 @@ export const useRemoteStore = defineStore('remote', () => {
             const data = JSON.parse(e.data);
             if (visualizeViewState.value) {
                 visualizeViewState.value.animationState = data.animationState;
-                if (data.currentSegmentIndex !== undefined && data.currentSegmentIndex !== null) {
+            }
+        });
+
+        es.addEventListener("animation_progress_update", (e) => {
+            const data = JSON.parse(e.data);
+            if (visualizeViewState.value) {
+                if (data.currentDistance !== undefined) {
+                    // Update current distance if needed later
+                }
+                if (data.currentSegmentIndex !== undefined) {
                     visualizeViewState.value.currentSegmentIndex = data.currentSegmentIndex;
                 }
             }

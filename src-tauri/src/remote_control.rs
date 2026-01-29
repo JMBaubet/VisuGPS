@@ -20,11 +20,11 @@ pub struct RemoteVariant {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteSegment {
-    pub id: usize,
+    pub id: String,
     pub name: String,
-    pub segment_type: Option<String>,
-    pub start_distance: Option<f64>,
-    pub end_distance: Option<f64>,
+    pub segment_type: String,
+    pub start_distance: f64,
+    pub end_distance: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,6 +69,16 @@ pub fn update_animation_speed(app_handle: AppHandle, speed: f32) {
     
     // Envoyer via SSE
     send_animation_speed_update(&app_handle, speed);
+}
+
+#[tauri::command]
+pub fn notify_animation_progress(app_handle: AppHandle, current_distance: f64, current_segment_index: Option<usize>) {
+    let app_state_mutex = app_handle.state::<Mutex<AppState>>();
+    let lock = app_state_mutex.lock().unwrap();
+    if let Some(sse_sender) = &lock.sse_sender {
+        let sse_state = crate::remote_sse::SseState { tx: sse_sender.clone() };
+        sse_state.send_animation_progress_update(current_distance, current_segment_index);
+    }
 }
 
 #[tauri::command]

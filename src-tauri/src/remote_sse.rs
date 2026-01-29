@@ -81,6 +81,17 @@ impl SseState {
             }),
         });
     }
+
+    /// Envoyer une mise à jour d'avancement de l'animation
+    pub fn send_animation_progress_update(&self, current_distance: f64, current_segment_index: Option<usize>) {
+        self.send(SseMessage {
+            event_type: "animation_progress_update".to_string(),
+            data: serde_json::json!({
+                "currentDistance": current_distance,
+                "currentSegmentIndex": current_segment_index
+            }),
+        });
+    }
 }
 
 /// Handler pour la route SSE /api/events

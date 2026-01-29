@@ -1140,10 +1140,13 @@ const handleLoadVariant = async (variantId) => {
     }
 };
 
-const confirmRename = () => {
+const confirmRename = async () => {
     if (renameIndex.value !== -1 && renameValue.value.trim() !== "") {
         modifications.value[renameIndex.value].name = renameValue.value.trim();
         isModified.value = true;
+        
+        // Trigger auto-save to persist the name change immediately
+        await triggerAutoSave();
     }
     showRenameDialog.value = false;
 };

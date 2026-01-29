@@ -1832,12 +1832,31 @@ const currentSegmentIndex = computed(() => {
     return segments.length - 1; // Fallback
 });
 
-// Watch for index change to update remote (Optimized)
+// Watch for distance changes to update remote progress (every 100m)
+const lastNotifiedDistance = ref(-1);
+watch(currentDistanceInMeters, (newDist) => {
+    // Only notify if distance change >= 100m
+    if (Math.abs(newDist - lastNotifiedDistance.value) >= 100) {
+        invoke('notify_animation_progress', { 
+            currentDistance: newDist / 1000, 
+            currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+        }).catch(err => console.error("Failed to notify progress:", err));
+        lastNotifiedDistance.value = newDist;
+    }
+});
+
+// Watch for index change to update remote (Full state remains useful for metadata)
 watch(currentSegmentIndex, (newIndex) => {
     if (newIndex !== lastSentSegmentIndex.value) {
         lastSentSegmentIndex.value = newIndex;
-        // Trigger update to send new index to remote
+        // Trigger update to send new index to remote (and potentially updated metadata)
         updateRemoteViewState(); 
+        
+        // Also send immediate progress update for the new index
+        invoke('notify_animation_progress', { 
+            currentDistance: currentDistanceInMeters.value / 1000, 
+            currentSegmentIndex: newIndex !== -1 ? newIndex : null
+        }).catch(err => console.error("Failed to notify index change:", err));
     }
 });
 
@@ -1845,7 +1864,7 @@ const updateRemoteViewState = async () => {
     // Transform segments for remote (using FULL list)
     // Transform segments for remote (using FULL list)
     const segments = buildFullSegmentList().map((seg, idx) => ({
-        id: idx, // Use list index as ID for remote convenience
+        id: String(idx), // Ensure ID is a String for Rust compatibility
         name: seg.type === 'DEPART' ? 'Départ' : (seg.type === 'ARRIVEE' ? 'Arrivée' : (seg.name || seg.filename || `Segment ${idx + 1}`)),
         segmentType: seg.type,
         startDistance: seg.computedStart,
@@ -1868,7 +1887,8 @@ const updateRemoteViewState = async () => {
         currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
     };
 
-    await invoke('update_visualize_view_state', { state: viewState });
+    invoke('update_visualize_view_state', { state: viewState })
+        .catch(err => console.error("[Remote] Failed to update view state:", err));
 };
 
 </script>

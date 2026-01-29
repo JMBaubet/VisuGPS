@@ -2544,6 +2544,7 @@ pub fn run() {
             remote_control::update_animation_speed,
             remote_control::update_speed_from_remote,
             remote_control::set_speed_to_1x_from_remote,
+            remote_control::notify_animation_progress,
             remote_setup::reply_to_pairing_request,
             remote_setup::get_remote_control_status,
             remote_setup::get_network_interfaces,

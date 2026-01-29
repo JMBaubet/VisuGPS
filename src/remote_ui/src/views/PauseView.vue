@@ -87,6 +87,16 @@
         </v-row>
     </div>
 
+    <!-- NEW: Segment Bar (Bottom) -->
+    <div v-if="isVariantMode" class="w-100 flex-grow-0">
+        <v-divider class="w-75 mx-auto my-2"></v-divider>
+        <SegmentBar 
+            :segments="variantSegments"
+            :current-index="currentSegmentIndex"
+            @jump="onSegmentJump"
+        />
+    </div>
+
     <VariantSelectorDialog
       v-model="showVariantDialog"
       :variants="variants"
@@ -113,6 +123,7 @@ import CameraTouchPad from '@/components/CameraTouchPad.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import VariantSelectorDialog from '@/components/VariantSelectorDialog.vue'
 import SegmentSelectorDialog from '@/components/SegmentSelectorDialog.vue'
+import SegmentBar from '@/components/SegmentBar.vue'
 
 const store = useRemoteStore()
 const theme = useTheme()
@@ -142,6 +153,10 @@ watch(isVariantMode, (newVal) => {
 });
 
 function onSegmentSelect({ segment, index }) {
+    store.sendCommand('jump_to_segment', { index });
+}
+
+function onSegmentJump(index) {
     store.sendCommand('jump_to_segment', { index });
 }
 
