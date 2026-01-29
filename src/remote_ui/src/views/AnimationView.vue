@@ -15,6 +15,7 @@
             @mouseleave="stopRewind"
             @touchstart.prevent="startRewind" 
             @touchend.prevent="stopRewind"
+            :disabled="isFinished"
         >
             <v-icon icon="mdi-rewind" size="64"></v-icon>
         </v-btn>
@@ -25,9 +26,9 @@
             rounded="circle"
             :color="isDark ? 'white' : 'grey-darken-3'" 
             variant="text"
-            @click="togglePlay()"
+            @click="isFinished ? restart() : togglePlay()"
         >
-            <v-icon :icon="isPlaying ? 'mdi-pause' : 'mdi-play'" size="72"></v-icon>
+            <v-icon :icon="isFinished ? 'mdi-refresh' : (isPlaying ? 'mdi-pause' : 'mdi-play')" size="72"></v-icon>
         </v-btn>
       </v-col>
       <v-col cols="4" class="text-center">
@@ -134,6 +135,7 @@ function onSegmentSelect({ segment, index }) {
 }
 
 const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
+const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
 
 const speedModel = ref(50) 
 

@@ -2,40 +2,51 @@
   <v-container class="fill-height d-flex flex-column" style="max-width: 600px;">
     
     <!-- 1. Playback Controls (Duplicated from AnimationView for consistency) -->
-    <v-row class="w-100 flex-grow-0 mb-2" justify="space-between" align="center">
+    <v-row class="w-100 flex-grow-0 mb-0" justify="space-between" align="center">
       <v-col cols="4" class="text-center">
         <v-btn 
-            icon="mdi-rewind" 
-            size="large" 
-            color="secondary" 
-            variant="tonal" 
+            size="80" 
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text" 
             @mousedown="startRewind" 
             @mouseup="stopRewind"
             @mouseleave="stopRewind"
             @touchstart.prevent="startRewind" 
             @touchend.prevent="stopRewind"
-        ></v-btn>
+            :disabled="isFinished"
+        >
+            <v-icon icon="mdi-rewind" size="64"></v-icon>
+        </v-btn>
       </v-col>
       <v-col cols="4" class="text-center">
         <v-btn 
-            :icon="isPlaying ? 'mdi-pause' : 'mdi-play'" 
-            size="64" 
-            color="primary" 
-            elevation="4"
-            @click="togglePlay()"
-        ></v-btn>
+            size="80" 
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text"
+            @click="isFinished ? restart() : togglePlay()"
+        >
+            <v-icon :icon="isFinished ? 'mdi-refresh' : (isPlaying ? 'mdi-pause' : 'mdi-play')" size="72"></v-icon>
+        </v-btn>
       </v-col>
       <v-col cols="4" class="text-center">
-        <v-btn icon="mdi-refresh" size="large" color="secondary" variant="tonal" @click="restart()"></v-btn>
+        <v-btn 
+            size="80" 
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text" 
+            @click="triggerFinalView()"
+            :disabled="isFinished"
+        >
+            <v-icon icon="mdi-skip-forward" size="64"></v-icon>
+        </v-btn>
       </v-col>
     </v-row>
 
-    <!-- Speed (Compact row) -->
-    <v-row dense class="w-100 flex-grow-0 mb-4 align-center">
-        <v-col cols="2">
-             <v-btn size="x-small" variant="text" color="primary" @click="resetSpeed()">x1</v-btn>
-        </v-col>
-        <v-col cols="10">
+    <!-- Speed -->
+    <v-row class="w-100 flex-grow-0 mb-2 mt-0 px-2" align="center">
+        <v-col cols="12">
             <v-slider
                 v-model="speedModel"
                 :min="0"
@@ -43,10 +54,16 @@
                 :step="1"
                 hide-details
                 density="compact"
-                color="primary"
-                thumb-label
+                :color="isDark ? 'white' : 'grey-darken-3'"
+                :track-color="isDark ? 'white' : 'grey-darken-3'"
                 @update:model-value="onSpeedChange"
-            ></v-slider>
+            >
+                <template v-slot:append>
+                    <span :class="isDark ? 'text-white' : 'text-grey-darken-3'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
+                        {{ displaySpeed }}
+                    </span>
+                </template>
+            </v-slider>
         </v-col>
     </v-row>
 
@@ -71,12 +88,12 @@
                 :sensitivityY="sensY"
                 @update="handleCameraUpdate"
             >
-                <v-icon icon="mdi-cursor-move" class="mr-2"></v-icon> Point de Vue (Pan)
+                <v-icon icon="mdi-cursor-move" size="64"></v-icon>
             </CameraTouchPad>
         </div>
 
         <!-- Strip Controls -->
-        <v-row dense style="height: 100px;" class="flex-grow-0">
+        <v-row dense style="height: 150px;" class="flex-grow-0">
             <v-col cols="3">
                 <CameraTouchPad 
                     mode="zoom" 
@@ -84,24 +101,32 @@
                     :sensitivityY="sensZoom"
                     @update="handleCameraUpdate"
                 >
-                    <div class="d-flex flex-column align-center">
-                        <v-icon icon="mdi-magnify-plus-outline"></v-icon>
-                        <span>Zoom</span>
-                    </div>
+                    <v-icon icon="mdi-magnify-plus-outline" size="48"></v-icon>
                 </CameraTouchPad>
             </v-col>
-            <v-col cols="6">
+            <v-col cols="6" class="d-flex flex-column justify-space-between align-center py-1">
+                <!-- Cap (Top) -->
                 <CameraTouchPad 
                     mode="bearing" 
-                    class="w-100 h-100" 
+                    class="w-100"
+                    style="height: 70px;" 
                     :sensitivityX="sensBearing"
                      @update="handleCameraUpdate"
                 >
-                    <div class="d-flex flex-column align-center">
-                        <v-icon icon="mdi-compass-outline"></v-icon>
-                        <span>Cap (Rotation)</span>
-                    </div>
+                    <v-icon icon="mdi-compass-outline" size="48"></v-icon>
                 </CameraTouchPad>
+
+                <!-- Variant Button (Bottom) -->
+                 <v-btn 
+                    size="60" 
+                    rounded="circle"
+                    :color="isDark ? 'white' : 'grey-darken-3'" 
+                    variant="text" 
+                    @click="triggerVariant()"
+                    :disabled="!hasVariants"
+                >
+                    <v-icon icon="mdi-source-branch" size="40"></v-icon>
+                </v-btn>
             </v-col>
             <v-col cols="3">
                 <CameraTouchPad 
@@ -110,10 +135,7 @@
                     :sensitivityY="sensTilt"
                      @update="handleCameraUpdate"
                 >
-                    <div class="d-flex flex-column align-center">
-                        <v-icon icon="mdi-angle-acute"></v-icon>
-                        <span>Pitch</span>
-                    </div>
+                    <v-icon icon="mdi-angle-acute" size="48"></v-icon>
                 </CameraTouchPad>
             </v-col>
         </v-row>
@@ -124,15 +146,19 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useTheme } from 'vuetify'
 import { useRemoteStore } from '@/stores/remoteStore'
 import CameraTouchPad from '@/components/CameraTouchPad.vue'
 import VariantSegmentList from '@/components/VariantSegmentList.vue'
 
 const store = useRemoteStore()
+const theme = useTheme()
+const isDark = computed(() => theme.global.current.value.dark)
 
 // --- Variant Logic ---
 const isVariantMode = computed(() => store.appState?.viewName === 'VisualizeVariantView');
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
+const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? false); 
 
 function onSegmentSelect({ segment, index }) {
     store.sendCommand('jump_to_segment', { index });
@@ -169,23 +195,71 @@ function handleCameraUpdate(payload) {
 
 // --- Playback Logic (Copy from AnimationView) ---
 const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
-const speedModel = ref(20) 
+const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
+
+const speedModel = ref(20)
+
+// --- Speed Logic (Logarithmic Scale) ---
+// Fetch settings from store (camelCase IDs from Rust struct)
+const minSpeed = computed(() => store.remoteSettings?.speedMinValue ?? 0.1);
+const maxSpeed = computed(() => store.remoteSettings?.speedMaxValue ?? 20.0);
+const defaultSpeed = computed(() => store.remoteSettings?.speedDefaultValue ?? 1.0);
+
+function mapSliderToSpeed(sliderValue) {
+    const min = minSpeed.value;
+    const max = maxSpeed.value;
+    
+    if (sliderValue <= 0) return min;
+    if (sliderValue >= 100) return max;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+    return Math.exp(logVal);
+}
+
+function mapSpeedToSlider(speed) {
+    const min = minSpeed.value;
+    const max = maxSpeed.value;
+
+    if (speed <= min) return 0;
+    if (speed >= max) return 100;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
+}
 
 watch(() => store.visualizeViewState?.currentSpeed, (newSpeed) => {
     if (newSpeed !== undefined) {
-        const val = (newSpeed - 0.5) / 0.05;
-        if (Math.abs(speedModel.value - val) > 1) speedModel.value = val;
+        const val = mapSpeedToSlider(newSpeed);
+        // Avoid jitter
+        if (Math.abs(speedModel.value - val) > 1) {
+             speedModel.value = val;
+        }
     }
 }, { immediate: true })
 
+const displaySpeed = computed(() => {
+    return mapSliderToSpeed(speedModel.value).toFixed(1) + 'x';
+});
+
 function onSpeedChange(val) {
-    store.sendCommand('update_speed', { speed: 0.5 + (val * 0.05) });
+    const speed = mapSliderToSpeed(val);
+    store.sendCommand('update_speed', { speed });
 }
+
 function resetSpeed() {
-    speedModel.value = 10; onSpeedChange(10);
+    const val = mapSpeedToSlider(defaultSpeed.value);
+    speedModel.value = val; 
+    onSpeedChange(val); 
 }
 function togglePlay() { store.sendCommand('toggle_play'); }
 function restart() { store.sendCommand('restart_animation'); }
+function triggerFinalView() { store.sendCommand('trigger_final_view'); }
+function triggerVariant() { store.sendCommand('trigger_variant_selection'); }
 
 const isRewinding = ref(false)
 function startRewind() { isRewinding.value = true; store.sendCommand('start_rewind'); }

@@ -1116,6 +1116,12 @@ const setupRemoteControl = async () => {
         // Restart
         await listen('remote_command::restart_animation', () => resetAnimation()),
         
+        // Final View
+        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+
+        // Variants
+        await listen('remote_command::trigger_variant_selection', () => goToVariantView()),
+
         // Rewind
         await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
         await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
@@ -1215,6 +1221,7 @@ const sendVisualizeStateUpdate = () => {
         // Map State -> Remote IDs
         isStaticWeatherVisible: isWeatherInfoVisible.value,
         isDynamicWeatherVisible: isCompassVisible.value,
+        hasVariants: hasVariants.value,
         
         currentSpeed: currentSpeed.value,
         animationState: animationState.value
@@ -1230,6 +1237,7 @@ watch([
     isDistanceDisplayVisible, 
     isWeatherInfoVisible,
     isCompassVisible,
+    hasVariants,
     animationState
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });
