@@ -70,8 +70,17 @@ export const useRemoteStore = defineStore('remote', () => {
 
         let lastHeartbeatSent = 0;
         const sendPulse = () => {
-            fetch('/api/heartbeat')
-                .then(() => { lastHeartbeatSent = Date.now(); })
+            fetch(`/api/heartbeat?clientId=${clientId.value}`)
+                .then(async (response) => {
+                    if (response.status === 409) {
+                        const data = await response.json().catch(() => ({}));
+                        updateStatus("Un autre appareil est déjà connecté", 'busy', data.reason);
+                        stopHeartbeat();
+                        if (evtSource.value) evtSource.value.close();
+                    } else {
+                        lastHeartbeatSent = Date.now();
+                    }
+                })
                 .catch(err => console.debug("Heartbeat error", err));
         };
 
@@ -114,18 +123,18 @@ export const useRemoteStore = defineStore('remote', () => {
                 })
             });
 
-            // Handle 403 specially as per existing code (can mean refused OR pending)
-            if (response.status === 403) {
+            // Handle errors specially (403: blocked/pending, 409: busy)
+            if (response.status === 403 || response.status === 409) {
                 const data = await response.json();
                 throw { status: response.status, data };
             }
 
             const data = await response.json();
 
-            if (data.status === "accepted") {
+            if (data.status === "accepted" || data.status === "already_paired") {
                 handlePairingAccepted(data);
-            } else if (data.status === "already_paired") {
-                handlePairingAccepted(data); // Treat as accepted
+            } else if (data.status === "busy") {
+                updateStatus("Un autre appareil est déjà connecté", 'busy', data.reason);
             }
         } catch (err) {
             if (err.data) {
@@ -133,11 +142,11 @@ export const useRemoteStore = defineStore('remote', () => {
                     updateStatus(`En attente approbation (${pairingCode.value})`, 'pairing');
                 } else if (err.data.status === "refused") {
                     updateStatus("Couplage refusé", 'refused', err.data.reason);
+                } else if (err.data.status === "busy") {
+                    updateStatus("Un autre appareil est déjà connecté", 'busy', err.data.reason);
                 }
             } else {
                 console.error("Pairing error:", err);
-                // Don't fully disconnect, just show error in pairing
-                // updateStatus("Erreur pairing", 'disconnected', err.message);
             }
         }
     }

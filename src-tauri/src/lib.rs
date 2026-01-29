@@ -380,6 +380,7 @@ pub struct AppState {
 
 pub struct HeartbeatState {
     pub last_heartbeat: AtomicI64,
+    pub active_client_id: Mutex<Option<String>>,
 }
 
 impl Clone for AppState {
@@ -2406,6 +2407,7 @@ pub fn run() {
                     app.manage(Mutex::new(state.clone()));
                     app.manage(HeartbeatState {
                         last_heartbeat: AtomicI64::new(0),
+                        active_client_id: Mutex::new(None),
                     });
 
                     // Apply window size and position from settings

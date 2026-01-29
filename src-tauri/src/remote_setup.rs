@@ -47,6 +47,9 @@ pub fn init_remote_control(
                     if (now - last_val) > 10 {
                         // Timeout: considérer déconnecté
                         hb_state.last_heartbeat.store(0, Ordering::SeqCst);
+                        if let Ok(mut active_id) = hb_state.active_client_id.lock() {
+                            *active_id = None;
+                        }
                         let _ = app_handle_for_monitor.emit("remote_control_status_changed", "disconnected");
                         log::debug!("Télécommande déconnectée (timeout heartbeat atomique)");
                     }

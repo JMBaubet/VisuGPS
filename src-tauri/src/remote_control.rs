@@ -3,7 +3,7 @@
 
 use tauri::{command, AppHandle, Manager, Emitter};
 use serde::{Serialize, Deserialize};
-use log::{debug, info};
+use log::debug;
 use std::sync::Mutex;
 use crate::AppState;
 use crate::remote_sse::SseMessage;

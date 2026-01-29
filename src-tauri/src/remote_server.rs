@@ -84,6 +84,26 @@ async fn pair_handler(
 ) -> impl IntoResponse {
     debug!("Requête de pairing reçue pour client: {}", request.client_id);
 
+    // Vérifier si un autre client est déjà en train d'utiliser la télécommande
+    let hb_state = state.app_handle.state::<crate::HeartbeatState>();
+    let last_hb = hb_state.last_heartbeat.load(Ordering::SeqCst);
+    let now = chrono::Utc::now().timestamp();
+    let active_id = hb_state.active_client_id.lock().unwrap();
+
+    if let Some(ref current_id) = *active_id {
+        if current_id != &request.client_id && (now - last_hb) < 10 {
+            warn!("Tentative de pairing rejetée: un autre appareil est déjà connecté ({})", current_id);
+            return (StatusCode::CONFLICT, Json(PairingResponse {
+                status: "busy".to_string(),
+                reason: Some("Un autre appareil est déjà en cours d'utilisation.".to_string()),
+                appState: None,
+                settings: None,
+                session_token: None,
+                debug_info: None,
+            })).into_response();
+        }
+    }
+
     let app_env_path = {
         let app_state = state.app_handle.state::<Mutex<AppState>>();
         let app_state_lock = app_state.lock().unwrap();
@@ -106,7 +126,7 @@ async fn pair_handler(
             settings: None,
             session_token: None,
             debug_info: None,
-        }));
+        })).into_response();
     }
 
     // Vérifier si le client est déjà autorisé
@@ -186,7 +206,7 @@ async fn pair_handler(
             settings: Some(remote_settings),
             session_token: Some(session_token),
             debug_info: None,
-        }));
+        })).into_response();
     }
 
     // Vérifier si le pairing est autorisé depuis la vue actuelle
@@ -199,7 +219,7 @@ async fn pair_handler(
             settings: None,
             session_token: None,
             debug_info: None,
-        }));
+        })).into_response();
     }
 
     // --- PROPER PAIRING LOGIC ---
@@ -225,7 +245,7 @@ async fn pair_handler(
         settings: None,
         session_token: None,
         debug_info: None,
-    }));
+    })).into_response();
 }
 
 /// Handler pour POST /api/command
@@ -257,18 +277,40 @@ async fn command_handler(
 /// Handler pour GET /api/heartbeat
 async fn heartbeat_handler(
     State(state): State<RemoteServerState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> impl IntoResponse {
+    let client_id = params.get("clientId").cloned();
     let hb_state = state.app_handle.state::<crate::HeartbeatState>();
     let now = chrono::Utc::now().timestamp();
-    let last = hb_state.last_heartbeat.swap(now, Ordering::SeqCst);
     
-    // Si c'était 0 ou trop vieux, on signale la reconnexion
-    if last == 0 || (now - last) > 10 {
-        let _ = state.app_handle.emit("remote_control_status_changed", "connected");
-        debug!("Télécommande reconnectée (via heartbeat atomique)");
+    let mut active_id_guard = hb_state.active_client_id.lock().unwrap();
+    let last = hb_state.last_heartbeat.load(Ordering::SeqCst);
+
+    // Si on a un clientId, on vérifie si on peut le prendre
+    if let Some(id) = client_id {
+        // Condition de prise en charge : 
+        // 1. Aucun client actif
+        // 2. Client précédent expiré (>10s)
+        // 3. C'est le même client
+        let can_accept = active_id_guard.is_none() 
+            || (now - last) > 10 
+            || active_id_guard.as_ref() == Some(&id);
+
+        if can_accept {
+            if active_id_guard.as_ref() != Some(&id) {
+                info!("Nouvelle session de télécommande active: {}", id);
+                *active_id_guard = Some(id);
+                let _ = state.app_handle.emit("remote_control_status_changed", "connected");
+            }
+            hb_state.last_heartbeat.store(now, Ordering::SeqCst);
+            return StatusCode::OK.into_response();
+        } else {
+            // Un autre client est actif
+            return (StatusCode::CONFLICT, "Another remote is already active").into_response();
+        }
     }
     
-    StatusCode::OK
+    StatusCode::BAD_REQUEST.into_response()
 }
 
 /// Handler pour GET /api/state (fallback si SSE ne fonctionne pas)
