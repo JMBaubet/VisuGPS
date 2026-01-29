@@ -1,71 +1,18 @@
 <template>
   <v-container class="fill-height d-flex flex-column" style="max-width: 600px;">
     
-    <!-- 1. Playback Controls Row -->
-    <v-row class="w-100 flex-grow-0 mb-4" justify="space-between" align="center">
-      <v-col cols="4" class="text-center">
-        <!-- Rewind needs touch events for hold-to-rewind -->
-        <v-btn 
-            size="80" 
-            rounded="circle"
-            :color="isDark ? 'white' : 'grey-darken-3'" 
-            variant="text" 
-            @mousedown="startRewind" 
-            @mouseup="stopRewind"
-            @mouseleave="stopRewind"
-            @touchstart.prevent="startRewind" 
-            @touchend.prevent="stopRewind"
-            :disabled="isFinished"
-        >
-            <v-icon icon="mdi-rewind" size="64"></v-icon>
-        </v-btn>
-      </v-col>
-      <v-col cols="4" class="text-center">
-        <v-btn 
-            size="80" 
-            rounded="circle"
-            :color="isDark ? 'white' : 'grey-darken-3'" 
-            variant="text"
-            @click="isFinished ? restart() : togglePlay()"
-        >
-            <v-icon :icon="isFinished ? 'mdi-refresh' : (isPlaying ? 'mdi-pause' : 'mdi-play')" size="72"></v-icon>
-        </v-btn>
-      </v-col>
-      <v-col cols="4" class="text-center">
-        <!-- Replaced Refresh with Speed Reset x1 -->
-        <v-btn 
-            size="80" 
-            rounded="circle"
-            :color="isDark ? 'white' : 'grey-darken-3'" 
-            variant="text" 
-            class="text-h4 font-weight-bold"
-            @click="resetSpeed()"
-        >x1</v-btn>
-      </v-col>
-    </v-row>
-
-    <!-- 2. Speed Control Row -->
-    <div class="w-100 mb-6 px-4">
-        <div class="d-flex align-center">
-            <!-- x1 button moved to top row -->
-            <v-slider
-                v-model="speedModel"
-                :min="0"
-                :max="100"
-                :step="1"
-                hide-details
-                :color="isDark ? 'white' : 'grey-darken-3'"
-                :track-color="isDark ? 'white' : 'grey-darken-3'"
-                @update:model-value="onSpeedChange"
-            >
-                <template v-slot:append>
-                    <span :class="isDark ? 'text-white' : 'text-grey-darken-3'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
-                        {{ displaySpeed(speedModel) }}
-                    </span>
-                </template>
-            </v-slider>
-        </div>
-    </div>
+    <PlaybackControls ref="playbackControls">
+        <template #third-button>
+             <v-btn 
+                size="80" 
+                rounded="circle"
+                :color="isDark ? 'white' : 'grey-darken-3'" 
+                variant="text" 
+                class="text-h4 font-weight-bold"
+                @click="resetSpeed()"
+            >x1</v-btn>
+        </template>
+    </PlaybackControls>
 
     <!-- 3. Variant Segments (Phase 5) -->
     <VariantSegmentList 
@@ -115,9 +62,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import VariantSegmentList from '@/components/VariantSegmentList.vue'
+import PlaybackControls from '@/components/PlaybackControls.vue'
 import { useTheme } from 'vuetify'
 
 const store = useRemoteStore()
@@ -134,92 +82,52 @@ function onSegmentSelect({ segment, index }) {
     store.sendCommand('jump_to_segment', { index });
 }
 
-const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
-const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
+const playbackControls = ref(null)
 
-const speedModel = ref(50) 
+function resetSpeed() {
+    playbackControls.value?.resetSpeed()
+}
+
+// Playback and Speed logic moved to PlaybackControls component
+// const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
+// const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
+
+// const speedModel = ref(50) 
 
 // --- Speed Logic (Logarithmic Scale) ---
 // Fetch settings from store (camelCase IDs from Rust struct)
-const minSpeed = computed(() => store.remoteSettings?.speedMinValue ?? 0.1);
-const maxSpeed = computed(() => store.remoteSettings?.speedMaxValue ?? 20.0);
-const defaultSpeed = computed(() => store.remoteSettings?.speedDefaultValue ?? 1.0);
+// const minSpeed = computed(() => store.remoteSettings?.speedMinValue ?? 0.1);
+// const maxSpeed = computed(() => store.remoteSettings?.speedMaxValue ?? 20.0);
+// const defaultSpeed = computed(() => store.remoteSettings?.speedDefaultValue ?? 1.0);
 
-function mapSliderToSpeed(sliderValue) {
-    const min = minSpeed.value;
-    const max = maxSpeed.value;
+// function mapSliderToSpeed(sliderValue) {
+//     const min = minSpeed.value;
+//     const max = maxSpeed.value;
     
-    // ... logic consistent
-    if (sliderValue <= 0) return min;
-    if (sliderValue >= 100) return max;
+//     // ... logic consistent
+//     if (sliderValue <= 0) return min;
+//     if (sliderValue >= 100) return max;
     
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
+//     const minLog = Math.log(min);
+//     const maxLog = Math.log(max);
     
-    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
-    return Math.exp(logVal);
-}
+//     const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+//     return Math.exp(logVal);
+// }
 
-function mapSpeedToSlider(speed) {
-    const min = minSpeed.value;
-    const max = maxSpeed.value;
+// function mapSpeedToSlider(speed) {
+//     const min = minSpeed.value;
+//     const max = maxSpeed.value;
 
-    if (speed <= min) return 0;
-    if (speed >= max) return 100;
+//     if (speed <= min) return 0;
+//     if (speed >= max) return 100;
     
-    const minLog = Math.log(min);
-    const maxLog = Math.log(max);
+//     const minLog = Math.log(min);
+//     const maxLog = Math.log(max);
     
-    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
+//     return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
     
-}
 
-watch(() => store.visualizeViewState?.currentSpeed, (newSpeed) => {
-    if (newSpeed !== undefined) {
-        const val = mapSpeedToSlider(newSpeed);
-        // Avoid jitter
-        if (Math.abs(speedModel.value - val) > 1) {
-             speedModel.value = val;
-        }
-    }
-}, { immediate: true })
-
-function displaySpeed(val) {
-    // Current bound speed
-    const speed = mapSliderToSpeed(val);
-    return speed.toFixed(1) + 'x';
-}
-
-function onSpeedChange(val) {
-    const speed = mapSliderToSpeed(val);
-    store.sendCommand('update_speed', { speed });
-}
-
-function resetSpeed() {
-    const val = mapSpeedToSlider(defaultSpeed.value);
-    speedModel.value = val; 
-    onSpeedChange(val); 
-}
-
-function togglePlay() {
-    store.sendCommand('toggle_play');
-}
-
-const isRewinding = ref(false)
-function startRewind() {
-    isRewinding.value = true
-    store.sendCommand('start_rewind')
-}
-function stopRewind() {
-    if (isRewinding.value) {
-        isRewinding.value = false
-        store.sendCommand('stop_rewind')
-    }
-}
-
-function restart() {
-    store.sendCommand('restart_animation'); 
-}
 
 const toggles = computed(() => [
     { 
