@@ -106,7 +106,7 @@
         </v-btn>
 
         <!-- Return to Main Trace -->
-        <v-btn icon="mdi-arrow-u-left-top" 
+        <v-btn icon="mdi-map-marker-distance" 
             variant="text" 
             color="secondary"
             title="Retour Trace Principale" 
@@ -123,7 +123,7 @@
             <v-list>
                 <v-list-item v-for="v in availableVariants" :key="v.id" @click="selectVariant(v.id)" link>
                     <template v-slot:prepend>
-                        <v-icon icon="mdi-source-branch" color="primary"></v-icon>
+                        <v-icon icon="mdi-map-marker-path" color="primary"></v-icon>
                     </template>
                     <v-list-item-title>{{ v.name }}</v-list-item-title>
                     <v-list-item-subtitle>
@@ -339,7 +339,7 @@ const navigationItems = computed(() => {
     const sorted = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
     
     sorted.forEach((seg, index) => {
-        let icon = 'mdi-source-branch';
+        let icon = 'mdi-map-marker-path';
         let color = 'primary';
         let name = seg.name;
         
@@ -369,6 +369,8 @@ const navigationItems = computed(() => {
         icon: 'mdi-clock-end',
         color: 'grey-darken-1',
         name: 'Vue Finale',
+        distanceKm: totalDistanceRef.value / 1000,
+        type: 'FIN',
         isFinalView: true
     });
     
@@ -1402,6 +1404,131 @@ const resetAnimation = async () => {
     requestAnimationFrame(animateLoop);
 };
 
+// --- Remote Control Logic ---
+const setupRemoteControl = async () => {
+    // Notify starting view
+    invoke('update_current_view', { newView: 'VisualizeVariantView' });
+
+    // 1. Listeners for Remote Commands
+    const listeners = [
+        // Play/Pause
+        await listen('remote_command::toggle_play', () => togglePlayPauseOrReset()),
+        
+        // Restart
+        await listen('remote_command::restart_animation', () => resetAnimation()),
+        
+        // Final View
+        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+
+        // Rewind
+        await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
+        await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
+        
+        // Speed
+        await listen('remote_command::increase_speed', () => {
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+        }),
+        await listen('remote_command::decrease_speed', () => {
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+        }),
+        await listen('remote_command::update_speed', (event) => {
+             if (event.payload !== undefined) {
+                 let newSpeed;
+                 if (typeof event.payload === 'object' && event.payload !== null) {
+                     newSpeed = parseFloat(event.payload.speed);
+                 } else {
+                     newSpeed = parseFloat(event.payload);
+                 }
+                 
+                 if (!isNaN(newSpeed)) {
+                     sliderPosition.value = mapSpeedToSlider(newSpeed);
+                 }
+             }
+        }),
+        
+        // Camera Updates
+        await listen('remote_command::update_camera', (event) => {
+            const { type, dx, dy } = event.payload;
+            // Map common events to local logic
+            switch(type) {
+                case 'pan':
+                    if (map.value) map.value.panBy([dx, dy], { duration: 0 });
+                    break;
+                case 'tilt':
+                    if (map.value) map.value.setPitch(map.value.getPitch() + dy);
+                    break;
+                case 'zoom':
+                    if (map.value) map.value.setZoom(map.value.getZoom() + dy);
+                    break;
+                case 'bearing':
+                    if (map.value) map.value.setBearing(map.value.getBearing() + dx);
+                    break;
+            }
+        }),
+
+        // Widget Toggles
+        await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
+        await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
+        await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
+        await listen('remote_command::toggle_weather_static', () => { showWeatherTable.value = !showWeatherTable.value; }),
+        await listen('remote_command::toggle_weather_dynamic', () => { 
+            const next = !isWeatherInfoVisible.value;
+            isWeatherInfoVisible.value = next;
+            isCompassVisible.value = next;
+        }),
+        await listen('remote_command::toggle_commune_widget', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
+        
+        // Jump to segment
+        await listen('remote_command::jump_to_segment', (event) => {
+            if (event.payload && event.payload.index !== undefined) {
+                const item = navigationItems.value[event.payload.index];
+                if (item) handleNavigationClick(item);
+            }
+        }),
+        
+        // Final View jump
+        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+        
+        // Return to main trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Select another variant
+        await listen('remote_command::trigger_variant_selection', () => { showVariantSelection.value = true; }),
+        await listen('remote_command::select_variant', (event) => {
+            if (event.payload && event.payload.variantId) {
+                selectVariant(event.payload.variantId);
+            }
+        }),
+    ];
+
+    unlistenFunctions.push(...listeners);
+};
+
+const sendVisualizeStateUpdate = () => {
+    const state = {
+        isControlsCardVisible: isControlsCardVisible.value,
+        isAltitudeVisible: isAltitudeVisible.value,
+        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+        isStaticWeatherVisible: isWeatherInfoVisible.value, // Mapping for remote
+        isDynamicWeatherVisible: isCompassVisible.value, // Mapping for remote
+        
+        currentSpeed: currentSpeed.value,
+        animationState: animationState.value,
+        
+        // Variant specific
+        hasVariants: false, // We are already in a variant view
+        variantCount: 0,
+        variants: [],
+        segments: navigationItems.value.map((item, index) => ({
+            id: index,
+            name: item.name,
+            segmentType: item.type
+        }))
+    };
+    invoke('update_visualize_view_state', { state });
+};
+
 // --- Weather ---
 async function initWeather(circuit, trackingPoints) {
     if (!trackingPoints || trackingPoints.length === 0) {
@@ -1538,12 +1665,12 @@ onMounted(async () => {
 
     if (mapboxToken.value) {
         initializeVisualization();
+        setupRemoteControl();
     } else {
-        // Fallback or wait for settings?
-        // Usually settings are loaded. If not, a watch might be needed.
         const unwatch = watch(mapboxToken, (token) => {
             if (token) {
                 initializeVisualization();
+                setupRemoteControl();
                 unwatch();
             }
         });
@@ -1596,6 +1723,21 @@ watch([showSegments, showSlope, map], () => {
      updateLayerVisibility('trace-variant-new', showSegments.value);
      updateLayerVisibility('trace-variant-abandoned', showSegments.value);
      updateLayerVisibility('trace-slope', showSlope.value);
+});
+
+// --- Remote Sync ---
+watch([
+    isControlsCardVisible,
+    isAltitudeVisible,
+    isCommuneWidgetVisible,
+    isDistanceDisplayVisible,
+    isWeatherInfoVisible,
+    isCompassVisible,
+    navigationItems,
+    animationState
+], () => {
+    invoke('update_animation_state', { newState: animationState.value });
+    sendVisualizeStateUpdate();
 });
 
 function generateSlopeSegments(trackingPoints) {

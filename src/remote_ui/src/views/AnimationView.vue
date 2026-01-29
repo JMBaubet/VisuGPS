@@ -9,17 +9,15 @@
                 :color="isDark ? 'white' : 'grey-darken-3'" 
                 variant="text" 
                 class="text-h4 font-weight-bold"
-                @click="resetSpeed()"
-            >x1</v-btn>
+                @click="isVariantMode ? showSegmentDialog = true : resetSpeed()"
+            >
+                <v-icon v-if="isVariantMode" icon="mdi-map-marker-radius-outline" size="64"></v-icon>
+                <template v-else>x1</template>
+            </v-btn>
         </template>
     </PlaybackControls>
 
-    <!-- 3. Variant Segments (Phase 5) -->
-    <VariantSegmentList 
-        v-if="isVariantMode" 
-        :segments="variantSegments" 
-        @select="onSegmentSelect" 
-    />
+
 
     <v-divider class="w-100 mb-6"></v-divider>
     
@@ -57,7 +55,12 @@
             </v-btn>
         </v-col>
     </v-row>
-
+    <SegmentSelectorDialog
+      v-model="showSegmentDialog"
+      :segments="variantSegments"
+      :is-dark="isDark"
+      @select="onSegmentSelect"
+    />
   </v-container>
 </template>
 
@@ -66,6 +69,7 @@ import { ref, computed } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import VariantSegmentList from '@/components/VariantSegmentList.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
+import SegmentSelectorDialog from '@/components/SegmentSelectorDialog.vue'
 import { useTheme } from 'vuetify'
 
 const store = useRemoteStore()
@@ -77,8 +81,9 @@ const isVariantMode = computed(() => store.appState?.viewName === 'VisualizeVari
 // Mock or real data from store
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
 
+const showSegmentDialog = ref(false);
+
 function onSegmentSelect({ segment, index }) {
-    // Command unknown, let's assume 'jump_to_segment'
     store.sendCommand('jump_to_segment', { index });
 }
 

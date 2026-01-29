@@ -1,7 +1,10 @@
 <template>
   <div 
-    class="touch-pad d-flex align-center justify-center border rounded bg-surface-variant elevation-2"
-    :class="{ 'active': active }"
+    class="touch-pad d-flex align-center justify-center border rounded elevation-2"
+    :class="[
+        active ? 'active' : '',
+        isDark ? 'bg-grey-darken-4' : 'bg-surface-variant'
+    ]"
     @mousedown.prevent="start"
     @mousemove.prevent="move"
     @mouseup.prevent="end"
@@ -17,7 +20,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useTheme } from 'vuetify'
+
+const theme = useTheme()
+const isDark = computed(() => theme.global.current.value.dark)
 
 const props = defineProps({
     mode: { type: String, required: true }, // 'pan', 'zoom', 'tilt', 'bearing'

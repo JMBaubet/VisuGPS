@@ -12,6 +12,21 @@ use crate::remote_sse::SseMessage;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct RemoteVariant {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteSegment {
+    pub id: usize,
+    pub name: String,
+    pub segment_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct VisualizeViewState {
     pub is_controls_card_visible: bool,
     pub is_altitude_visible: bool,
@@ -21,6 +36,10 @@ pub struct VisualizeViewState {
     pub is_dynamic_weather_visible: bool,
     pub current_speed: f64,
     pub animation_state: String,
+    pub has_variants: bool,
+    pub variant_count: usize,
+    pub variants: Vec<RemoteVariant>,
+    pub segments: Vec<RemoteSegment>,
 }
 
 // === Commandes Tauri (UI → Backend) ===

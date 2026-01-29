@@ -83,7 +83,7 @@
              @click="goToVariantView"
              size="x-large"
              rounded
-             prepend-icon="mdi-source-branch"
+             prepend-icon="mdi-map-marker-path"
              title="Voir les variantes"
       >
         Variantes
@@ -93,7 +93,7 @@
     <template #extra-controls>
         <template v-if="hasVariants">
             <v-divider vertical class="mx-2"></v-divider>
-            <v-btn icon="mdi-source-branch" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
+            <v-btn icon="mdi-map-marker-path" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
         </template>
     </template>
   </VisualizeControls>
@@ -105,7 +105,7 @@
             <v-list>
                 <v-list-item v-for="v in availableVariants" :key="v.id" @click="selectVariant(v.id)" link>
                     <template v-slot:prepend>
-                        <v-icon icon="mdi-source-branch" color="primary"></v-icon>
+                        <v-icon icon="mdi-map-marker-path" color="primary"></v-icon>
                     </template>
                     <v-list-item-title>{{ v.name }}</v-list-item-title>
                     <v-list-item-subtitle>
@@ -316,6 +316,7 @@ const circuitScenarios = ref([]);
 
 const showVariantSelection = ref(false);
 const availableVariants = ref([]);
+const variantsList = ref([]); // Simplified list for remote sync
 
 const goToVariantView = async () => {
     try {
@@ -392,6 +393,7 @@ const initializeVisualization = async () => {
          try {
             const variants = await invoke('get_variants', { circuitId: props.circuitId });
             hasVariants.value = variants && variants.length > 0;
+            variantsList.value = variants ? variants.map(v => ({ id: v.id, name: v.name })) : [];
         } catch(e) { console.warn("Check variants failed", e); }
 
         const processed = await processTrackingData(lineStringRef.value, trackingData);
@@ -1108,6 +1110,9 @@ const handleKeyup = (e) => {
 
 // --- Remote Control Logic ---
 const setupRemoteControl = async () => {
+    // Notify starting view
+    invoke('update_current_view', { newView: 'VisualizeView' });
+
     // 1. Listeners for Remote Commands
     const listeners = [
         // Play/Pause
@@ -1121,6 +1126,11 @@ const setupRemoteControl = async () => {
 
         // Variants
         await listen('remote_command::trigger_variant_selection', () => goToVariantView()),
+        await listen('remote_command::select_variant', (event) => {
+            if (event.payload && event.payload.variantId) {
+                navigateToVariant(event.payload.variantId);
+            }
+        }),
 
         // Rewind
         await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
@@ -1224,7 +1234,10 @@ const sendVisualizeStateUpdate = () => {
         hasVariants: hasVariants.value,
         
         currentSpeed: currentSpeed.value,
-        animationState: animationState.value
+        animationState: animationState.value,
+        variantCount: variantsList.value.length,
+        variants: variantsList.value,
+        segments: []
     };
     invoke('update_visualize_view_state', { state });
 };
@@ -1238,6 +1251,7 @@ watch([
     isWeatherInfoVisible,
     isCompassVisible,
     hasVariants,
+    variantsList,
     animationState
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });

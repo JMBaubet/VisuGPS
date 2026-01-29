@@ -9,20 +9,15 @@
                 rounded="circle"
                 :color="isDark ? 'white' : 'grey-darken-3'" 
                 variant="text" 
-                @click="triggerFinalView()"
-                :disabled="isFinished"
+                @click="isVariantMode ? showSegmentDialog = true : triggerFinalView()"
+                :disabled="isFinished && !isVariantMode"
             >
-                <v-icon icon="mdi-skip-forward" size="64"></v-icon>
+                <v-icon :icon="isVariantMode ? 'mdi-map-marker-radius-outline' : 'mdi-clock-end'" size="64"></v-icon>
             </v-btn>
         </template>
     </PlaybackControls>
 
-    <!-- 3. Variant Segments (Phase 6) -->
-    <VariantSegmentList 
-        v-if="isVariantMode" 
-        :segments="variantSegments" 
-        @select="onSegmentSelect"
-    />
+
     
     <v-divider class="w-100 mb-4"></v-divider>
 
@@ -68,14 +63,15 @@
 
                 <!-- Variant Button (Bottom) -->
                  <v-btn 
+                    v-if="variantCount > 0 || isVariantMode"
                     size="60" 
                     rounded="circle"
                     :color="isDark ? 'white' : 'grey-darken-3'" 
                     variant="text" 
                     @click="triggerVariant()"
-                    :disabled="!hasVariants"
+                    :title="isVariantMode ? 'Retour Trace Principale' : 'Choisir une variante'"
                 >
-                    <v-icon icon="mdi-source-branch" size="40"></v-icon>
+                    <v-icon :icon="isVariantMode ? 'mdi-map-marker-distance' : 'mdi-map-marker-path'" size="40"></v-icon>
                 </v-btn>
             </v-col>
             <v-col cols="3">
@@ -91,25 +87,57 @@
         </v-row>
     </div>
 
+    <VariantSelectorDialog
+      v-model="showVariantDialog"
+      :variants="variants"
+      :is-dark="isDark"
+      @select="onVariantSelect"
+    />
+
+    <SegmentSelectorDialog
+      v-model="showSegmentDialog"
+      :segments="variantSegments"
+      :is-dark="isDark"
+      @select="onSegmentSelect"
+    />
+
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue' // removed watch
+import { ref, computed, watch } from 'vue' // removed watch
 import { useTheme } from 'vuetify'
 import { useRemoteStore } from '@/stores/remoteStore'
 import CameraTouchPad from '@/components/CameraTouchPad.vue'
-import VariantSegmentList from '@/components/VariantSegmentList.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
+import VariantSelectorDialog from '@/components/VariantSelectorDialog.vue'
+import SegmentSelectorDialog from '@/components/SegmentSelectorDialog.vue'
 
 const store = useRemoteStore()
 const theme = useTheme()
 const isDark = computed(() => theme.global.current.value.dark)
 
 // --- Variant Logic ---
-const isVariantMode = computed(() => store.appState?.viewName === 'VisualizeVariantView');
+const isVariantMode = computed(() => {
+    const rawState = store.appState;
+    const appView = (typeof rawState === 'string') ? rawState : (rawState?.viewName || '');
+    return appView === 'VisualizeVariant' || appView === 'VisualizeVariantView';
+});
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
 const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? false); 
+const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
+const variants = computed(() => store.visualizeViewState?.variants || []);
+const showVariantDialog = ref(false);
+const showSegmentDialog = ref(false);
+
+// Close dialogs when view changes (e.g. selection made on desktop)
+watch(isVariantMode, (newVal) => {
+    if (newVal) {
+        showVariantDialog.value = false;
+    } else {
+        showSegmentDialog.value = false;
+    }
+});
 
 function onSegmentSelect({ segment, index }) {
     store.sendCommand('jump_to_segment', { index });
@@ -148,6 +176,19 @@ function handleCameraUpdate(payload) {
 const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
 
 function triggerFinalView() { store.sendCommand('trigger_final_view'); }
-function triggerVariant() { store.sendCommand('trigger_variant_selection'); }
+
+function triggerVariant() { 
+    if (isVariantMode.value) {
+        store.sendCommand('return_to_main_trace');
+    } else if (variantCount.value === 1) {
+        store.sendCommand('trigger_variant_selection'); 
+    } else if (variantCount.value > 1) {
+        showVariantDialog.value = true;
+    }
+}
+
+function onVariantSelect(variantId) {
+    store.sendCommand('select_variant', { variantId });
+}
 
 </script>

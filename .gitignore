@@ -43,3 +43,6 @@ Thumbs.db
 coverage/
 *.lcov
 
+# --- Builds Remote ---
+src/remote_client/
+
