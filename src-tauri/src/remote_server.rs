@@ -5,7 +5,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use log::{debug, info, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -50,6 +50,7 @@ pub struct PairingResponse {
     pub appState: Option<String>,
     pub settings: Option<RemoteSettings>,
     pub session_token: Option<String>,
+    pub debug_info: Option<String>,
 }
 
 /// Paramètres envoyés au client remote
@@ -58,6 +59,7 @@ pub struct PairingResponse {
 pub struct RemoteSettings {
     pub speed_min_value: f32,
     pub speed_max_value: f32,
+    pub speed_default_value: f32,
 }
 
 /// Structure pour les commandes envoyées par le client
@@ -103,6 +105,7 @@ async fn pair_handler(
             appState: Some(current_app_view),
             settings: None,
             session_token: None,
+            debug_info: None,
         }));
     }
 
@@ -113,17 +116,64 @@ async fn pair_handler(
     if is_authorized {
         debug!("Client déjà autorisé: {}", request.client_id);
         
-        // Générer un token de session et retourner les settings
-        let session_token = uuid::Uuid::new_v4().to_string();
+        // Générer un token de session
+        let session_token = uuid::Uuid::new_v4().to_string(); 
+
+        // Lire les settings à chaud pour avoir les valeurs à jour
+        let settings_path = app_env_path.join("settings.json");
+        debug!("Reading settings from: {:?}", settings_path);
         
-        let speed_min = get_setting_value(&state.settings, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.min_value")
-            .and_then(|v| v.as_f64()).unwrap_or(0.1) as f32;
-        let speed_max = get_setting_value(&state.settings, "data.groupes.Visualisation.groupes.Animation.groupes.Vitesse.parametres.max_value")
-            .and_then(|v| v.as_f64()).unwrap_or(20.0) as f32;
+        let current_settings = if settings_path.exists() {
+             match std::fs::read_to_string(&settings_path) {
+                Ok(content) => {
+                    debug!("Settings file read successfully ({} bytes)", content.len());
+                    serde_json::from_str(&content).unwrap_or_else(|e| {
+                        error!("Failed to parse settings.json: {}", e);
+                        state.settings.clone()
+                    })
+                },
+                Err(e) => {
+                    error!("Failed to read settings.json: {}", e);
+                    state.settings.clone()
+                },
+            }
+        } else {
+            warn!("Settings file not found at {:?}", settings_path);
+            state.settings.clone()
+        };
+
+        // Helper to parse setting value as f32 (handles Number and String)
+        let parse_setting_f32 = |val: Option<&serde_json::Value>, default: f32| -> f32 {
+            val.and_then(|v| {
+                if let Some(f) = v.as_f64() {
+                    Some(f as f32)
+                } else if let Some(s) = v.as_str() {
+                    s.parse::<f32>().ok()
+                } else {
+                    None
+                }
+            }).unwrap_or(default)
+        };
+
+        let speed_min = parse_setting_f32(
+            get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.min_value"),
+            0.1
+        );
+        let speed_max = parse_setting_f32(
+            get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.max_value"),
+            20.0
+        );
+        let speed_default = parse_setting_f32(
+            get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.default_value"),
+            1.0
+        );
+        
+        debug!("Extracted Speed Settings: Min={}, Max={}, Default={}", speed_min, speed_max, speed_default);
 
         let remote_settings = RemoteSettings {
             speed_min_value: speed_min,
             speed_max_value: speed_max,
+            speed_default_value: speed_default,
         };
 
         // Émettre l'événement de connexion
@@ -135,6 +185,7 @@ async fn pair_handler(
             appState: Some(current_app_view),
             settings: Some(remote_settings),
             session_token: Some(session_token),
+            debug_info: None,
         }));
     }
 
@@ -147,6 +198,7 @@ async fn pair_handler(
             appState: Some(current_app_view),
             settings: None,
             session_token: None,
+            debug_info: None,
         }));
     }
 
@@ -172,6 +224,7 @@ async fn pair_handler(
         appState: Some(current_app_view),
         settings: None,
         session_token: None,
+        debug_info: None,
     }));
 }
 

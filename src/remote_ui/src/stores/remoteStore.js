@@ -11,6 +11,7 @@ export const useRemoteStore = defineStore('remote', () => {
     const appState = ref(null) // Global app state from SSE
     const visualizeViewState = ref(null) // Visualize view specific state
     const remoteSettings = ref(null) // Settings received from backend
+    const settingsDebug = ref("")
     const sseDebugLog = ref([]) // Log of raw SSE events for debug panel
     const heartbeatInterval = ref(null)
     const evtSource = ref(null)
@@ -147,6 +148,9 @@ export const useRemoteStore = defineStore('remote', () => {
             remoteSettings.value = data.settings;
             logDebug('SETTINGS', data.settings);
         }
+        if (data.debug_info) {
+            settingsDebug.value = data.debug_info;
+        }
         if (data.appState) {
             appState.value = data.appState;
         }
@@ -277,7 +281,9 @@ export const useRemoteStore = defineStore('remote', () => {
         pairingCode,
         appState,
         visualizeViewState,
+        visualizeViewState,
         remoteSettings,
+        settingsDebug,
         sseDebugLog,
 
         // Actions

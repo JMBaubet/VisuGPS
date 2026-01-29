@@ -6,52 +6,65 @@
       <v-col cols="4" class="text-center">
         <!-- Rewind needs touch events for hold-to-rewind -->
         <v-btn 
-            icon="mdi-rewind" 
-            size="x-large" 
-            color="secondary" 
-            variant="tonal" 
+            size="80" 
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text" 
             @mousedown="startRewind" 
             @mouseup="stopRewind"
             @mouseleave="stopRewind"
             @touchstart.prevent="startRewind" 
             @touchend.prevent="stopRewind"
-        ></v-btn>
+        >
+            <v-icon icon="mdi-rewind" size="64"></v-icon>
+        </v-btn>
       </v-col>
       <v-col cols="4" class="text-center">
         <v-btn 
-            :icon="isPlaying ? 'mdi-pause' : 'mdi-play'" 
             size="80" 
-            color="primary" 
-            elevation="4"
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text"
             @click="togglePlay()"
-        ></v-btn>
+        >
+            <v-icon :icon="isPlaying ? 'mdi-pause' : 'mdi-play'" size="72"></v-icon>
+        </v-btn>
       </v-col>
       <v-col cols="4" class="text-center">
-        <v-btn icon="mdi-refresh" size="x-large" color="secondary" variant="tonal" @click="restart()"></v-btn>
+        <!-- Replaced Refresh with Speed Reset x1 -->
+        <v-btn 
+            size="80" 
+            rounded="circle"
+            :color="isDark ? 'white' : 'grey-darken-3'" 
+            variant="text" 
+            class="text-h4 font-weight-bold"
+            @click="resetSpeed()"
+        >x1</v-btn>
       </v-col>
     </v-row>
 
     <!-- 2. Speed Control Row -->
-    <v-card class="w-100 mb-6 pa-4" variant="outlined" color="surface-variant">
+    <div class="w-100 mb-6 px-4">
         <div class="d-flex align-center">
-            <v-btn size="small" variant="text" color="primary" class="mr-2" @click="resetSpeed()">x1</v-btn>
+            <!-- x1 button moved to top row -->
             <v-slider
                 v-model="speedModel"
                 :min="0"
                 :max="100"
                 :step="1"
                 hide-details
-                color="primary"
-                track-color="grey-darken-2"
-                thumb-label="always"
+                :color="isDark ? 'white' : 'grey-darken-3'"
+                :track-color="isDark ? 'white' : 'grey-darken-3'"
                 @update:model-value="onSpeedChange"
             >
-                <template v-slot:thumb-label="{ modelValue }">
-                    {{ displaySpeed(modelValue) }}
+                <template v-slot:append>
+                    <span :class="isDark ? 'text-white' : 'text-grey-darken-3'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
+                        {{ displaySpeed(speedModel) }}
+                    </span>
                 </template>
             </v-slider>
         </div>
-    </v-card>
+    </div>
 
     <!-- 3. Variant Segments (Phase 5) -->
     <VariantSegmentList 
@@ -61,21 +74,38 @@
     />
 
     <v-divider class="w-100 mb-6"></v-divider>
-
-    <!-- 4. Toggles Grid -->
-    <!-- mdi-city, mdi-counter, mdi-movie-play-outline, mdi-chart-areaspline-variant, mdi-sun-clock-outline, mdi-compass-outline -->
-    <v-row dense>
-        <v-col cols="4" sm="2" v-for="toggle in toggles" :key="toggle.id">
+    
+    <!-- 4. Toggles Grid - Forced 2 Rows -->
+    <!-- Row 1: Top 3 (Altitude, Commandes, Boussole) -->
+    <v-row class="w-100 flex-grow-0 mb-0" justify="space-between" align="center">
+        <v-col cols="4" class="text-center pa-1" v-for="toggle in toggles.slice(0, 3)" :key="toggle.id">
             <v-btn 
-                block 
-                height="60" 
-                :color="toggle.isActive ? 'primary' : 'surface-light'" 
-                :variant="toggle.isActive ? 'flat' : 'text'"
-                class="d-flex flex-column align-center justify-center pa-1"
+                :icon="toggle.icon"
+                size="x-large"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'white' : 'grey-darken-3')"
+                variant="text"
+                class="ma-1 pa-0"
+                style="width: 80px; height: 80px;"
                 @click="sendToggle(toggle.command)"
             >
-                <v-icon :icon="toggle.icon" size="24" class="mb-1"></v-icon>
-                <span class="text-caption text-truncate w-100">{{ toggle.label }}</span>
+                <v-icon :icon="toggle.icon" size="64"></v-icon>
+            </v-btn>
+        </v-col>
+    </v-row>
+
+    <!-- Row 2: Bottom 3 (Villes, Distance, Météo) -->
+    <v-row class="w-100 flex-grow-0 mt-0" justify="space-between" align="center">
+        <v-col cols="4" class="text-center pa-1" v-for="toggle in toggles.slice(3, 6)" :key="toggle.id">
+            <v-btn 
+                :icon="toggle.icon"
+                size="x-large"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'white' : 'grey-darken-3')"
+                variant="text"
+                class="ma-1 pa-0"
+                style="width: 80px; height: 80px;"
+                @click="sendToggle(toggle.command)"
+            >
+                <v-icon :icon="toggle.icon" size="64"></v-icon>
             </v-btn>
         </v-col>
     </v-row>
@@ -87,8 +117,12 @@
 import { ref, computed, watch } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import VariantSegmentList from '@/components/VariantSegmentList.vue'
+import { useTheme } from 'vuetify'
 
 const store = useRemoteStore()
+const theme = useTheme()
+
+const isDark = computed(() => theme.global.current.value.dark)
 
 const isVariantMode = computed(() => store.appState?.viewName === 'VisualizeVariantView');
 // Mock or real data from store
@@ -101,12 +135,47 @@ function onSegmentSelect({ segment, index }) {
 
 const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
 
-const speedModel = ref(20) 
+const speedModel = ref(50) 
+
+// --- Speed Logic (Logarithmic Scale) ---
+// Fetch settings from store (camelCase IDs from Rust struct)
+const minSpeed = computed(() => store.remoteSettings?.speedMinValue ?? 0.1);
+const maxSpeed = computed(() => store.remoteSettings?.speedMaxValue ?? 20.0);
+const defaultSpeed = computed(() => store.remoteSettings?.speedDefaultValue ?? 1.0);
+
+function mapSliderToSpeed(sliderValue) {
+    const min = minSpeed.value;
+    const max = maxSpeed.value;
+    
+    // ... logic consistent
+    if (sliderValue <= 0) return min;
+    if (sliderValue >= 100) return max;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+    return Math.exp(logVal);
+}
+
+function mapSpeedToSlider(speed) {
+    const min = minSpeed.value;
+    const max = maxSpeed.value;
+
+    if (speed <= min) return 0;
+    if (speed >= max) return 100;
+    
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    
+    return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
+    
+}
 
 watch(() => store.visualizeViewState?.currentSpeed, (newSpeed) => {
     if (newSpeed !== undefined) {
-        // speed = 0.5 + (val * 0.05) => val = (speed - 0.5) / 0.05
-        const val = (newSpeed - 0.5) / 0.05;
+        const val = mapSpeedToSlider(newSpeed);
+        // Avoid jitter
         if (Math.abs(speedModel.value - val) > 1) {
              speedModel.value = val;
         }
@@ -114,18 +183,20 @@ watch(() => store.visualizeViewState?.currentSpeed, (newSpeed) => {
 }, { immediate: true })
 
 function displaySpeed(val) {
-    const speed = 0.5 + (val * 0.05);
+    // Current bound speed
+    const speed = mapSliderToSpeed(val);
     return speed.toFixed(1) + 'x';
 }
 
 function onSpeedChange(val) {
-    const speed = 0.5 + (val * 0.05);
+    const speed = mapSliderToSpeed(val);
     store.sendCommand('update_speed', { speed });
 }
 
 function resetSpeed() {
-    speedModel.value = 10; 
-    onSpeedChange(10);
+    const val = mapSpeedToSlider(defaultSpeed.value);
+    speedModel.value = val; 
+    onSpeedChange(val); 
 }
 
 function togglePlay() {
@@ -153,7 +224,7 @@ const toggles = computed(() => [
         id: 'communes', 
         label: 'Villes', 
         icon: 'mdi-city', 
-        command: 'toggle_communes', 
+        command: 'toggle_communes_display', 
         isActive: store.visualizeViewState?.isCommuneWidgetVisible 
     },
     { 
@@ -164,11 +235,11 @@ const toggles = computed(() => [
         isActive: store.visualizeViewState?.isDistanceDisplayVisible 
     },
     { 
-        id: 'commands', 
-        label: 'Commandes', 
-        icon: 'mdi-movie-play-outline', 
-        command: 'toggle_commands_widget', 
-        isActive: store.visualizeViewState?.isControlsCardVisible 
+        id: 'weather', 
+        label: 'Météo', 
+        icon: 'mdi-sun-clock-outline', 
+        command: 'toggle_weather_static', 
+        isActive: store.visualizeViewState?.isStaticWeatherVisible 
     },
     { 
         id: 'altitude', 
@@ -178,11 +249,11 @@ const toggles = computed(() => [
         isActive: store.visualizeViewState?.isAltitudeVisible 
     },
     { 
-        id: 'weather', 
-        label: 'Météo', 
-        icon: 'mdi-sun-clock-outline', 
-        command: 'toggle_weather_static', 
-        isActive: store.visualizeViewState?.isStaticWeatherVisible 
+        id: 'commands', 
+        label: 'Commandes', 
+        icon: 'mdi-movie-play-outline', 
+        command: 'toggle_commands_widget', 
+        isActive: store.visualizeViewState?.isControlsCardVisible 
     },
     { 
         id: 'compass', 
