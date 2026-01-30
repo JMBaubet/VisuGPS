@@ -292,12 +292,12 @@ const activePopups = new Map();
 let unlistenFunctions = [];
 
 // Widgets State
-const isDistanceDisplayVisible = ref(true);
-const isControlsCardVisible = ref(true);
-const isCommuneWidgetVisible = ref(true);
-const isAltitudeVisible = ref(true);
-const isWeatherInfoVisible = ref(true); 
-const isCompassVisible = ref(true);
+const isDistanceDisplayVisible = ref(getSettingValue('Visualisation/Widgets/distance') ?? true);
+const isControlsCardVisible = ref(getSettingValue('Visualisation/Widgets/commandes') ?? false);
+const isCommuneWidgetVisible = ref(getSettingValue('Visualisation/Widgets/communes') ?? true);
+const isAltitudeVisible = ref(getSettingValue('Visualisation/Widgets/altitude') ?? true);
+const isWeatherInfoVisible = ref(getSettingValue('Visualisation/Widgets/meteo') ?? true); 
+const isCompassVisible = ref(getSettingValue('Visualisation/Widgets/boussole') ?? true);
 const isStaticWeatherVisible = ref(true);
 const isDynamicWeatherVisible = ref(true);
 const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
@@ -959,11 +959,12 @@ const resetAnimation = async () => {
     isFlytoActive.value = false;
     
     // Restore UI
-    isDistanceDisplayVisible.value = true;
-    isAltitudeVisible.value = true;
-    isCommuneWidgetVisible.value = true;
-    isWeatherInfoVisible.value = true;
-    isCompassVisible.value = true;
+    isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
+    isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
+    isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
+    isWeatherInfoVisible.value = getSettingValue('Visualisation/Widgets/meteo') ?? true;
+    isCompassVisible.value = getSettingValue('Visualisation/Widgets/boussole') ?? true;
+    isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? false;
 
     // Restore Map Style for 3D View if changed
     if (mapStyle.value && map.value.getStyle().name !== mapStyle.value) { // Simple check, might need robust URL check

@@ -402,12 +402,12 @@ const activePopups = new Map();
 let unlistenFunctions = [];
 
 // Widgets State
-const isDistanceDisplayVisible = ref(true);
-const isControlsCardVisible = ref(true);
-const isCommuneWidgetVisible = ref(true);
-const isAltitudeVisible = ref(true);
-const isWeatherInfoVisible = ref(true); 
-const isCompassVisible = ref(true);
+const isDistanceDisplayVisible = ref(getSettingValue('Variante/Visualisation/Widgets/distance') ?? true);
+const isControlsCardVisible = ref(getSettingValue('Variante/Visualisation/Widgets/commandes') ?? false);
+const isCommuneWidgetVisible = ref(getSettingValue('Variante/Visualisation/Widgets/communes') ?? true);
+const isAltitudeVisible = ref(getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true);
+const isWeatherInfoVisible = ref(getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true); 
+const isCompassVisible = ref(getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true);
 const isStaticWeatherVisible = ref(true);
 const isDynamicWeatherVisible = ref(true);
 const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
@@ -1375,11 +1375,12 @@ const resetAnimation = async () => {
     isFlytoActive.value = false;
     
     // Restore UI
-    isDistanceDisplayVisible.value = true;
-    isAltitudeVisible.value = true;
-    isCommuneWidgetVisible.value = true;
-    isWeatherInfoVisible.value = true;
-    isCompassVisible.value = true;
+    isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
+    isAltitudeVisible.value = getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true;
+    isCommuneWidgetVisible.value = getSettingValue('Variante/Visualisation/Widgets/communes') ?? true;
+    isWeatherInfoVisible.value = getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true;
+    isCompassVisible.value = getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true;
+    isControlsCardVisible.value = getSettingValue('Variante/Visualisation/Widgets/commandes') ?? false;
 
     // Restore Map Style for 3D View if changed
     if (mapStyle.value && map.value.getStyle().name !== mapStyle.value) { // Simple check, might need robust URL check
@@ -1508,13 +1509,9 @@ const setupRemoteControl = async () => {
         await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
         await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
         await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
-        await listen('remote_command::toggle_weather_static', () => { showWeatherTable.value = !showWeatherTable.value; }),
-        await listen('remote_command::toggle_weather_dynamic', () => { 
-            const next = !isWeatherInfoVisible.value;
-            isWeatherInfoVisible.value = next;
-            isCompassVisible.value = next;
-        }),
-        await listen('remote_command::toggle_commune_widget', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
+        await listen('remote_command::toggle_weather_dynamic', () => { isCompassVisible.value = !isCompassVisible.value; }),
+        await listen('remote_command::toggle_weather_static', () => { isWeatherInfoVisible.value = !isWeatherInfoVisible.value; }),
+        await listen('remote_command::toggle_communes_display', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
         
         
         // Final View jump

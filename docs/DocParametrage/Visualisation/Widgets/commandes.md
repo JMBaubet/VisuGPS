@@ -10,7 +10,7 @@ Le paramètre `commandes` contrôle la visibilité initiale de la barre d'outils
 
 -   **Libellé**: Commandes
 -   **Type**: Booléen
--   **Valeur par défaut**: true (Activé)
+-   **Valeur par défaut**: false (Masqué au lancement)
 
 ## ⚖️ Justification : Pourquoi contrôler l'affichage des commandes ?
 

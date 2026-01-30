@@ -1425,6 +1425,61 @@
                 "defaut": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/afficherSegmentAbandonne.md"
               }
+            ],
+            "groupes": [
+              {
+                "libelle": "Widgets",
+                "parametres": [
+                  {
+                    "identifiant": "distance",
+                    "libelle": "Distance",
+                    "description": "Afficher le widget de distance au démarrage.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/distance.md"
+                  },
+                  {
+                    "identifiant": "communes",
+                    "libelle": "Communes",
+                    "description": "Afficher le widget des communes au démarrage.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/communes.md"
+                  },
+                  {
+                    "identifiant": "altitude",
+                    "libelle": "Altitude",
+                    "description": "Afficher le profil d'altitude au démarrage.",
+                    "type": "booleen",
+                    "defaut": true,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/altitude.md"
+                  },
+                  {
+                    "identifiant": "commandes",
+                    "libelle": "Commandes",
+                    "description": "Afficher le panneau de commandes au démarrage.",
+                    "type": "booleen",
+                    "defaut": false,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/commandes.md"
+                  },
+                  {
+                    "identifiant": "meteo",
+                    "libelle": "Météo",
+                    "description": "Afficher le widget météo au démarrage.",
+                    "type": "booleen",
+                    "defaut": false,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/meteo.md"
+                  },
+                  {
+                    "identifiant": "boussole",
+                    "libelle": "Boussole",
+                    "description": "Afficher la boussole au démarrage.",
+                    "type": "booleen",
+                    "defaut": false,
+                    "doc": "docs/DocParametrage/Variante/Visualisation/Widgets/boussole.md"
+                  }
+                ]
+              }
             ]
           },
           {
@@ -1624,8 +1679,24 @@
                 "libelle": "Commandes",
                 "description": "Afficher le panneau de commandes au démarrage.",
                 "type": "booleen",
-                "defaut": true,
+                "defaut": false,
                 "doc": "docs/DocParametrage/Visualisation/Widgets/commandes.md"
+              },
+              {
+                "identifiant": "meteo",
+                "libelle": "Météo",
+                "description": "Afficher le widget météo au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/meteo.md"
+              },
+              {
+                "identifiant": "boussole",
+                "libelle": "Boussole",
+                "description": "Afficher la boussole au démarrage.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Widgets/boussole.md"
               }
             ]
           },
