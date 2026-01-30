@@ -1,21 +1,22 @@
 <template>
   <v-dialog v-model="dialog" max-width="800px" @click:outside="close" @keydown.esc="close">
     <v-card height="80vh" class="d-flex flex-column">
-      <v-card-title class="d-flex align-center">
+      <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+        <v-icon start icon="mdi-file-import"></v-icon>
         <span>{{ title }}</span>
-        <div v-if="showTypeSwitch" class="d-flex align-center ml-4 mt-1">
+        <div v-if="showTypeSwitch" class="d-flex align-center ml-4">
             <span class="text-caption mr-2">GPX</span>
             <v-switch
                 v-model="isVgps"
                 hide-details
                 density="compact"
-                color="primary"
+                color="white"
                 flat
             ></v-switch>
             <span class="text-caption ml-2">VGPS</span>
         </div>
         <v-spacer></v-spacer>
-        <v-btn icon="mdi-close" variant="text" @click="close"></v-btn>
+        <v-btn icon="mdi-close" variant="text" color="white" @click="close"></v-btn>
       </v-card-title>
       
       <v-card-text class="d-flex flex-column flex-grow-1 overflow-hidden">

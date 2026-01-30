@@ -63,7 +63,8 @@
     <!-- Renaming Dialog -->
     <v-dialog v-model="showRenameDialog" max-width="400px">
       <v-card>
-        <v-card-title class="bg-primary text-white px-4 py-2">
+        <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-pencil"></v-icon>
           Renommer le segment
         </v-card-title>
         <v-card-text class="pa-4">
@@ -86,7 +87,8 @@
     <!-- Variant Save Dialog -->
     <v-dialog v-model="showSaveDialog" max-width="400px">
       <v-card>
-        <v-card-title class="bg-success text-white px-4 py-2">
+        <v-card-title class="bg-success text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-content-save"></v-icon>
           Enregistrer la variante
         </v-card-title>
         <v-card-text class="pa-4">
@@ -128,7 +130,8 @@
     <!-- Rename Saved Variant Dialog -->
     <v-dialog v-model="showVariantRenameDialog" max-width="500">
       <v-card>
-        <v-card-title class="bg-primary text-white px-4 py-2">
+        <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-pencil"></v-icon>
           Renommer la variante
         </v-card-title>
         <v-card-text class="pa-4">

@@ -1,13 +1,16 @@
 <template>
   <v-dialog :model-value="modelValue" @update:model-value="$emit('update:modelValue', $event)" max-width="800" persistent>
     <v-card>
-      <v-card-title class="headline d-flex justify-space-between align-center">
-        <span>Gestion Météo : {{ circuit.nom }}</span>
+      <v-card-title class="bg-primary text-white px-4 py-2 d-flex justify-space-between align-center">
         <div class="d-flex align-center">
-             <v-btn icon @click="openDoc('/docs/DocUtilisateur/meteo_manager.md')" color="info" class="mr-2" title="Documentation">
+           <v-icon start icon="mdi-sun-thermometer"></v-icon>
+           <span>Gestion Météo : {{ circuit.nom }}</span>
+        </div>
+        <div class="d-flex align-center">
+             <v-btn icon @click="openDoc('/docs/DocUtilisateur/meteo_manager.md')" color="white" variant="text" class="mr-2" title="Documentation">
                 <v-icon>mdi-book-open-page-variant-outline</v-icon>
             </v-btn>
-            <v-btn icon @click="closeDialog">
+            <v-btn icon @click="closeDialog" color="white" variant="text">
                 <v-icon>mdi-close</v-icon>
             </v-btn>
         </div>
@@ -587,10 +590,5 @@ const checkWeatherStatus = async () => {
 .scenarios-list {
   max-height: 300px;
   overflow-y: auto;
-}
-
-.v-card-title {
-  background-color: rgb(var(--v-theme-primary));
-  color: white;
 }
 </style>

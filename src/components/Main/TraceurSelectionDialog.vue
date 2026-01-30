@@ -1,20 +1,21 @@
 <template>
   <v-dialog :model-value="dialog" v-if="dialog" max-width="500px">
     <v-card>
-      <v-card-title>
-        <span class="text-h5">Sélectionner un traceur pour le circuit</span>
+      <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+        <v-icon start icon="mdi-account-plus"></v-icon>
+        <span class="text-h6">Sélectionner un traceur</span>
       </v-card-title>
-      <v-card-text>
+      <v-card-text class="pa-4">
         <v-combobox
           v-model="selectedTraceur"
           :items="filteredTraceurs"
           v-model:search="searchText"
           item-title="nom"
           item-value="id"
-          label="Sélectionner ou créer un traceur"
+          label="Traceur (nom ou sélection)"
           variant="outlined"
           clearable
-          class="mb-4"
+          class="mt-2"
           :rules="[v => !!v || 'Un traceur est requis']"
           required
           return-object
@@ -24,10 +25,10 @@
           no-filter
         ></v-combobox>
       </v-card-text>
-      <v-card-actions>
+      <v-card-actions class="pa-4 pt-0">
         <v-spacer></v-spacer>
-        <v-btn color="blue-darken-1" variant="text" @click="closeDialog">Annuler</v-btn>
-        <v-btn color="blue-darken-1" variant="text" @click="handleValidation" :disabled="!selectedTraceur">Valider</v-btn>
+        <v-btn variant="text" @click="closeDialog">Annuler</v-btn>
+        <v-btn color="primary" variant="flat" @click="handleValidation" :disabled="!selectedTraceur">Valider</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

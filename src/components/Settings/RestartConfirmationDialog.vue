@@ -1,12 +1,15 @@
 <template>
   <v-dialog v-model="dialog" max-width="400">
     <v-card>
-      <v-card-title class="headline">{{ title }}</v-card-title>
-      <v-card-text>{{ message }}</v-card-text>
-      <v-card-actions>
+      <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+        <v-icon start icon="mdi-restart"></v-icon>
+        {{ title }}
+      </v-card-title>
+      <v-card-text class="pa-4">{{ message }}</v-card-text>
+      <v-card-actions class="pa-4 pt-0">
         <v-spacer></v-spacer>
-        <v-btn color="red darken-1" text @click="cancel" v-if="showCancelButton">Annuler</v-btn>
-        <v-btn color="green darken-1" text @click="confirm">Confirmer</v-btn>
+        <v-btn variant="text" @click="cancel" v-if="showCancelButton">Annuler</v-btn>
+        <v-btn color="primary" variant="flat" @click="confirm">Confirmer</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

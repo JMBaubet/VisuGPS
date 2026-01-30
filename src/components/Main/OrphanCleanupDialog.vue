@@ -1,8 +1,8 @@
 <template>
   <v-dialog v-model="visible" max-width="700px" persistent>
     <v-card>
-      <v-card-title class="headline grey lighten-2 d-flex align-center">
-        <v-icon start color="warning">mdi-broom</v-icon>
+      <v-card-title class="bg-warning text-white px-4 py-2 d-flex align-center">
+        <v-icon start icon="mdi-broom"></v-icon>
         Nettoyage des données orphelines
       </v-card-title>
 
@@ -58,10 +58,10 @@
         </div>
       </v-card-text>
 
-      <v-card-actions>
+      <v-card-actions class="pa-4 pt-0">
         <v-spacer></v-spacer>
-        <v-btn color="grey" variant="text" @click="close">Fermer sans supprimer</v-btn>
-        <v-btn color="error" :disabled="!anySelected" @click="handleDelete">
+        <v-btn variant="text" @click="close">Fermer sans supprimer</v-btn>
+        <v-btn color="error" variant="flat" :disabled="!anySelected" @click="handleDelete">
           Supprimer la sélection
         </v-btn>
       </v-card-actions>
@@ -70,15 +70,18 @@
     <!-- Confirmation pour les éléments additionnels -->
     <v-dialog v-model="showConfirmExtra" max-width="400px">
       <v-card>
-        <v-card-title class="headline">Confirmation</v-card-title>
-        <v-card-text>
+        <v-card-title class="bg-error text-white px-4 py-2 d-flex align-center">
+          <v-icon start icon="mdi-alert-circle-outline"></v-icon>
+          Confirmation
+        </v-card-title>
+        <v-card-text class="pa-4">
           Vous avez sélectionné des éléments qui ne sont pas directement liés au circuit supprimé. 
           Voulez-vous vraiment les supprimer définitivement ?
         </v-card-text>
-        <v-card-actions>
+        <v-card-actions class="pa-4 pt-0">
           <v-spacer></v-spacer>
-          <v-btn color="grey" variant="text" @click="showConfirmExtra = false">Annuler</v-btn>
-          <v-btn color="error" @click="confirmDelete">Confirmer la suppression</v-btn>
+          <v-btn variant="text" @click="showConfirmExtra = false">Annuler</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDelete">Confirmer la suppression</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
