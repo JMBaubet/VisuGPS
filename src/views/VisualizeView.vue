@@ -902,6 +902,11 @@ const executeFlytoSequence = async (flytoData) => {
 const handleEndSequence = async () => {
     if(!map.value) return;
     
+    // Pause à l'arrivée
+    if (delayAfterAnimationEnd.value > 0) {
+        await new Promise(r => setTimeout(r, delayAfterAnimationEnd.value));
+    }
+
     // Explicitly set state to Finished (needed if triggered manually via button)
     isAnimationFinished.value = true;
     isPaused.value = true;

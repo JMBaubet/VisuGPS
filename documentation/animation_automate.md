@@ -30,7 +30,8 @@ stateDiagram-v2
     }
 
     state "Séquence de Fin" as EndSequence {
-        En_Animation --> Vol_Final: Fin de la trace (phase >= 1)
+        En_Animation --> Pause_Arrivee: Fin de la trace (phase >= 1)
+        Pause_Arrivee --> Vol_Final: Fin de la pause (delayAfterAnimationEnd)
         Vol_Final --> Termine: Fin du vol final
         Termine --> En_Pause_au_Depart: Réinitialisation (touche 'R')
     }
@@ -55,5 +56,7 @@ stateDiagram-v2
 *   **Vol_Direct_Depart** : (Variantes uniquement) Un vol unique et rapide vers le point de départ pour une mise en action immédiate.
 
 *   **En_Pause_au_Depart** : Commun aux deux vues. Attend la fin du délai `pauseAuKm0` ou une action utilisateur.
+
+*   **Pause_Arrivee** : Commun aux deux vues. Attend la fin du délai `delayAfterAnimationEnd` avant de lancer le survol global final.
 
 *   **Survol_Evenementiel** : (Actuellement Standard uniquement) Gère la suspension de la boucle `animate()` pour un détour visuel programmé dans `evt.json`.
