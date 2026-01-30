@@ -60,7 +60,7 @@
     :max-speed="maxSpeedValue"
     :default-speed="defaultSpeedValue"
     @reset="resetAnimation"
-    @trigger-final-view="handleEndSequence"
+    @trigger-final-view="handleEndSequence(true)"
   >
     <template #altitude-chart>
         <AltitudeVariantSVG 
@@ -137,6 +137,7 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
 </template>
 
 <script setup>
@@ -832,6 +833,7 @@ const initializeVisualization = async () => {
         // User asked for "Directement faire un flyto vers le km 0".
         // Let's start from a reasonable zoomed out view of the start and zoom in.
         
+        isFlytoActive.value = true;
         await flyToPromise({
             center: startPoint.coordonnee,
             zoom: 16, 
@@ -839,6 +841,7 @@ const initializeVisualization = async () => {
             bearing: 0,
             duration: 3000 // A bit faster/smoother direct entry
         });
+        isFlytoActive.value = false;
 
 
 
@@ -1285,11 +1288,11 @@ const executeFlytoSequence = async (flytoData) => {
     requestAnimationFrame(animateLoop); // Restart loop explicitly
 };
 
-const handleEndSequence = async () => {
+const handleEndSequence = async (skipDelay = false) => {
     if(!map.value) return;
 
     // Pause à l'arrivée
-    if (delayAfterAnimationEnd.value > 0) {
+    if (!skipDelay && delayAfterAnimationEnd.value > 0) {
         await new Promise(r => setTimeout(r, delayAfterAnimationEnd.value));
     }
 
@@ -1344,6 +1347,7 @@ const handleEndSequence = async () => {
     try {
         const camParams = map.value.cameraForBounds(combinedBbox, { padding: 80, bearing: 0, pitch: 0 });
         if (camParams) {
+             isFlytoActive.value = true;
              await flyToPromise({
                 center: camParams.center,
                 zoom: camParams.zoom,
@@ -1351,6 +1355,7 @@ const handleEndSequence = async () => {
                 bearing: 0, 
                 duration: flyToGlobalDuration.value
             });
+            isFlytoActive.value = false;
         }
     } catch (err) {
         console.warn("End sequence flyTo failed", err);
@@ -1407,9 +1412,11 @@ const resetAnimation = async () => {
     // Reset Camera
     if(trackingPointsWithDistanceRef.value.length > 0) {
         const start = trackingPointsWithDistanceRef.value[0];
+        isFlytoActive.value = true;
         await flyToPromise({
             center: start.coordonnee, zoom: start.editedZoom??start.zoom, pitch: start.editedPitch??start.pitch, bearing: start.editedCap??start.cap, duration: 2000
         });
+        isFlytoActive.value = false;
     }
     
     animationState.value = 'En_Pause_au_Depart';
@@ -1433,7 +1440,7 @@ const setupRemoteControl = async () => {
         await listen('remote_command::restart_animation', () => resetAnimation()),
         
         // Final View
-        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+        await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
 
         // Rewind
         await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
@@ -1733,8 +1740,10 @@ watch([
     isDistanceDisplayVisible,
     isWeatherInfoVisible,
     isCompassVisible,
-    navigationItems,
-    animationState
+    hasVariants,
+    availableVariants,
+    animationState,
+    isFlytoActive
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });
     updateRemoteViewState();
@@ -1917,6 +1926,7 @@ const updateRemoteViewState = async () => {
         isDynamicWeatherVisible: isDynamicWeatherVisible.value,
         currentSpeed: currentSpeed.value,
         animationState: animationState.value,
+        isFlytoActive: isFlytoActive.value,
         hasVariants: true,
         variantCount: availableVariants.value.length,
         variants: availableVariants.value.map(v => ({ id: v.id, name: v.name })),

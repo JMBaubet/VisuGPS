@@ -38,6 +38,7 @@ pub struct VisualizeViewState {
     pub is_dynamic_weather_visible: bool,
     pub current_speed: f64,
     pub animation_state: String,
+    pub is_flyto_active: bool,
     pub has_variants: bool,
     pub variant_count: usize,
     pub variants: Vec<RemoteVariant>,

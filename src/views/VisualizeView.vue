@@ -60,7 +60,7 @@
     :max-speed="maxSpeedValue"
     :default-speed="defaultSpeedValue"
     @reset="resetAnimation"
-    @trigger-final-view="handleEndSequence"
+    @trigger-final-view="handleEndSequence(true)"
   >
     <template #altitude-chart>
        <altitude-s-v-g 
@@ -519,7 +519,9 @@ const initializeVisualization = async () => {
             const traceBbox = turf.bbox(lineStringRef.value);
             const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
             
+            isFlytoActive.value = true;
             await flyToPromise(globalView, { duration: durationEuropeToTrace.value });
+            isFlytoActive.value = false;
 
             animationState.value = 'Pause_Observation';
             await new Promise(r => setTimeout(r, pauseBeforeStart.value));
@@ -541,6 +543,7 @@ const initializeVisualization = async () => {
         // 1. Standard Start (!isDirectStart)
         // 2. OR Direct Start but coming from somewhere else (hasCameraParams) -> Fly from there to start.
         if (!isDirectStart || hasCameraParams) {
+            isFlytoActive.value = true;
             await flyToPromise({
                 center: startPoint.coordonnee,
                 zoom: startPoint.editedZoom ?? startPoint.zoom,
@@ -548,6 +551,7 @@ const initializeVisualization = async () => {
                 bearing: startPoint.editedCap ?? startPoint.cap,
                 duration: durationTraceToStart.value
             });
+            isFlytoActive.value = false;
         }
 
         animationState.value = 'En_Pause_au_Depart';
@@ -899,11 +903,11 @@ const executeFlytoSequence = async (flytoData) => {
     requestAnimationFrame(animateLoop); // Restart loop explicitly
 };
 
-const handleEndSequence = async () => {
+const handleEndSequence = async (skipDelay = false) => {
     if(!map.value) return;
     
     // Pause à l'arrivée
-    if (delayAfterAnimationEnd.value > 0) {
+    if (!skipDelay && delayAfterAnimationEnd.value > 0) {
         await new Promise(r => setTimeout(r, delayAfterAnimationEnd.value));
     }
 
@@ -934,10 +938,12 @@ const handleEndSequence = async () => {
     }
 
     const traceBbox = turf.bbox(lineStringRef.value);
+    isFlytoActive.value = true;
     await flyToPromise({
         pitch: 0, bearing: 0, duration: flyToGlobalDuration.value,
         ...(map.value.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 }))
     });
+    isFlytoActive.value = false;
     
     animationState.value = 'Termine';
      // Logic Reprise Auto...
@@ -990,9 +996,11 @@ const resetAnimation = async () => {
     // Reset Camera
     if(trackingPointsWithDistanceRef.value.length > 0) {
         const start = trackingPointsWithDistanceRef.value[0];
+        isFlytoActive.value = true;
         await flyToPromise({
             center: start.coordonnee, zoom: start.editedZoom??start.zoom, pitch: start.editedPitch??start.pitch, bearing: start.editedCap??start.cap, duration: 2000
         });
+        isFlytoActive.value = false;
     }
     
     animationState.value = 'En_Pause_au_Depart';
@@ -1134,7 +1142,7 @@ const setupRemoteControl = async () => {
         await listen('remote_command::restart_animation', () => resetAnimation()),
         
         // Final View
-        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+        await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
 
         // Variants
         await listen('remote_command::trigger_variant_selection', () => goToVariantView()),
@@ -1247,6 +1255,7 @@ const sendVisualizeStateUpdate = () => {
         
         currentSpeed: currentSpeed.value,
         animationState: animationState.value,
+        isFlytoActive: isFlytoActive.value,
         variantCount: variantsList.value.length,
         variants: variantsList.value,
         segments: []
@@ -1264,7 +1273,8 @@ watch([
     isCompassVisible,
     hasVariants,
     variantsList,
-    animationState
+    animationState,
+    isFlytoActive
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });
     sendVisualizeStateUpdate();
@@ -1354,6 +1364,10 @@ onUnmounted(() => {
 .commune-display { position: absolute; top: 20px; left: 80px; width: 250px; height: 48px; max-height: 60px; overflow: hidden; background-color: white; border-width: 4px; border-style: solid; border-radius: 5px; color: black; padding: 4px; z-index: 1; display: flex; align-items: center; justify-content: center; }
 .speed-slider { width: 200px; }
 .speed-value-display { font-family: monospace; font-size: 0.9em; padding: 0 8px; min-width: 45px; text-align: center; }
+.jump-btn :deep(.v-btn__content) {
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+}
 </style>
 <style>
 /* Global style strictly for popups to avoid scoped issues if any - or keep standard */

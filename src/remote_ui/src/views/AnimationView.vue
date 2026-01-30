@@ -1,5 +1,5 @@
 <template>
-  <v-container class="fill-height d-flex flex-column" style="max-width: 600px;">
+  <v-container class="fill-height d-flex flex-column" style="max-width: 600px; position: relative;">
     
     <PlaybackControls ref="playbackControls">
         <template #third-button>
@@ -10,6 +10,7 @@
                 variant="text" 
                 class="text-h4 font-weight-bold"
                 @click="resetSpeed()"
+                :disabled="isFlytoActive"
             >
                 x1
             </v-btn>
@@ -43,6 +44,7 @@
                 class="ma-1 pa-0"
                 style="width: 80px; height: 80px;"
                 @click="sendToggle(toggle.command)"
+                :disabled="isFlytoActive"
             >
                 <v-icon :icon="toggle.icon" size="64"></v-icon>
             </v-btn>
@@ -56,8 +58,19 @@
             :segments="variantSegments"
             :current-index="currentSegmentIndex"
             @jump="onSegmentJump"
+            :disabled="isFlytoActive"
         />
     </div>
+
+    <!-- Fly-to Overlay -->
+    <v-fade-transition>
+      <div v-if="isFlytoActive" class="flyto-overlay">
+        <v-card class="pa-4 d-flex align-center bg-black-opacity-70 text-white" rounded="lg">
+          <v-progress-circular indeterminate color="primary" class="mr-4" size="24"></v-progress-circular>
+          <span class="text-h6">Repositionnement...</span>
+        </v-card>
+      </div>
+    </v-fade-transition>
   </v-container>
 </template>
 
@@ -78,6 +91,7 @@ const isVariantMode = computed(() => store.appState === 'VisualizeVariantView' |
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
 // Get current index from SSE update
 const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? 0);
+const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
 
 
 function onSegmentJump(index) {
@@ -181,3 +195,19 @@ function sendToggle(cmd) {
 }
 
 </script>
+
+<style scoped>
+.flyto-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5000;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+.bg-black-opacity-70 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+</style>

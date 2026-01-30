@@ -1,5 +1,5 @@
 <template>
-  <v-container class="fill-height d-flex flex-column" style="max-width: 600px;">
+  <v-container class="fill-height d-flex flex-column" style="max-width: 600px; position: relative;">
     
     <!-- 1. Playback Controls & Speed (Shared Component) -->
     <PlaybackControls ref="playbackControls">
@@ -9,10 +9,10 @@
                 rounded="circle"
                 :color="isDark ? 'white' : 'grey-darken-3'" 
                 variant="text" 
-                class="text-h4 font-weight-bold"
-                @click="resetSpeed()"
+                @click="triggerFinalView()"
+                :disabled="isFlytoActive"
             >
-                x1
+                <v-icon icon="mdi-clock-end" size="64"></v-icon>
             </v-btn>
         </template>
     </PlaybackControls>
@@ -32,6 +32,7 @@
                 :sensitivityX="sensX" 
                 :sensitivityY="sensY"
                 @update="handleCameraUpdate"
+                :disabled="isFlytoActive"
             >
                 <v-icon icon="mdi-cursor-move" size="64"></v-icon>
             </CameraTouchPad>
@@ -45,6 +46,7 @@
                     class="w-100 h-100" 
                     :sensitivityY="sensZoom"
                     @update="handleCameraUpdate"
+                    :disabled="isFlytoActive"
                 >
                     <v-icon icon="mdi-magnify-plus-outline" size="48"></v-icon>
                 </CameraTouchPad>
@@ -57,6 +59,7 @@
                     style="height: 70px;" 
                     :sensitivityX="sensBearing"
                      @update="handleCameraUpdate"
+                     :disabled="isFlytoActive"
                 >
                     <v-icon icon="mdi-compass-outline" size="48"></v-icon>
                 </CameraTouchPad>
@@ -70,6 +73,7 @@
                     variant="text" 
                     @click="triggerVariant()"
                     :title="isVariantMode ? 'Retour Trace Principale' : 'Choisir une variante'"
+                    :disabled="isFlytoActive"
                 >
                     <v-icon :icon="isVariantMode ? 'mdi-map-marker-distance' : 'mdi-map-marker-path'" size="40"></v-icon>
                 </v-btn>
@@ -80,6 +84,7 @@
                     class="w-100 h-100" 
                     :sensitivityY="sensTilt"
                      @update="handleCameraUpdate"
+                     :disabled="isFlytoActive"
                 >
                     <v-icon icon="mdi-angle-acute" size="48"></v-icon>
                 </CameraTouchPad>
@@ -94,8 +99,19 @@
             :segments="variantSegments"
             :current-index="currentSegmentIndex"
             @jump="onSegmentJump"
+            :disabled="isFlytoActive"
         />
     </div>
+
+    <!-- Fly-to Overlay -->
+    <v-fade-transition>
+      <div v-if="isFlytoActive" class="flyto-overlay">
+        <v-card class="pa-4 d-flex align-center bg-black-opacity-70 text-white" rounded="lg">
+          <v-progress-circular indeterminate color="primary" class="mr-4" size="24"></v-progress-circular>
+          <span class="text-h6">Repositionnement...</span>
+        </v-card>
+      </div>
+    </v-fade-transition>
 
     <VariantSelectorDialog
       v-model="showVariantDialog"
@@ -132,6 +148,7 @@ const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegm
 const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? false); 
 const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
 const variants = computed(() => store.visualizeViewState?.variants || []);
+const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
 const showVariantDialog = ref(false);
 
 // Close dialogs when view changes (e.g. selection made on desktop)
@@ -196,4 +213,24 @@ function onVariantSelect(variantId) {
     store.sendCommand('select_variant', { variantId });
 }
 
+function triggerFinalView() {
+    store.sendCommand('trigger_final_view');
+}
+
 </script>
+
+<style scoped>
+.flyto-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5000;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+.bg-black-opacity-70 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+</style>

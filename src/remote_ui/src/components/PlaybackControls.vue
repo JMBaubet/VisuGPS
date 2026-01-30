@@ -14,7 +14,7 @@
             @mouseleave="stopRewind"
             @touchstart.prevent="startRewind" 
             @touchend.prevent="stopRewind"
-            :disabled="isFinished"
+            :disabled="isFinished || isFlytoActive"
         >
             <v-icon icon="mdi-rewind" size="64"></v-icon>
         </v-btn>
@@ -26,6 +26,7 @@
             :color="isDark ? 'white' : 'grey-darken-3'" 
             variant="text"
             @click="isFinished ? restart() : togglePlay()"
+            :disabled="isFlytoActive"
         >
             <v-icon :icon="isFinished ? 'mdi-refresh' : (isPlaying ? 'mdi-pause' : 'mdi-play')" size="72"></v-icon>
         </v-btn>
@@ -50,6 +51,7 @@
                 :color="isDark ? 'white' : 'grey-darken-3'"
                 :track-color="isDark ? 'white' : 'grey-darken-3'"
                 @update:model-value="onSpeedChange"
+                :disabled="isFlytoActive"
             >
                 <template v-slot:append>
                     <span :class="isDark ? 'text-white' : 'text-grey-darken-3'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
@@ -75,6 +77,7 @@ const isDark = computed(() => theme.global.current.value.dark)
 // --- Playback Logic ---
 const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
 const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
+const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
 
 function togglePlay() { store.sendCommand('toggle_play'); }
 function restart() { store.sendCommand('restart_animation'); }
