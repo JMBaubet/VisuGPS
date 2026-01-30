@@ -62,7 +62,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, computed, reactive, watch, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import AppMainBar from '@/components/Main/AppMainBar.vue';
@@ -78,6 +79,7 @@ import { useSnackbar } from '@/composables/useSnackbar';
 
 
 const { showSnackbar } = useSnackbar();
+const router = useRouter();
 
 const showImportDialog = ref(false);
 const importConfig = reactive({
@@ -89,6 +91,7 @@ const traceurDialog = ref(null);
 const allCircuits = ref([]);
 const allCommunes = ref([]);
 const allTraceurs = ref([]);
+const unlistenLaunch = ref(null);
 const filterData = ref(null);
 
 const showMeteoDialog = ref(false);
@@ -341,10 +344,22 @@ const handleMeteoDownloaded = () => {
   refreshCircuits();
 };
 
+const view3D = (circuitId) => {
+  router.push({ name: 'Visualize', params: { circuitId } });
+};
+
 onMounted(async () => {
   await useSettings().initSettings(); // Ensure settings are loaded
   await refreshCircuits();
   await loadFilterData();
+
+  invoke('update_current_view', { newView: 'Main' });
+
+  unlistenLaunch.value = await listen('remote_command::launch_circuit', (event) => {
+    if (event.payload && event.payload.circuitId) {
+      view3D(event.payload.circuitId);
+    }
+  });
 
   listen('ask_pairing_approval', () => {
     if (showRemoteDialog.value) {
@@ -352,6 +367,12 @@ onMounted(async () => {
       showRemoteDialog.value = false;
     }
   });
+});
+
+onUnmounted(() => {
+  if (unlistenLaunch.value) {
+    unlistenLaunch.value();
+  }
 });
 </script>
 

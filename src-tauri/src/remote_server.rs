@@ -48,6 +48,7 @@ pub struct PairingResponse {
     pub reason: Option<String>,
     pub appState: Option<String>,
     pub settings: Option<RemoteSettings>,
+    pub favorites: Option<Vec<crate::remote_control::RemoteFavorite>>,
     pub session_token: Option<String>,
     pub debug_info: Option<String>,
 }
@@ -100,6 +101,7 @@ async fn pair_handler(
             reason: Some("La limite de 2 télécommandes connectées est atteinte.".to_string()),
             appState: None,
             settings: None,
+            favorites: None,
             session_token: None,
             debug_info: None,
         })).into_response();
@@ -126,6 +128,7 @@ async fn pair_handler(
             reason: Some("Cet appareil a été bloqué.".to_string()),
             appState: Some(current_app_view),
             settings: None,
+            favorites: None,
             session_token: None,
             debug_info: None,
         })).into_response();
@@ -198,6 +201,12 @@ async fn pair_handler(
             speed_default_value: speed_default,
         };
 
+        let favorites = if current_app_view == "Main" {
+            Some(crate::get_favorites_for_remote(&state.app_handle))
+        } else {
+            None
+        };
+
         // Émettre l'événement de connexion
         let _ = state.app_handle.emit("remote_control_status_changed", "connected");
 
@@ -206,6 +215,7 @@ async fn pair_handler(
             reason: None,
             appState: Some(current_app_view),
             settings: Some(remote_settings),
+            favorites,
             session_token: Some(session_token),
             debug_info: None,
         })).into_response();
@@ -219,6 +229,7 @@ async fn pair_handler(
             reason: Some("Le couplage est uniquement autorisé depuis l'accueil, les paramètres ou en visualisation.".to_string()),
             appState: Some(current_app_view),
             settings: None,
+            favorites: None,
             session_token: None,
             debug_info: None,
         })).into_response();
@@ -245,6 +256,7 @@ async fn pair_handler(
         reason: None,
         appState: Some(current_app_view),
         settings: None,
+        favorites: None,
         session_token: None,
         debug_info: None,
     })).into_response();

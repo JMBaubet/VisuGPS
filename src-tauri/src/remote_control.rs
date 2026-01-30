@@ -19,6 +19,16 @@ pub struct RemoteVariant {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct RemoteFavorite {
+    pub circuit_id: String,
+    pub nom: String,
+    pub distance_km: f64,
+    pub denivele_m: i32,
+    pub variant_count: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct RemoteSegment {
     pub id: String,
     pub name: String,
@@ -130,10 +140,45 @@ pub fn approve_remote_client(app_handle: AppHandle, client_id: String) -> Result
     // 3. Notify the client via SSE
     if let Ok(guard) = state.lock() {
         if let Some(sender) = &guard.sse_sender {
+            
+            let current_view = guard.current_view.clone();
+            
+            // Read settings for remote
+            let mut remote_settings = None;
+            let settings_path = app_env_path.join("settings.json");
+            if let Ok(content) = std::fs::read_to_string(&settings_path) {
+                if let Ok(current_settings) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let parse_setting_f32 = |val: Option<&serde_json::Value>, default: f32| -> f32 {
+                        val.and_then(|v| {
+                            if let Some(f) = v.as_f64() { Some(f as f32) }
+                            else if let Some(s) = v.as_str() { s.parse::<f32>().ok() }
+                            else { None }
+                        }).unwrap_or(default)
+                    };
+
+                    remote_settings = Some(serde_json::json!({
+                        "speedMinValue": parse_setting_f32(crate::get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.min_value"), 0.1),
+                        "speedMaxValue": parse_setting_f32(crate::get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.max_value"), 20.0),
+                        "speedDefaultValue": parse_setting_f32(crate::get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.default_value"), 1.0),
+                    }));
+                }
+            }
+
+            let favorites = if current_view == "Main" {
+                Some(crate::get_favorites_for_remote(&app_handle))
+            } else {
+                None
+            };
+
             // We broadcast to all, the client will check its ID
             let _ = sender.send(SseMessage {
                 event_type: "pairing_approved".to_string(),
-                data: serde_json::json!({ "clientId": client_id }),
+                data: serde_json::json!({ 
+                    "clientId": client_id,
+                    "appState": current_view,
+                    "settings": remote_settings,
+                    "favorites": favorites
+                }),
             });
         }
     }
@@ -221,11 +266,20 @@ pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), Stri
 
 pub fn send_app_state_update(app_handle: &AppHandle, new_state: &str) {
     let state = app_handle.state::<Mutex<AppState>>();
+    
+    let mut favorites = None;
+    if new_state == "Main" {
+        favorites = Some(crate::get_favorites_for_remote(app_handle));
+    }
+
     if let Ok(guard) = state.lock() {
         if let Some(sender) = &guard.sse_sender {
             let _ = sender.send(SseMessage {
                 event_type: "app_state_update".to_string(),
-                data: serde_json::json!({ "appState": new_state }),
+                data: serde_json::json!({ 
+                    "appState": new_state,
+                    "favorites": favorites
+                }),
             });
         }
     };

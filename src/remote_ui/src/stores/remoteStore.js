@@ -11,6 +11,7 @@ export const useRemoteStore = defineStore('remote', () => {
     const appState = ref(null) // Global app state from SSE
     const visualizeViewState = ref(null) // Visualize view specific state
     const remoteSettings = ref(null) // Settings received from backend
+    const favorites = ref([]) // Favorite circuits for AccueilView
     const settingsDebug = ref("")
     const sseDebugLog = ref([]) // Log of raw SSE events for debug panel
     const heartbeatInterval = ref(null)
@@ -167,6 +168,9 @@ export const useRemoteStore = defineStore('remote', () => {
         if (data.appState) {
             appState.value = data.appState;
         }
+        if (data.favorites) {
+            favorites.value = data.favorites;
+        }
         startHeartbeat();
         // Request full state refresh just in case
         fetch('/api/state').then(r => r.json()).then(state => {
@@ -224,6 +228,9 @@ export const useRemoteStore = defineStore('remote', () => {
             logDebug('APP_STATE', JSON.parse(e.data));
             const data = JSON.parse(e.data);
             appState.value = data.appState;
+            if (data.favorites) {
+                favorites.value = data.favorites;
+            }
             // If we receive updates, we are effectively connected
             if (connectionStatus.value !== 'pairing') {
                 updateStatus("Connecté", "connected");
@@ -313,6 +320,7 @@ export const useRemoteStore = defineStore('remote', () => {
         visualizeViewState,
         visualizeViewState,
         remoteSettings,
+        favorites,
         settingsDebug,
         sseDebugLog,
 

@@ -700,6 +700,46 @@ fn get_circuits_for_display(
     Ok(circuits_for_display)
 }
 
+pub fn get_favorites_for_remote(app_handle: &AppHandle) -> Vec<remote_control::RemoteFavorite> {
+    let state = app_handle.state::<Mutex<AppState>>();
+    let Ok(state_lock) = state.lock() else { return vec![]; };
+    let app_env_path = state_lock.app_env_path.clone();
+    drop(state_lock); // Release lock before calling other helpers
+
+    let Ok(circuits_file) = read_circuits_file(&app_env_path) else { return vec![]; };
+    
+    circuits_file.circuits.into_iter()
+        .filter(|c| c.favorite)
+        .map(|c| {
+            let variant_count = {
+                let circuit_data_dir = app_env_path.join("data").join(&c.circuit_id);
+                if circuit_data_dir.exists() {
+                    fs::read_dir(circuit_data_dir)
+                        .map(|entries| {
+                            entries.filter_map(|e| e.ok())
+                                .filter(|e| {
+                                    let filename = e.file_name().to_string_lossy().into_owned();
+                                    filename.starts_with("archive_") && filename.ends_with(".json")
+                                })
+                                .count()
+                        })
+                        .unwrap_or(0)
+                } else {
+                    0
+                }
+            };
+
+            remote_control::RemoteFavorite {
+                circuit_id: c.circuit_id,
+                nom: c.nom,
+                distance_km: c.distance_km,
+                denivele_m: c.denivele_m,
+                variant_count,
+            }
+        })
+        .collect()
+}
+
 // Fonction pour lire le fichier circuits.json
 pub fn read_circuits_file(app_env_path: &PathBuf) -> Result<CircuitsFile, String> {
     let circuits_path = app_env_path.join("circuits.json");
@@ -826,26 +866,35 @@ fn update_circuit_traceur(
 
 #[tauri::command]
 fn toggle_circuit_favorite(
+    app_handle: AppHandle,
     state: State<Mutex<AppState>>,
     circuit_id: String,
     favorite: bool,
 ) -> Result<(), String> {
-    let state = state.lock().unwrap();
-    let app_env_path = &state.app_env_path;
+    let should_update_remote = {
+        let state_guard = state.lock().unwrap();
+        let app_env_path = &state_guard.app_env_path;
 
-    let mut circuits_file = read_circuits_file(app_env_path)?;
+        let mut circuits_file = read_circuits_file(app_env_path)?;
 
-    if let Some(circuit) = circuits_file
-        .circuits
-        .iter_mut()
-        .find(|c| c.circuit_id == circuit_id)
-    {
-        circuit.favorite = favorite;
-    } else {
-        return Err(format!("Circuit with ID {} not found.", circuit_id));
+        if let Some(circuit) = circuits_file
+            .circuits
+            .iter_mut()
+            .find(|c| c.circuit_id == circuit_id)
+        {
+            circuit.favorite = favorite;
+        } else {
+            return Err(format!("Circuit with ID {} not found.", circuit_id));
+        }
+
+        write_circuits_file(app_env_path, &circuits_file)?;
+        
+        state_guard.current_view == "Main"
+    }; // Lock released here
+
+    if should_update_remote {
+        remote_control::send_app_state_update(&app_handle, "Main");
     }
-
-    write_circuits_file(app_env_path, &circuits_file)?;
 
     Ok(())
 }

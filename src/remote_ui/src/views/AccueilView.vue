@@ -27,8 +27,8 @@
         </v-col>
     </v-row>
 
-    <!-- Connection Status Card -->
-    <v-card width="100%" max-width="400" variant="tonal" :color="statusColor" class="mb-6">
+    <!-- Connection Status Card (Hidden if connected and has favorites) -->
+    <v-card v-if="store.connectionStatus !== 'connected' || !store.favorites.length" width="100%" max-width="400" variant="tonal" :color="statusColor" class="mb-6">
       <v-card-text>
         <div class="text-h6 font-weight-bold mb-1">
           {{ store.statusMessage }}
@@ -43,6 +43,28 @@
         </div>
       </v-card-text>
     </v-card>
+
+    <!-- Favorites List (Connected Mode) -->
+    <div v-if="store.connectionStatus === 'connected' && store.favorites.length" class="w-100 mb-2 flex-grow-1" style="overflow-y: auto; min-height: 0;">
+        <v-list class="bg-transparent pa-0">
+            <v-card 
+                v-for="c in store.favorites" 
+                :key="c.circuitId" 
+                @click="launchCircuit(c.circuitId)" 
+                class="mb-1" 
+                variant="outlined"
+                density="compact"
+                hover
+            >
+                <v-card-item class="pa-2">
+                    <v-card-title class="text-subtitle-2 font-weight-bold text-left text-wrap" style="line-height: 1.2;">{{ c.nom }}</v-card-title>
+                    <v-card-subtitle class="text-caption text-left pt-1">
+                        {{ c.distanceKm.toFixed(1) }}km • {{ c.deniveleM }}m D+ • {{ c.variantCount }} var.
+                    </v-card-subtitle>
+                </v-card-item>
+            </v-card>
+        </v-list>
+    </div>
 
     <!-- Controls -->
     <div class="d-flex flex-column gap-4 w-100 mw-400">
@@ -155,6 +177,10 @@ function handleConnect() {
 
 function handleDisconnect() {
     store.disconnect();
+}
+
+function launchCircuit(circuitId) {
+    store.sendCommand('launch_circuit', { circuitId });
 }
 
 // Auto-connect disabled to ensure user gesture for NoSleep
