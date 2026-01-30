@@ -434,6 +434,13 @@ pub async fn analyze_gpx_file(
         }
     }
 
+    // Nettoyage du nom pour OpenRunner (suppression de l'ID à la fin)
+    let mut circuit_name = metadata.name.clone().unwrap_or_else(|| filename.to_string());
+    if editor_name == "OpenRunner" {
+        let re = Regex::new(r"[\s-]+\d+$").unwrap();
+        circuit_name = re.replace(&circuit_name, "").to_string();
+    }
+
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
@@ -452,7 +459,7 @@ pub async fn analyze_gpx_file(
 
     Ok(DraftCircuit {
         gpx_filename: filename.to_string(),
-        nom: metadata.name.unwrap_or_else(|| filename.to_string()),
+        nom: circuit_name,
         depart: CircuitDepart {
             lon: (lon_depart * 100_000.0).round() / 100_000.0,
             lat: (lat_depart * 100_000.0).round() / 100_000.0,
