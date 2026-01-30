@@ -275,13 +275,11 @@ fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_
     write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)
 }
 
-async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, tracking_path: &std::path::PathBuf, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
+async fn process_pass_async(_app_env_path: &std::path::Path, mapbox_token: &str, _circuit_id: &str, tracking_path: &std::path::PathBuf, step: usize, start_offset: usize, token: &Arc<AtomicBool>, _app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
     let tracking_content = std::fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
     let mut tracking_points: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
 
     let total_points = tracking_points.len();
-
-    let mut modifications_made = false;
 
     for i in (start_offset..total_points).step_by(step) {
         if token.load(Ordering::SeqCst) {
@@ -299,7 +297,6 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
 
                         if let Ok(name) = commune_name {
                             point["commune"] = serde_json::Value::String(name.clone());
-                            modifications_made = true;
 
                             // Save periodically or at the end? Saving every point is safe but slow IO.
                             // Given the sleep timers, IO is negligible.
