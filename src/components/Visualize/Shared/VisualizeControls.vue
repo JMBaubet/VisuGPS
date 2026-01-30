@@ -11,17 +11,6 @@
     <!-- Resume / Actions Overlay (Top Item) -->
     <transition name="fade">
       <div v-if="isVisible && isPaused && !controlsVisible" class="d-flex flex-column align-center bottom-controls" @wheel.stop>
-          <v-btn
-                 color="warning"
-                 @click="handleResume"
-                 class="mb-2"
-                 size="x-large"
-                 rounded
-                 title="Reprendre l'animation (P)"
-          >
-            Reprise
-          </v-btn>
-          
           <!-- Extra Actions Slot (Variants etc) -->
           <slot name="extra-overlay-actions"></slot>
       </div>
