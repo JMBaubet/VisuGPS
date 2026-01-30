@@ -15,36 +15,73 @@ import PauseView from '@/views/PauseView.vue'
 import NoSleep from 'nosleep.js'
 
 const store = useRemoteStore()
-const noSleep = new NoSleep()
-const noSleepEnabled = ref(false)
+// --- Global Wake Lock / NoSleep Logic ---
+const wakeLock = ref(null);
+const noSleep = new NoSleep();
+const usedNoSleepFallback = ref(false);
 
-// --- Global NoSleep Logic ---
-function enableNoSleep() {
-    noSleep.enable().then(() => {
-        console.log("Global NoSleep enabled")
-        noSleepEnabled.value = true
-    }).catch(err => {
-        console.error("Global NoSleep error", err)
-        noSleepEnabled.value = false
-    })
+async function enableNoSleep() {
+    // 1. Priority: Native Screen Wake Lock (No widget on iOS)
+    // ONLY works on secure contexts (HTTPS) or localhost
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLock.value = await navigator.wakeLock.request('screen');
+            console.log("[WakeLock] Native lock acquired");
+            usedNoSleepFallback.value = false;
+            
+            wakeLock.value.addEventListener('release', () => {
+                console.log("[WakeLock] Native lock released");
+                wakeLock.value = null;
+            });
+            return;
+        } catch (err) {
+            console.warn("[WakeLock] Native lock failed (likely non-secure context):", err.message);
+        }
+    }
+
+    // 2. Fallback: NoSleep.js (Video hack, works on HTTP)
+    try {
+        await noSleep.enable();
+        usedNoSleepFallback.value = true;
+        console.log("[WakeLock] NoSleep.js enabled as fallback");
+    } catch (err) {
+        console.error("[WakeLock] Fallback failed:", err);
+    }
 }
 
 function disableNoSleep() {
-    noSleep.disable()
-    console.log("Global NoSleep disabled")
-    noSleepEnabled.value = false
+    if (wakeLock.value) {
+        wakeLock.value.release().then(() => {
+            wakeLock.value = null;
+            console.log("[WakeLock] Native lock released manually");
+        });
+    }
+    if (usedNoSleepFallback.value) {
+        noSleep.disable();
+        usedNoSleepFallback.value = false;
+        console.log("[WakeLock] NoSleep.js disabled");
+    }
 }
+
+// Re-acquire wake lock when tab becomes visible again
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && store.isConnected) {
+        // Only re-acquire if we were supposed to have it
+        await enableNoSleep();
+    }
+});
 
 // Watch global connection status to auto-disable
 watch(() => store.connectionStatus, (newStatus) => {
-    // If disconnected AND we think it's enabled, turn it off
-    if (newStatus === 'disconnected' && noSleepEnabled.value) {
-        disableNoSleep()
+    if (newStatus === 'connected') {
+        // ensure we attempt on connection (though gesture is needed)
+    } else if (newStatus === 'disconnected') {
+        disableNoSleep();
     }
-})
+});
 
-// Provide to children (specifically AccueilView for the Click Trigger)
-provide('enableNoSleep', enableNoSleep)
+// Provide to children
+provide('enableNoSleep', enableNoSleep);
 
 // ... existing component logic ...
 const activeComponent = computed(() => {
