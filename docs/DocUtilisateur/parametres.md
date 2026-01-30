@@ -293,7 +293,6 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Vitesse minimale (x)](../DocParametrage/Visualisation/Lecture/Vitesse/min_value.md)
 *   [Vitesse maximale (x)](../DocParametrage/Visualisation/Lecture/Vitesse/max_value.md)
 *   [Vitesse par défaut (x)](../DocParametrage/Visualisation/Lecture/Vitesse/default_value.md)
-*   [Pas du slider (x)](../DocParametrage/Visualisation/Lecture/Vitesse/slider_step.md)
 
 #### 5.4.2. ZoomDynamique
 **Description** : Système de zoom intelligent qui s'adapte à la vitesse de vol.

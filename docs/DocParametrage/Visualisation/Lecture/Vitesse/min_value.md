@@ -13,6 +13,7 @@ Le paramètre `min_value` établit la limite inférieure de la plage de vitesse 
 -   **Valeur par défaut**: 0.1
 -   **Minimum**: 0.05
 -   **Maximum**: 1.0
+-   **Pas (step)**: 0.05
 -   **Décimales**: 2
 
 ## ⚖️ Justification : Pourquoi définir une vitesse minimale ?
@@ -34,4 +35,3 @@ La définition d'une vitesse minimale est importante pour garantir que l'animati
 
 -   **Valeur par défaut (0.1)** : Cette valeur permet une animation très lente, utile pour l'observation détaillée de sections spécifiques de la trace.
 -   **Ne pas descendre trop bas** : Évitez de définir une valeur minimale trop proche de zéro, car cela pourrait rendre l'animation quasi immobile.
--   **Cohérence avec `slider_step`** : Assurez-vous que le pas du slider (`slider_step`) est cohérent avec la plage définie par `min_value` et `max_value`.

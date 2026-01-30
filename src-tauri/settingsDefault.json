@@ -1739,6 +1739,7 @@
                     "defaut": 0.1,
                     "min": 0.05,
                     "max": 1,
+                    "step": 0.05,
                     "decimales": 2,
                     "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/min_value.md"
                   },
@@ -1746,11 +1747,11 @@
                     "identifiant": "max_value",
                     "libelle": "Vitesse maximale (x)",
                     "description": "Multiplicateur de vitesse maximal pour l'animation.",
-                    "type": "reel",
+                    "type": "entier",
                     "defaut": 20,
                     "min": 1,
-                    "max": 100,
-                    "decimales": 2,
+                    "max": 25,
+                    "step": 1,
                     "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/max_value.md"
                   },
                   {
@@ -1759,21 +1760,11 @@
                     "description": "Multiplicateur de vitesse par défaut au démarrage et à la réinitialisation.",
                     "type": "reel",
                     "defaut": 1,
-                    "min": 0.1,
+                    "min": 0.2,
                     "max": 20,
-                    "decimales": 2,
+                    "step": 0.2,
+                    "decimales": 1,
                     "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/default_value.md"
-                  },
-                  {
-                    "identifiant": "slider_step",
-                    "libelle": "Pas du slider (x)",
-                    "description": "Incrément/décrément du slider de vitesse.",
-                    "type": "reel",
-                    "defaut": 0.05,
-                    "min": 0.01,
-                    "max": 1,
-                    "decimales": 2,
-                    "doc": "docs/DocParametrage/Visualisation/Lecture/Vitesse/slider_step.md"
                   }
                 ]
               },

@@ -34,7 +34,6 @@ Ce document décrit les différentes phases d'implémentation et les tests assoc
     *   `Visualisation/Animation/Vitesse/min_value` (type `reel`, ex: 0.1) : Vitesse minimale de l'animation.
     *   `Visualisation/Animation/Vitesse/max_value` (type `reel`, ex: 20.0) : Vitesse maximale de l'animation.
     *   `Visualisation/Animation/Vitesse/default_value` (type `reel`, ex: 1.0) : Vitesse par défaut au démarrage/réinitialisation.
-    *   `Visualisation/Animation/Vitesse/slider_step` (type `reel`, ex: 0.05) : Pas d'incrémentation pour le slider.
 *   **Ajouter les paramètres de la fonction de zoom dynamique :**
     *   Créer un nouveau groupe `Visualisation/Animation/ZoomDynamique`.
     *   `Visualisation/Animation/ZoomDynamique/constante_A` (type `reel`, ex: 1.0) : Première constante pour la fonction `f(vitesse)`.
