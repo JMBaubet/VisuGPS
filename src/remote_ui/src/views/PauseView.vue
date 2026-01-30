@@ -64,19 +64,36 @@
                     <v-icon icon="mdi-compass-outline" size="48"></v-icon>
                 </CameraTouchPad>
 
-                <!-- Variant Button (Bottom) -->
-                 <v-btn 
-                    v-if="variantCount > 0 || isVariantMode"
-                    size="60" 
-                    rounded="circle"
-                    :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
-                    variant="text" 
-                    @click="triggerVariant()"
-                    :title="isVariantMode ? 'Retour Trace Principale' : 'Choisir une variante'"
-                    :disabled="isFlytoActive"
-                >
-                    <v-icon :icon="isVariantMode ? 'mdi-map-marker-distance' : 'mdi-map-marker-path'" size="40"></v-icon>
-                </v-btn>
+                <!-- Variant & Home Buttons (Bottom) -->
+                <div class="d-flex align-center justify-center">
+                    <!-- Home Button -->
+                    <v-btn 
+                        v-if="isFinished"
+                        size="60" 
+                        rounded="circle"
+                        :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
+                        variant="text" 
+                        @click="goHome()"
+                        title="Retour Vue Principale"
+                        :disabled="isFlytoActive"
+                    >
+                        <v-icon icon="mdi-home" size="40"></v-icon>
+                    </v-btn>
+
+                    <!-- Variant Button -->
+                    <v-btn 
+                        v-if="variantCount > 0 || isVariantMode"
+                        size="60" 
+                        rounded="circle"
+                        :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
+                        variant="text" 
+                        @click="triggerVariant()"
+                        :title="isVariantMode ? 'Retour Trace Principale' : 'Choisir une variante'"
+                        :disabled="isFlytoActive"
+                    >
+                        <v-icon :icon="isVariantMode ? 'mdi-map-marker-distance' : 'mdi-map-marker-path'" size="40"></v-icon>
+                    </v-btn>
+                </div>
             </v-col>
             <v-col cols="3">
                 <CameraTouchPad 
@@ -215,6 +232,10 @@ function onVariantSelect(variantId) {
 
 function triggerFinalView() {
     store.sendCommand('trigger_final_view');
+}
+
+function goHome() {
+    store.sendCommand('go_home');
 }
 
 </script>

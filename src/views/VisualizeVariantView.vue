@@ -1441,6 +1441,12 @@ const setupRemoteControl = async () => {
         // Final View
         await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
 
+        // Return to Main Trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Home
+        await listen('remote_command::go_home', () => goBack()),
+
         // Rewind
         await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
         await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),

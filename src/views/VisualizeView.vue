@@ -1153,6 +1153,9 @@ const setupRemoteControl = async () => {
             }
         }),
 
+        // Home
+        await listen('remote_command::go_home', () => goBack()),
+
         // Rewind
         await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
         await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
