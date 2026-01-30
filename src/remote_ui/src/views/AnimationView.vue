@@ -6,7 +6,7 @@
              <v-btn 
                 size="80" 
                 rounded="circle"
-                :color="isDark ? 'white' : 'grey-darken-3'" 
+                :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
                 variant="text" 
                 class="text-h4 font-weight-bold"
                 @click="resetSpeed()"
@@ -22,7 +22,7 @@
             <v-btn 
                 :icon="toggle.icon"
                 size="x-large"
-                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'white' : 'grey-darken-3')"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'grey-lighten-1' : 'grey-darken-1')"
                 variant="text"
                 class="ma-1 pa-0"
                 style="width: 80px; height: 80px;"
@@ -39,7 +39,7 @@
             <v-btn 
                 :icon="toggle.icon"
                 size="x-large"
-                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'white' : 'grey-darken-3')"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'grey-lighten-1' : 'grey-darken-1')"
                 variant="text"
                 class="ma-1 pa-0"
                 style="width: 80px; height: 80px;"

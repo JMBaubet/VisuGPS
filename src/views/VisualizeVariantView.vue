@@ -408,8 +408,6 @@ const isCommuneWidgetVisible = ref(getSettingValue('Variante/Visualisation/Widge
 const isAltitudeVisible = ref(getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true);
 const isWeatherInfoVisible = ref(getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true); 
 const isCompassVisible = ref(getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true);
-const isStaticWeatherVisible = ref(true);
-const isDynamicWeatherVisible = ref(true);
 const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
 const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
 const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
@@ -1875,8 +1873,14 @@ const currentSegmentIndex = computed(() => {
     return -1;
 });
 
-// Watch for distance changes to update remote progress (every 100m)
 const lastNotifiedDistance = ref(-1);
+
+// Watch for widget visibility changes to update remote
+watch([isControlsCardVisible, isAltitudeVisible, isCommuneWidgetVisible, isDistanceDisplayVisible, isWeatherInfoVisible, isCompassVisible], () => {
+    updateRemoteViewState();
+});
+
+// Watch for distance changes to update remote progress (every 100m)
 watch(currentDistanceInMeters, (newDist) => {
     // Only notify if distance change >= 100m
     if (Math.abs(newDist - lastNotifiedDistance.value) >= 100) {
@@ -1919,8 +1923,8 @@ const updateRemoteViewState = async () => {
         isAltitudeVisible: isAltitudeVisible.value,
         isCommuneWidgetVisible: isCommuneWidgetVisible.value,
         isDistanceDisplayVisible: isDistanceDisplayVisible.value,
-        isStaticWeatherVisible: isStaticWeatherVisible.value,
-        isDynamicWeatherVisible: isDynamicWeatherVisible.value,
+        isStaticWeatherVisible: isWeatherInfoVisible.value,
+        isDynamicWeatherVisible: isCompassVisible.value,
         currentSpeed: currentSpeed.value,
         animationState: animationState.value,
         isFlytoActive: isFlytoActive.value,

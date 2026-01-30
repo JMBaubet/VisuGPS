@@ -7,7 +7,7 @@
              <v-btn 
                 size="80" 
                 rounded="circle"
-                :color="isDark ? 'white' : 'grey-darken-3'" 
+                :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
                 variant="text" 
                 @click="triggerFinalView()"
                 :disabled="isFlytoActive"
@@ -69,7 +69,7 @@
                     v-if="variantCount > 0 || isVariantMode"
                     size="60" 
                     rounded="circle"
-                    :color="isDark ? 'white' : 'grey-darken-3'" 
+                    :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
                     variant="text" 
                     @click="triggerVariant()"
                     :title="isVariantMode ? 'Retour Trace Principale' : 'Choisir une variante'"

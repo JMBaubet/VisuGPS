@@ -7,7 +7,7 @@
         <v-btn 
             size="80" 
             rounded="circle"
-            :color="isDark ? 'white' : 'grey-darken-3'" 
+            :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
             variant="text" 
             @mousedown="startRewind" 
             @mouseup="stopRewind"
@@ -23,7 +23,7 @@
         <v-btn 
             size="80" 
             rounded="circle"
-            :color="isDark ? 'white' : 'grey-darken-3'" 
+            :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
             variant="text"
             @click="isFinished ? restart() : togglePlay()"
             :disabled="isFlytoActive"
@@ -48,13 +48,13 @@
                 :step="1"
                 hide-details
                 density="compact"
-                :color="isDark ? 'white' : 'grey-darken-3'"
-                :track-color="isDark ? 'white' : 'grey-darken-3'"
+                :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'"
+                :track-color="isDark ? 'grey-lighten-1' : 'grey-darken-1'"
                 @update:model-value="onSpeedChange"
                 :disabled="isFlytoActive"
             >
                 <template v-slot:append>
-                    <span :class="isDark ? 'text-white' : 'text-grey-darken-3'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
+                    <span :class="isDark ? 'text-grey-lighten-1' : 'text-grey-darken-1'" class="font-weight-bold" style="min-width: 40px; text-align: right;">
                         {{ displaySpeed }}
                     </span>
                 </template>
