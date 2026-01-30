@@ -229,6 +229,13 @@ const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/T
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
 const jumpDuration = computed(() => getSettingValue('Visualisation/Lecture/jumpDuration') ?? 2.0);
 
+// Remote Control Sensitivities
+const remoteSensX = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 200) / 100);
+const remoteSensY = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueY') ?? 200) / 100);
+const remoteSensCap = computed(() => (getSettingValue('Système/Télécommande/sensibiliteCap') ?? 50) / 100);
+const remoteSensZoom = computed(() => (getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 50) / 100);
+const remoteSensTilt = computed(() => (getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50) / 100);
+
 // --- Variant Visualization Settings ---
 const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
 const showSlope = computed(() => getSettingValue('Variante/Visualisation/afficherPente'));
@@ -1464,19 +1471,23 @@ const setupRemoteControl = async () => {
         // Camera Updates
         await listen('remote_command::update_camera', (event) => {
             const { type, dx, dy } = event.payload;
+
+            if (isPaused.value) cameraMoved.value = true;
+
             // Map common events to local logic
             switch(type) {
                 case 'pan':
-                    if (map.value) map.value.panBy([dx, dy], { duration: 0 });
+                    if (map.value) map.value.panBy([-parseFloat(dx) * remoteSensX.value, -parseFloat(dy) * remoteSensY.value], { duration: 0 });
                     break;
                 case 'tilt':
-                    if (map.value) map.value.setPitch(map.value.getPitch() + dy);
+                    if (map.value) map.value.setPitch(map.value.getPitch() - (parseFloat(dy) * remoteSensTilt.value));
                     break;
                 case 'zoom':
-                    if (map.value) map.value.setZoom(map.value.getZoom() + dy);
+                    // Sensitivity: base 0.03 * user factor
+                    if (map.value) map.value.setZoom(map.value.getZoom() - (parseFloat(dy) * 0.03 * remoteSensZoom.value));
                     break;
                 case 'bearing':
-                    if (map.value) map.value.setBearing(map.value.getBearing() + dx);
+                    if (map.value) map.value.setBearing(map.value.getBearing() + (parseFloat(dx) * remoteSensCap.value));
                     break;
             }
         }),

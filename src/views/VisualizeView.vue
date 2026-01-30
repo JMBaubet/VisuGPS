@@ -198,6 +198,13 @@ const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/T
 const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
 const jumpDuration = computed(() => getSettingValue('Visualisation/Lecture/jumpDuration') ?? 2.0);
 
+// Remote Control Sensitivities
+const remoteSensX = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 200) / 100);
+const remoteSensY = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueY') ?? 200) / 100);
+const remoteSensCap = computed(() => (getSettingValue('Système/Télécommande/sensibiliteCap') ?? 50) / 100);
+const remoteSensZoom = computed(() => (getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 50) / 100);
+const remoteSensTilt = computed(() => (getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50) / 100);
+
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
 // --- Using New Composables ---
@@ -1189,22 +1196,22 @@ const setupRemoteControl = async () => {
             switch(type) {
                 case 'pan':
                     // Invert deltas for natural panning (dragging moves map under camera)
-                    map.value.panBy([-fDx, -fDy], { animate: false });
+                    map.value.panBy([-fDx * remoteSensX.value, -fDy * remoteSensY.value], { animate: false });
                     break;
                 case 'zoom':
-                    // Sensitivity: 100px = 1 zoom level
+                    // Sensitivity: base 0.03 * user factor
                     const currentZoom = map.value.getZoom();
-                    map.value.setZoom(currentZoom - (fDy * 0.015)); 
+                    map.value.setZoom(currentZoom - (fDy * 0.03 * remoteSensZoom.value)); 
                     break;
                 case 'bearing':
-                    // Sensitivity: 1px = 0.5 degree
+                    // Map factor
                     const currentBearing = map.value.getBearing();
-                    map.value.setBearing(currentBearing + (fDx * 0.5));
+                    map.value.setBearing(currentBearing + (fDx * remoteSensCap.value));
                     break;
                 case 'tilt':
-                    // Sensitivity: 1px = 0.5 degree
+                    // Map factor
                     const currentPitch = map.value.getPitch();
-                    map.value.setPitch(currentPitch - (fDy * 0.5));
+                    map.value.setPitch(currentPitch - (fDy * remoteSensTilt.value));
                     break;
             }
             // Force map repaint to reflect immediate changes
