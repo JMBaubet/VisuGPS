@@ -105,6 +105,75 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
     tauri::async_runtime::spawn(async move {
         let _ = update_task_status(&app_env_path_clone, true, &circuit_id);
 
+        let data_dir = app_env_path_clone.join("data").join(&circuit_id);
+        let mut target_files = Vec::new();
+        
+        // 1. Add main tracking.json
+        let main_tracking = data_dir.join("tracking.json");
+        if main_tracking.exists() {
+            target_files.push(main_tracking);
+        }
+
+        // 2. Add all variant tracking files (tracking_*_FULL.json)
+        if let Ok(entries) = std::fs::read_dir(&data_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with("tracking_") && name.ends_with("_FULL.json") {
+                        target_files.push(path);
+                    }
+                }
+            }
+        }
+
+        // Helper to update global progress
+        let update_progress = |app_handle: &AppHandle, circuit_id: &str, app_env_path: &std::path::Path| {
+             let mut total_pts = 0;
+             let mut processed_pts = 0;
+             
+             // Re-scan all files to count
+             let d_dir = app_env_path.join("data").join(circuit_id);
+
+             // Main
+             let m_path = d_dir.join("tracking.json");
+             if m_path.exists() {
+                  if let Ok(c) = std::fs::read_to_string(&m_path) {
+                      if let Ok(pts) = serde_json::from_str::<Vec<serde_json::Value>>(&c) {
+                          total_pts += pts.len();
+                          processed_pts += pts.iter().filter(|p| !p["commune"].is_null()).count();
+                      }
+                  }
+             }
+             
+             // Variants
+             if let Ok(entries) = std::fs::read_dir(&d_dir) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.starts_with("tracking_") && name.ends_with("_FULL.json") {
+                            if let Ok(c) = std::fs::read_to_string(&path) {
+                                if let Ok(pts) = serde_json::from_str::<Vec<serde_json::Value>>(&c) {
+                                    total_pts += pts.len();
+                                    processed_pts += pts.iter().filter(|p| !p["commune"].is_null()).count();
+                                }
+                            }
+                        }
+                    }
+                }
+             }
+
+             if total_pts > 0 {
+                 let progress = ((processed_pts as f32 / total_pts as f32) * 100.0) as i32;
+                 if let Ok(mut circuits_file) = read_circuits_file(&app_env_path.to_path_buf()) {
+                    if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
+                         circuit.avancement_communes = progress;
+                         let _ = app_handle.emit("commune-progress-changed", (circuit_id.to_string(), progress));
+                         let _ = write_circuits_file(&app_env_path.to_path_buf(), &circuits_file);
+                    }
+                 }
+             }
+        };
+
         let passes = [
             (16, 0), (16, 8), (8, 4), (4, 2), (2, 1),
         ];
@@ -113,7 +182,16 @@ pub async fn start_communes_update(app_handle: AppHandle, circuit_id: String) ->
             if token_clone.load(Ordering::SeqCst) {
                 break;
             }
-            let _ = process_pass_async(&app_env_path_clone, &mapbox_token_clone, &circuit_id, *step, *start_offset, &token_clone, &handle_clone, timer_ign, timer_mapbox, timer_osm).await;
+            
+            for file_path in &target_files {
+                if token_clone.load(Ordering::SeqCst) {
+                    break;
+                }
+                let _ = process_pass_async(&app_env_path_clone, &mapbox_token_clone, &circuit_id, file_path, *step, *start_offset, &token_clone, &handle_clone, timer_ign, timer_mapbox, timer_osm).await;
+            }
+            
+            // Update progress after each pass (or each file if we wanted more granularity)
+            update_progress(&handle_clone, &circuit_id, &app_env_path_clone);
         }
 
         task_running_clone.store(false, Ordering::SeqCst);
@@ -197,12 +275,13 @@ fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_
     write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)
 }
 
-async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
-    let tracking_path = app_env_path.join("data").join(circuit_id).join("tracking.json");
-    let tracking_content = std::fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
+async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, circuit_id: &str, tracking_path: &std::path::PathBuf, step: usize, start_offset: usize, token: &Arc<AtomicBool>, app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
+    let tracking_content = std::fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
     let mut tracking_points: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
 
     let total_points = tracking_points.len();
+
+    let mut modifications_made = false;
 
     for i in (start_offset..total_points).step_by(step) {
         if token.load(Ordering::SeqCst) {
@@ -220,20 +299,14 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
 
                         if let Ok(name) = commune_name {
                             point["commune"] = serde_json::Value::String(name.clone());
+                            modifications_made = true;
 
+                            // Save periodically or at the end? Saving every point is safe but slow IO.
+                            // Given the sleep timers, IO is negligible.
                             let new_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
-                            std::fs::write(&tracking_path, new_content).map_err(|e| e.to_string())?;
+                            std::fs::write(tracking_path, new_content).map_err(|e| e.to_string())?;
 
-                            let mut circuits_file = read_circuits_file(&app_env_path.to_path_buf())?;
-                            if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == circuit_id) {
-                                let processed_count = tracking_points.iter().filter(|p| !p["commune"].is_null()).count();
-                                circuit.avancement_communes = ((processed_count as f32 / total_points as f32) * 100.0) as i32;
-                                let _ = app_handle.emit(
-                                    "commune-progress-changed",
-                                    (circuit_id.to_string(), circuit.avancement_communes)
-                                );
-                                write_circuits_file(&app_env_path.to_path_buf(), &circuits_file)?;
-                            }
+                            // Note: Progress update is now done in the main loop to aggregate all files
                         } else {
                             // Error already logged in fetch_commune_name
                         }
@@ -242,6 +315,7 @@ async fn process_pass_async(app_env_path: &std::path::Path, mapbox_token: &str, 
             }
         }
     }
+    
     Ok(())
 }
 

@@ -1038,6 +1038,15 @@ pub async fn create_variant_files(
         }
     }
     fs::write(&archive_path, serde_json::to_string_pretty(&Archive { metadata, modifications }).unwrap()).map_err(|e| e.to_string())?;
+
+    // Update circuits.json to reset commune progress (forcing the icon to reappear)
+    if let Ok(mut circuits_file) = crate::read_circuits_file(&app_env_path) {
+        if let Some(circuit) = circuits_file.circuits.iter_mut().find(|c| c.circuit_id == request.circuit_id) {
+            circuit.avancement_communes = 0;
+            let _ = crate::write_circuits_file(&app_env_path, &circuits_file);
+        }
+    }
+
     Ok(final_warning)
 }
 
