@@ -64,7 +64,6 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
-import VariantSegmentList from '@/components/VariantSegmentList.vue'
 import PlaybackControls from '@/components/PlaybackControls.vue'
 import SegmentBar from '@/components/SegmentBar.vue' // Added import
 import { useTheme } from 'vuetify'
@@ -80,11 +79,6 @@ const variantSegments = computed(() => store.visualizeViewState?.segments || [])
 // Get current index from SSE update
 const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? 0);
 
-const showSegmentDialog = ref(false);
-
-function onSegmentSelect({ segment, index }) {
-    store.sendCommand('jump_to_segment', { index });
-}
 
 function onSegmentJump(index) {
     store.sendCommand('jump_to_segment', { index });

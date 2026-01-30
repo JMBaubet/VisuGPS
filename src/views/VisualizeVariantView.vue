@@ -1746,27 +1746,33 @@ const lastSentSegmentIndex = ref(-1);
 const buildFullSegmentList = () => {
     const rawSegments = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
     const fullList = [];
+    const totalDistKm = totalDistanceRef.value / 1000;
+
+    // 1. Add COMMON at start if needed
+    if (rawSegments.length > 0 && rawSegments[0].points[0].distance > 0.01) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: rawSegments[0].points[0].distance,
+            isGap: true,
+            id: `gap_start`
+        });
+    }
     
     for (let i = 0; i < rawSegments.length; i++) {
         const seg = rawSegments[i];
         const segStart = seg.points[0].distance;
         
-        // Robust End Calculation:
-        // 1. Try lengthM
         let segEnd = seg.lengthM ? (segStart + seg.lengthM/1000) : null;
-        
-        // 2. If valid points exist, check last point distance
         if (seg.points.length > 1) {
              const lastPtDist = seg.points[seg.points.length - 1].distance;
              if (!segEnd || lastPtDist > segEnd) {
                  segEnd = lastPtDist;
              }
         }
+        if (!segEnd) segEnd = segStart + 0.1;
 
-        // 3. Fallback: If still invalid, assume short length or until next (will vary)
-        if (!segEnd) segEnd = segStart + 0.1; // Default 100m if nothing else
-
-        // Add the Variant Segment
         fullList.push({
             ...seg,
             id: `seg_${i}`,
@@ -1776,60 +1782,75 @@ const buildFullSegmentList = () => {
             originalIndex: i
         });
         
-        // Check for gap after
         if (i < rawSegments.length - 1) {
             const nextSeg = rawSegments[i+1];
             const nextStart = nextSeg.points[0].distance;
             
-            // If gap significant (> 10m)
             if (segEnd && nextStart > segEnd + 0.01) { 
                 fullList.push({
                     name: "Tronçon Commun",
                     type: "COMMON",
-                    points: [{ distance: segEnd }], 
                     computedStart: segEnd,
                     computedEnd: nextStart,
                     isGap: true,
                     id: `gap_${i}`
                 });
             } else if (segEnd && nextStart > segEnd) {
-                // Micro-gap: extend current segment to touch next to avoid "void"
                 fullList[fullList.length - 1].computedEnd = nextStart;
+            }
+        } else {
+            // 2. Add COMMON at end if needed
+            if (segEnd && totalDistKm > segEnd + 0.01) {
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    computedStart: segEnd,
+                    computedEnd: totalDistKm,
+                    isGap: true,
+                    id: `gap_end`
+                });
             }
         }
     }
+
+    // Special case: empty rawSegments (unlikely in this view but for safety)
+    if (rawSegments.length === 0 && totalDistKm > 0) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: totalDistKm,
+            isGap: true,
+            id: `gap_full`
+        });
+    }
+
     return fullList;
 };
 
 // Compute current segment index based on distance (using FULL list)
 const currentSegmentIndex = computed(() => {
     const segments = buildFullSegmentList();
-    if (!segments.length) return -1;
+    if (segments.length === 0) return -1;
     
-    // Convert current distance to KM
     const curDistKm = currentDistanceInMeters.value / 1000;
     
-    // Default to handling start
-    if (curDistKm < segments[0].computedStart) return -1;
-
+    // Check each segment
     for (let i = 0; i < segments.length; i++) {
         const seg = segments[i];
-        
-        // If last segment (or gap), it extends to infinity? Or just until next?
-        // Last segment logic:
-        if (i === segments.length - 1) {
-            if (curDistKm >= seg.computedStart) return i;
-            continue;
-        }
-
         const end = seg.computedEnd !== null ? seg.computedEnd : Infinity;
         
-        if (curDistKm >= seg.computedStart && curDistKm < end) {
+        if (curDistKm >= seg.computedStart && curDistKm <= end) {
             return i;
         }
     }
     
-    return segments.length - 1; // Fallback
+    // If before first segment
+    if (curDistKm < segments[0].computedStart) return 0;
+    // If after last segment
+    if (curDistKm > segments[segments.length - 1].computedEnd) return segments.length - 1;
+    
+    return -1;
 });
 
 // Watch for distance changes to update remote progress (every 100m)

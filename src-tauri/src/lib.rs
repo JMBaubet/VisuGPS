@@ -9,7 +9,6 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicI64;
 use tokio::sync::broadcast;
 use crate::remote_sse::SseMessage;
 
@@ -379,8 +378,7 @@ pub struct AppState {
 }
 
 pub struct HeartbeatState {
-    pub last_heartbeat: AtomicI64,
-    pub active_client_id: Mutex<Option<String>>,
+    pub active_clients: Mutex<std::collections::HashMap<String, i64>>,
 }
 
 impl Clone for AppState {
@@ -2406,8 +2404,7 @@ pub fn run() {
                 Ok(state) => {
                     app.manage(Mutex::new(state.clone()));
                     app.manage(HeartbeatState {
-                        last_heartbeat: AtomicI64::new(0),
-                        active_client_id: Mutex::new(None),
+                        active_clients: Mutex::new(std::collections::HashMap::new()),
                     });
 
                     // Apply window size and position from settings

@@ -17,7 +17,6 @@ use crate::remote_clients;
 use crate::remote_blacklist;
 use crate::AppState;
 use crate::get_setting_value;
-use std::sync::atomic::Ordering;
 
 /// État partagé du serveur remote control
 #[derive(Clone)]
@@ -84,25 +83,28 @@ async fn pair_handler(
 ) -> impl IntoResponse {
     debug!("Requête de pairing reçue pour client: {}", request.client_id);
 
-    // Vérifier si un autre client est déjà en train d'utiliser la télécommande
+    // Vérifier si la limite de télécommandes est atteinte
     let hb_state = state.app_handle.state::<crate::HeartbeatState>();
-    let last_hb = hb_state.last_heartbeat.load(Ordering::SeqCst);
     let now = chrono::Utc::now().timestamp();
-    let active_id = hb_state.active_client_id.lock().unwrap();
+    let active_clients = hb_state.active_clients.lock().unwrap();
 
-    if let Some(ref current_id) = *active_id {
-        if current_id != &request.client_id && (now - last_hb) < 10 {
-            warn!("Tentative de pairing rejetée: un autre appareil est déjà connecté ({})", current_id);
-            return (StatusCode::CONFLICT, Json(PairingResponse {
-                status: "busy".to_string(),
-                reason: Some("Un autre appareil est déjà en cours d'utilisation.".to_string()),
-                appState: None,
-                settings: None,
-                session_token: None,
-                debug_info: None,
-            })).into_response();
-        }
+    // Compter les clients réellement actifs (heartbeat < 10s)
+    let active_count = active_clients.iter()
+        .filter(|(id, &t)| id.as_str() != request.client_id && (now - t) < 10)
+        .count();
+
+    if active_count >= 2 {
+        warn!("Tentative de pairing rejetée: limite de 2 appareils connectés atteinte");
+        return (StatusCode::CONFLICT, Json(PairingResponse {
+            status: "busy".to_string(),
+            reason: Some("La limite de 2 télécommandes connectées est atteinte.".to_string()),
+            appState: None,
+            settings: None,
+            session_token: None,
+            debug_info: None,
+        })).into_response();
     }
+    drop(active_clients); // Libérer le lock avant la suite
 
     let app_env_path = {
         let app_state = state.app_handle.state::<Mutex<AppState>>();
@@ -283,30 +285,23 @@ async fn heartbeat_handler(
     let hb_state = state.app_handle.state::<crate::HeartbeatState>();
     let now = chrono::Utc::now().timestamp();
     
-    let mut active_id_guard = hb_state.active_client_id.lock().unwrap();
-    let last = hb_state.last_heartbeat.load(Ordering::SeqCst);
+    let mut active_clients = hb_state.active_clients.lock().unwrap();
 
-    // Si on a un clientId, on vérifie si on peut le prendre
     if let Some(id) = client_id {
-        // Condition de prise en charge : 
-        // 1. Aucun client actif
-        // 2. Client précédent expiré (>10s)
-        // 3. C'est le même client
-        let can_accept = active_id_guard.is_none() 
-            || (now - last) > 10 
-            || active_id_guard.as_ref() == Some(&id);
+        // Compter les clients actifs (en excluant celui-ci s'il existe déjà)
+        let active_count = active_clients.iter()
+            .filter(|(&ref cid, &t)| cid != &id && (now - t) < 10)
+            .count();
 
-        if can_accept {
-            if active_id_guard.as_ref() != Some(&id) {
-                info!("Nouvelle session de télécommande active: {}", id);
-                *active_id_guard = Some(id);
+        if active_count < 2 || active_clients.contains_key(&id) {
+            if !active_clients.contains_key(&id) {
+                info!("Nouvelle télécommande connectée: {}", id);
                 let _ = state.app_handle.emit("remote_control_status_changed", "connected");
             }
-            hb_state.last_heartbeat.store(now, Ordering::SeqCst);
+            active_clients.insert(id, now);
             return StatusCode::OK.into_response();
         } else {
-            // Un autre client est actif
-            return (StatusCode::CONFLICT, "Another remote is already active").into_response();
+            return (StatusCode::CONFLICT, "Remote connection limit (2) reached").into_response();
         }
     }
     

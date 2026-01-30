@@ -9,7 +9,7 @@
     </div>
 
     <!-- Segments Bar -->
-    <div class="d-flex justify-space-between align-center w-100">
+    <div class="d-flex justify-center align-center w-100" style="gap: 8px;">
         <v-btn
           v-for="(segment, index) in segments"
           :key="segment.id"

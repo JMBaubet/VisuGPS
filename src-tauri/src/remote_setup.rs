@@ -10,7 +10,6 @@ use base64::{Engine as _, engine::general_purpose};
 use tokio::sync::broadcast;
 use crate::remote_sse::SseMessage;
 use crate::HeartbeatState;
-use std::sync::atomic::Ordering;
 
 pub fn init_remote_control(
     app: &mut App,
@@ -40,19 +39,17 @@ pub fn init_remote_control(
         loop {
             interval.tick().await;
             if let Some(hb_state) = app_handle_for_monitor.try_state::<HeartbeatState>() {
-                let last_val = hb_state.last_heartbeat.load(Ordering::SeqCst);
                 let now = chrono::Utc::now().timestamp();
+                let mut active_clients = hb_state.active_clients.lock().unwrap();
+                let prev_count = active_clients.len();
                 
-                if last_val != 0 {
-                    if (now - last_val) > 10 {
-                        // Timeout: considérer déconnecté
-                        hb_state.last_heartbeat.store(0, Ordering::SeqCst);
-                        if let Ok(mut active_id) = hb_state.active_client_id.lock() {
-                            *active_id = None;
-                        }
-                        let _ = app_handle_for_monitor.emit("remote_control_status_changed", "disconnected");
-                        log::debug!("Télécommande déconnectée (timeout heartbeat atomique)");
-                    }
+                // Nettoyer les clients expirés (> 10s)
+                active_clients.retain(|_, &mut t| (now - t) < 10);
+                
+                let new_count = active_clients.len();
+                if prev_count > 0 && new_count == 0 {
+                    let _ = app_handle_for_monitor.emit("remote_control_status_changed", "disconnected");
+                    log::debug!("Plus aucune télécommande connectée (timeout)");
                 }
             }
         }
@@ -63,13 +60,12 @@ pub fn init_remote_control(
 
 #[tauri::command]
 pub fn get_remote_control_status(hb_state: tauri::State<HeartbeatState>) -> String {
-    let last_val = hb_state.last_heartbeat.load(Ordering::SeqCst);
-    if last_val == 0 {
-        return "disconnected".to_string();
-    }
-    
     let now = chrono::Utc::now().timestamp();
-    if (now - last_val) < 10 {
+    let active_clients = hb_state.active_clients.lock().unwrap();
+    
+    let has_active = active_clients.values().any(|&t| (now - t) < 10);
+    
+    if has_active {
         "connected".to_string()
     } else {
         "disconnected".to_string()

@@ -2,17 +2,17 @@
   <v-container class="fill-height d-flex flex-column" style="max-width: 600px;">
     
     <!-- 1. Playback Controls & Speed (Shared Component) -->
-    <PlaybackControls>
+    <PlaybackControls ref="playbackControls">
         <template #third-button>
              <v-btn 
                 size="80" 
                 rounded="circle"
                 :color="isDark ? 'white' : 'grey-darken-3'" 
                 variant="text" 
-                @click="isVariantMode ? showSegmentDialog = true : triggerFinalView()"
-                :disabled="isFinished && !isVariantMode"
+                class="text-h4 font-weight-bold"
+                @click="resetSpeed()"
             >
-                <v-icon :icon="isVariantMode ? 'mdi-map-marker-radius-outline' : 'mdi-clock-end'" size="64"></v-icon>
+                x1
             </v-btn>
         </template>
     </PlaybackControls>
@@ -104,14 +104,6 @@
       @select="onVariantSelect"
     />
 
-    <SegmentSelectorDialog
-      v-model="showSegmentDialog"
-      :segments="variantSegments"
-      :current-index="currentSegmentIndex"
-      :is-dark="isDark"
-      @select="onSegmentSelect"
-    />
-
   </v-container>
 </template>
 
@@ -141,23 +133,21 @@ const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? fals
 const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
 const variants = computed(() => store.visualizeViewState?.variants || []);
 const showVariantDialog = ref(false);
-const showSegmentDialog = ref(false);
 
 // Close dialogs when view changes (e.g. selection made on desktop)
 watch(isVariantMode, (newVal) => {
     if (newVal) {
         showVariantDialog.value = false;
-    } else {
-        showSegmentDialog.value = false;
     }
 });
 
-function onSegmentSelect({ segment, index }) {
+function onSegmentJump(index) {
     store.sendCommand('jump_to_segment', { index });
 }
 
-function onSegmentJump(index) {
-    store.sendCommand('jump_to_segment', { index });
+const playbackControls = ref(null)
+function resetSpeed() {
+    playbackControls.value?.resetSpeed()
 }
 
 // --- Settings ---
@@ -191,8 +181,6 @@ function handleCameraUpdate(payload) {
 
 // --- Playback Logic (Refactored to PlaybackControls) ---
 const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
-
-function triggerFinalView() { store.sendCommand('trigger_final_view'); }
 
 function triggerVariant() { 
     if (isVariantMode.value) {
