@@ -72,7 +72,7 @@
               icon="mdi-information"
               variant="text"
               v-bind="menuProps"
-              @click.stop="showInfoDialog = true"
+              @click.stop="$emit('open-info', circuit)"
               :color="informationIconColor"
             ></v-btn>
           </template>
@@ -106,16 +106,6 @@
           </v-card>
         </v-menu>
 
-        <v-dialog v-model="showInfoDialog" max-width="800">
-          <InformationCircuit
-            :circuit="circuit"
-            :all-communes="allCommunes"
-            :all-traceurs="allTraceurs"
-            :favorite-count="favoriteCount"
-            @close="showInfoDialog = false"
-            @update-circuit="handleCircuitUpdate"
-          />
-        </v-dialog>
 
 
 
@@ -165,7 +155,6 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
 import { useServiceStatus } from '@/composables/useServiceStatus';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import InformationCircuit from './InformationCircuit.vue';
 
 const props = defineProps({
   circuit: {
@@ -186,7 +175,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['circuit-deleted', 'circuit-updated', 'open-meteo']);
+const emit = defineEmits(['circuit-deleted', 'circuit-updated', 'open-meteo', 'open-info']);
 
 const isDev = ref(import.meta.env.DEV);
 const router = useRouter();
@@ -197,7 +186,6 @@ const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } 
 const { serviceStatus } = useServiceStatus();
 
 const showConfirmDialog = ref(false);
-const showInfoDialog = ref(false);
 const vignetteUrl = ref('');
 
 const vignetteWidth = computed(() => {

@@ -264,6 +264,22 @@ pub fn disconnect_active_remote_client(app_handle: AppHandle) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+pub fn notify_remote_user(app_handle: AppHandle, message: String, level: String) {
+    let state = app_handle.state::<Mutex<AppState>>();
+    if let Ok(guard) = state.lock() {
+        if let Some(sender) = &guard.sse_sender {
+            let _ = sender.send(SseMessage {
+                event_type: "notification".to_string(),
+                data: serde_json::json!({ 
+                    "message": message,
+                    "level": level
+                }),
+            });
+        }
+    };
+}
+
 pub fn send_app_state_update(app_handle: &AppHandle, new_state: &str) {
     let state = app_handle.state::<Mutex<AppState>>();
     

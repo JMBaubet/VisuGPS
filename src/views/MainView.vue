@@ -21,10 +21,10 @@
         :circuit="circuit"
         :all-communes="allCommunes"
         :all-traceurs="allTraceurs"
-        :favorite-count="favoriteCount"
         @circuit-deleted="handleCircuitDeleted"
         @circuit-updated="handleCircuitUpdated"
         @open-meteo="openMeteoDialog"
+        @open-info="openInfoDialog"
       />
     </v-list>
 
@@ -58,6 +58,17 @@
       @saved="handleMeteoSaved"
       @downloaded="handleMeteoDownloaded"
     />
+    <v-dialog v-model="showInfoDialog" max-width="800">
+      <InformationCircuit
+        v-if="selectedCircuitForInfo"
+        :circuit="selectedCircuitForInfo"
+        :all-communes="allCommunes"
+        :all-traceurs="allTraceurs"
+        :favorite-count="favoriteCount"
+        @close="showInfoDialog = false"
+        @update-circuit="handleCircuitUpdated"
+      />
+    </v-dialog>
   </v-container>
 </template>
 
@@ -70,6 +81,7 @@ import AppMainBar from '@/components/Main/AppMainBar.vue';
 import ImportDialog from '@/components/Main/ImportDialog.vue';
 import TraceurSelectionDialog from '@/components/Main/TraceurSelectionDialog.vue';
 import MeteoManager from '@/components/Main/MeteoManager.vue';
+import InformationCircuit from '@/components/Main/InformationCircuit.vue';
 import CircuitListItem from '@/components/Main/CircuitListItem.vue';
 import CircuitFilter from '@/components/Main/CircuitFilter.vue';
 import OrphanCleanupDialog from '@/components/Main/OrphanCleanupDialog.vue';
@@ -96,6 +108,8 @@ const filterData = ref(null);
 
 const showMeteoDialog = ref(false);
 const selectedCircuitForMeteo = ref(null);
+const showInfoDialog = ref(false);
+const selectedCircuitForInfo = ref(null);
 
 const showOrphanDialog = ref(false);
 const currentOrphans = ref({ villes: [], traceurs: [], messages: [] });
@@ -344,7 +358,21 @@ const handleMeteoDownloaded = () => {
   refreshCircuits();
 };
 
+const openInfoDialog = (circuit) => {
+  selectedCircuitForInfo.value = circuit;
+  showInfoDialog.value = true;
+};
+
 const view3D = (circuitId) => {
+  // Prevent launch if any dialog is open
+  if (showMeteoDialog.value || showInfoDialog.value || showImportDialog.value || showOrphanDialog.value) {
+      console.log("Blocking remote launch: Dialog open");
+      invoke('notify_remote_user', { 
+          message: "Visualisation impossible :\nUne fenêtre de dialogue est ouverte\nsur l'ordinateur.", 
+          level: "warning" 
+      });
+      return;
+  }
   router.push({ name: 'Visualize', params: { circuitId } });
 };
 

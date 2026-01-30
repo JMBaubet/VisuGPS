@@ -2628,6 +2628,7 @@ pub fn run() {
             remote_control::approve_remote_client,
             remote_control::refuse_remote_client,
             remote_control::abandon_remote_client,
+            remote_control::notify_remote_user,
             // Commandes déplacées dans le plugin remote_setup
             update_animation_state,
             error_logger::save_error_event,

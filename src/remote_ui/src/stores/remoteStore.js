@@ -299,7 +299,17 @@ export const useRemoteStore = defineStore('remote', () => {
             const data = JSON.parse(e.data);
             updateStatus("Déconnecté par le serveur", 'disconnected'); // Ignore reason to avoid redundant display
             es.close();
+            es.close();
             stopHeartbeat();
+        });
+
+        es.addEventListener("notification", (e) => {
+            const data = JSON.parse(e.data);
+            useRemoteStore().lastNotification = { // Access global store instance or use local variable if available
+                message: data.message,
+                level: data.level,
+                timestamp: Date.now()
+            };
         });
     }
 
@@ -323,6 +333,7 @@ export const useRemoteStore = defineStore('remote', () => {
         favorites,
         settingsDebug,
         sseDebugLog,
+        lastNotification: ref(null), // { message, level, timestamp }
 
         // Actions
         connect,

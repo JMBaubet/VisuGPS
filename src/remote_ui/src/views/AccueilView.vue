@@ -142,11 +142,24 @@
         </v-card>
     </v-dialog>
 
+    <!-- Global Notification Snackbar -->
+    <v-snackbar
+        v-model="showSnackbar"
+        :color="snackbarColor"
+        location="top"
+        timeout="5000"
+    >
+        <div style="white-space: pre-line; text-align: left; width: 100%;">{{ snackbarMessage }}</div>
+        <template v-slot:actions>
+            <v-btn variant="text" @click="showSnackbar = false">Fermer</v-btn>
+        </template>
+    </v-snackbar>
+
   </v-container>
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue'
+import { ref, computed, inject, onMounted, watch } from 'vue'
 import { useRemoteStore } from '@/stores/remoteStore'
 import { useTheme } from 'vuetify'
 
@@ -196,9 +209,22 @@ function handleDisconnect() {
     store.disconnect();
 }
 
-function launchCircuit(circuitId) {
-    store.sendCommand('launch_circuit', { circuitId });
-}
+    function launchCircuit(circuitId) {
+        store.sendCommand('launch_circuit', { circuitId });
+    }
+
+    // Notifications Logic
+    const showSnackbar = ref(false);
+    const snackbarMessage = ref('');
+    const snackbarColor = ref('info');
+
+    watch(() => store.lastNotification, (notif) => {
+        if (notif) {
+            snackbarMessage.value = notif.message;
+            snackbarColor.value = notif.level === 'error' ? 'error' : (notif.level === 'warning' ? 'warning' : 'info');
+            showSnackbar.value = true;
+        }
+    });
 
 // Auto-connect disabled to ensure user gesture for NoSleep
 // onMounted(() => {
