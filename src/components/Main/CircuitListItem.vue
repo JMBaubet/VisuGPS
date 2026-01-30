@@ -3,7 +3,10 @@
     <v-row align="center" class="w-100">
       <!-- Colonne 1: Nom, Départ -->
       <v-col cols="12" md="4">
-        <div class="font-weight-bold">{{ circuit.nom }}</div>
+        <div class="font-weight-bold">
+          <v-icon v-if="circuit.favorite" color="yellow" size="small" class="mr-1">mdi-star</v-icon>
+          {{ circuit.nom }}
+        </div>
         <div>
           <span class="text-caption">Départ : {{ circuit.villeDepart }}</span>
         </div>
@@ -108,6 +111,7 @@
             :circuit="circuit"
             :all-communes="allCommunes"
             :all-traceurs="allTraceurs"
+            :favorite-count="favoriteCount"
             @close="showInfoDialog = false"
             @update-circuit="handleCircuitUpdate"
           />
@@ -175,6 +179,10 @@ const props = defineProps({
   allTraceurs: {
     type: Array,
     default: () => [],
+  },
+  favoriteCount: {
+    type: Number,
+    default: 0,
   },
 });
 

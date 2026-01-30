@@ -6,6 +6,16 @@
         <a v-if="circuit.url" :href="circuit.url" target="_blank" class="circuit-url">{{ circuit.url }}</a>
       </div>
       <div class="d-flex align-center"> <!-- Group the alert and close buttons -->
+        <v-switch
+          v-model="isFavorite"
+          label="Favori"
+          hide-details
+          density="compact"
+          class="mr-4"
+          color="yellow"
+          base-color="grey"
+          @change="handleToggleFavorite"
+        ></v-switch>
         <v-btn icon
           v-if="props.circuit.hasErrors"
           color="error"
@@ -235,6 +245,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  favoriteCount: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const emit = defineEmits(['close', 'update-circuit']);
@@ -247,6 +261,8 @@ const communeNom = ref('');
 const qrCodePath = ref('');
 const editedTraceur = ref(props.circuit.traceur);
 const showMeteoDialog = ref(false);
+
+const isFavorite = ref(props.circuit.favorite);
 
 const showErrorsDialog = ref(false);
 const circuitErrors = ref([]);
@@ -356,6 +372,31 @@ const handleDistanceMarkersUpdated = () => {
   showSnackbar('Les bornes kilométriques ont été mises à jour', 'success');
 };
 
+const handleToggleFavorite = async () => {
+  const limit = getSettingValue('Accueil/NombreFavoris') || 6;
+  
+  if (isFavorite.value && props.favoriteCount >= limit && !props.circuit.favorite) {
+    showSnackbar(`Limite de favoris atteinte (${limit}). Veuillez en retirer un avant d'en ajouter un nouveau.`, 'warning');
+    // Revert switch
+    nextTick(() => {
+        isFavorite.value = false;
+    });
+    return;
+  }
+
+  try {
+    await invoke('toggle_circuit_favorite', { 
+      circuitId: props.circuit.circuitId, 
+      favorite: isFavorite.value 
+    });
+    emit('update-circuit', { ...props.circuit, favorite: isFavorite.value });
+    showSnackbar(isFavorite.value ? 'Circuit ajouté aux favoris' : 'Circuit retiré des favoris', 'success');
+  } catch (error) {
+    showSnackbar('Erreur lors du changement de favori : ' + error, 'error');
+    isFavorite.value = !isFavorite.value; // Revert on error
+  }
+};
+
 const closeDialog = () => {
   emit('close');
 };
@@ -376,6 +417,7 @@ watch(() => props.circuit, () => {
   getCommuneNom();
   getQrCodePath();
   editedTraceur.value = props.circuit.traceur;
+  isFavorite.value = props.circuit.favorite;
 }, { deep: true });
 
 watch(appEnvPath, () => {

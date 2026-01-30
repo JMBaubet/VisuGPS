@@ -185,6 +185,8 @@ pub struct Circuit {
         skip_serializing_if = "Option::is_none"
     )]
     pub meteo_config: Option<CircuitMeteoConfig>,
+    #[serde(default)]
+    pub favorite: bool,
 }
 
 struct GpxMetadata {
@@ -570,6 +572,7 @@ pub fn commit_new_circuit(
         },
         distance_markers_config: None,
         meteo_config: None,
+        favorite: false,
     };
 
     circuits_file.circuits.push(new_circuit.clone()); // Clone new_circuit here

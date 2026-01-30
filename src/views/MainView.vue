@@ -21,6 +21,7 @@
         :circuit="circuit"
         :all-communes="allCommunes"
         :all-traceurs="allTraceurs"
+        :favorite-count="favoriteCount"
         @circuit-deleted="handleCircuitDeleted"
         @circuit-updated="handleCircuitUpdated"
         @open-meteo="openMeteoDialog"
@@ -102,6 +103,8 @@ const { getSettingValue } = useSettings();
 const activeFilters = ref(null);
 const sortOptions = ref({ by: 'circuitId', order: 'asc' });
 
+const favoriteCount = computed(() => allCircuits.value.filter(c => c.favorite).length);
+
 const currentPage = ref(1);
 const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);
 
@@ -141,8 +144,8 @@ const filteredAndSortedCircuits = computed(() => {
     result = result.filter(c => c.deniveleM >= min && c.deniveleM <= max);
   }
 
-  // 2. Sort
-  result.sort((a, b) => {
+  // 2. Sort Logic
+  const sortFn = (a, b) => {
     const field = sortOptions.value.by;
     let valA = a[field];
     let valB = b[field];
@@ -155,9 +158,17 @@ const filteredAndSortedCircuits = computed(() => {
     if (valA < valB) return sortOptions.value.order === 'asc' ? -1 : 1;
     if (valA > valB) return sortOptions.value.order === 'asc' ? 1 : -1;
     return 0;
-  });
+  };
 
-  return result;
+  // 3. Separate favorites and others, sort each
+  const favorites = result.filter(c => c.favorite);
+  const others = result.filter(c => !c.favorite);
+
+  favorites.sort(sortFn);
+  others.sort(sortFn);
+
+  // 4. Return combined list
+  return [...favorites, ...others];
 });
 
 const pageCount = computed(() => {

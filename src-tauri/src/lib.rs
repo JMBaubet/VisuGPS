@@ -613,6 +613,7 @@ pub struct CircuitForDisplay {
     #[serde(rename = "meteoConfig")]
     meteo_config: Option<gpx_processor::CircuitMeteoConfig>,
     pub variant_count: usize,
+    pub favorite: bool,
 }
 
 #[tauri::command]
@@ -691,6 +692,7 @@ fn get_circuits_for_display(
                         0
                     }
                 },
+                favorite: circuit.favorite,
             }
         })
         .collect();
@@ -820,6 +822,32 @@ fn update_circuit_traceur(
     write_circuits_file(app_env_path, &circuits_file)?;
 
     Ok(final_traceur_id)
+}
+
+#[tauri::command]
+fn toggle_circuit_favorite(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    favorite: bool,
+) -> Result<(), String> {
+    let state = state.lock().unwrap();
+    let app_env_path = &state.app_env_path;
+
+    let mut circuits_file = read_circuits_file(app_env_path)?;
+
+    if let Some(circuit) = circuits_file
+        .circuits
+        .iter_mut()
+        .find(|c| c.circuit_id == circuit_id)
+    {
+        circuit.favorite = favorite;
+    } else {
+        return Err(format!("Circuit with ID {} not found.", circuit_id));
+    }
+
+    write_circuits_file(app_env_path, &circuits_file)?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -2531,6 +2559,7 @@ pub fn run() {
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
+            toggle_circuit_favorite,
             get_circuit_scenarios,
             update_circuit_meteo,
             get_available_monitors,

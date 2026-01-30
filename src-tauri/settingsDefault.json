@@ -91,6 +91,16 @@
             "max": 1024,
             "unite": "px",
             "doc": "docs/DocParametrage/Accueil/TailleVignette.md"
+          },
+          {
+            "defaut": 6,
+            "description": "Nombre maximal de circuits pouvant être mis en favoris.",
+            "identifiant": "NombreFavoris",
+            "libelle": "Nombre de favoris",
+            "type": "entier",
+            "min": 1,
+            "max": 20,
+            "doc": "docs/DocParametrage/Accueil/NombreFavoris.md"
           }
         ]
       },
