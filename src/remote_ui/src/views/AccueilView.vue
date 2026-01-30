@@ -27,8 +27,8 @@
         </v-col>
     </v-row>
 
-    <!-- Connection Status Card (Hidden if connected and has favorites) -->
-    <v-card v-if="store.connectionStatus !== 'connected' || !store.favorites.length" width="100%" max-width="400" variant="tonal" :color="statusColor" class="mb-6">
+    <!-- Connection Status Card (Hidden if connected and has favorites/status) -->
+    <v-card v-if="store.connectionStatus !== 'connected'" width="100%" max-width="400" variant="tonal" :color="statusColor" class="mb-6">
       <v-card-text>
         <div class="text-h6 font-weight-bold mb-1">
           {{ store.statusMessage }}
@@ -44,8 +44,15 @@
       </v-card-text>
     </v-card>
 
-    <!-- Favorites List (Connected Mode) -->
-    <div v-if="store.connectionStatus === 'connected' && store.favorites.length" class="w-100 mb-2 flex-grow-1" style="overflow-y: auto; min-height: 0;">
+    <!-- App State Status Card (Connected but not Main) -->
+    <v-card v-if="store.connectionStatus === 'connected' && store.appState !== 'Main'" width="100%" max-width="400" variant="outlined" class="mb-6 pa-4">
+        <v-icon size="48" color="grey" class="mb-2">mdi-monitor-dashboard</v-icon>
+        <div class="text-h6 font-weight-bold text-wrap">{{ currentContextMessage }}</div>
+        <div class="text-caption text-medium-emphasis mt-1">Revenez à l'accueil sur l'ordinateur pour voir vos favoris.</div>
+    </v-card>
+
+    <!-- Favorites List (Connected Mode & Main View) -->
+    <div v-if="store.connectionStatus === 'connected' && store.appState === 'Main' && store.favorites.length" class="w-100 mb-2 flex-grow-1" style="overflow-y: auto; min-height: 0;">
         <v-list class="bg-transparent pa-0">
             <v-card 
                 v-for="c in store.favorites" 
@@ -168,6 +175,16 @@ const statusColor = computed(() => {
         default: return 'grey'
     }
 })
+
+const currentContextMessage = computed(() => {
+    switch(store.appState) {
+        case 'Settings': return 'Paramétrage en cours';
+        case 'EditView': return 'Édition en cours';
+        case 'VariantTraceView': return 'Édition de variante en cours';
+        case 'DebugTracking': return 'Débogage en cours';
+        default: return 'Application occupée';
+    }
+});
 
 // Enhanced Connect Action (Enable NoSleep on user gesture)
 function handleConnect() {
