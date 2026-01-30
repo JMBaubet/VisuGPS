@@ -1484,6 +1484,11 @@ pub async fn calculate_route(
     let key_gh = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyGraphHopper").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let key_ors = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyOpenRouteService").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
+    // Pré-check : Si les deux clés sont vides, on arrête tout de suite
+    if key_gh.is_empty() && key_ors.is_empty() {
+        return Err("Clés API GraphHopper et OpenRouteService manquantes dans les paramètres.".to_string());
+    }
+
     // Define priority list based on user preference
     let mut attempt_order = Vec::new();
     if service == "GraphHopper" {
@@ -1499,6 +1504,19 @@ pub async fn calculate_route(
     for (i, (svc_name, key)) in attempt_order.iter().enumerate() {
         let is_fallback = i > 0;
         
+        // Vérification si la clé est vide
+        if key.is_empty() {
+            let err_msg = format!("Clé API {} manquante.", svc_name);
+            if !is_fallback {
+                // Si c'est le service primaire, on enregistre l'erreur et on passe DIRECTEMENT au suivant (pas de retry, pas d'arrêt)
+                last_error = err_msg;
+                continue;
+            } else {
+                // Si c'est le service de secours (et qu'on est déjà en fallback), on échoue avec le cumul
+                return Err(format!("{} | {}", last_error, err_msg));
+            }
+        }
+
         // Retry logic for the current service (max 3 attempts)
         for attempt in 1..=3 {
             let result = if *svc_name == "GraphHopper" {
@@ -1513,7 +1531,11 @@ pub async fn calculate_route(
                     let (geojson, alt_warning) = enhance_geojson_altitudes(geojson_raw).await;
                     
                     let mut warning = if is_fallback {
-                        Some(format!("Service préférentiel indisponible. Bascule automatique sur {}.", svc_name))
+                        if last_error.is_empty() {
+                             Some(format!("Service préférentiel indisponible. Bascule automatique sur {}.", svc_name))
+                        } else {
+                             Some(format!("Service préférentiel ignoré ({}). Bascule sur {}.", last_error, svc_name))
+                        }
                     } else {
                         None
                     };
@@ -2249,4 +2271,72 @@ pub async fn get_variant_tracking_internal(
 #[tauri::command]
 pub async fn get_altitudes(points: Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
     crate::elevation_provider::fetch_altitudes(&points).await
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RoutingStatus {
+    pub graphhopper: String, // "EMPTY", "INVALID", "VALID"
+    pub ors: String,         // "EMPTY", "INVALID", "VALID"
+}
+
+#[tauri::command]
+pub async fn check_routing_services(
+    app_handle: tauri::AppHandle,
+) -> Result<RoutingStatus, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+    
+    let settings_path = app_env_path.join("settings.json");
+    if !settings_path.exists() {
+        return Ok(RoutingStatus { graphhopper: "EMPTY".to_string(), ors: "EMPTY".to_string() });
+    }
+
+    let settings_content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
+
+    let key_gh = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyGraphHopper").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let key_ors = crate::get_setting_value(&settings, "data.groupes.Variante.groupes.Parametres.parametres.apiKeyOpenRouteService").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    let mut status = RoutingStatus {
+        graphhopper: if key_gh.is_empty() { "EMPTY".to_string() } else { "UNKNOWN".to_string() },
+        ors: if key_ors.is_empty() { "EMPTY".to_string() } else { "UNKNOWN".to_string() },
+    };
+
+    // Test points (very close to avoid heavy routing)
+    let test_points = vec![[2.3522, 48.8566], [2.3523, 48.8567]]; 
+
+    // Test GraphHopper
+    if status.graphhopper == "UNKNOWN" {
+        match call_graphhopper(&key_gh, "car", &test_points).await {
+            Ok(_) => status.graphhopper = "VALID".to_string(),
+            Err(e) => {
+                if e.contains("401") || e.contains("403") {
+                    status.graphhopper = "INVALID".to_string();
+                } else {
+                    // Other error (network, etc) - we might want to say INVALID for safety or leave as is.
+                    // But if it's a real API rejection, it's 401/403.
+                    status.graphhopper = "INVALID".to_string(); 
+                }
+            }
+        }
+    }
+
+    // Test OpenRouteService
+    if status.ors == "UNKNOWN" {
+        match call_openrouteservice(&key_ors, "car", &test_points).await {
+            Ok(_) => status.ors = "VALID".to_string(),
+            Err(e) => {
+                if e.contains("401") || e.contains("403") {
+                    status.ors = "INVALID".to_string();
+                } else {
+                    status.ors = "INVALID".to_string();
+                }
+            }
+        }
+    }
+
+    Ok(status)
 }

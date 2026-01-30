@@ -1302,17 +1302,17 @@ const generatePreviewForMod = async (modIndex) => {
         let color = "warning";
         let timeout = 5000;
 
-        // Detection spécifique des problèmes de clés API
-        if (e.toString().includes("Clé API") || e.toString().includes("API key")) {
-            configErrorMessage.value = e.toString();
-            showConfigErrorDialog.value = true;
-            color = "error";
-            timeout = 10000;
-        } else if (variantConfig.value.routingProfile === 'racingbike') {
+        // Détection des erreurs de routage restantes (profil incompatible, etc.)
+        const errMessage = e.toString();
+        if (variantConfig.routingProfile === 'racingbike' && !errMessage.includes("Clé API")) {
              msg += " Essayez le profil 'VTT' ou 'Route + Pistes'.";
              routingErrorProfile.value = 'racingbike';
+        } else if (errMessage.includes("Clé API") || errMessage.includes("API key")) {
+            msg = "Erreur de routage : Problème persistant avec les clés API.";
+            color = "error";
+            timeout = 10000;
         }
-        
+
         showSnackbar(msg, color, timeout);
         
         // Fallback: Create straight line
@@ -1808,8 +1808,55 @@ const goHome = () => {
   router.push('/');
 };
 
+const checkRoutingServices = async () => {
+    try {
+        const status = await invoke('check_routing_services');
+        console.log("[Routing check]", status);
+        
+        let msg = "";
+        let color = "warning";
+        let timeout = 8000;
+
+        const gh = status.graphhopper;
+        const ors = status.ors;
+
+        if (gh === 'EMPTY' && ors === 'EMPTY') {
+            msg = "Erreur : Les clés API GraphHopper et OpenRouteService sont manquantes.";
+            color = "error";
+            timeout = 10000;
+        } else if (gh === 'INVALID' && ors === 'EMPTY') {
+            msg = "Erreur : Clé GraphHopper invalide et clé OpenRouteService manquante.";
+            color = "error";
+            timeout = 10000;
+        } else if (gh === 'EMPTY' && ors === 'INVALID') {
+            msg = "Erreur : Clé GraphHopper manquante et clé OpenRouteService invalide.";
+            color = "error";
+            timeout = 10000;
+        } else if (gh === 'INVALID' && ors === 'INVALID') {
+            msg = "Erreur : Les deux clés API (GraphHopper et OpenRouteService) sont invalides.";
+            color = "error";
+            timeout = 10000;
+        } else if (gh === 'VALID' && ors === 'EMPTY') {
+            msg = "Avertissement : OpenRouteService n'a pas de clé API (Pas de backup).";
+        } else if (gh === 'VALID' && ors === 'INVALID') {
+            msg = "Avertissement : La clé OpenRouteService est invalide (Pas de backup).";
+        } else if (gh === 'EMPTY' && ors === 'VALID') {
+            msg = "Avertissement : GraphHopper n'a pas de clé API (Sera ignoré).";
+        } else if (gh === 'INVALID' && ors === 'VALID') {
+            msg = "Avertissement : La clé GraphHopper est invalide (Sera ignoré).";
+        }
+
+        if (msg) {
+            showSnackbar(msg, color, timeout);
+        }
+    } catch (e) {
+        console.error("Routing check failed", e);
+    }
+};
+
 onMounted(() => {
   initMap();
+  checkRoutingServices();
 });
 
 onUnmounted(() => {
