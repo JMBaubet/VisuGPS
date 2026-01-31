@@ -10,7 +10,7 @@ Le paramètre `sensibiliteTilt` ajuste la vitesse à laquelle la caméra s'incli
 
 -   **Libellé**: Sensibilité de l'inclinaison (tilt)
 -   **Type**: Entier
--   **Valeur par défaut**: 50
+-   **Valeur par défaut**: 25
 -   **Minimum**: 10
 -   **Maximum**: 200
 
@@ -30,6 +30,6 @@ L'ajustement de la sensibilité de l'inclinaison est essentiel pour permettre à
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (50)** : Cette valeur offre une inclinaison modérée, permettant un contrôle fin de l'angle de vue.
+-   **Valeur par défaut (25)** : Cette valeur offre une inclinaison modérée, permettant un contrôle fin de l'angle de vue.
 -   **Adapter aux préférences** : Les préférences de sensibilité sont très personnelles. Il est recommandé d'expérimenter pour trouver la valeur la plus confortable.
 

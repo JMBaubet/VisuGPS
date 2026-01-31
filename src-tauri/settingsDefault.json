@@ -2422,7 +2422,7 @@
                 "libelle": "Sensibilité du zoom (1-500)",
                 "description": "Facteur de sensibilité pour le zoom de la caméra. Une valeur de 100 correspond à la sensibilité par défaut.",
                 "type": "entier",
-                "defaut": 50,
+                "defaut": 150,
                 "min": 10,
                 "max": 200,
                 "doc": "docs/DocParametrage/Systeme/Telecommande/sensibiliteZoom.md"
@@ -2432,7 +2432,7 @@
                 "libelle": "Sensibilité de l'inclinaison (tilt)",
                 "description": "Facteur de sensibilité pour l'inclinaison (tilt) de la caméra.",
                 "type": "entier",
-                "defaut": 50,
+                "defaut": 25,
                 "min": 10,
                 "max": 200,
                 "doc": "docs/DocParametrage/Systeme/Telecommande/sensibiliteTilt.md"
