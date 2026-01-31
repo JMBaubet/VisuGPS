@@ -20,6 +20,9 @@ pub fn init_remote_control(
     let app_handle_clone = app.handle().clone();
     let settings_clone = settings.clone();
 
+    // Nettoyage des anciennes télécommandes au démarrage
+    prune_remotes(_app_env_path, settings);
+
     let remote_port = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.parametres.Port")
         .and_then(|v| v.as_i64())
         .map(|p| p as u16)
@@ -99,6 +102,19 @@ pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
 
     let encoded = general_purpose::STANDARD.encode(buffer.get_ref());
     Ok(format!("data:image/png;base64,{}", encoded))
+}
+
+pub fn prune_remotes(app_env_path: &PathBuf, settings: &Value) {
+    let auth_days = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.groupes.Rétention.parametres.autorisees_retention_days")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(7);
+        
+    let black_days = get_setting_value(settings, "data.groupes.Système.groupes.Télécommande.groupes.Rétention.parametres.interdites_retention_days")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(14);
+
+    let _ = crate::remote_clients::prune_authorized_clients(app_env_path, auth_days);
+    let _ = crate::remote_blacklist::prune_blacklisted_clients(app_env_path, black_days);
 }
 
 

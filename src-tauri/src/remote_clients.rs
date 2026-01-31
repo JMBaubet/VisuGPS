@@ -107,3 +107,25 @@ pub fn remove_authorized_client(app_env_path: &PathBuf, client_id_to_remove: &st
     
     Ok(())
 }
+
+pub fn prune_authorized_clients(app_env_path: &PathBuf, max_days: i64) -> Result<(), String> {
+    let mut clients_file = read_remote_clients(app_env_path)?;
+    let now = chrono::Utc::now();
+    let initial_len = clients_file.clients.len();
+    
+    clients_file.clients.retain(|c| {
+        if let Ok(last_seen) = chrono::DateTime::parse_from_rfc3339(&c.last_seen) {
+            let duration = now.signed_duration_since(last_seen.with_timezone(&chrono::Utc));
+            duration.num_days() < max_days
+        } else {
+            true
+        }
+    });
+
+    if clients_file.clients.len() < initial_len {
+        write_remote_clients(app_env_path, &clients_file)?;
+        info!("Pruned {} old remote clients", initial_len - clients_file.clients.len());
+    }
+    
+    Ok(())
+}

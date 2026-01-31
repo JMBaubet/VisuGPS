@@ -307,6 +307,41 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+struct PurgeResponse {
+    message: String,
+    success: bool,
+    already_empty: bool,
+}
+
+#[tauri::command]
+fn is_blacklist_empty(state: State<Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().unwrap();
+    let blacklist = crate::remote_blacklist::read_blacklist_file(&state.app_env_path)?;
+    Ok(blacklist.blacklisted_clients.is_empty())
+}
+
+#[tauri::command]
+fn purge_remote_blacklist(state: State<Mutex<AppState>>) -> Result<PurgeResponse, String> {
+    let state = state.lock().unwrap();
+    let blacklist = crate::remote_blacklist::read_blacklist_file(&state.app_env_path)?;
+    
+    if blacklist.blacklisted_clients.is_empty() {
+        return Ok(PurgeResponse {
+            message: "La liste noire est déjà vide.".to_string(),
+            success: true,
+            already_empty: true,
+        });
+    }
+
+    crate::remote_blacklist::clear_blacklist(&state.app_env_path)?;
+    Ok(PurgeResponse {
+        message: "La liste noire a été purgée avec succès.".to_string(),
+        success: true,
+        already_empty: false,
+    })
+}
+
 #[tauri::command]
 fn delete_execution_mode(
     app: AppHandle,
@@ -2553,6 +2588,8 @@ pub fn run() {
             create_execution_mode,
             delete_execution_mode,
             select_execution_mode,
+            purge_remote_blacklist,
+            is_blacklist_empty,
             update_setting, // This now takes app_handle
             analyze_gpx_file,
             commit_new_circuit,

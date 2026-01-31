@@ -2437,6 +2437,35 @@
                 "max": 200,
                 "doc": "docs/DocParametrage/Systeme/Telecommande/sensibiliteTilt.md"
               }
+            ],
+            "groupes": [
+              {
+                "libelle": "Rétention",
+                "parametres": [
+                  {
+                    "identifiant": "autorisees_retention_days",
+                    "libelle": "Rétention des télécommandes autorisées",
+                    "description": "Nombre de jours pendant lesquels une télécommande autorisée est conservée sans connexion (1-30 jours).",
+                    "type": "entier",
+                    "defaut": 7,
+                    "min": 1,
+                    "max": 30,
+                    "unite": "jours",
+                    "doc": "docs/DocParametrage/Systeme/Telecommande/Retention/autorisees.md"
+                  },
+                  {
+                    "identifiant": "interdites_retention_days",
+                    "libelle": "Rétention des télécommandes interdites",
+                    "description": "Nombre de jours pendant lesquels une télécommande refusée est conservée dans la liste noire (7-60 jours).",
+                    "type": "entier",
+                    "defaut": 14,
+                    "min": 7,
+                    "max": 60,
+                    "unite": "jours",
+                    "doc": "docs/DocParametrage/Systeme/Telecommande/Retention/interdites.md"
+                  }
+                ]
+              }
             ]
           }
         ]
