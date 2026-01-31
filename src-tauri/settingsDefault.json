@@ -836,6 +836,7 @@
                 "parametres": [
                   {
                     "identifiant": "couleurPointDeControle",
+                    "libelle": "Couleur des points de contrôle",
                     "description": "Couleur des indicateurs de points de contrôle sur le graphe.",
                     "type": "couleur",
                     "defaut": "purple",
