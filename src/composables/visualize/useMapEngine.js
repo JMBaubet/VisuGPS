@@ -6,7 +6,7 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
     const isMapLoaded = ref(false);
 
     // Fonction flyTo sous forme de Promise pour séquencer les animations
-    const flyToPromise = (options) => {
+    const flyToPromise = (options, overrideOptions = {}) => {
         return new Promise((resolve) => {
             if (!map.value) {
                 resolve();
@@ -14,7 +14,7 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
             }
             map.value.flyTo({
                 ...options,
-                essential: true, // ensure authentication
+                ...overrideOptions
             });
             map.value.once('moveend', () => {
                 resolve();

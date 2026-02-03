@@ -304,12 +304,13 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 ### 5.3. Lancement
 **Description** : Séquence d'introduction cinématographique (Plongée depuis l'espace vers le circuit).
 *   [Style de la carte au lancement](../DocParametrage/Visualisation/Lancement/styleLancement.md)
-*   [Centre initial](../DocParametrage/Visualisation/Lancement/centerEurope.md)
 *   [Zoom initial](../DocParametrage/Visualisation/Lancement/zoomEurope.md)
 *   [Durée de l'animation vers la trace au départ](../DocParametrage/Visualisation/Lancement/durationEuropeToTrace.md)
 *   [Durée de la pause sur la trace](../DocParametrage/Visualisation/Lancement/pauseBeforeStart.md)
+*   [Reprise automatique après vue trace](../DocParametrage/Visualisation/Lancement/repriseAutoVueTrace.md)
 *   [Durée de l'animation vers le départ](../DocParametrage/Visualisation/Lancement/durationTraceToStart.md)
 *   [Durée de la pause au Km 0](../DocParametrage/Visualisation/Lancement/pauseAuKm0.md)
+*   [Reprise automatique au Km 0](../DocParametrage/Visualisation/Lancement/repriseAutoKm0.md)
 
 ### 5.4. Lecture
 **Description** : Paramètres de contrôle de la vitesse et comportement dynamique pendant le mouvement.

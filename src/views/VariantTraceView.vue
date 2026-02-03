@@ -345,15 +345,27 @@ const initMap = async () => {
     console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.routingProfile}"`);
     console.log(`[Init] Using routing service: ${variantConfig.routingService}`);
 
-    // Watch for profile changes to reset error state
-    // Watch moved for better scoping
+    // Load the trace FIRST to get its center for map initialization
+    try {
+        const geojson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+        masterTraceGeojson.value = geojson;
+        console.log(`[Init] Master trace loaded: ${geojson.coordinates.length} points`);
+    } catch (e) {
+        console.error("Failed to load trace", e);
+        isLoading.value = false;
+        return;
+    }
+    
+    // Calculate trace center for map initialization
+    const traceCenter = turf.center(masterTraceGeojson.value).geometry.coordinates;
+    console.log(`[Init] Trace center: [${traceCenter}]`);
 
     mapboxgl.accessToken = token;
 
     map.value = new mapboxgl.Map({
       container: 'map-container',
       style: getSettingValue('Variante/Edition/Carte/style') || 'mapbox://styles/mapbox/outdoors-v12',
-      center: [2.2137, 46.2276],
+      center: traceCenter, // Use trace center instead of France center
       zoom: 5
     });
 
@@ -533,9 +545,14 @@ const initMap = async () => {
 
 const loadCircuitTrace = async () => {
   try {
-     const geojson = await invoke('read_line_string_file', { circuitId: props.circuitId });
-     masterTraceGeojson.value = geojson;
-     console.log(`[Init] Master trace loaded: ${geojson.coordinates.length} points`);
+     // Trace already loaded in initMap(), just use it
+     const geojson = masterTraceGeojson.value;
+     if (!geojson) {
+         console.error("[loadCircuitTrace] Trace not loaded");
+         return;
+     }
+     
+     console.log(`[loadCircuitTrace] Using already loaded trace: ${geojson.coordinates.length} points`);
      
      const originalColor = resolveColor(getSettingValue('Variante/Edition/Trace Maîtresse/couleur'), '#BDBDBD');
      const originalWidth = getSettingValue('Variante/Edition/Trace Maîtresse/largeur') || 4;
@@ -566,7 +583,7 @@ const loadCircuitTrace = async () => {
              }
          });
          
-         // Fit bounds
+         // Fit bounds to show the entire trace
          const coords = geojson.coordinates;
          const bounds = new mapboxgl.LngLatBounds(coords[0], coords[0]);
          for (const coord of coords) {
@@ -575,7 +592,7 @@ const loadCircuitTrace = async () => {
          map.value.fitBounds(bounds, { padding: 50 });
      }
   } catch (e) {
-      console.error("Failed to load trace", e);
+      console.error("Failed to setup trace layer", e);
   }
 };
 

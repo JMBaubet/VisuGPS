@@ -4,13 +4,13 @@
     :is-cursor-hidden="isCursorHidden"
     :is-center-marker-visible="isCenterMarkerVisible"
     :center-marker-color="couleurCroixCentrale"
-    :show-back-button="!isInitializing && isBackButtonVisibleFinal"
+    :show-back-button="showWidgets && isBackButtonVisibleFinal"
     @go-back="goBack"
     @register-map-container="(el) => { mapContainer = el }"
   />
 
   <VisualizeInfoDisplay
-    :is-visible="!isInitializing"
+    :is-visible="showWidgets"
     :show-distance="isDistanceDisplayVisible"
     :distance-display="distanceDisplay"
     :total-distance="totalDistanceRef"
@@ -22,7 +22,7 @@
   <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
         <WeatherWidgetDynamic 
-            v-if="!isInitializing && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
+            v-if="showWidgets && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
             :weather="currentWeather" 
             :bearing="currentCameraBearing" 
             :trace-bearing="currentTraceBearing" 
@@ -48,8 +48,8 @@
   </div>
 
   <VisualizeControls
-    v-if="!isInitializing"
-    :is-visible="!isInitializing"
+    v-if="showWidgets"
+    :is-visible="showWidgets"
     :is-altitude-visible="isAltitudeVisible"
     v-model:is-paused="isPaused"
     :is-animation-finished="isAnimationFinished"
@@ -177,12 +177,13 @@ const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styl
 const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/styleLancement'));
 // Use Edition setting as verified source
 const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration')); 
-const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
 const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
 const durationEuropeToTrace = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationEuropeToTrace')));
 const durationTraceToStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationTraceToStart')));
 const pauseBeforeStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseBeforeStart')));
+const repriseAutoVueTrace = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoVueTrace'));
 const pauseAuKm0 = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseAuKm0'))); 
+const repriseAutoKm0 = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoKm0'));
 const flyToKm0Duration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToKm0Duration'))); // Fixed path
 const flyToGlobalDuration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'))); // Fixed path
 const delayAfterAnimationEnd = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd'))); // Fixed path
@@ -287,6 +288,7 @@ const { updateCameraPosition } = useCameraInterpolator(map);
 
 // --- Legacy State ---
 const isInitializing = ref(true);
+const showWidgets = ref(false); // Contrôle séparé pour l'affichage des widgets
 const avancementCommunes = ref('Non calculé');
 const activePopups = new Map();
 let unlistenFunctions = [];
@@ -453,8 +455,11 @@ const initializeVisualization = async () => {
 
         const startPoint = trackingPointsWithDistanceRef.value[0]; 
         
+        // Calculer le centre de la trace pour l'initialisation
+        const traceCenter = turf.center(lineStringRef.value).geometry.coordinates;
+        
         // Determine Initial Map State
-        let initialCenter = centerEurope.value;
+        let initialCenter = traceCenter; // Utiliser le centre de la trace au lieu de Paris
         let initialZoom = zoomEurope.value;
         const isDirectStart = route.query.directStart === 'true';
         const hasCameraParams = route.query.lat && route.query.lng && route.query.zoom;
@@ -474,7 +479,7 @@ const initializeVisualization = async () => {
         const mapInstance = await initMapEngine(initialCenter, initialZoom, styleToUse);
         if(!mapInstance) throw new Error("Map failed to init");
         
-        mapInstance.setMinZoom(zoomMinimum.value);
+        // setMinZoom sera appliqué APRÈS la séquence initiale pour éviter d'interférer avec le zoom 5
 
         // Detect manual camera movement during pause
         mapInstance.on('movestart', (e) => {
@@ -512,19 +517,68 @@ const initializeVisualization = async () => {
              // Direct Start: Skip Global View logic
              animationState.value = 'Vol_Vers_Depart';
              
+             // Afficher les widgets immédiatement en mode Direct Start
+             showWidgets.value = true;
+             
+             // Appliquer le zoom minimum
+             mapInstance.setMinZoom(zoomMinimum.value);
+             
              // No need to switch style, we initialized with it.
         } else {
-            // Normal Sequence
+            // Normal Sequence - Zoom progressif depuis le centre de la trace
             animationState.value = 'Vol_Vers_Vue_Globale';
+            
+            // Calculer le zoom cible pour voir toute la trace
             const traceBbox = turf.bbox(lineStringRef.value);
             const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
             
+            console.log(`[DEBUG] Zoom progressif : ${zoomEurope.value} → ${globalView.zoom} en ${durationEuropeToTrace.value}ms`);
+            
             isFlytoActive.value = true;
-            await flyToPromise(globalView, { duration: durationEuropeToTrace.value });
+            
+            // Démarrer le flyTo en arrière-plan (carte encore cachée)
+            // NE PAS spécifier de centre pour éviter tout ajustement par Mapbox
+            const flyToTask = flyToPromise({
+                zoom: globalView.zoom,
+                bearing: 0,
+                pitch: 0
+            }, { duration: durationEuropeToTrace.value });
+            
+            // Attendre 200ms que le zoom commence vraiment, puis révéler la carte
+            await new Promise(r => setTimeout(r, 200));
+            isInitializing.value = false;
+            
+            // Attendre la fin du flyTo
+            await flyToTask;
+            
             isFlytoActive.value = false;
+            
+            // Appliquer le zoom minimum MAINTENANT que la séquence initiale est terminée
+            mapInstance.setMinZoom(zoomMinimum.value);
+            
+            // Afficher les widgets maintenant que le zoom est terminé
+            showWidgets.value = true;
+
 
             animationState.value = 'Pause_Observation';
-            await new Promise(r => setTimeout(r, pauseBeforeStart.value));
+            
+            // Attendre la pause configurée ou indéfiniment si reprise auto désactivée
+            if (repriseAutoVueTrace.value) {
+                await new Promise(r => setTimeout(r, pauseBeforeStart.value));
+            } else {
+                // Pause manuelle : attendre que le présentateur appuie sur Play
+                isPaused.value = true;
+                await new Promise(resolve => {
+                    const checkResume = () => {
+                        if (!isPaused.value) {
+                            resolve();
+                        } else {
+                            setTimeout(checkResume, 100);
+                        }
+                    };
+                    checkResume();
+                });
+            }
             
             animationState.value = 'Vol_Vers_Depart';
             if (mapStyle.value !== styleLancement.value) {
@@ -555,29 +609,42 @@ const initializeVisualization = async () => {
         }
 
         animationState.value = 'En_Pause_au_Depart';
-        isInitializing.value = false;
         enableInteraction();
         startAnimation(animateLoop); 
         
-        if (pauseAuKm0.value > 0) {
+        if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
              isPaused.value = true;
-             // Wait for delay OR user interaction (isPaused becoming false)
-             await new Promise(resolve => {
-                 let timer = setTimeout(() => {
-                     stopWatch();
-                     resolve();
-                 }, pauseAuKm0.value);
-                 
-                 const stopWatch = watch(isPaused, (newVal) => {
-                     if (!newVal) { // User clicked Play
-                         clearTimeout(timer);
+             
+             // Attendre selon la configuration
+             if (repriseAutoKm0.value) {
+                 // Wait for delay OR user interaction (isPaused becoming false)
+                 await new Promise(resolve => {
+                     let timer = setTimeout(() => {
                          stopWatch();
                          resolve();
-                     }
+                     }, pauseAuKm0.value);
+                     
+                     const stopWatch = watch(isPaused, (newVal) => {
+                         if (!newVal) { // User clicked Play
+                             clearTimeout(timer);
+                             stopWatch();
+                             resolve();
+                         }
+                     });
                  });
-             });
-             // Ensure paused is false if timeout expired naturally
-             if (isPaused.value) isPaused.value = false;
+                 // Ensure paused is false if timeout expired naturally
+                 if (isPaused.value) isPaused.value = false;
+             } else {
+                 // Pause manuelle : attendre indéfiniment que le présentateur appuie sur Play
+                 await new Promise(resolve => {
+                     const stopWatch = watch(isPaused, (newVal) => {
+                         if (!newVal) {
+                             stopWatch();
+                             resolve();
+                         }
+                     });
+                 });
+             }
         }
 
     } catch (error) {

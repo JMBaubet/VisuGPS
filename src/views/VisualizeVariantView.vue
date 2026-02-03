@@ -209,12 +209,13 @@ const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styl
 const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/styleLancement'));
 // Use Edition setting as verified source
 const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration')); 
-const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
 const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
 const durationEuropeToTrace = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationEuropeToTrace')));
 const durationTraceToStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationTraceToStart')));
 const pauseBeforeStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseBeforeStart')));
+const repriseAutoVueTrace = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoVueTrace'));
 const pauseAuKm0 = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseAuKm0'))); 
+const repriseAutoKm0 = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoKm0'));
 const flyToKm0Duration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToKm0Duration'))); // Fixed path
 const flyToGlobalDuration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'))); // Fixed path
 const delayAfterAnimationEnd = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd'))); // Fixed path
@@ -465,8 +466,36 @@ const togglePlayPauseOrReset = () => {
 const initializeVisualization = async () => {
     resetTime(); 
     try {
-        // 0. Map Init (Pre-load to avoid black screen)
-        let initialCenter = centerEurope.value;
+        // 0.5 Ensure we have a variant ID
+        if (!selectedVariantId.value) {
+             showSnackbar("Aucune variante spécifiée.", "error");
+             setTimeout(() => goBack(), 1000);
+             return;
+        }
+
+        // 1. Load Data FIRST (before map init to get trace center)
+        const { circuit } = await loadCircuitData(props.circuitId); // Metadata
+        currentCircuitRef.value = circuit;
+        if (circuit) avancementCommunes.value = circuit.avancementCommunes;
+
+        // A. Load MASTER Trace (Source of truth for original segments - High Resolution)
+        const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+        masterTraceGeoJson.value = masterGeoJson;
+        
+        // Calculate Master Trace Total Distance (using Turf)
+        if (masterGeoJson && masterGeoJson.coordinates) {
+             const line = turf.lineString(masterGeoJson.coordinates);
+             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+        } else if (masterGeoJson && masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
+             const line = turf.lineString(masterGeoJson.geometry.coordinates);
+             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+        }
+        
+        // Calculate trace center for map initialization
+        const traceCenter = turf.center(masterGeoJson).geometry.coordinates;
+        
+        // 0. Map Init (Pre-load to avoid black screen) - Now using trace center
+        let initialCenter = traceCenter; // Use trace center instead of Paris
         let initialZoom = zoomEurope.value;
         if (route.query.lat && route.query.lng && route.query.zoom) {
              initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
@@ -492,31 +521,6 @@ const initializeVisualization = async () => {
                 });
             }
             startBearingTracking();
-        }
-
-        // 0.5 Ensure we have a variant ID
-        if (!selectedVariantId.value) {
-             showSnackbar("Aucune variante spécifiée.", "error");
-             setTimeout(() => goBack(), 1000);
-             return;
-        }
-
-        // 1. Load Data
-        const { circuit } = await loadCircuitData(props.circuitId); // Metadata
-        currentCircuitRef.value = circuit;
-        if (circuit) avancementCommunes.value = circuit.avancementCommunes;
-
-        // A. Load MASTER Trace (Source of truth for original segments - High Resolution)
-        const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
-        masterTraceGeoJson.value = masterGeoJson;
-        
-        // Calculate Master Trace Total Distance (using Turf)
-        if (masterGeoJson && masterGeoJson.coordinates) {
-             const line = turf.lineString(masterGeoJson.coordinates);
-             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
-        } else if (masterGeoJson && masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
-             const line = turf.lineString(masterGeoJson.geometry.coordinates);
-             masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
         }
         
         // A.0 Load MASTER Tracking Points (for Altitude Profile)
@@ -848,15 +852,26 @@ const initializeVisualization = async () => {
         enableInteraction();
         startAnimation(animateLoop); 
         
-        if (pauseAuKm0.value > 0) {
+        if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
              isPaused.value = true;
-             await new Promise(resolve => {
-                 let timer = setTimeout(() => { stopWatch(); resolve(); }, pauseAuKm0.value);
-                 const stopWatch = watch(isPaused, (newVal) => {
-                     if (!newVal) { clearTimeout(timer); stopWatch(); resolve(); }
+             
+             // Attendre selon la configuration
+             if (repriseAutoKm0.value) {
+                 await new Promise(resolve => {
+                     let timer = setTimeout(() => { stopWatch(); resolve(); }, pauseAuKm0.value);
+                     const stopWatch = watch(isPaused, (newVal) => {
+                         if (!newVal) { clearTimeout(timer); stopWatch(); resolve(); }
+                     });
                  });
-             });
-             if (isPaused.value) isPaused.value = false;
+                 if (isPaused.value) isPaused.value = false;
+             } else {
+                 // Pause manuelle : attendre indéfiniment
+                 await new Promise(resolve => {
+                     const stopWatch = watch(isPaused, (newVal) => {
+                         if (!newVal) { stopWatch(); resolve(); }
+                     });
+                 });
+             }
         }
 
     } catch (error) {

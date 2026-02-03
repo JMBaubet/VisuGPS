@@ -1734,17 +1734,6 @@
                 "doc": "docs/DocParametrage/Visualisation/Lancement/styleLancement.md"
               },
               {
-                "doc": "docs/DocParametrage/Visualisation/Lancement/centerEurope.md",
-                "defaut": [
-                  2.3522,
-                  48.8566
-                ],
-                "description": "Coordonnées (longitude, latitude) du centre de l'Europe pour la vue initiale.",
-                "identifiant": "centerEurope",
-                "libelle": "Centre initial",
-                "type": "coord"
-              },
-              {
                 "defaut": 5,
                 "description": "Niveau de zoom initial pour la vue de l'Europe.",
                 "identifiant": "zoomEurope",
@@ -1779,6 +1768,14 @@
                 "doc": "docs/DocParametrage/Visualisation/Lancement/pauseBeforeStart.md"
               },
               {
+                "identifiant": "repriseAutoVueTrace",
+                "libelle": "Reprise automatique après vue trace",
+                "description": "Si activé, l'animation reprend automatiquement après la pause sur la vue globale de la trace. Si désactivé, le présentateur doit relancer manuellement.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Lancement/repriseAutoVueTrace.md"
+              },
+              {
                 "defaut": 2.0,
                 "description": "Durée en secondes de l'animation de survol de la vue globale de la trace vers le point de départ (km 0).",
                 "identifiant": "durationTraceToStart",
@@ -1803,6 +1800,14 @@
                 "critique": false,
                 "doc": "docs/DocParametrage/Visualisation/Lancement/pauseAuKm0.md",
                 "unite": "sec"
+              },
+              {
+                "identifiant": "repriseAutoKm0",
+                "libelle": "Reprise automatique au Km 0",
+                "description": "Si activé, l'animation démarre automatiquement après la pause au Km 0. Si désactivé, le présentateur doit lancer manuellement.",
+                "type": "booleen",
+                "defaut": true,
+                "doc": "docs/DocParametrage/Visualisation/Lancement/repriseAutoKm0.md"
               }
             ]
           },
