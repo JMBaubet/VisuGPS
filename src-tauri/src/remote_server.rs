@@ -9,6 +9,7 @@ use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
 use tokio::sync::broadcast;
 use tauri::{AppHandle, Manager, Emitter};
 
@@ -336,13 +337,103 @@ async fn state_handler(
     (StatusCode::OK, Json(response))
 }
 
+/// Structure pour l'élément de liste de doc
+#[derive(Serialize)]
+struct DocItem {
+    filename: String,
+    title: String,
+}
+
+/// Handler pour GET /api/docs
+async fn docs_list_handler(State(state): State<RemoteServerState>) -> impl IntoResponse {
+    let app_handle = &state.app_handle;
+    
+    // Pointer vers la racine "docs" au lieu de "DocUtilisateur"
+    let docs_path = if cfg!(debug_assertions) {
+         PathBuf::from("../docs")
+    } else {
+         app_handle.path().resource_dir().unwrap_or_default().join("docs")
+    };
+
+    debug!("Listing docs from {:?}", docs_path);
+
+    let mut docs: Vec<DocItem> = Vec::new();
+    let mut stack = vec![docs_path.clone()];
+
+    while let Some(dir) = stack.pop() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                    // Calculer le chemin relatif pour l'ID/Filename
+                    // ex: DocUtilisateur/index.md
+                    if let Ok(rel_path) = path.strip_prefix(&docs_path) {
+                         let filename_str = rel_path.to_string_lossy().into_owned();
+                         // Normaliser les slashs pour Windows/Unix uniformité
+                         let filename_normalized = filename_str.replace('\\', "/");
+
+                         // Essayer de lire le titre (# Title)
+                         let title = if let Ok(content) = std::fs::read_to_string(&path) {
+                             content.lines().next()
+                                 .filter(|l| l.starts_with("# "))
+                                 .map(|l| l[2..].trim().to_string())
+                                 .unwrap_or_else(|| filename_normalized.clone())
+                         } else {
+                             filename_normalized.clone()
+                         };
+
+                         docs.push(DocItem {
+                             filename: filename_normalized,
+                             title,
+                         });
+                    }
+                }
+            }
+        }
+    }
+    
+    // Tri alphabétique par filename pour l'instant
+    docs.sort_by(|a, b| a.filename.cmp(&b.filename));
+
+    (StatusCode::OK, Json(docs))
+}
+
+/// Handler pour GET /api/docs/:filename
+async fn docs_content_handler(
+    State(state): State<RemoteServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    // Sécurité basique : pas de .. pour éviter de remonter dans l'arborescence serveur
+    // MAIS, on doit autoriser les slashs et backslashs pour les sous-dossiers
+    if filename.contains("..") {
+         return (StatusCode::BAD_REQUEST, "Invalid filename").into_response();
+    }
+
+    let app_handle = &state.app_handle;
+    let docs_path = if cfg!(debug_assertions) {
+         PathBuf::from("../docs")
+    } else {
+         app_handle.path().resource_dir().unwrap_or_default().join("docs")
+    };
+
+    let file_path = docs_path.join(&filename);
+
+    match std::fs::read_to_string(file_path) {
+        Ok(content) => (StatusCode::OK, content).into_response(),
+        Err(_) => (StatusCode::NOT_FOUND, "Document not found").into_response(),
+    }
+}
+
+
 use tower_http::services::ServeDir;
-use std::path::PathBuf;
+
 
 // ... imports existants ...
 
 /// Créer le routeur Axum avec toutes les routes
-pub fn create_router(state: RemoteServerState, static_path: PathBuf) -> Router {
+pub fn create_router(state: RemoteServerState, static_path: PathBuf, docs_root_path: PathBuf) -> Router {
     Router::new()
         // Routes API
         .route("/api/health", get(healthcheck_handler))
@@ -351,6 +442,10 @@ pub fn create_router(state: RemoteServerState, static_path: PathBuf) -> Router {
         .route("/api/pair", post(pair_handler))
         .route("/api/command", post(command_handler))
         .route("/api/state", get(state_handler))
+        .route("/api/docs", get(docs_list_handler))
+        .route("/api/docs/*filename", get(docs_content_handler))
+        // Servir les fichiers annexes de la documentation (images, etc.)
+        .nest_service("/static-docs", ServeDir::new(docs_root_path))
         // Servir les fichiers statiques (fallback)
         .nest_service("/", ServeDir::new(static_path)) 
         // État partagé unique
@@ -393,7 +488,15 @@ pub async fn start_axum_server(
     
     info!("Serving remote client files from: {:?}", static_path);
 
-    let app = create_router(server_state, static_path);
+    // Déterminer le chemin des docs pour le static serving
+    let docs_path = if cfg!(debug_assertions) {
+         PathBuf::from("../docs")
+    } else {
+         app_handle.path().resource_dir()?.join("docs")
+    };
+    info!("Serving docs static files from: {:?}", docs_path);
+
+    let app = create_router(server_state, static_path, docs_path);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     debug!("Démarrage du serveur Remote Control Axum sur {}", addr);

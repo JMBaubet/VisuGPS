@@ -35,6 +35,12 @@ export default defineConfig({
   build: {
     outDir: '../remote_client',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        documentation: fileURLToPath(new URL('./documentation.html', import.meta.url)),
+      },
+    },
   },
   server: {
     port: 3000,

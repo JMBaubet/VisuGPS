@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "markdown-it": "^14.1.0",
+    "mermaid": "^11.12.2",
     "nosleep.js": "^0.12.0",
     "pinia": "^3.0.4",
     "sass": "^1.97.3",
