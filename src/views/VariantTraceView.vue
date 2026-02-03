@@ -776,7 +776,7 @@ const handleMapClick = (e) => {
             routingLocked: false, // New flag to distinguish first creation from later edits
             routingService: variantConfig.routingService,
             routingProfile: variantConfig.routingProfile,
-            routingStatus: 'SUCCESS'
+            routingStatus: null
         };
         modifications.value.push(activeMod);
     }
@@ -1177,8 +1177,10 @@ const handleDeletePoint = (modIndex, pIndex) => {
     // But since we splice, we just check if it was finalized.
     // Actually, logic is simpler: if we modify points of a finalized segment, it becomes un-finalized.
     
-    modifications.value[modIndex].finalized = false;
-    modifications.value[modIndex].points.splice(pIndex, 1);
+    const mod = modifications.value[modIndex];
+    mod.finalized = false;
+    mod.routingStatus = null;
+    mod.points.splice(pIndex, 1);
     
     isModified.value = true;
     if (modifications.value[modIndex].points.length < 2) {
@@ -1270,7 +1272,9 @@ const generatePreviewForMod = async (modIndex) => {
                  showSnackbar(routeResult.warning, "warning");
              }
         }
-        mod.routingStatus = status;
+        if (status !== 'SUCCESS' || mod.finalized) {
+            mod.routingStatus = status;
+        }
 
         mod.preview = JSON.parse(routeResult.geojson);
         

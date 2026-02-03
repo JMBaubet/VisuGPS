@@ -4,6 +4,22 @@ Le constructeur de parcours vous permet de modifier une trace existante (trace m
 
 [< Retour au guide d'exploitation](./exploitation.md)
 
+## Accéder au Constructeur de Parcours
+
+Pour créer ou modifier des variantes d'un circuit :
+1.  Depuis l'écran d'accueil, repérez le circuit souhaité.
+2.  Cliquez sur le badge **Variante** (ou **X Variantes**) 
+    <span style="display: inline-flex; align-items: center; background-color: #757575; color: white; padding: 0 10px; border-radius: 16px; font-size: 11px; font-weight: 500; font-family: Roboto, sans-serif; height: 20px; vertical-align: middle; cursor: pointer;">
+        <img src="https://api.iconify.design/mdi/plus.svg?color=white&width=14" style="margin-right: 4px;"> Variante
+    </span>
+    ou
+    <span style="display: inline-flex; align-items: center; background-color: #2196F3; color: white; padding: 0 10px; border-radius: 16px; font-size: 11px; font-weight: 500; font-family: Roboto, sans-serif; height: 20px; vertical-align: middle; cursor: pointer;">
+        <img src="https://api.iconify.design/mdi/source-branch.svg?color=white&width=14" style="margin-right: 4px;"> 2 Variantes
+    </span>
+    situé à droite des statistiques de distance/dénivelé.
+    *   *Note : Si le bouton est désactivé, vous devez d'abord finaliser l'édition de la trace maîtresse (atteindre 100% de progression caméra).*
+3.  L'interface de création s'ouvre, vous permettant de dessiner votre nouveau parcours.
+
 ## Présentation de l'interface
 
 L'interface est divisée en trois zones principales :
@@ -14,18 +30,22 @@ graph TD
     C[Barre latérale droite] --> B
 ```
 
-### La Barre d'outils
+### La Barre d'outils supérieure
 
 ![Barre d'outils des Variantes](../images/toolbar_variant.svg)
 
-1.  **Bouton Accueil** : Pour revenir à la liste des circuits.
-2.  **Sélecteur de Mode** : Permet de choisir quel type de modification vous souhaitez effectuer.
+1.  **Bouton Accueil** <img src="https://api.iconify.design/mdi/home.svg?width=18" style="vertical-align: middle;"> : Pour revenir à la liste des circuits.
+2.  **Sélecteur de Mode** : Permet de choisir quel type de modification vous souhaitez effectuer :
+    - <img src="https://api.iconify.design/mdi/ray-start-arrow.svg?color=green&width=18" style="vertical-align: middle;"> **Départ** : Modifier le point de départ.
+    - <img src="https://api.iconify.design/mdi/source-branch.svg?color=blue&width=18" style="vertical-align: middle;"> **Segment** : Créer une déviation sur le parcours.
+    - <img src="https://api.iconify.design/mdi/ray-end-arrow.svg?color=red&width=18" style="vertical-align: middle;"> **Arrivée** : Modifier le point d'arrivée.
 3.  **Sélecteur de Profil** : Définit comment le moteur calculera le chemin entre vos points :
     - <img src="https://api.iconify.design/mdi/bike.svg?width=18" style="vertical-align: middle;"> **Cyclisme** : Route + Pistes cyclables.
     - <img src="https://api.iconify.design/mdi/bike-fast.svg?width=18" style="vertical-align: middle;"> **Route** : Chemins bitumés uniquement.
     - <img src="https://api.iconify.design/mdi/image-filter-hdr.svg?width=18" style="vertical-align: middle;"> **VTT / Chemin** : Inclus les sentiers et chemins de terre.
+4.  **Aide / Documentation** <img src="https://api.iconify.design/mdi/book-open-page-variant-outline.svg?color=blue&width=18" style="vertical-align: middle;"> : Ouvre le présent guide directement dans l'application.
 
-### La Carte Interactive
+### La Carte Interactive 3D
 
 C'est votre espace de dessin principal :
 *   **Clic gauche** : Place un point de passage ou une ancre sur la trace.
@@ -47,25 +67,29 @@ Elle regroupe tout l'historique de votre travail :
 
 Lors de l'édition, vous manipulerez différents types de points :
 
-### 1. Les Jalons (Tous les 100m)
-Ce sont des points de repère présents sur la trace maîtresse tous les **100 mètres**.
-*   **Visuel** : Cercles **blancs** par défaut, visibles uniquement en zoomant sur la carte.
-*   **Rôle** : Servent de points d'**ancrage obligatoires** pour connecter vos variantes (aimantation/snapping à moins de 30m).
+### 1. Les Jalons de Trace (Petits points oranges)
+Ce sont des points de repère calculés sur la trace maîtresse (tous les 100 mètres).
+*   **Visuel** : Petits cercles **oranges** sans contour.
+*   **Rôle** : Servent uniquement à **jalonner visuellement** le parcours original. **Ils ne peuvent pas servir de points d'ancrage.**
 
-### 2. Les Points de référence Caméra (Points oranges)
-ces points de contrôle sont des repères pour la caméra.
-*   **Visuel** : Cercles **oranges** par défaut, visibles uniquement en zoomant sur la carte.
-*   **Rôle** : Définissent le comportement exact de la caméra (point de vue) à cet endroit précis. Entre deux points, une **interpolation linéaire** (Zoom, Cap, Pitch) est appliquée pour une transition fluide.
+### 2. Les Points de Contrôle Caméra (Grands oranges)
+Points de la trace maîtresse où un réglage de caméra a été enregistré en mode édition.
+*   **Visuel** : Grands cercles **oranges** avec un **contour blanc**.
+*   **Rôle** : Ce sont les **seuls points valides pour l'ancrage** de vos variantes. Ils assurent une connexion parfaite avec la mise en scène existante.
 
-### 3. Les Points d'Ancrage (Points de connexion)
-Ce sont les points effectifs où votre variante se connecte à la trace maîtresse.
-*   **Visuel** : Points **blancs cerclés de noir**.
-*   **Rôle** : Matérialisent le début ou la fin d'un segment de variante. Ils sont créés lorsque vous cliquez sur la trace maîtresse (ou sur un Jalon).
+### 3. Les Points d'Ancrage (Points Verts et Rouges)
+Points marquant la jonction entre votre variante et la trace maîtresse.
+*   **Visuel** : Points **Verts** (pour un début de tronçon) ou **Rouges** (pour une fin de tronçon).
+*   **Rôle** : Matérialisent le point de "décrochage" (Vert) ou de "raccordement" (Rouge) au parcours original.
 
 ### 4. Les Points de passage (Points jaunes)
-Ce sont les points que vous créez manuellement pour dessiner votre variante.
-*   **Visuel** : Représentés par de petits cercles sur le tracé en cours.
-*   **Rôle** : Jalonnent votre nouveau parcours hors de la trace maîtresse et guident le calculateur d'itinéraire (GraphHopper).
+Points intermédiaires que vous placez librement sur la carte pour dessiner votre itinéraire.
+*   **Visuel** : Points **jaunes** cerclés de noir.
+*   **Rôle** : Guident le moteur de routage pour calculer le chemin entre deux ancres.
+
+### 5. Épingles de Départ et Arrivée
+*   **Visuel** : Pastilles plus larges, **vertes** pour le Départ et **rouges** pour l'Arrivée.
+*   **Rôle** : Identifient clairement les nouvelles extrémités de votre circuit.
 
 ---
 
@@ -100,9 +124,10 @@ Permet de remplacer un morceau de la trace originale par un autre chemin (contou
 
 ## Fonctionnement du Routage 
 
-Par défaut, l'application utilise un moteur de routage (GraphHopper) qui "colle" automatiquement votre tracé aux routes et chemins existants.
-
-- **Profils disponibles** :  Cyclisme <img src="https://api.iconify.design/mdi/bike.svg?width=18" style="vertical-align: middle;">, Route <img src="https://api.iconify.design/mdi/bike-fast.svg?width=18" style="vertical-align: middle;">, VTT / Chemin <img src="https://api.iconify.design/mdi/image-filter-hdr.svg?width=18" style="vertical-align: middle;">.
+- **Moteurs de routage** : L'application utilise deux services pour garantir la fiabilité du tracé :
+    1.  **GraphHopper** (Principal) : Le moteur de référence pour le calcul d'itinéraire.
+    2.  **OpenRouteService** (Backup) : Utilisé automatiquement en cas de défaillance ou d'épuisement des quotas du service principal.
+- **Profils disponibles** : Cyclisme <img src="https://api.iconify.design/mdi/bike.svg?width=18" style="vertical-align: middle;">, Route <img src="https://api.iconify.design/mdi/bike-fast.svg?width=18" style="vertical-align: middle;">, VTT / Chemin <img src="https://api.iconify.design/mdi/image-filter-hdr.svg?width=18" style="vertical-align: middle;">.
 - **Altitudes** : L'application récupère automatiquement les altitudes précises via l'IGN (en France) ou Open-Meteo (à l'étranger) dès que vous terminez une modification.
 
 ---
@@ -112,17 +137,28 @@ Par défaut, l'application utilise un moteur de routage (GraphHopper) qui "colle
 Toutes vos modifications apparaissent dans la barre latérale droite.
 
 ### Actions sur les segments
-- **Renommer** : Cliquez sur le crayon <img src="https://api.iconify.design/mdi/pencil.svg?color=blue&width=18" style="vertical-align: middle;"> pour donner un nom à la modification (ex: "Contournement Col").
-- **Visualiser** : Cliquez sur l'œil <img src="https://api.iconify.design/mdi/eye.svg?color=blue&width=18" style="vertical-align: middle;"> pour centrer la vue sur cette modification.
-- **Finaliser** (Départ/Arrivée) : Cliquez sur la coche <img src="https://api.iconify.design/mdi/check-circle-outline.svg?color=blue&width=18" style="vertical-align: middle;"> pour valider et figer le point.
-- **Supprimer** : Utilisez l'icône poubelle <img src="https://api.iconify.design/mdi/delete.svg?color=red&width=18" style="vertical-align: middle;"> pour annuler une modification.
+Chaque modification (Départ, Segment, Arrivée) listée dans la barre latérale propose plusieurs actions :
 
-### Enregistrement de la variante
-Une fois vos modifications terminées, cliquez sur le bouton <span style="background-color: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"><img src="https://api.iconify.design/mdi/content-save.svg?color=white&width=16" style="vertical-align: middle;"> Enregistrer Variante</span>.
-- Donnez un nom à votre variante (ex: "Parcours 2024 - Option Longue").
-- La variante sera alors listée en bas de la barre latérale.
+- **Centrer la vue** : Cliquez sur l'**icône de couleur** à gauche du titre pour centrer instantanément la carte sur ce tronçon.
+- **Renommer** <img src="https://api.iconify.design/mdi/pencil.svg?color=blue&width=18" style="vertical-align: middle;"> : Donnez un nom personnalisé à vos segments (ex: "Passage par le centre"). *Disponible pour les segments uniquement.*
+- **Valider (Finaliser)** <img src="https://api.iconify.design/mdi/check-circle-outline.svg?color=blue&width=18" style="vertical-align: middle;"> : Pour les tronçons "Départ" ou "Arrivée", cliquez sur la coche pour confirmer que le point est définitif.
+- **Mettre à jour le routage** <img src="https://api.iconify.design/mdi/bike.svg?width=18" style="vertical-align: middle;"> : Permet de recalculer le segment. La couleur de l'icône indique l'état du routage :
+    - <img src="https://api.iconify.design/mdi/circle.svg?color=green&width=12"> **Vert** : Routage et altitudes récupérés avec succès.
+    - <img src="https://api.iconify.design/mdi/circle.svg?color=orange&width=12"> **Orange** : Tracé réussi, mais récupération des altitudes en échec.
+    - <img src="https://api.iconify.design/mdi/circle.svg?color=red&width=12"> **Rouge** : Échec critique du routage (aucun chemin trouvé).
+    - <img src="https://api.iconify.design/mdi/circle.svg?color=blue&width=12"> **Bleu** : Segment "désynchronisé". Cela signifie que vous avez changé de profil (ex: passage de VTT à Route) dans la barre d'outils, mais que ce segment spécifique utilise encore l'ancien réglage. Cliquez sur l'icône pour le mettre à jour.
+    *Note : Le bouton est grisé si le segment est déjà à jour avec les paramètres globaux actuels.*
+- **Supprimer** <img src="https://api.iconify.design/mdi/delete.svg?color=red&width=18" style="vertical-align: middle;"> : Supprime l'intégralité de la modification choisie.
+- **Détails des points** : Cliquez n'importe où sur la ligne du segment pour dérouler la liste des points d'ancrage et de passage qui le composent. Vous pouvez supprimer des points individuels depuis cette liste.
 
-### Consultation des statistiques
+### Enregistrement et Nommage
+Le processus de sauvegarde est entièrement **automatisé**. 
+
+- **Nommage initial** : Dès que vous posez votre premier point (ancrage ou départ), une fenêtre s'affiche pour vous demander de nommer votre variante.
+- **Sauvegarde automatique** <img src="https://api.iconify.design/mdi/sync.svg?color=green&width=16" style="vertical-align: middle;"> : Chaque modification validée est enregistrée instantanément. Vous n'avez pas de bouton "Enregistrer" à presser.
+- **Récupération** : Vos variantes sont listées en bas de la barre latérale et persistent même si vous quittez l'éditeur.
+
+### Données de la variante
 En bas de la barre latérale, la section **Variantes enregistrées** liste vos créations.
 Cliquez sur l'icône Info <img src="https://api.iconify.design/mdi/information-outline.svg?color=blue&width=18" style="vertical-align: middle;"> pour afficher le comparatif :
 - **Circuit** (Gris) : Rappel des données de la trace originale.
@@ -133,6 +169,12 @@ Cliquez sur l'icône Info <img src="https://api.iconify.design/mdi/information-o
 ## 💡 Astuces
 - **Précision** : Zoomez sur la carte avant de poser une ancre sur la trace maîtresse pour être sûr de cliquer au bon endroit.
 - **Ordre** : Vous pouvez cumuler plusieurs déviations de segments sur une même variante. L'application calculera les statistiques globales automatiquement.
+
+---
+
+### 🛠️ Paramètres Liés
+Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
+* [4. 🟣 Variante](./parametres.md#4--variante)
 
 ---
 

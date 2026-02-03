@@ -31,6 +31,7 @@ Voir la documentation sur **[Les Circuits](./circuit_details.md)**.
 Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvrir les fonctionnalités de l'application :
 
 *   Importation de nouvelles traces.
+*   Gestion des Variantes (Création de parcours).
 *   Édition et mise en scène (Caméras, Évènements).
 *   Visualisation et Animation.
 *   Contrôle à distance.
