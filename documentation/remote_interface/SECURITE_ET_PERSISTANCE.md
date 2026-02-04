@@ -104,3 +104,16 @@ L'utilisateur peut révoquer un accès à tout moment depuis le Desktop.
 2. L'entrée est supprimée de `remote.json`.
 3. Le backend émet un événement SSE `server_shutdown` vers le mobile.
 4. La connexion SSE est coupée côté serveur.
+
+---
+
+## 4. Paramètres de Rétention
+
+La gestion automatique du nettoyage des accès repose sur deux paramètres configurables dans les réglages système :
+
+| Paramètre | Description | Défaut |
+| :--- | :--- | :---: |
+| **Rétention Autorisations** | Nombre de jours pendant lesquels un appareil autorisé est conservé sans connexion. | 7 jours |
+| **Rétention Liste Noire** | Nombre de jours pendant lesquels un appareil refusé est conservé dans la liste noire. | 14 jours |
+
+Passé ce délai, les entrées obsolètes sont automatiquement purgées des fichiers `remote.json` ou `remote_blacklist.json` lors des opérations de maintenance du backend.

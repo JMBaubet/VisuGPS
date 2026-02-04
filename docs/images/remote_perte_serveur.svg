@@ -1,0 +1,29 @@
+<svg width="360" height="600" viewBox="0 0 360 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="360" height="600" fill="#121212" />
+  
+  <!-- Error Content (Centered) -->
+  <g transform="translate(180, 250)">
+    <!-- Warning Icon (mdi-alert-circle) -->
+    <g transform="translate(-40, -100)">
+        <circle cx="40" cy="40" r="38" fill="#FF5252" fill-opacity="0.1" stroke="#FF5252" stroke-width="2" />
+        <!-- mdi-alert-circle path -->
+        <path d="M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z" fill="#FF5252" transform="translate(16, 16) scale(2.0)" />
+    </g>
+
+    <text y="40" font-family="Roboto, sans-serif" font-size="24" font-weight="bold" fill="#FF5252" text-anchor="middle">CONNEXION PERDUE</text>
+    <text y="75" font-family="Roboto, sans-serif" font-size="16" fill="#B0BEC5" text-anchor="middle">Tentative de reconnexion...</text>
+    
+    <!-- Spinner (Reconnecting) -->
+    <g transform="translate(-15, 110)">
+        <circle cx="15" cy="15" r="14" fill="none" stroke="#333" stroke-width="3" />
+        <path d="M15,1 A14,14 0 0,1 29,15" fill="none" stroke="#FF9800" stroke-width="3" stroke-linecap="round" />
+    </g>
+
+    <!-- Home Button -->
+    <g transform="translate(-164, 200)">
+        <rect width="328" height="40" rx="4" fill="#1E1E1E" stroke="#333" stroke-width="1" />
+        <text x="164" y="25" font-family="Roboto, sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">RETOUR À L'ACCUEIL</text>
+    </g>
+  </g>
+</svg>
