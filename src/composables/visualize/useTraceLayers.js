@@ -157,9 +157,11 @@ export function useTraceLayers(map) {
                 map.value.addSource('trace', { type: 'geojson', data: lineStringData, lineMetrics: true });
             }
 
-            // Single Layer (Slope or Simple)
+            // Layer: Simple / Gradient (Unified naming 'trace-slope-aller' for compatibility)
+            // Note: Main trace usually implies 'aller' direction only unless overlap logic is added later.
+            // We use 'trace-slope-aller' as the primary visible layer.
             const useSlope = !!slopeExpressionRef.value;
-            const layerId = useSlope ? 'trace-slope' : 'trace-complete';
+            const layerId = 'trace-slope-aller';
 
             if (!map.value.getLayer(layerId)) {
                 map.value.addLayer({
@@ -175,6 +177,10 @@ export function useTraceLayers(map) {
                     }
                 });
             }
+
+            // Ensure no legacy layers remain
+            if (map.value.getLayer('trace-slope')) map.value.removeLayer('trace-slope');
+            if (map.value.getLayer('trace-complete')) map.value.removeLayer('trace-complete');
         }
 
         // 4. Layer Comète (Shared)
@@ -245,26 +251,36 @@ export function useTraceLayers(map) {
     const updateVariantSlopeMode = (showSlopeGradient, colors = {}) => {
         if (!map.value) return;
 
-        // Variant Mode Layers
+        // Variant Mode Layers & Unified Main Trace Layer
         const flatColor = colors.trace || '#FF9800';
         ['trace-slope-aller', 'trace-slope-retour'].forEach(layerId => {
             if (map.value.getLayer(layerId)) {
                 if (showSlopeGradient) {
-                    // Mode Pente : Utiliser la couleur brute du segment (calculée par le backend)
-                    map.value.setPaintProperty(layerId, 'line-color', ['get', 'color_raw']);
+                    if (map.value.getSource('colored-segments')) {
+                        // Variant Mode: Use 'color_raw' property from features
+                        map.value.setPaintProperty(layerId, 'line-color', ['get', 'color_raw']);
+                    } else {
+                        // Main Trace Mode: Use Gradient Expression if available, else flat
+                        // The gradient is set via 'line-gradient' property on the layer, not 'line-color'.
+                        // 'line-color' is ignored if 'line-gradient' is set ?? No, Mapbox Spec:
+                        // line-gradient requires source type 'geojson' with 'lineMetrics: true'.
+                        // If line-gradient is set, line-color is typically ignored or used as fallback?
+                        // Actually, to switch Main Trace to FLAT color, we must unset line-gradient?
+                        // STARTUP LOGIC SETS 'line-gradient'. 
+                        // To toggle LIVE:
+                        if (slopeExpressionRef.value) {
+                            map.value.setPaintProperty(layerId, 'line-gradient', slopeExpressionRef.value); // Restore
+                            map.value.setPaintProperty(layerId, 'line-color', '#000000'); // Dummy
+                        }
+                    }
                 } else {
-                    // Mode Trace : Utiliser la couleur unie configurée
+                    // Mode Trace (Flat)
+                    // For Main Trace, we must remove/disable line-gradient first
+                    map.value.setPaintProperty(layerId, 'line-gradient', null);
                     map.value.setPaintProperty(layerId, 'line-color', flatColor);
                 }
             }
         });
-
-        // Standard Mode Layers (trace-slope vs trace-complete switch?)
-        // In Standard mode, we usually just toggle visibility if we have separate layers, 
-        // OR we switch style if we have one layer. 
-        // Here we implemented one layer 'trace-slope' OR 'trace-complete' at init.
-        // If we want to toggle live, we might need to handle it. 
-        // But Standard View usually doesn't toggle slope/flat live in this specific way via this function.
     };
 
     /**

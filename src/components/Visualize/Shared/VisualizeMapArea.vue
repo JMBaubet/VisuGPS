@@ -1,6 +1,6 @@
 <template>
   <!-- Map Container (Absolute Full) -->
-  <div ref="mapVisualizationContainer" :class="['map-container', { 'initializing': isInitializing }]">
+  <div ref="mapVisualizationContainer" :class="['map-container', { 'initializing': isInitializing, 'hide-cursor': isCursorHidden }]">
       
       <!-- Back Button (Floating Top Left) -->
       <transition name="fade">

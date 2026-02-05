@@ -88,7 +88,7 @@
     </template>
 
     <template #final-action>
-        <v-menu location="top center" offset="10" open-on-hover>
+        <v-menu v-if="isVariantTrace" location="top center" offset="10" open-on-hover>
             <template v-slot:activator="{ props: menuProps }">
                 <v-btn icon="mdi-map-marker-radius-outline" variant="text" size="small" v-bind="menuProps"
                        :disabled="!isPaused || isAnimationFinished"
@@ -251,7 +251,18 @@ const isDirectStart = computed(() => route.query.directStart === 'true' || isVar
 
 // --- Initialization + Refs ---
 const mapContainer = ref(null);
-const isCursorHidden = ref(false); // Fix warning
+const isCursorHidden = ref(false); 
+let cursorTimeout = null;
+
+const handleInteraction = () => {
+    isCursorHidden.value = false;
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+    cursorTimeout = setTimeout(() => {
+        // Hide cursor only if not paused (optional, but usually desired in full screen)
+        // For now, let's keep it simple: hide after 3s of inactivity
+        isCursorHidden.value = true;
+    }, 3000);
+};
 const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Globale, Vol_Vers_Depart, En_Animation, En_Pause, Termine
 const showWidgets = ref(false);
 const hasVariants = ref(false);
@@ -291,7 +302,48 @@ const remoteSensCap = computed(() => (getSettingValue('Système/Télécommande/s
 const remoteSensZoom = computed(() => (getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 50) / 100);
 const remoteSensTilt = computed(() => (getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50) / 100);
 
-// --- Variant Visualization Settings ---
+// --- Helper: Contextual Setting Path Resolver (Phase 6) ---
+const getSettingPath = (leafPath) => {
+    // 1. Widgets (Common structure suffix)
+    if (leafPath.startsWith('Widgets/')) {
+        if (isMainTrace.value) {
+            return `Visualisation/${leafPath}`;
+        } else {
+            return `Variante/Visualisation/${leafPath}`;
+        }
+    }
+
+    // 2. Custom Mappings (Trace, Map, etc.)
+    const mappings = {
+        'couleurTrace': {
+            main: 'Visualisation/Vue 3D/Trace/couleurTrace',
+            variant: 'Variante/Visualisation/couleurTrace'
+        },
+        'epaisseurTrace': {
+             main: 'Visualisation/Vue 3D/Trace/epaisseurTrace',
+             variant: 'Variante/Visualisation/epaisseurSegments' // Approximate fallback
+        }
+    };
+
+    if (mappings[leafPath]) {
+        return isMainTrace.value ? mappings[leafPath].main : mappings[leafPath].variant;
+    }
+
+    return leafPath;
+};
+
+// --- Computed Parameters (Unified) ---
+const isDistanceDisplayVisible = ref(getSettingValue(getSettingPath('Widgets/distance')) ?? true);
+const isControlsCardVisible = ref(getSettingValue(getSettingPath('Widgets/commandes')) ?? false);
+const isCommuneWidgetVisible = ref(getSettingValue(getSettingPath('Widgets/communes')) ?? true);
+const isAltitudeVisible = ref(getSettingValue(getSettingPath('Widgets/altitude')) ?? true);
+const isWeatherInfoVisible = ref(getSettingValue(getSettingPath('Widgets/meteo')) ?? true);
+const isCompassVisible = ref(getSettingValue(getSettingPath('Widgets/boussole')) ?? true);
+
+// Unified Trace Color (used by setupTraceLayers in main mode, etc.)
+const traceColorComputed = computed(() => toHex(getSettingValue(getSettingPath('couleurTrace'))));
+
+// --- Variant Visualization Settings (Specific) ---
 const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
 const showSlope = computed(() => getSettingValue('Variante/Visualisation/afficherPente'));
 const segmentThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurSegments'));
@@ -301,7 +353,7 @@ const slopeOpacity = computed(() => getSettingValue('Variante/Visualisation/opac
 const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurNouveau')));
 const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
 const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
-const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace')));
+const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace'))); // Kept for specific variant logic
 const showAbandoned = computed(() => getSettingValue('Variante/Visualisation/afficherSegmentAbandonne'));
 
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
@@ -456,12 +508,7 @@ const activePopups = new Map();
 let unlistenFunctions = [];
 
 // Widgets State
-const isDistanceDisplayVisible = ref(getSettingValue('Variante/Visualisation/Widgets/distance') ?? true);
-const isControlsCardVisible = ref(getSettingValue('Variante/Visualisation/Widgets/commandes') ?? false);
-const isCommuneWidgetVisible = ref(getSettingValue('Variante/Visualisation/Widgets/communes') ?? true);
-const isAltitudeVisible = ref(getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true);
-const isWeatherInfoVisible = ref(getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true); 
-const isCompassVisible = ref(getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true);
+// Widgets State (Unified moved up)
 const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
 const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
 const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
@@ -533,7 +580,14 @@ const initializeVisualization = async () => {
     
     // Reset Data & Animation State
     trackingPointsWithDistanceRef.value = [];
+    variantBlueSegmentsRef.value = [];   // Prevent ghost segments during reset
+    abandonedSegmentsRef.value = [];     // Prevent ghost segments
     isAnimationFinished.value = false;
+
+    // Clear existing popups
+    activePopups.forEach(p => p.remove());
+    activePopups.clear();
+
     resetAnimation(); 
     
     try {
@@ -996,9 +1050,6 @@ const initializeVisualization = async () => {
             // Mode Direct (Variante OU DirectStart pour trace principale)
             animationState.value = 'Vol_Vers_Depart';
             
-            // Afficher les widgets immédiatement
-            showWidgets.value = true;
-            
             // Appliquer le zoom minimum
             mapInstance.setMinZoom(zoomMinimum.value);
             
@@ -1034,6 +1085,11 @@ const initializeVisualization = async () => {
                 pitch: 0
             }, { duration: durationEuropeToTrace.value });
             
+            // Déclencher les messages à 50% du vol depuis l'Europe
+            setTimeout(() => {
+                checkEvents(0);
+            }, durationEuropeToTrace.value / 2);
+
             // Attendre 200ms pour s'assurer que le zoom a bien commencé (optionnel, pour fluidité)
             await new Promise(r => setTimeout(r, 200));
             isInitializing.value = false; // Sécurité si pas déjà fait
@@ -1044,9 +1100,6 @@ const initializeVisualization = async () => {
             
             // Appliquer le zoom minimum MAINTENANT que la séquence Europe est terminée
             mapInstance.setMinZoom(zoomMinimum.value);
-            
-            // Afficher les widgets
-            showWidgets.value = true;
             
             animationState.value = 'Pause_Observation';
             
@@ -1074,6 +1127,11 @@ const initializeVisualization = async () => {
             if (mapStyle.value !== styleLancement.value) {
                 mapInstance.setStyle(mapStyle.value);
                 await new Promise(resolve => mapInstance.once('style.load', resolve));
+                
+                // IMPORTANT: re-add active popups after style change
+                activePopups.forEach(p => {
+                    if (map.value) p.addTo(map.value);
+                });
                 
                 // Re-setup layers après changement de style
                 if (isMainTrace.value) {
@@ -1130,6 +1188,13 @@ const initializeVisualization = async () => {
         animationState.value = 'En_Pause_au_Depart';
         isInitializing.value = false;
         enableInteraction();
+
+        // Afficher les widgets UNIQUEMENT maintenant (au début de la pause au Km 0)
+        showWidgets.value = true;
+
+        // Ensure KM 0 messages are displayed during the initial pause
+        await checkEvents(0);
+
         startAnimation(animateLoop); 
         
         if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
@@ -1602,10 +1667,19 @@ const handleEndSequence = async (skipDelay = false) => {
     // Force visibility of master trace layers for comparison
     updateLayerVisibility('trace-main-abandoned', true);
     
+    // Force remote update to clear segments
+    updateRemoteViewState();
+    
     // Switch to launch style if needed
     if (styleLancement.value !== mapStyle.value) {
         map.value.setStyle(styleLancement.value);
         await new Promise(r => map.value.once('style.load', r));
+        
+        // IMPORTANT: re-add active popups after style change (they might be removed by Mapbox)
+        activePopups.forEach(p => {
+             if (map.value) p.addTo(map.value);
+        });
+
         setupTraceLayers({
             traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
             lineStringData: lineStringRef.value, 
@@ -1978,17 +2052,15 @@ const handleKeyup = (e) => {
 };
 
 // --- Lifecycle ---
-onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('keyup', handleKeyup);
-    // Do not call init here directly. Wait for settings.
-});
-
-// Watch settings changes that mandate restart/update...
 onMounted(async () => {
+    window.addEventListener('keydown', handleInteraction);
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
+    window.addEventListener('mousemove', handleInteraction);
     
+    // Initial cursor hide timer
+    handleInteraction();
+
     // Ensure DOM is ready
     await nextTick();
 
@@ -2078,8 +2150,12 @@ function generateSlopeSegments(trackingPoints) {
 
 
 onUnmounted(() => {
+    window.removeEventListener('keydown', handleInteraction);
     window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('keyup', handleKeyup);
+    window.removeEventListener('mousemove', handleInteraction);
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+
     cleanupMap();
     if (mapContainer.value) mapContainer.value.remove();
     activePopups.forEach(p => p.remove());
@@ -2236,8 +2312,10 @@ watch(currentSegmentIndex, (newIndex) => {
 
 async function updateRemoteViewState() {
     // Transform segments for remote (using FULL list)
-    // Transform segments for remote (using FULL list)
-    const segments = buildFullSegmentList().map((seg, idx) => ({
+    // IMPORTANT: Clear segments if in Final View OR not in Variant mode (prevent fallback "Tronçon Commun")
+    const segmentsSource = (animationState.value === 'Vol_Final' || animationState.value === 'Termine' || !isVariantTrace.value) ? [] : buildFullSegmentList();
+    
+    const segments = segmentsSource.map((seg, idx) => ({
         id: String(idx), // Ensure ID is a String for Rust compatibility
         name: seg.type === 'DEPART' ? 'Départ' : (seg.type === 'ARRIVEE' ? 'Arrivée' : (seg.name || seg.filename || `Segment ${idx + 1}`)),
         segmentType: seg.type,
