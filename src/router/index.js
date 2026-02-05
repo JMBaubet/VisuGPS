@@ -19,7 +19,7 @@ const routes = [
   {
     path: '/visualize/:circuitId',
     name: 'Visualize',
-    component: () => import('../views/VisualizeVariantView.vue'),
+    component: () => import('../views/VisualizeView.vue'),
     props: route => ({ circuitId: route.params.circuitId, traceType: 'main' })
   },
   {
@@ -41,7 +41,7 @@ const routes = [
   {
     path: '/visualize-variant/:circuitId/:variantId?',
     name: 'VisualizeVariant',
-    component: () => import('../views/VisualizeVariantView.vue'),
+    component: () => import('../views/VisualizeView.vue'),
     props: true
   }
 ]

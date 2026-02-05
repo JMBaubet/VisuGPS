@@ -69,7 +69,7 @@ Voici comment la `phase` est utilisée pour synchroniser le tracé et la caméra
 
 #### 4. Le Traitement Spécifique des Variantes
 
-Le mode `VisualizeVariantView.vue` introduit des étapes cruciales de synchronisation pour garantir la fluidité malgré la nature "dynamique" du tracé :
+Le mode `VisualizeView.vue` introduit des étapes cruciales de synchronisation pour garantir la fluidité malgré la nature "dynamique" du tracé :
 
 1.  **Reconstruction du Tracé (Frontend)** : La trace `fullLineString` est reconstruite en "snappant" les points de départ et d'arrivée de la variante sur la trace maîtresse haute résolution.
 2.  **Lissage des Caps (`applySmoothingToTracking`)** : Les points générés pour les variantes peuvent avoir des caps brusques. Un lissage par moyenne vectorielle (fenêtre glissante) est appliqué sur le frontend pour éviter les saccades de rotation de la caméra.
@@ -78,7 +78,7 @@ Le mode `VisualizeVariantView.vue` introduit des étapes cruciales de synchronis
 
 ## 5. Comparaison des Écarts de Synchronisation
 
-| Élément | VisualizeView (Standard) | VisualizeVariantView (Variante) |
+| Élément | VisualizeView (Standard) | VisualizeView (Variante) |
 | :--- | :--- | :--- |
 | **Origine Trace** | Fichier `LineString.json` statique | Reconstruction dynamique (JS) |
 | **Tracking** | `tracking.json` brut | Tracking lissé et recalculé (Frontend) |

@@ -63,11 +63,12 @@ L'application est divisée en plusieurs vues distinctes pour une meilleure clart
 
 - **Gestion des événements** : L'utilisateur peut gérer des événements de type Flyto, Pause et message, sauvegardés dans un fichier JSON.
   
-  - ### Vue Visualisation(VueJS) `src/views/VisualizeView.vue`
+  - ### Vue Visualisation (VueJS) `src/views/VisualizeView.vue`
   
-  Cette vue permet de lire le fichier JSON créé en mode Édition pour visualiser une ou plusieurs traces avec une animation automatique.
+  Cette vue unifiée permet de visualiser soit une trace principale, soit une variante avec ses modifications. Elle lit les données (GPX, JSON) et gère l'animation automatique.
 
 - **Animation du marqueur** : Un marqueur se déplace le long de la trace selon les paramètres de caméra et de temps définis.
+- **Support Double Mode** : Gère nativement la trace principale (séquence complète) et les variantes (séquence directe ou personnalisée).
   
   - ### Vue Paramétrage (VueJS) `src/views/SettingsView.vue`
   

@@ -1,117 +1,63 @@
-# Automate de l'Animation (VisualizeView & VisualizeVariantView)
+# Automate de l'Animation (VisualizeView)
 
-Ce document détaille les cycles de vie de l'animation. Bien que les points d'entrée et de sortie diffèrent, ils partagent un **Socle Commun** (en orange dans les diagrammes) qui garantit la cohérence des contrôles de lecture.
+Ce document détaille les cycles de vie de l'animation au sein du composant unifié `VisualizeView.vue`. L'automate gère intelligemment les deux modes d'entrée (Standard et Variante) tout en partageant un **Socle Commun**.
 
 ---
 
-## 1. Flux Standard (`VisualizeView.vue`)
-Le flux standard est conçu comme une expérience contemplative avec une introduction progressive. La carte est initialisée **cachée et centrée sur la trace** pour garantir une fluidité totale.
+## 1. Flux Unifié (`VisualizeView.vue`)
+
+L'automate s'adapte dynamiquement selon que l'utilisateur visualise une **Trace Principale** (séquence contemplative complète) ou une **Variante** (accès direct au Km 0).
 
 ```mermaid
 stateDiagram-v2
     classDef common fill:#ffcc00,stroke:#d4a017,stroke-width:2px,color:black;
-    classDef standard fill:#e1f5fe,stroke:#01579b,color:black;
+    classDef entry fill:#e1f5fe,stroke:#01579b,color:black;
     classDef bridge fill:#ffab91,stroke:#d84315,stroke-width:2px,color:black;
 
-    state "Séquence d'Introduction" as IntroSTD {
-        Init_STD: 🌑 Carte Masquée <br/> (Centrée sur trace, Zoom 5)
-        Vol_Zoom: 🔭 [FLYTO] Zoom vers Vue Globale <br/> 5s (durationEuropeToTrace)
-        Pause_Globale: 🛑 [PAUSE] Vue Globale <br/> 1s (pauseBeforeStart)
-        Vol_Km0_STD: ✈️ [FLYTO] Vol vers Km 0 <br/> 2s (durationTraceToStart)
-        
-        Init_STD --> Vol_Zoom: Début flyTo + Révélation (200ms)
-        Vol_Zoom --> Pause_Globale
-        Pause_Globale --> Vol_Km0_STD: Si repriseAutoVueTrace=true <br/> ou Action Play
-    }
-
-    state "Socle Commun" as CommonSTD {
-        Km0: 🛑 [PAUSE] Km 0 <br/> 0.5s (pauseAuKm0)
-        Anim: 🚀 [ANIM] En Mouvement
-        Pause: 🛑 [PAUSE] Manuelle (Infini)
-        
-        Km0 --> Anim: Si repriseAutoKm0=true <br/> ou Action Play
-        Anim --> Pause: Touche 'P'
-        Pause --> Anim: Reprise
-        Pause --> Arrivee: Action "Vue Finale"
-    }
-
-    state "Séquence de Fin" as EndSTD {
-        Arrivee: 🛑 [PAUSE] Arrivée <br/> 3s (delayAfterAnimationEnd)
-        Vol_Final: ✈️ [FLYTO] Vue Globale <br/> 2s (flyToGlobalDuration)
-        
-        Arrivee --> Vol_Final: Si repriseAutomatique=true <br/> ou Action Play
-    }
-
-    GoHome: Retour Accueil (MainView)
-    ToVariant: Basculer vers Variantes
-
-    [*] --> IntroSTD
-    Vol_Km0_STD --> Km0
-    Anim --> Arrivee: Fin de trace
+    [*] --> Init
     
-    %% Direct Transitions & Passerelles
-    Pause --> ToVariant: Action "Mode Variants"
-    Pause --> GoHome: Bouton 'Retour'
-    Vol_Final --> ToVariant: Bouton 'Variantes' (Fin)
-    Vol_Final --> GoHome: Bouton 'Home' (Fin)
+    Init: 🌑 Carte Masquée
+    Vol_Zoom: 🔭 [FLYTO] Zoom vers Vue Globale
+    Pause_Globale: 🛑 [PAUSE] Vue Globale
+    Vol_Km0_STD: ✈️ [FLYTO] Vol vers Km 0
+    Vol_Direct: ✈️ [FLYTO] Zoom km 0
+    
+    Km0: 🛑 [PAUSE] Km 0
+    Anim: 🚀 [ANIM] En Mouvement
+    Pause: 🛑 [PAUSE] Manuelle
+    
+    Arrivee: 🛑 [PAUSE] Arrivée
+    Vol_Final: ✈️ [FLYTO] Vue Globale
+
+    Init --> Vol_Zoom: traceType = 'main'
+    Init --> Vol_Direct: traceType = 'variant'
+    
+    Vol_Zoom --> Pause_Globale
+    Pause_Globale --> Vol_Km0_STD
+    Vol_Km0_STD --> Km0
+    Vol_Direct --> Km0
+    
+    Km0 --> Anim
+    Anim --> Pause
+    Pause --> Anim
+    Pause --> Arrivee
+    Anim --> Arrivee
+    
+    Arrivee --> Vol_Final
+
+    %% Boutons et Navigation Finale
+    GoHome: Retour Accueil
+    ToVariant: Basculer vers Variantes
+    ToMain: Retour Trace Principale
+
+    Vol_Final --> ToVariant
+    Vol_Final --> ToMain
+    Vol_Final --> GoHome
+    Pause --> GoHome
 
     class Km0,Anim,Pause,Arrivee,Vol_Final common
-    class Init_STD,Vol_Zoom,Pause_Globale,Vol_Km0_STD,GoHome standard
-    class ToVariant bridge
-```
-
----
-
-## 2. Flux Variante (`VisualizeVariantView.vue`)
-Le flux variante est optimisé pour une mise en route immédiate. Comme le flux standard, il s'initialise au centre de la trace master.
-
-```mermaid
-stateDiagram-v2
-    classDef common fill:#ffcc00,stroke:#d4a017,stroke-width:2px,color:black;
-    classDef variant fill:#e8f5e9,stroke:#2e7d32,color:black;
-    classDef bridge fill:#ffab91,stroke:#d84315,stroke-width:2px,color:black;
-
-    state "Séquence d'Introduction" as IntroVAR {
-        Init_VAR: Reconstruction dynamique <br/> (Centrée sur Master, Zoom 5)
-        Vol_Direct: ✈️ [FLYTO] Zoom km 0 <br/> 3s (Fixe)
-        
-        Init_VAR --> Vol_Direct
-    }
-
-    state "Socle Commun" as CommonVAR {
-        Km0_V: 🛑 [PAUSE] Km 0 <br/> 0.5s (pauseAuKm0)
-        Anim_V: 🚀 [ANIM] En Mouvement
-        Pause_V: 🛑 [PAUSE] Manuelle (Infini)
-        
-        Km0_V --> Anim_V: Si repriseAutoKm0=true <br/> ou Action Play
-        Anim_V --> Pause_V: Touche 'P'
-        Pause_V --> Anim_V: Reprise
-        Pause_V --> Arrivee_V: Action "Vue Finale"
-    }
-
-    state "Séquence de Fin" as EndVAR {
-        Arrivee_V: 🛑 [PAUSE] Arrivée <br/> 3s (delayAfterAnimationEnd)
-        Vol_Final_V: ✈️ [FLYTO] Vue Globale <br/> 2s (flyToGlobalDuration)
-        
-        Arrivee_V --> Vol_Final_V: Si repriseAutomatique=true <br/> ou Action Play
-    }
-
-    GoHome_V: Retour Accueil (MainView)
-    ToStandard: Retour Trace Principale
-
-    [*] --> IntroVAR
-    Vol_Direct --> Km0_V
-    Anim_V --> Arrivee_V: Fin de trace
-    
-    %% Direct Transitions & Passerelles
-    Pause_V --> ToStandard: Action "Retour Standard"
-    Pause_V --> GoHome_V: Bouton 'Retour'
-    Vol_Final_V --> GoHome_V: Bouton Home (Fin)
-    Vol_Final_V --> ToStandard: Bouton Trace Principale (Fin)
-
-    class Km0_V,Anim_V,Pause_V,Arrivee_V,Vol_Final_V common
-    class Init_VAR,Vol_Direct,GoHome_V variant
-    class ToStandard bridge
+    class Init,Vol_Zoom,Pause_Globale,Vol_Km0_STD,Vol_Direct entry
+    class ToVariant,ToMain bridge
 ```
 
 ---

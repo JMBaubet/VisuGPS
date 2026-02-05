@@ -109,8 +109,8 @@ const activeComponent = computed(() => {
     const appView = (typeof rawState === 'string') ? rawState : (rawState?.viewName || '');
     
     // Check if we are in any visualization view
-    const visualizationViews = ['Visualize', 'VisualizeVariant', 'VisualizeView', 'VisualizeVariantView'];
-    const isVisualizing = visualizationViews.some(v => appView === v || appView.includes(v));
+    const visualizationViews = ['Visualize', 'VisualizeVariant'];
+    const isVisualizing = visualizationViews.some(v => appView === v);
 
     if (isVisualizing) {
         const animState = store.visualizeViewState?.animationState;

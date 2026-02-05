@@ -23,7 +23,7 @@ Refactoriser `useCameraInterpolator.js` pour séparer le **calcul** de l'**appli
     ```
 *   Si `apply` est `true`, appliquer les changements à la carte (comportement actuel).
 
-### 2. Mise à jour de `VisualizeView.vue` et `VisualizeVariantView.vue`
+### 2. Mise à jour de `VisualizeView.vue` et `VisualizeView.vue`
 *   **Dans `animateLoop`** : Adapter l'appel pour utiliser le nouveau format de retour.
     *   `const result = updateCameraPosition(...)`
     *   `if (result && result.bearing !== null) currentTraceBearing.value = result.bearing;`
@@ -40,4 +40,4 @@ Refactoriser `useCameraInterpolator.js` pour séparer le **calcul** de l'**appli
 ## Fichiers Impactés
 *   `src/composables/visualize/useCameraInterpolator.js`
 *   `src/views/VisualizeView.vue`
-*   `src/views/VisualizeVariantView.vue`
+*   `src/views/VisualizeView.vue`

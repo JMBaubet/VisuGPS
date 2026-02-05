@@ -18,7 +18,7 @@ Permettre à l'utilisateur de configurer la durée de l'animation de saut tempor
 *   **Description** : "Durée de la transition lors d'un saut temporel (clic sur graphe)."
 
 ### 2. Mise à jour des Vues
-*   **Fichiers** : `src/views/VisualizeView.vue` et `src/views/VisualizeVariantView.vue`
+*   **Fichiers** : `src/views/VisualizeView.vue` et `src/views/VisualizeView.vue`
 *   **Action** :
     *   Récupérer la valeur du setting : `const jumpDuration = computed(() => getSettingValue('Visualisation/Lecture/jumpDuration') ?? 2.0);`
     *   Utiliser cette valeur dans `handleJumpRequest` pour le `flyToPromise`.

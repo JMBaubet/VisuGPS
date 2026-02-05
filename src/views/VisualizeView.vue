@@ -5,6 +5,7 @@
     :is-center-marker-visible="isCenterMarkerVisible"
     :center-marker-color="couleurCroixCentrale"
     :show-back-button="showWidgets && isBackButtonVisibleFinal"
+    :is-initializing="isInitializing"
     @go-back="goBack"
     @register-map-container="(el) => { mapContainer = el }"
   />
@@ -13,7 +14,7 @@
     :is-visible="showWidgets"
     :show-distance="isDistanceDisplayVisible"
     :distance-display="distanceDisplay"
-    :total-distance="totalDistanceRef"
+    :total-distance="totalDistanceRef / 1000"
     :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
     :commune-name="currentCommuneName"
     :commune-border-color="communeWidgetBorderColor"
@@ -62,23 +63,83 @@
     @reset="resetAnimation"
     @trigger-final-view="handleEndSequence(true)"
   >
-    <template #altitude-chart>
-       <altitude-s-v-g 
+    <template #altitude-chart v-if="showWidgets">
+        <AltitudeSVG 
+            v-if="isMainTrace"
             :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
-            :circuit-id="props.circuitId" 
-            :current-distance="currentDistanceInMeters" 
-            :total-distance="totalDistanceRef > 0 ? totalDistanceRef * 1000 : 1"
+            :circuit-id="props.circuitId"
+            :current-distance="currentDistanceInMeters"
+            :total-distance="totalDistanceRef"
             :tracking-points="trackingPointsWithDistanceRef"
             :is-variant-comparison="false"
-            :main-trace-points="null"
-            :variant-segments="[]"
-            :current-segment-index="null"
             @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
-          />
+        />
+        
+        <AltitudeVariantSVG 
+            v-else
+            :key="`altitude-variant-${props.circuitId}`"
+            :current-distance="currentDistanceInMeters" 
+            :total-main-distance="masterTraceTotalDistance"
+            :main-trace-points="masterTrackingPoints"
+            :abandoned-segments="abandonedSegmentsRef"
+            :variant-blue-segments="variantBlueSegmentsRef"
+            @jump-requested="handleJumpRequest"
+        />
     </template>
 
+    <template #final-action>
+        <v-menu v-if="isVariantTrace" location="top center" offset="10" open-on-hover>
+            <template v-slot:activator="{ props: menuProps }">
+                <v-btn icon="mdi-map-marker-radius-outline" variant="text" size="small" v-bind="menuProps"
+                       :disabled="!isPaused || isAnimationFinished"
+                ></v-btn>
+            </template>
+            <v-list density="compact" class="bg-surface pa-0 elevation-10" style="border-radius: 8px; min-width: 40px;">
+                <v-list-item v-for="(item, i) in navigationItems" :key="i" @click="handleNavigationClick(item)"
+                             link class="pa-0 justify-center">
+                    <div class="d-flex justify-center w-100 py-2">
+                        <v-icon :icon="item.icon" :color="item.color" size="small"></v-icon>
+                    </div>
+                </v-list-item>
+            </v-list>
+        </v-menu>
+    </template>
+
+
+    <template #extra-controls>
+        <!-- Variant Switching & Return -->
+        <v-divider vertical class="mx-2"></v-divider>
+        
+        <!-- Select another variant (if multiple) -->
+        <v-btn v-if="availableVariants.length > 1 && isVariantTrace" 
+            icon="mdi-format-list-bulleted" 
+            variant="text" 
+            title="Changer de variante" 
+            @click="showVariantSelection = true">
+        </v-btn>
+
+        <!-- Access variants from main trace -->
+        <v-btn v-if="isMainTrace && hasVariants"
+            icon="mdi-map-marker-path"
+            variant="text"
+            title="Mode Variantes"
+            :disabled="!isPaused && !isAnimationFinished"
+            @click="goToVariantView"
+        ></v-btn>
+
+        <!-- Return to Main Trace -->
+        <v-btn v-if="isVariantTrace"
+            icon="mdi-map-marker-distance" 
+            variant="text" 
+            color="secondary"
+            title="Retour Trace Principale" 
+            :disabled="!isPaused"
+            @click="returnToMainTrace">
+        </v-btn>
+    </template>
+    
     <template #extra-overlay-actions>
-       <v-btn v-if="isAnimationFinished && hasVariants"
+       <v-btn v-if="isAnimationFinished && hasVariants && isMainTrace"
              color="primary"
              @click="goToVariantView"
              size="x-large"
@@ -89,17 +150,10 @@
         Variantes
       </v-btn>
     </template>
-
-    <template #extra-controls>
-        <template v-if="hasVariants">
-            <v-divider vertical class="mx-2"></v-divider>
-            <v-btn icon="mdi-map-marker-path" variant="text" title="Mode Variants" @click="goToVariantView" :disabled="!isPaused && !isAnimationFinished"></v-btn>
-        </template>
-    </template>
   </VisualizeControls>
 
     <!-- Variant Selection Dialog -->
-    <v-dialog v-model="showVariantSelection" max-width="500">
+    <v-dialog v-model="showVariantSelection" persistent max-width="500" scrim="black" opacity="0.5">
         <v-card>
             <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
             <v-list>
@@ -119,6 +173,7 @@
             </v-card-actions>
         </v-card>
     </v-dialog>
+
 </template>
 
 <script setup>
@@ -135,6 +190,7 @@ import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
+import AltitudeVariantSVG from '@/components/Visualize/AltitudeVariantSVG.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
@@ -151,13 +207,36 @@ import { useTraceLayers } from '@/composables/visualize/useTraceLayers.js';
 import { useAnimationController } from '@/composables/visualize/useAnimationController.js';
 import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpolator.js'; // NEW
 
-
 const props = defineProps({
   circuitId: { type: String, required: true },
+  variantId: { type: String, default: null }, // Optional
+  traceType: { 
+    type: String, 
+    default: 'variant', // Par défaut variante pour compatibilité
+    validator: (v) => ['main', 'variant'].includes(v)
+  }
 });
 
 const router = useRouter();
 const route = useRoute();
+
+const showVariantSelection = ref(false);
+const availableVariants = ref([]);
+const selectedVariantId = ref(props.variantId || route.query.variantId);
+
+const selectVariant = (id) => {
+    selectedVariantId.value = id;
+    showVariantSelection.value = false;
+    
+    // Update URL to reflect the new variant
+    router.replace({ 
+        name: 'VisualizeVariant', 
+        params: { circuitId: props.circuitId, variantId: id },
+        query: route.query 
+    });
+    
+    initializeVisualization();
+};
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
@@ -165,10 +244,27 @@ const { toHex } = useVuetifyColors();
 const { createMessageSVG } = useMessageDisplay();
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
 
+// --- Mode Detection ---
+const isVariantTrace = computed(() => !!selectedVariantId.value);
+const isMainTrace = computed(() => !selectedVariantId.value);
+const isDirectStart = computed(() => route.query.directStart === 'true' || isVariantTrace.value);
+
 // --- Initialization + Refs ---
 const mapContainer = ref(null);
-const isCursorHidden = ref(false); // Fix warning
+const isCursorHidden = ref(false); 
+let cursorTimeout = null;
+
+const handleInteraction = () => {
+    isCursorHidden.value = false;
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+    cursorTimeout = setTimeout(() => {
+        // Hide cursor only if not paused (optional, but usually desired in full screen)
+        // For now, let's keep it simple: hide after 3s of inactivity
+        isCursorHidden.value = true;
+    }, 3000);
+};
 const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Globale, Vol_Vers_Depart, En_Animation, En_Pause, Termine
+const showWidgets = ref(false);
 const hasVariants = ref(false);
 
 // --- Settings Computed ---
@@ -206,11 +302,65 @@ const remoteSensCap = computed(() => (getSettingValue('Système/Télécommande/s
 const remoteSensZoom = computed(() => (getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 50) / 100);
 const remoteSensTilt = computed(() => (getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50) / 100);
 
+// --- Helper: Contextual Setting Path Resolver (Phase 6) ---
+const getSettingPath = (leafPath) => {
+    // 1. Widgets (Common structure suffix)
+    if (leafPath.startsWith('Widgets/')) {
+        if (isMainTrace.value) {
+            return `Visualisation/${leafPath}`;
+        } else {
+            return `Variante/Visualisation/${leafPath}`;
+        }
+    }
+
+    // 2. Custom Mappings (Trace, Map, etc.)
+    const mappings = {
+        'couleurTrace': {
+            main: 'Visualisation/Vue 3D/Trace/couleurTrace',
+            variant: 'Variante/Visualisation/couleurTrace'
+        },
+        'epaisseurTrace': {
+             main: 'Visualisation/Vue 3D/Trace/epaisseurTrace',
+             variant: 'Variante/Visualisation/epaisseurSegments' // Approximate fallback
+        }
+    };
+
+    if (mappings[leafPath]) {
+        return isMainTrace.value ? mappings[leafPath].main : mappings[leafPath].variant;
+    }
+
+    return leafPath;
+};
+
+// --- Computed Parameters (Unified) ---
+const isDistanceDisplayVisible = ref(getSettingValue(getSettingPath('Widgets/distance')) ?? true);
+const isControlsCardVisible = ref(getSettingValue(getSettingPath('Widgets/commandes')) ?? false);
+const isCommuneWidgetVisible = ref(getSettingValue(getSettingPath('Widgets/communes')) ?? true);
+const isAltitudeVisible = ref(getSettingValue(getSettingPath('Widgets/altitude')) ?? true);
+const isWeatherInfoVisible = ref(getSettingValue(getSettingPath('Widgets/meteo')) ?? true);
+const isCompassVisible = ref(getSettingValue(getSettingPath('Widgets/boussole')) ?? true);
+
+// Unified Trace Color (used by setupTraceLayers in main mode, etc.)
+const traceColorComputed = computed(() => toHex(getSettingValue(getSettingPath('couleurTrace'))));
+
+// --- Variant Visualization Settings (Specific) ---
+const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
+const showSlope = computed(() => getSettingValue('Variante/Visualisation/afficherPente'));
+const segmentThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurSegments'));
+const segmentOpacity = computed(() => getSettingValue('Variante/Visualisation/opaciteSegments'));
+const slopeThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurPente'));
+const slopeOpacity = computed(() => getSettingValue('Variante/Visualisation/opacitePente'));
+const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurNouveau')));
+const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
+const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
+const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace'))); // Kept for specific variant logic
+const showAbandoned = computed(() => getSettingValue('Variante/Visualisation/afficherSegmentAbandonne'));
+
 const formatDuration = (val) => (val > 100 ? val : val * 1000);
 
 // --- Using New Composables ---
 // 1. Map Engine
-const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap } = useMapEngine(mapContainer, mapboxToken, styleLancement, terrainExaggeration);
+const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap } = useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExaggeration);
 
 // 2. Camera Manager
 const { pausedCameraOptions, currentCameraBearing: camBearing, saveCameraState, restoreCameraState, enableInteraction, disableInteraction, startBearingTracking } = useCameraManager(map);
@@ -232,7 +382,7 @@ const isFlytoActive = ref(false); // Mode FlyTo exclusif
 const preFlytoCameraOptions = ref(null);
 
 // 4. Trace Layers
-const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, coloredSegmentsGeoJsonRef } = useTraceLayers(map);
+const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, updateVariantSlopeMode, updateVariantStyle, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
 
 // 5. Animation Controller
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
@@ -241,7 +391,7 @@ const cameraMoved = ref(false);
 const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
 
 // --- Speed Control Logic (Restore Logarithmic) ---
-const sliderPosition = ref(25); // Default start pos ~ 1.0x if min=0.1 max=100
+const sliderPosition = ref(25); 
 const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value') || 0.1);
 const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value') || 100.0);
 const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value') || 25.0);
@@ -275,7 +425,6 @@ watch(sliderPosition, (newVal) => {
 
 // Sync Speed -> Slider (Init)
 watch(currentSpeed, (newVal) => {
-    // Avoid feedback loop if diff is small
     const calculatedSlider = mapSpeedToSlider(newVal);
     if (Math.abs(calculatedSlider - sliderPosition.value) > 1) {
         sliderPosition.value = calculatedSlider;
@@ -285,23 +434,81 @@ watch(currentSpeed, (newVal) => {
 // 6. Camera Interpolator (NEW)
 const { updateCameraPosition } = useCameraInterpolator(map);
 
+const modifications = ref([]);
+const fullRouteGeoJson = ref(null);
+const masterTraceGeoJson = ref(null);
+const variantStats = ref({ total: 0, current: 0 });
+
+// New Refs for AltitudeVariantSVG
+const masterTraceTotalDistance = ref(1);
+const masterTrackingPoints = ref([]);
+const abandonedSegmentsRef = ref([]);
+const variantBlueSegmentsRef = ref([]);
+
+// --- Navigation Menu Computed ---
+const navigationItems = computed(() => {
+    const list = [];
+    
+    // Sort variant segments by distance
+    const sorted = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
+    
+    sorted.forEach((seg, index) => {
+        let icon = 'mdi-map-marker-path';
+        let color = 'primary';
+        let name = seg.name;
+        
+        if (seg.type === 'DEPART') {
+            icon = 'mdi-ray-start-arrow';
+            color = 'success';
+            if (!name) name = 'Départ';
+        } else if (seg.type === 'ARRIVEE') {
+            icon = 'mdi-ray-end-arrow';
+            color = 'error';
+            if (!name) name = 'Arrivée';
+        } else {
+             if (!name) name = `Segment ${index + 1}`;
+        }
+        
+        list.push({
+            icon,
+            color,
+            name,
+            distanceKm: seg.points[0].distance,
+            type: seg.type
+        });
+    });
+    
+    // Final View Item
+    list.push({
+        icon: 'mdi-clock-end',
+        color: 'grey-darken-1',
+        name: 'Vue Finale',
+        distanceKm: totalDistanceRef.value / 1000,
+        type: 'FIN',
+        isFinalView: true
+    });
+    
+    return list;
+});
+
+const handleNavigationClick = (item) => {
+    if (item.isFinalView) {
+        handleEndSequence();
+    } else if (typeof item.distanceKm === 'number') {
+        handleJumpRequest(item.distanceKm);
+    }
+};
+
+
 
 // --- Legacy State ---
 const isInitializing = ref(true);
-const showWidgets = ref(false); // Contrôle séparé pour l'affichage des widgets
 const avancementCommunes = ref('Non calculé');
 const activePopups = new Map();
 let unlistenFunctions = [];
 
 // Widgets State
-const isDistanceDisplayVisible = ref(getSettingValue('Visualisation/Widgets/distance') ?? true);
-const isControlsCardVisible = ref(getSettingValue('Visualisation/Widgets/commandes') ?? false);
-const isCommuneWidgetVisible = ref(getSettingValue('Visualisation/Widgets/communes') ?? true);
-const isAltitudeVisible = ref(getSettingValue('Visualisation/Widgets/altitude') ?? true);
-const isWeatherInfoVisible = ref(getSettingValue('Visualisation/Widgets/meteo') ?? true); 
-const isCompassVisible = ref(getSettingValue('Visualisation/Widgets/boussole') ?? true);
-const isStaticWeatherVisible = ref(true);
-const isDynamicWeatherVisible = ref(true);
+// Widgets State (Unified moved up)
 const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
 const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
 const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
@@ -323,40 +530,13 @@ const circuitScenarios = ref([]);
 
 // --- Methods ---
 
-const showVariantSelection = ref(false);
-const availableVariants = ref([]);
-const variantsList = ref([]); // Simplified list for remote sync
-
-const goToVariantView = async () => {
-    try {
-        const variants = await invoke('get_variants', { circuitId: props.circuitId });
-        if (!variants || variants.length === 0) {
-             showSnackbar("Aucune variante disponible.", "warning");
-             return;
-        }
-
-        if (variants.length === 1) {
-            navigateToVariant(variants[0].id);
-        } else {
-            availableVariants.value = variants;
-            showVariantSelection.value = true;
-        }
-    } catch (e) {
-        console.error("Erreur chargement variants:", e);
-        showSnackbar("Erreur chargement variants", "error");
-    }
-};
-
-const selectVariant = (variantId) => {
-    showVariantSelection.value = false;
-    navigateToVariant(variantId);
-};
-
-const navigateToVariant = (variantId) => {
-    let query = {};
+const returnToMainTrace = () => { 
+    selectedVariantId.value = null;
+    let query = { directStart: 'true' };
     if (map.value) {
         const center = map.value.getCenter();
         query = {
+            ...query,
             lat: center.lat,
             lng: center.lng,
             zoom: map.value.getZoom(),
@@ -364,209 +544,570 @@ const navigateToVariant = (variantId) => {
             pitch: map.value.getPitch()
         };
     }
-    router.push({ 
-        name: 'VisualizeVariant', 
-        params: { circuitId: props.circuitId }, 
-        query: { ...query, variantId: variantId } // Pass variantId in query or params? Ideally params but route is /visualize-variant/:circuitId
-        // Let's pass it in query if the route doesn't support it, OR update router to support /:variantId
-        // Actually, route definition is important.
-    });
+    router.replace({ 
+        name: 'Visualize', 
+        params: { circuitId: props.circuitId },
+        query: query
+    }); 
+    initializeVisualization();
 };
 const goBack = () => { router.push({ name: 'Main' }); };
+const goToVariantView = () => { 
+    if (availableVariants.value.length > 1) {
+        showVariantSelection.value = true;
+    } else if (availableVariants.value.length === 1) {
+        selectVariant(availableVariants.value[0].id);
+    }
+};
 const getToHexImproved = (n) => toHex(getSettingValue(n));
 
 // --- User Interactions ---
 const togglePlayPauseOrReset = () => {
-    if (animationState.value === 'Termine' || animationState.value === 'Vol_Final' || isAnimationFinished.value) {
+    if (isAnimationFinished.value) {
         resetAnimation();
     } else {
-        if (isPaused.value) {
-            startAnimation();
-            animationState.value = 'En_Animation';
-        } else {
-            pauseAnimation();
-            animationState.value = 'En_Pause';
-        }
+        isPaused.value = !isPaused.value;
     }
 };
 
 // --- Initialization Logic ---
 const initializeVisualization = async () => {
-    resetTime(); // Ensure animation time starts at 0
+    // Ensure settings are loaded before anything else
+    await useSettings().initSettings();
+
+    isInitializing.value = true;
+    showWidgets.value = false;
+    
+    // Reset Data & Animation State
+    trackingPointsWithDistanceRef.value = [];
+    variantBlueSegmentsRef.value = [];   // Prevent ghost segments during reset
+    abandonedSegmentsRef.value = [];     // Prevent ghost segments
+    isAnimationFinished.value = false;
+
+    // Clear existing popups
+    activePopups.forEach(p => p.remove());
+    activePopups.clear();
+
+    resetAnimation(); 
+    
     try {
-        const { circuit, trackingData } = await loadCircuitData(props.circuitId);
+        // 0.5 Ensure we have a variant ID (only for variant mode)
+        if (isVariantTrace.value && !selectedVariantId.value) {
+             showSnackbar("Aucune variante spécifiée.", "error");
+             setTimeout(() => goBack(), 1000);
+             return;
+        }
+
+        // 1. Load Circuit Metadata
+        const { circuit } = await loadCircuitData(props.circuitId);
         currentCircuitRef.value = circuit;
         if (circuit) avancementCommunes.value = circuit.avancementCommunes;
-        // Debug logs removed
-         
-         try {
-            const variants = await invoke('get_variants', { circuitId: props.circuitId });
-            hasVariants.value = variants && variants.length > 0;
-            variantsList.value = variants ? variants.map(v => ({ id: v.id, name: v.name })) : [];
-        } catch(e) { console.warn("Check variants failed", e); }
 
-        const processed = await processTrackingData(lineStringRef.value, trackingData);
-        totalDistanceRef.value = processed.totalDistanceKm;
+        // Load variants list
+        const variants = await invoke('get_variants', { circuitId: props.circuitId });
+        availableVariants.value = variants;
+        hasVariants.value = variants.length > 0;
+
+        // 2. Load LineString & Calculate Trace Center
+        let lineString;
+        let traceCenter;
         
-        const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
-        totalDurationAt1xRef.value = totalDistanceRef.value * msPerKm; 
-
-        controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
-            if (p.pointDeControl) acc.push(index);
-            return acc;
-        }, []);
-
-        const events = eventsRef.value;
-        if (events && events.pointEvents) {
-             pauseIncrements.value = Object.keys(events.pointEvents).filter(k => events.pointEvents[k].some(e => e.type === 'Pause')).map(Number);
-             const flytos = {};
-             Object.keys(events.pointEvents).forEach(k => {
-                 const ev = events.pointEvents[k].find(e => e.type === 'Flyto');
-                 if(ev) flytos[Number(k)] = ev.data;
-             });
-             flytoEvents.value = flytos;
+        if (isMainTrace.value) {
+            // Mode Trace Principale : charger directement la trace principale
+            lineString = await invoke('read_line_string_file', { circuitId: props.circuitId });
+            lineStringRef.value = lineString;
+            
+            // Pas de données master en mode main
+            masterTraceGeoJson.value = null;
+            masterTraceTotalDistance.value = 0;
+            masterTrackingPoints.value = [];
+            
+            // Calculate trace center
+            traceCenter = turf.center(lineString).geometry.coordinates;
+        } else {
+            // Mode Variante : charger master + variante
+            // A. Load MASTER Trace (Source of truth for original segments)
+            const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+            masterTraceGeoJson.value = masterGeoJson;
+            
+            // Calculate Master Trace Total Distance (using Turf)
+            if (masterGeoJson && masterGeoJson.coordinates) {
+                 const line = turf.lineString(masterGeoJson.coordinates);
+                 masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+            } else if (masterGeoJson && masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
+                 const line = turf.lineString(masterGeoJson.geometry.coordinates);
+                 masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+            }
+            
+            // B. Load VARIANT LineString
+            lineString = await invoke('read_line_string_file', { 
+                circuitId: props.circuitId, 
+                filename: `lineString_${selectedVariantId.value}_FULL.json` 
+            });
+            lineStringRef.value = lineString;
+            
+            // Calculate trace center from master
+            traceCenter = turf.center(masterGeoJson).geometry.coordinates;
         }
-        rangeEvents.value = events?.rangeEvents || [];
+        
+        // 0. Map Init (Pre-load to avoid black screen) - Now using trace center
+        let initialCenter = traceCenter; // Use trace center instead of Paris
+        let initialZoom = zoomEurope.value;
+        if (route.query.lat && route.query.lng && route.query.zoom) {
+             initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
+             initialZoom = parseFloat(route.query.zoom);
+        }
+        
+        if (!map.value) {
+            // Mode INITIAL SETUP
+            let finalCenter = initialCenter;
+            let finalZoom = initialZoom;
+            let finalStyle = null;
 
+            if (!isDirectStart.value) {
+                // Séquence Standard : Démarrer sur l'Europe avec le style de lancement
+                finalZoom = zoomEurope.value;
+                finalStyle = styleLancement.value;
+            } else {
+                showWidgets.value = true;
+            }
+
+            let instance = await initMapEngine(finalCenter, finalZoom, finalStyle);
+            if(!instance) throw new Error("Map failed to init");
+            
+            // Listen for style data changes (which wipe custom layers)
+            instance.on('styledata', () => {
+                 if (map.value && !map.value.getLayer('trace-main-abandoned') && masterTraceGeoJson.value) {
+                     setupTraceLayers({
+                        traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: colorTraceVariant.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+                        masterTraceData: masterTraceGeoJson.value, 
+                        cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+                        slopeExpression: slopeExpressionRef.value,
+                        segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+                        slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
+                        colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
+                    });
+                    
+                    // Restore Visibility
+                    if (isVariantTrace.value) {
+                        updateLayerVisibility(true, showSegments.value);
+                        updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+                    }
+                 }
+            });
+            
+            // Reveal map as soon as style is ready (Europe view)
+            if (!isDirectStart.value) {
+                isInitializing.value = false;
+            }
+
+            // setMinZoom will be applied AFTER initial sequences to allow zoom 5 at start
+            
+            // Detect manual camera movement during pause
+            instance.on('movestart', (e) => {
+                if (isPaused.value && e.originalEvent) {
+                    cameraMoved.value = true;
+                }
+            });
+
+            if (route.query.bearing && route.query.pitch) {
+                instance.jumpTo({
+                    bearing: parseFloat(route.query.bearing),
+                    pitch: parseFloat(route.query.pitch)
+                });
+            }
+            startBearingTracking();
+        }
+        
+        // 3. Load Tracking Data
+        let trackingData;
+        
+        if (isMainTrace.value) {
+            // Mode Trace Principale : charger et traiter le tracking standard
+            const trackingRaw = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: 'tracking.json' 
+            });
+            const processed = await invoke('process_tracking_data', { 
+                lineStringGeojson: lineString,
+                trackingPointsJs: trackingRaw 
+            });
+            trackingPointsWithDistanceRef.value = processed.processedPoints;
+            totalDistanceRef.value = processed.totalDistanceKm * 1000; // En mètres
+        } else {
+            // Mode Variante
+            // A. Load MASTER Tracking Points (for Altitude Profile)
+            const masterTrackingRaw = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: 'tracking.json' 
+            });
+            const masterProcessed = await invoke('process_tracking_data', { 
+                lineStringGeojson: masterTraceGeoJson.value,
+                trackingPointsJs: masterTrackingRaw 
+            });
+            masterTrackingPoints.value = masterProcessed.processedPoints;
+
+            // B. Load Variant Details (Metadata + Stats)
+            const variantArchive = await invoke('get_variant_details', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value 
+            });
+            modifications.value = variantArchive.modifications || [];
+            variantStats.value = {
+                total: (variantArchive.metadata?.stats?.totalDistance || 0),
+                current: 0
+            };
+
+            // C. Load Overlap Metadata (Aller/Retour)
+            try {
+                segmentMetadata.value = await invoke('get_variant_overlap_metadata', { 
+                    circuitId: props.circuitId, 
+                    variantId: selectedVariantId.value 
+                });
+                if (segmentMetadata.value) {
+                    // console.log(`[VisualizeVariant] Metadata loaded: ${segmentMetadata.value.overlappingZones?.length || 0} overlap zones detected.`);
+                }
+            } catch (e) {
+                console.warn("[VisualizeVariant] Could not fetch variant overlap metadata:", e);
+                segmentMetadata.value = null;
+            }
+
+            // D. Load RECONSTITUTED Tracking (FULL)
+            trackingData = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: `tracking_${selectedVariantId.value}_FULL.json` 
+            });
+            
+            trackingPointsWithDistanceRef.value = trackingData;
+            
+            // Use exact total distance from tracking
+            const nominalTotalKm = trackingData[trackingData.length - 1].distance;
+            totalDistanceRef.value = nominalTotalKm * 1000;
+        } 
+
+        // 4. Calculate Duration
+        const nominalTotalKm = totalDistanceRef.value / 1000;
+        const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
+        totalDurationAt1xRef.value = nominalTotalKm * msPerKm; 
+
+        // 5. Populate control points
+        controlPointIndicesRef.value = trackingPointsWithDistanceRef.value
+            .map((p, i) => (p.pointDeControl ? i : -1))
+            .filter(i => i !== -1);
+
+        // 6. Load Events
+        const eventsFilename = isVariantTrace.value ? `${selectedVariantId.value}_FULL` : null;
+        try {
+            const events = await invoke('get_events', { 
+                circuitId: props.circuitId, 
+                variantId: eventsFilename 
+            });
+
+            if (events && events.pointEvents) {
+                pauseIncrements.value = Object.keys(events.pointEvents)
+                    .filter(k => events.pointEvents[k].some(e => e.type === 'Pause'))
+                    .map(Number);
+
+                const flytos = {};
+                Object.keys(events.pointEvents).forEach(k => {
+                    const ev = events.pointEvents[k].find(e => e.type === 'Flyto');
+                    if (ev) flytos[Number(k)] = ev.data;
+                });
+                flytoEvents.value = flytos;
+            }
+            rangeEvents.value = events?.rangeEvents || [];
+        } catch (e) {
+            console.warn("[Visualize] No events found:", e);
+            pauseIncrements.value = [];
+            flytoEvents.value = {};
+            rangeEvents.value = [];
+        }
+
+        // 7. Initialize Weather
         await initWeather(circuit, trackingPointsWithDistanceRef.value);
 
-        if (colorTraceBySlope.value) {
-             // ... colored segments logic ...
-             const slopeColors = {
+        // 8. Generate Slope Colors
+        const slopeColors = {
                 TrancheNegative: getToHexImproved('Visualisation/Profil Altitude/Couleurs/TrancheNegative'),
                 Tranche1: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche1'),
                 Tranche2: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche2'),
                 Tranche3: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche3'),
                 Tranche4: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche4'),
                 Tranche5: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche5'),
-            };
-            try {
-                const geojson = await invoke('get_colored_segments_geojson', { 
-                    circuitId: props.circuitId, 
-                    slopeColors, 
-                    segmentLength: segmentLength.value,
-                    variantId: null 
-                });
-                coloredSegmentsGeoJsonRef.value = geojson;
-            } catch(e) { console.error("Colored segments error", e); }
+         };
+         
+        // 9. Load Slope Expression (Variant only)
+        if (isVariantTrace.value) {
+            const expression = await invoke('get_variant_slope_expression', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value,
+                slopeColors: slopeColors
+            });
+            slopeExpressionRef.value = expression;
         }
 
-        // LISTENERS REMOVED FROM HERE - MOVED TO setupRemoteControl FUNCTION
-
-        const startPoint = trackingPointsWithDistanceRef.value[0]; 
-        
-        // Calculer le centre de la trace pour l'initialisation
-        const traceCenter = turf.center(lineStringRef.value).geometry.coordinates;
-        
-        // Determine Initial Map State
-        let initialCenter = traceCenter; // Utiliser le centre de la trace au lieu de Paris
-        let initialZoom = zoomEurope.value;
-        const isDirectStart = route.query.directStart === 'true';
-        const hasCameraParams = route.query.lat && route.query.lng && route.query.zoom;
-
-        if (hasCameraParams) {
-             initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
-             initialZoom = parseFloat(route.query.zoom);
-        } else if (isDirectStart && startPoint) {
-            initialCenter = startPoint.coordonnee;
-            initialZoom = startPoint.editedZoom ?? startPoint.zoom ?? 14;
-        }
-
-        // Init Map with correct style immediately
-        // If DirectStart, use mapStyle (3D), otherwise use default
-        const styleToUse = isDirectStart ? mapStyle.value : null; 
-        
-        const mapInstance = await initMapEngine(initialCenter, initialZoom, styleToUse);
-        if(!mapInstance) throw new Error("Map failed to init");
-        
-        // setMinZoom sera appliqué APRÈS la séquence initiale pour éviter d'interférer avec le zoom 5
-
-        // Detect manual camera movement during pause
-        mapInstance.on('movestart', (e) => {
-            if (isPaused.value && e.originalEvent) {
-                cameraMoved.value = true;
+        // 10. Generate Colored Segments (Slope-based + Aller/Retour)
+        try {
+            const geojson = await invoke('get_colored_segments_geojson', { 
+                circuitId: props.circuitId, 
+                variantId: isVariantTrace.value ? selectedVariantId.value : null,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength.value
+            });
+            coloredSegmentsGeoJsonRef.value = geojson;
+            
+            // 11. Extract Abandoned & Blue Segments (Variant only)
+            if (isVariantTrace.value) {
+                // Extract Abandoned Segments directly from Variant Modifications (Archive)
+            const abandonedRanges = [];
+            const segLen = segmentLength.value;
+            
+            if (modifications.value && modifications.value.length > 0) {
+                 modifications.value.forEach(modif => {
+                     let startIdx = 0;
+                     let endIdx = 0;
+                     let type = '';
+                     
+                     // Helper to check modification type keys (Using keys from logs: anchorIndexOnMaster, type)
+                     if (modif.type === 'DEPART_DEPORTE') {
+                         startIdx = 0;
+                         endIdx = modif.anchorIndexOnMaster;
+                         type = 'DEPART';
+                     } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                         startIdx = modif.anchorIndexOnMaster;
+                         endIdx = 999999; 
+                         type = 'ARRIVEE';
+                     } else if (modif.anchorStart && modif.anchorEnd) {
+                         startIdx = modif.anchorStart.index;
+                         endIdx = modif.anchorEnd.index;
+                         type = 'SEGMENT';
+                     } else if (modif.type === 'SEGMENT_DEVIATION') {
+                         startIdx = modif.anchorStart?.index || 0;
+                         endIdx = modif.anchorEnd?.index || 0;
+                         type = 'SEGMENT';
+                     }
+                     
+                     if (endIdx > startIdx) {
+                         const startM = startIdx * segLen;
+                         let endM = endIdx * segLen;
+                         if (endM > masterTraceTotalDistance.value) endM = masterTraceTotalDistance.value;
+                         abandonedRanges.push({ start: startM, end: endM });
+                     }
+                 });
             }
-        });
+            
+            abandonedSegmentsRef.value = abandonedRanges;
+            
+            // Extract Blue Variant Segments
+            const blueSegments = [];
+            
+            if (trackingData && trackingData.length > 0 && modifications.value && modifications.value.length > 0) {
+                // 1. Sort modifications by their position on the MASTER trace
+                const sortedModifs = [...modifications.value].sort((a, b) => {
+                    const getStart = (m) => {
+                        if (m.type === 'DEPART_DEPORTE') return 0;
+                        if (m.type === 'ARRIVEE_REPORTEE') return 9999999;
+                        return m.anchorStart?.index || 0;
+                    };
+                    return getStart(a) - getStart(b);
+                });
 
-        // Immediate Positioning (JumpTo)
-        if (hasCameraParams) {
-             mapInstance.jumpTo({
-                 center: initialCenter,
-                 zoom: initialZoom,
-                 pitch: parseFloat(route.query.pitch || 0),
-                 bearing: parseFloat(route.query.bearing || 0)
-             });
-        } else if (isDirectStart && startPoint) {
-             mapInstance.jumpTo({
-                 center: initialCenter,
-                 zoom: initialZoom,
-                 pitch: startPoint.editedPitch ?? startPoint.pitch ?? 0,
-                 bearing: startPoint.editedCap ?? startPoint.cap ?? 0
-             });
+                // 2. Track cursors to calculate cumulative distance in VARIANT track
+                let masterCursorIdx = 0;
+                let variantCursorM = 0;
+
+                sortedModifs.forEach(modif => {
+                    let startAnchorIdx = 0;
+                    let endAnchorIdx = 0;
+                    let type = '';
+                    
+                    if (modif.type === 'DEPART_DEPORTE') {
+                        type = 'DEPART';
+                        startAnchorIdx = 0;
+                        endAnchorIdx = modif.anchorIndexOnMaster;
+                    } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                        type = 'ARRIVEE';
+                        startAnchorIdx = modif.anchorIndexOnMaster;
+                        endAnchorIdx = 9999999; // Will be clamped
+                    } else {
+                        type = 'SEGMENT';
+                        startAnchorIdx = modif.anchorStart?.index || 0;
+                        endAnchorIdx = modif.anchorEnd?.index || 0;
+                    }
+
+                    // A. The variant tracking contains a "common" section before this modification
+                    // Distance of common section = (Start of modif - End of previous modif) * segmentLength
+                    const commonLenM = (startAnchorIdx - masterCursorIdx) * segLen;
+                    variantCursorM += commonLenM;
+
+                    // B. The modification itself starts here
+                    const variantStartM = variantCursorM;
+                    const variantLenM = (modif.longueur || 0) * 1000;
+                    const variantEndM = variantCursorM + variantLenM;
+
+                    // C. Extract points from trackingData based on calculated distances
+                    // Use a small 1m buffer for precision
+                    const startIndex = trackingData.findIndex(p => p.distance * 1000 >= (variantStartM - 1));
+                    const endIndex = trackingData.findLastIndex(p => p.distance * 1000 <= (variantEndM + 1));
+
+                    if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
+                        const slice = trackingData.slice(startIndex, endIndex + 1).map(p => ({
+                            distance: p.distance,
+                            altitude: p.altitude
+                        }));
+                        
+                        blueSegments.push({
+                            type,
+                            name: modif.name, // Support custom segment names
+                            // Junction point on Master is the anchor
+                            anchorM: type === 'DEPART' ? endAnchorIdx * segLen : startAnchorIdx * segLen,
+                            anchorEndM: type === 'SEGMENT' ? endAnchorIdx * segLen : 0,
+                            lengthM: variantLenM,
+                            points: slice
+                        });
+                    }
+
+                    // D. Advance cursors
+                    variantCursorM = variantEndM;
+                    masterCursorIdx = endAnchorIdx;
+                });
+            }
+            variantBlueSegmentsRef.value = blueSegments;
+            } else {
+                // Mode trace principale : pas de segments abandonnés ou bleus
+                abandonedSegmentsRef.value = [];
+                variantBlueSegmentsRef.value = [];
+            }
+        } catch(e) {
+            console.error("Colored segments load error", e);
+            coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
+            abandonedSegmentsRef.value = [];
+            variantBlueSegmentsRef.value = [];
         }
 
-        startBearingTracking();
-
+        // 3. Map Layers (Once data is loaded)
         setupTraceLayers({
-            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: colorTraceVariant.value, // Use Variant Trace Color
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            masterTraceData: masterTraceGeoJson.value, // Pass Master Trace for 'Main' layer
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            slopeExpression: slopeExpressionRef.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
+        });
+
+        // Variant-specific watchers and initialization
+        if (isVariantTrace.value) {
+            // Apply Initial Visibility
+            // Segments Layers (Main+Variant) controlled by showSegments
+            updateLayerVisibility(true, showSegments.value);
+            updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+        
+        // Slope Layer Mode (Gradient vs Flat Color)
+        updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+        
+        // Watches for live setting updates
+        watch(showSegments, (newVal) => {
+            updateLayerVisibility(true, newVal);
         });
         
-        if (isDirectStart) {
-             // Direct Start: Skip Global View logic
-             animationState.value = 'Vol_Vers_Depart';
+        watch(showAbandoned, (newVal) => {
+             updateLayerVisibility('trace-main-abandoned', newVal);
+        });
+        
+        watch(showSlope, (newVal) => {
+            updateVariantSlopeMode(newVal, { trace: colorTraceVariant.value });
+        });
+        
+        // Watchers for Style Updates (Thickness, Opacity, Colors)
+        watch([segmentThickness, segmentOpacity, colorNew, colorCommon, colorAbandoned, colorTraceVariant, slopeThickness, slopeOpacity], () => {
+             updateVariantStyle({
+                 thickness: segmentThickness.value,
+                 opacity: segmentOpacity.value,
+                 colorNew: colorNew.value,
+                 colorCommon: colorCommon.value,
+                 colorAbandoned: colorAbandoned.value,
+                 colorTrace: colorTraceVariant.value,
+                 slopeThickness: slopeThickness.value,
+                 slopeOpacity: slopeOpacity.value
+             });
              
-             // Afficher les widgets immédiatement en mode Direct Start
-             showWidgets.value = true;
-             
-             // Appliquer le zoom minimum
-             mapInstance.setMinZoom(zoomMinimum.value);
-             
-             // No need to switch style, we initialized with it.
+             // Refresh Slope Mode to ensure correct color is applied if mode didn't change but color did
+             updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+         });
+        }
+        
+        // Initial Overlap Check (to hide loops on start if any)
+        checkLayers(0); 
+        
+        // 12. Animation Sequence
+        const startPoint = trackingPointsWithDistanceRef.value[0];
+        const mapInstance = map.value;
+        
+        if (isDirectStart.value) {
+            // Mode Direct (Variante OU DirectStart pour trace principale)
+            animationState.value = 'Vol_Vers_Depart';
+            
+            // Appliquer le zoom minimum
+            mapInstance.setMinZoom(zoomMinimum.value);
+            
+            // Vol direct vers km 0
+            isFlytoActive.value = true;
+            
+            // Reveal map for direct start (km 0 is usually zoomed in, show it immediately)
+            isInitializing.value = false;
+
+            await flyToPromise({
+                center: startPoint.coordonnee,
+                zoom: startPoint.editedZoom ?? startPoint.zoom ?? 16,
+                pitch: startPoint.editedPitch ?? startPoint.pitch ?? 45,
+                bearing: startPoint.editedCap ?? startPoint.cap ?? 0,
+                duration: 3000
+            });
+            isFlytoActive.value = false;
+            
         } else {
-            // Normal Sequence - Zoom progressif depuis le centre de la trace
+            // Mode Standard (Trace Principale avec séquence complète)
             animationState.value = 'Vol_Vers_Vue_Globale';
             
             // Calculer le zoom cible pour voir toute la trace
             const traceBbox = turf.bbox(lineStringRef.value);
             const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
             
-            console.log(`[DEBUG] Zoom progressif : ${zoomEurope.value} → ${globalView.zoom} en ${durationEuropeToTrace.value}ms`);
-            
             isFlytoActive.value = true;
             
-            // Démarrer le flyTo en arrière-plan (carte encore cachée)
-            // NE PAS spécifier de centre pour éviter tout ajustement par Mapbox
+            // Démarrer le flyTo (carte déjà révélée ou en cours d'apparition)
             const flyToTask = flyToPromise({
                 zoom: globalView.zoom,
                 bearing: 0,
                 pitch: 0
             }, { duration: durationEuropeToTrace.value });
             
-            // Attendre 200ms que le zoom commence vraiment, puis révéler la carte
+            // Déclencher les messages à 50% du vol depuis l'Europe
+            setTimeout(() => {
+                checkEvents(0);
+            }, durationEuropeToTrace.value / 2);
+
+            // Attendre 200ms pour s'assurer que le zoom a bien commencé (optionnel, pour fluidité)
             await new Promise(r => setTimeout(r, 200));
-            isInitializing.value = false;
+            isInitializing.value = false; // Sécurité si pas déjà fait
             
             // Attendre la fin du flyTo
             await flyToTask;
-            
             isFlytoActive.value = false;
             
-            // Appliquer le zoom minimum MAINTENANT que la séquence initiale est terminée
+            // Appliquer le zoom minimum MAINTENANT que la séquence Europe est terminée
             mapInstance.setMinZoom(zoomMinimum.value);
             
-            // Afficher les widgets maintenant que le zoom est terminé
-            showWidgets.value = true;
-
-
             animationState.value = 'Pause_Observation';
             
-            // Attendre la pause configurée ou indéfiniment si reprise auto désactivée
+            // Pause d'observation
             if (repriseAutoVueTrace.value) {
                 await new Promise(r => setTimeout(r, pauseBeforeStart.value));
             } else {
-                // Pause manuelle : attendre que le présentateur appuie sur Play
+                // Pause manuelle
                 isPaused.value = true;
                 await new Promise(resolve => {
                     const checkResume = () => {
@@ -581,22 +1122,56 @@ const initializeVisualization = async () => {
             }
             
             animationState.value = 'Vol_Vers_Depart';
+            
+            // Changement de style si nécessaire
             if (mapStyle.value !== styleLancement.value) {
                 mapInstance.setStyle(mapStyle.value);
                 await new Promise(resolve => mapInstance.once('style.load', resolve));
-                setupTraceLayers({
-                    traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-                    lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-                    coloredSegmentsData: coloredSegmentsGeoJsonRef.value
-                }); 
+                
+                // IMPORTANT: re-add active popups after style change
+                activePopups.forEach(p => {
+                    if (map.value) p.addTo(map.value);
+                });
+                
+                // Re-setup layers après changement de style
+                if (isMainTrace.value) {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: traceColor.value,
+                        lineStringData: lineStringRef.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+                    });
+                } else {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: colorTraceVariant.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+                        masterTraceData: masterTraceGeoJson.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        slopeExpression: slopeExpressionRef.value,
+                        segmentThickness: segmentThickness.value,
+                        segmentOpacity: segmentOpacity.value,
+                        slopeThickness: slopeThickness.value,
+                        slopeOpacityLogic: slopeOpacity.value,
+                        colorNew: colorNew.value,
+                        colorCommon: colorCommon.value,
+                        colorAbandoned: colorAbandoned.value
+                    });
+                    
+                    // Force re-apply visibility as style reset might have confused state or z-index
+                    updateLayerVisibility(true, showSegments.value);
+                    updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+                }
             }
-        }
-
-        // Final Positioning at Start (FlyTo)
-        // Execute if:
-        // 1. Standard Start (!isDirectStart)
-        // 2. OR Direct Start but coming from somewhere else (hasCameraParams) -> Fly from there to start.
-        if (!isDirectStart || hasCameraParams) {
+            
+            // Vol vers le km 0
             isFlytoActive.value = true;
             await flyToPromise({
                 center: startPoint.coordonnee,
@@ -608,50 +1183,131 @@ const initializeVisualization = async () => {
             isFlytoActive.value = false;
         }
 
+
+
         animationState.value = 'En_Pause_au_Depart';
+        isInitializing.value = false;
         enableInteraction();
+
+        // Afficher les widgets UNIQUEMENT maintenant (au début de la pause au Km 0)
+        showWidgets.value = true;
+
+        // Ensure KM 0 messages are displayed during the initial pause
+        await checkEvents(0);
+
         startAnimation(animateLoop); 
         
         if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
              isPaused.value = true;
              
-             // Attendre selon la configuration
+             // Attendre selon la configuration (NON-BLOQUANT)
              if (repriseAutoKm0.value) {
-                 // Wait for delay OR user interaction (isPaused becoming false)
-                 await new Promise(resolve => {
-                     let timer = setTimeout(() => {
-                         stopWatch();
-                         resolve();
-                     }, pauseAuKm0.value);
-                     
-                     const stopWatch = watch(isPaused, (newVal) => {
-                         if (!newVal) { // User clicked Play
-                             clearTimeout(timer);
-                             stopWatch();
-                             resolve();
-                         }
-                     });
-                 });
-                 // Ensure paused is false if timeout expired naturally
-                 if (isPaused.value) isPaused.value = false;
-             } else {
-                 // Pause manuelle : attendre indéfiniment que le présentateur appuie sur Play
-                 await new Promise(resolve => {
-                     const stopWatch = watch(isPaused, (newVal) => {
-                         if (!newVal) {
-                             stopWatch();
-                             resolve();
-                         }
-                     });
-                 });
+                 // Auto-resume after delay
+                 setTimeout(() => {
+                     if (isPaused.value && animationState.value === 'En_Pause_au_Depart') {
+                         isPaused.value = false;
+                     }
+                 }, pauseAuKm0.value);
              }
+             // Si pas de reprise auto, on reste simplement en pause (isPaused=true).
+             // L'utilisateur devra cliquer sur Play (Espace ou Remote) pour débloquer.
+             // On ne bloque pas l'exécution ici, sinon setupRemoteControl n'est jamais appelé !
         }
 
     } catch (error) {
-        console.error("Init Visualization Failed:", error);
-        showSnackbar("Erreur d'initialisation", "error");
+        console.error("Init Visualization Variant Failed:", error);
+        showSnackbar("Erreur d'initialisation variante", "error");
     }
 };
+
+
+    
+/**
+ * Applies smoothing to tracking data received from backend.
+ * Essential for variant segments which have generated points with default cap=0.
+ * Also smooths the master tracking parts for consistency.
+ */
+function applySmoothingToTracking(tracking) {
+    // 1. First pass: Ensure Raw Bearings exist
+    for (let i = 0; i < tracking.length; i++) {
+        const pt = tracking[i];
+        
+        // If cap is 0 (likely generated), calculate it
+        if (!pt.cap || pt.cap === 0) {
+            let rawBearing = 0;
+            const coord = pt.coordonnee; // [lon, lat]
+            
+            if (i > 0) {
+                const prev = tracking[i-1].coordonnee;
+                // Avoid NaN from duplicate points
+                if (Math.abs(prev[0] - coord[0]) < 1e-9 && Math.abs(prev[1] - coord[1]) < 1e-9) {
+                     rawBearing = tracking[i-1].cap || 0;
+                } else {
+                     rawBearing = turf.bearing(turf.point(prev), turf.point(coord));
+                }
+            } else if (tracking.length > 1) {
+                const next = tracking[i+1].coordonnee;
+                rawBearing = turf.bearing(turf.point(coord), turf.point(next));
+            }
+             
+            if (isNaN(rawBearing)) rawBearing = 0;
+            pt.cap = rawBearing;
+        }
+        
+        // Ensure defaults if missing
+        if (!pt.zoom) pt.zoom = 17; // Closer zoom to see spline effect distinct from arc
+        if (!pt.pitch) pt.pitch = 50;
+    }
+
+    // 2. Second pass: Smooth Bearings (Vector Averaging)
+    const smoothingWindow = 10; 
+    
+    // We clone to avoid modifying while reading? 
+    // Actually we can compute average based on the raw caps we just set.
+    
+    // Create a temp array for smoothed caps to apply after calculation
+    const newCaps = new Array(tracking.length);
+
+    for (let i = 0; i < tracking.length; i++) {
+        let sinSum = 0;
+        let cosSum = 0;
+        let count = 0;
+
+        for (let j = Math.max(0, i - smoothingWindow); j <= Math.min(tracking.length - 1, i + smoothingWindow + 5); j++) {
+            const bearingRad = (tracking[j].cap * Math.PI) / 180;
+            sinSum += Math.sin(bearingRad);
+            cosSum += Math.cos(bearingRad);
+            count++;
+        }
+
+        if (count > 0) {
+            const avgBearingRad = Math.atan2(sinSum / count, cosSum / count);
+            let avgBearingDeg = (avgBearingRad * 180) / Math.PI;
+            if (avgBearingDeg < 0) avgBearingDeg += 360; 
+            
+            newCaps[i] = avgBearingDeg;
+        } else {
+            newCaps[i] = tracking[i].cap;
+        }
+    }
+    
+    // Apply new caps
+    for(let i=0; i<tracking.length; i++) {
+        tracking[i].editedCap = newCaps[i];
+        tracking[i].cap = newCaps[i];
+    }
+    
+    // Fix start
+    if(tracking.length > 5) {
+        const startBearing = tracking[5].editedCap; 
+         for(let k=0; k<5; k++) {
+             tracking[k].editedCap = startBearing;
+             tracking[k].cap = startBearing;
+         }
+    }
+
+    return tracking;
+}
 
 let lastTimestamp = 0;
 
@@ -677,15 +1333,16 @@ const animateLoop = (timestamp) => {
     lastTimestamp = timestamp;
     
     // Call controller to update time refs
-    const { phase, distanceTraveled } = updateTime(deltaTime, totalDurationAt1xRef.value, totalDistanceRef.value);
+    // Call controller to update time refs (Controller expects KM)
+    const { phase, distanceTraveled } = updateTime(deltaTime, totalDurationAt1xRef.value, totalDistanceRef.value / 1000);
     
-    // 3. Comet
+    // 3. Comet (use km directly)
     updateComet(distanceTraveled);
 
     // 4. Overlap Layers (Trace Retour/Aller switch)
     checkLayers(distanceTraveled);
 
-    // 5. Camera Interpolation (Using New Composable)
+    // 5. Camera Interpolation (Using New Composable) - Expects KM for tracking comparison
     const { bearing: newBearing } = updateCameraPosition(distanceTraveled, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
         dynamicZoomIntensity: dynamicZoomIntensity.value,
         currentSpeed: currentSpeed.value,
@@ -721,6 +1378,7 @@ const animateLoop = (timestamp) => {
     }
 
     // 6. Check Events (Pause/Flyto)
+    // 6. Check Events (Pause/Flyto)
     checkEvents(distanceTraveled);
 
     // 7. Loop or End
@@ -733,22 +1391,103 @@ const animateLoop = (timestamp) => {
     }
 };
 
+const handleJumpRequest = async (targetDistanceKm) => {
+    // 1. Suspension
+    const wasPlaying = !isPaused.value;
+    isPaused.value = true;
+    isFlytoActive.value = true;
+    
+    const targetDistanceM = targetDistanceKm * 1000;
+    
+    // 2. Mise à jour État (Instantanée)
+    // Attention: totalDistanceRef est en Mètres ici, mais setTimeFromDistance attend des KM pour les deux ?
+    // Check setTimeFromDistance: (targetDistanceInKm, totalDistanceKm, totalDurationMs)
+    // Ici totalDistanceRef est en Mètres.
+    setTimeFromDistance(targetDistanceKm, totalDistanceRef.value / 1000, totalDurationAt1xRef.value);
+
+    
+    // Comet Update
+    updateComet(targetDistanceKm); 
+    
+    // Layers Logic (Aller/Retour)
+    checkLayers(targetDistanceKm);
+    
+    // Weather
+    if (simulationStartDate.value && weatherForecasts.value?.length > 0) {
+         const timeMs = accumulatedTime.value || 0;
+         const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
+         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, weatherForecasts.value);
+         if (newWeather) currentWeather.value = newWeather;
+    }
+    
+    // 3. Calcul Cible Caméra
+    // Interpolated Bearing
+    const { bearing: interpolatedBearing, target: targetCameraParams } = updateCameraPosition(targetDistanceKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+        dynamicZoomIntensity: dynamicZoomIntensity.value,
+        currentSpeed: currentSpeed.value,
+        lineStringRef: lineStringRef,
+        isMultisegment: false, 
+        activeVariantSegments: [],
+        apply: false // IMPORTANT: Do not move map yet
+    });
+    
+    if (interpolatedBearing !== null) currentTraceBearing.value = interpolatedBearing;
+    
+    let targetCamera = targetCameraParams;
+    
+    if (!targetCamera) {
+        const pts = trackingPointsWithDistanceRef.value;
+        let bestPoint = pts[0];
+        for (let i = pts.length - 1; i >= 0; i--) {
+            if (pts[i].distance <= targetDistanceKm) {
+                bestPoint = pts[i];
+                break;
+            }
+        }
+        targetCamera = {
+            center: bestPoint.coordonnee, 
+            zoom: bestPoint.editedZoom ?? bestPoint.zoom,
+            pitch: bestPoint.editedPitch ?? bestPoint.pitch,
+            bearing: bestPoint.editedCap ?? bestPoint.cap
+        };
+    }
+
+
+    // 4. FlyTo Transition
+    await flyToPromise({
+        ...targetCamera,
+        duration: jumpDuration.value * 1000 
+    });
+    
+    // 5. Reprise
+    isFlytoActive.value = false;
+    
+    if (wasPlaying) {
+        isPaused.value = false;
+    } else {
+        if(map.value) map.value.triggerRepaint();
+    }
+};
+
 // --- Helpers ---
 
+let lastDirection = 'aller';
 const checkLayers = (distanceTraveled) => {
      if (segmentMetadata.value?.overlappingZones) {
          const isRetour = segmentMetadata.value.overlappingZones.some(z => distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm); 
-         if (isRetour) {
-             updateTraceOverlapVisibility(null, 'retour');
-         } else {
-             updateTraceOverlapVisibility(null, 'aller');
+         const currentDir = isRetour ? 'retour' : 'aller';
+         
+         if (currentDir !== lastDirection) {
+             // console.log(`[VisualizeVariant] Switching Layer to: ${currentDir} at distance ${distanceTraveled.toFixed(2)} km`);
+             lastDirection = currentDir;
          }
+
+         updateTraceOverlapVisibility(null, currentDir, showSegments.value);
     }
 };
 
 const updateComet = (distanceTraveled) => {
      if(!map.value || !lineStringRef.value) return;
-     
      const totalLen = turf.length(lineStringRef.value, { units: 'kilometers' });
      const currentDist = Math.max(0, Math.min(distanceTraveled, totalLen));
      const cometLengthKm = cometLength.value / 1000;
@@ -861,81 +1600,6 @@ const checkEvents = async (distanceTraveled) => {
     }
 };
 
-const handleJumpRequest = async (targetDistanceKm) => {
-    // 1. Suspension
-    const wasPlaying = !isPaused.value;
-    isPaused.value = true;
-    isFlytoActive.value = true;
-    
-    // 2. Mise à jour État (Instantanée) de la Comète et des Widgets
-    setTimeFromDistance(targetDistanceKm, totalDistanceRef.value, totalDurationAt1xRef.value);
-    const targetDistanceM = targetDistanceKm * 1000;
-    
-    updateComet(targetDistanceKm); // Comet uses KM
-    checkLayers(targetDistanceKm);
-    if (simulationStartDate.value && weatherForecasts.value?.length > 0) {
-         // Force update weather
-         const timeMs = accumulatedTime.value || 0;
-         const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
-         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, weatherForecasts.value);
-         if (newWeather) currentWeather.value = newWeather;
-    }
-    
-    // 3. Calcul Cible Caméra
-    // Recherche point proche pour fallback
-    // Calculate interpolated bearing AND target camera
-    const { bearing: interpolatedBearing, target: targetCameraParams } = updateCameraPosition(targetDistanceKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
-        dynamicZoomIntensity: dynamicZoomIntensity.value,
-        currentSpeed: currentSpeed.value,
-        lineStringRef: lineStringRef,
-        isMultisegment: false, 
-        activeVariantSegments: [],
-        apply: false // IMPORTANT: Do not move map yet
-    });
-    
-    if (interpolatedBearing !== null) currentTraceBearing.value = interpolatedBearing;
-    
-    // Target Camera State
-    let targetCamera = targetCameraParams;
-    
-    if (!targetCamera) {
-        // Fallback robust (si hors range ou erreur)
-        const pts = trackingPointsWithDistanceRef.value;
-        let bestPoint = pts[0];
-        for (let i = pts.length - 1; i >= 0; i--) {
-            if (pts[i].distance <= targetDistanceKm) {
-                bestPoint = pts[i];
-                break;
-            }
-        }
-        targetCamera = {
-             center: bestPoint.coordonnee,
-             zoom: bestPoint.editedZoom ?? bestPoint.zoom,
-             pitch: bestPoint.editedPitch ?? bestPoint.pitch,
-             bearing: bestPoint.editedCap ?? bestPoint.cap
-        };
-    }
-
-    // 4. FlyTo Transition
-    await flyToPromise({
-        ...targetCamera,
-        duration: jumpDuration.value * 1000 // Convert seconds to ms
-    });
-    
-    // 5. Reprise
-    isFlytoActive.value = false;
-    
-    // On ne reprend QUE si on était en lecture
-    if (wasPlaying) {
-        isPaused.value = false;
-        // On restart la loop si besoin (normalement elle tourne tjs si initialized)
-        // Mais checkLayers/etc seront appelés au prochain frame
-    } else {
-        // Force repaint one last time to be sure
-        if(map.value) map.value.triggerRepaint();
-    }
-};
-
 const executeFlytoSequence = async (flytoData) => {
     isFlytoActive.value = true;
     isPaused.value = true;
@@ -961,7 +1625,14 @@ const executeFlytoSequence = async (flytoData) => {
 
     animationState.value = 'Survol_Evenementiel';
     const durationBack = Math.max(200, duration / currentSpeed.value);
-    await flyToPromise({ ...preFlytoCameraOptions.value, duration: durationBack });
+    const preOpts = preFlytoCameraOptions.value;
+    await flyToPromise({ 
+        center: preOpts.center, 
+        zoom: preOpts.zoom, 
+        pitch: preOpts.pitch, 
+        bearing: preOpts.bearing, 
+        duration: durationBack 
+    });
 
     isFlytoActive.value = false;
     isPaused.value = false;
@@ -972,7 +1643,7 @@ const executeFlytoSequence = async (flytoData) => {
 
 const handleEndSequence = async (skipDelay = false) => {
     if(!map.value) return;
-    
+
     // Pause à l'arrivée
     if (!skipDelay && delayAfterAnimationEnd.value > 0) {
         await new Promise(r => setTimeout(r, delayAfterAnimationEnd.value));
@@ -981,7 +1652,7 @@ const handleEndSequence = async (skipDelay = false) => {
     // Explicitly set state to Finished (needed if triggered manually via button)
     isAnimationFinished.value = true;
     isPaused.value = true;
-
+    
     animationState.value = 'Vol_Final';
     // Hide UI
     isDistanceDisplayVisible.value = false;
@@ -993,24 +1664,72 @@ const handleEndSequence = async (skipDelay = false) => {
           map.value.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
      }
     
+    // Force visibility of master trace layers for comparison
+    updateLayerVisibility('trace-main-abandoned', true);
+    
+    // Force remote update to clear segments
+    updateRemoteViewState();
+    
     // Switch to launch style if needed
     if (styleLancement.value !== mapStyle.value) {
         map.value.setStyle(styleLancement.value);
         await new Promise(r => map.value.once('style.load', r));
+        
+        // IMPORTANT: re-add active popups after style change (they might be removed by Mapbox)
+        activePopups.forEach(p => {
+             if (map.value) p.addTo(map.value);
+        });
+
         setupTraceLayers({
             traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
-            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
-            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+            lineStringData: lineStringRef.value, 
+            masterTraceData: masterTraceGeoJson.value,
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
         });
     }
 
-    const traceBbox = turf.bbox(lineStringRef.value);
-    isFlytoActive.value = true;
-    await flyToPromise({
-        pitch: 0, bearing: 0, duration: flyToGlobalDuration.value,
-        ...(map.value.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 }))
-    });
-    isFlytoActive.value = false;
+    // Combined BBox for both traces
+    let combinedBbox = null;
+    try {
+        const variantFeature = { type: 'Feature', geometry: lineStringRef.value.geometry || lineStringRef.value, properties: {} };
+        const features = [variantFeature];
+        
+        if (masterTraceGeoJson.value) {
+            const masterFeature = { type: 'Feature', geometry: masterTraceGeoJson.value.geometry || masterTraceGeoJson.value, properties: {} };
+            features.push(masterFeature);
+        }
+        
+        combinedBbox = turf.bbox({
+            type: 'FeatureCollection',
+            features: features
+        });
+    } catch (e) {
+        console.warn("BBox calculation failed, fallback to variant only", e);
+        if (lineStringRef.value) {
+             combinedBbox = turf.bbox(lineStringRef.value);
+        }
+    }
+
+    /* Safe implementation of Final FlyTo */
+    try {
+        const camParams = map.value.cameraForBounds(combinedBbox, { padding: 80, bearing: 0, pitch: 0 });
+        if (camParams) {
+             isFlytoActive.value = true;
+             await flyToPromise({
+                center: camParams.center,
+                zoom: camParams.zoom,
+                pitch: 0, 
+                bearing: 0, 
+                duration: flyToGlobalDuration.value
+            });
+            isFlytoActive.value = false;
+        }
+    } catch (err) {
+        console.warn("End sequence flyTo failed", err);
+    }
     
     animationState.value = 'Termine';
      // Logic Reprise Auto...
@@ -1026,15 +1745,15 @@ const resetAnimation = async () => {
     isFlytoActive.value = false;
     
     // Restore UI
-    isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
-    isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
-    isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
-    isWeatherInfoVisible.value = getSettingValue('Visualisation/Widgets/meteo') ?? true;
-    isCompassVisible.value = getSettingValue('Visualisation/Widgets/boussole') ?? true;
-    isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? false;
+    isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
+    isAltitudeVisible.value = getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true;
+    isCommuneWidgetVisible.value = getSettingValue('Variante/Visualisation/Widgets/communes') ?? true;
+    isWeatherInfoVisible.value = getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true;
+    isCompassVisible.value = getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true;
+    isControlsCardVisible.value = getSettingValue('Variante/Visualisation/Widgets/commandes') ?? false;
 
     // Restore Map Style for 3D View if changed
-    if (mapStyle.value && map.value.getStyle().name !== mapStyle.value) { // Simple check, might need robust URL check
+    if (map.value && mapStyle.value && map.value.getStyle()?.name !== mapStyle.value) { 
         // Or assume if we are in End State (standard map) we need to switch back
          map.value.setStyle(mapStyle.value);
          await new Promise(r => map.value.once('style.load', r));
@@ -1058,8 +1777,10 @@ const resetAnimation = async () => {
         });
     }
 
-    activePopups.forEach(p => p.remove());
-    activePopups.clear();
+    if (map.value) {
+        activePopups.forEach(p => p.remove());
+        activePopups.clear();
+    }
     
     // Reset Camera
     if(trackingPointsWithDistanceRef.value.length > 0) {
@@ -1072,8 +1793,144 @@ const resetAnimation = async () => {
     }
     
     animationState.value = 'En_Pause_au_Depart';
+    
+    // Force Pause state before checking auto-resume logic
+    // (This fixes the issue where isPaused might have flipped to false during the async flyTo)
+    isPaused.value = true;
+
+    // Handle Auto-Resume Logic (Same as initialization)
+    if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
+         // Keep paused (isPaused is already true)
+         if (repriseAutoKm0.value) {
+             // Auto-resume after delay
+             setTimeout(() => {
+                 if (isPaused.value && animationState.value === 'En_Pause_au_Depart') {
+                     isPaused.value = false;
+                 }
+             }, pauseAuKm0.value);
+         }
+    } else {
+        // No pause required, start immediately
+        isPaused.value = false;
+    }
+
     requestAnimationFrame(animateLoop);
 };
+
+// --- Remote Control Logic ---
+const setupRemoteControl = async () => {
+    // Notify starting view based on current mode
+    await invoke('update_current_view', { newView: remoteViewName.value });
+    
+    // Send initial state including segments
+    await updateRemoteViewState();
+
+    // 1. Listeners for Remote Commands
+    const listeners = [
+        // Play/Pause
+        await listen('remote_command::toggle_play', () => togglePlayPauseOrReset()),
+        
+        // Restart
+        await listen('remote_command::restart_animation', () => resetAnimation()),
+        
+        // Final View
+        await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
+
+        // Return to Main Trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Home
+        await listen('remote_command::go_home', () => goBack()),
+
+        // Rewind
+        await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
+        await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
+        
+        // Speed
+        await listen('remote_command::increase_speed', () => {
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+        }),
+        
+        // Segment Navigation
+        await listen('remote_command::jump_to_segment', (event) => {
+            const index = event.payload?.index;
+            if (typeof index === 'number') {
+                const segments = buildFullSegmentList();
+                if (segments[index]) {
+                    // Use computed start for jump
+                    handleJumpRequest(segments[index].computedStart);
+                }
+            }
+        }),
+        await listen('remote_command::decrease_speed', () => {
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+        }),
+        await listen('remote_command::update_speed', (event) => {
+             if (event.payload !== undefined) {
+                 let newSpeed;
+                 if (typeof event.payload === 'object' && event.payload !== null) {
+                     newSpeed = parseFloat(event.payload.speed);
+                 } else {
+                     newSpeed = parseFloat(event.payload);
+                 }
+                 
+                 if (!isNaN(newSpeed)) {
+                     sliderPosition.value = mapSpeedToSlider(newSpeed);
+                 }
+             }
+        }),
+        
+        // Camera Updates
+        await listen('remote_command::update_camera', (event) => {
+            const { type, dx, dy } = event.payload;
+
+            if (isPaused.value) cameraMoved.value = true;
+
+            // Map common events to local logic
+            switch(type) {
+                case 'pan':
+                    if (map.value) map.value.panBy([-parseFloat(dx) * remoteSensX.value, -parseFloat(dy) * remoteSensY.value], { duration: 0 });
+                    break;
+                case 'tilt':
+                    if (map.value) map.value.setPitch(map.value.getPitch() - (parseFloat(dy) * remoteSensTilt.value));
+                    break;
+                case 'zoom':
+                    // Sensitivity: base 0.03 * user factor
+                    if (map.value) map.value.setZoom(map.value.getZoom() - (parseFloat(dy) * 0.03 * remoteSensZoom.value));
+                    break;
+                case 'bearing':
+                    if (map.value) map.value.setBearing(map.value.getBearing() + (parseFloat(dx) * remoteSensCap.value));
+                    break;
+            }
+        }),
+
+        // Widget Toggles
+        await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
+        await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
+        await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
+        await listen('remote_command::toggle_weather_dynamic', () => { isCompassVisible.value = !isCompassVisible.value; }),
+        await listen('remote_command::toggle_weather_static', () => { isWeatherInfoVisible.value = !isWeatherInfoVisible.value; }),
+        await listen('remote_command::toggle_communes_display', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
+        
+        
+        // Final View jump
+        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+        
+        // Return to main trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Select another variant
+        await listen('remote_command::trigger_variant_selection', () => { showVariantSelection.value = true; }),
+        await listen('remote_command::select_variant', (event) => {
+            if (event.payload && event.payload.variantId) {
+                selectVariant(event.payload.variantId);
+            }
+        }),
+    ];
+
+    unlistenFunctions.push(...listeners);
+};
+
 
 // --- Weather ---
 async function initWeather(circuit, trackingPoints) {
@@ -1194,184 +2051,32 @@ const handleKeyup = (e) => {
     }
 };
 
-
-
-// --- Remote Control Logic ---
-const setupRemoteControl = async () => {
-    // Notify starting view
-    invoke('update_current_view', { newView: 'VisualizeView' });
-
-    // 1. Listeners for Remote Commands
-    const listeners = [
-        // Play/Pause
-        await listen('remote_command::toggle_play', () => togglePlayPauseOrReset()),
-        
-        // Restart
-        await listen('remote_command::restart_animation', () => resetAnimation()),
-        
-        // Final View
-        await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
-
-        // Variants
-        await listen('remote_command::trigger_variant_selection', () => goToVariantView()),
-        await listen('remote_command::select_variant', (event) => {
-            if (event.payload && event.payload.variantId) {
-                navigateToVariant(event.payload.variantId);
-            }
-        }),
-
-        // Home
-        await listen('remote_command::go_home', () => goBack()),
-
-        // Rewind
-        await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
-        await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
-        
-        // Speed
-        await listen('remote_command::increase_speed', () => {
-             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
-        }),
-        await listen('remote_command::decrease_speed', () => {
-             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
-        }),
-        await listen('remote_command::update_speed', (event) => {
-             if (event.payload !== undefined) {
-                 // Handle both raw value and { speed: val } object
-                 let newSpeed;
-                 if (typeof event.payload === 'object' && event.payload !== null) {
-                     newSpeed = parseFloat(event.payload.speed);
-                 } else {
-                     newSpeed = parseFloat(event.payload);
-                 }
-                 
-                 if (!isNaN(newSpeed)) {
-                     sliderPosition.value = mapSpeedToSlider(newSpeed);
-                 }
-             }
-        }),
-        await listen('remote_command::set_speed_to_1x', () => {
-             sliderPosition.value = mapSpeedToSlider(1.0);
-        }),
-        
-         // Widget Toggles
-        await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
-        await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
-        await listen('remote_command::toggle_communes_display', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
-        await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
-
-        // MAPPING FIXES based on Remote client HTML labels:
-        // "Boussole" (Compass) uses ID "toggle-weather-dynamic" -> toggle_weather_dynamic
-        await listen('remote_command::toggle_weather_dynamic', () => { isCompassVisible.value = !isCompassVisible.value; }),
-        
-        // "Météo" (Weather) uses ID "toggle-weather-static" -> toggle_weather_static
-        await listen('remote_command::toggle_weather_static', () => { isWeatherInfoVisible.value = !isWeatherInfoVisible.value; }),
-        
-        // Camera Control
-        await listen('remote_command::update_camera', (event) => {
-            if (!map.value || !event.payload) return;
-            const { type, dx, dy } = event.payload;
-            
-            // Convert to numbers explicitly
-            const fDx = parseFloat(dx) || 0;
-            const fDy = parseFloat(dy) || 0;
-
-            if (isPaused.value) cameraMoved.value = true;
-
-            switch(type) {
-                case 'pan':
-                    // Invert deltas for natural panning (dragging moves map under camera)
-                    map.value.panBy([-fDx * remoteSensX.value, -fDy * remoteSensY.value], { animate: false });
-                    break;
-                case 'zoom':
-                    // Sensitivity: base 0.03 * user factor
-                    const currentZoom = map.value.getZoom();
-                    map.value.setZoom(currentZoom - (fDy * 0.03 * remoteSensZoom.value)); 
-                    break;
-                case 'bearing':
-                    // Map factor
-                    const currentBearing = map.value.getBearing();
-                    map.value.setBearing(currentBearing + (fDx * remoteSensCap.value));
-                    break;
-                case 'tilt':
-                    // Map factor
-                    const currentPitch = map.value.getPitch();
-                    map.value.setPitch(currentPitch - (fDy * remoteSensTilt.value));
-                    break;
-            }
-            // Force map repaint to reflect immediate changes
-            map.value.triggerRepaint();
-        }),
-        
-        // Keep these if original intent persists, but map is now specific
-        // ...
-    ];
-    unlistenFunctions.push(...listeners);
-    
-    // 2. Initial State Sync
-    sendVisualizeStateUpdate();
-    invoke('update_animation_speed', { speed: currentSpeed.value });
-};
-
-const sendVisualizeStateUpdate = () => {
-    const state = {
-        isControlsCardVisible: isControlsCardVisible.value,
-        isAltitudeVisible: isAltitudeVisible.value,
-        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
-        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
-        
-        // Map State -> Remote IDs
-        isStaticWeatherVisible: isWeatherInfoVisible.value,
-        isDynamicWeatherVisible: isCompassVisible.value,
-        hasVariants: hasVariants.value,
-        
-        currentSpeed: currentSpeed.value,
-        animationState: animationState.value,
-        isFlytoActive: isFlytoActive.value,
-        variantCount: variantsList.value.length,
-        variants: variantsList.value,
-        segments: []
-    };
-    invoke('update_visualize_view_state', { state });
-};
-
-// Watchers for State Sync
-watch([
-    isControlsCardVisible, 
-    isAltitudeVisible, 
-    isCommuneWidgetVisible, 
-    isDistanceDisplayVisible, 
-    isWeatherInfoVisible,
-    isCompassVisible,
-    hasVariants,
-    variantsList,
-    animationState,
-    isFlytoActive
-], () => {
-    invoke('update_animation_state', { newState: animationState.value });
-    sendVisualizeStateUpdate();
-});
-
-// Watch Speed separately
-watch(currentSpeed, (newSpeed) => {
-    invoke('update_animation_speed', { speed: newSpeed });
-    sendVisualizeStateUpdate();
-});
-
 // --- Lifecycle ---
-
-onMounted(() => {
+onMounted(async () => {
+    window.addEventListener('keydown', handleInteraction);
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
-    setupRemoteControl();
-    // Do not call init here directly. Wait for settings.
-});
+    window.addEventListener('mousemove', handleInteraction);
+    
+    // Initial cursor hide timer
+    handleInteraction();
 
-// Watch settings changes that mandate restart/update...
-const unwatchSettings = watch(settings, (newSettings) => {
-    if (newSettings && mapboxToken.value && !isMapLoaded.value) {
-         initializeVisualization();
+    // Ensure DOM is ready
+    await nextTick();
+
+    if (mapboxToken.value) {
+        await initializeVisualization();
+        setupRemoteControl();
+    } else {
+        const unwatch = watch(mapboxToken, (token) => {
+            if (token) {
+                initializeVisualization();
+                setupRemoteControl();
+                unwatch();
+            }
+        });
     }
-}, { immediate: true, deep: true });
+});
 
 // Sync isPaused with animationState for UI visibility
 watch(isPaused, async (newVal, oldVal) => {
@@ -1382,25 +2087,27 @@ watch(isPaused, async (newVal, oldVal) => {
         }
     } else {
         if (oldVal === true && (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart')) {
-            // Fix: Smooth Resume if user moved the camera during pause
+             // Fix: Smooth Resume if user moved the camera during pause
             if (cameraMoved.value && map.value && trackingPointsWithDistanceRef.value.length > 0) {
                 const currentDistKm = (currentDistanceInMeters.value || 0) / 1000;
                 
                 // Find the theoretical camera position on track
-                // We use the same logic as updateCameraPosition but just to get the target
                 const { target } = updateCameraPosition(currentDistKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
                     dynamicZoomIntensity: dynamicZoomIntensity.value,
                     currentSpeed: currentSpeed.value,
                     lineStringRef: lineStringRef,
-                    isMultisegment: false,
+                    isMultisegment: false, 
                     activeVariantSegments: [],
-                    apply: false // Correct parameter name from useCameraInterpolator
+                    apply: false
                 });
 
                 if (target) {
                     isFlytoActive.value = true;
                     await flyToPromise({
-                        center: target.center, zoom: target.zoom, pitch: target.pitch, bearing: target.bearing,
+                        center: target.center, 
+                        zoom: target.zoom, 
+                        pitch: target.pitch, 
+                        bearing: target.bearing,
                         duration: 1200 // Smooth transition
                     });
                     isFlytoActive.value = false;
@@ -1411,15 +2118,251 @@ watch(isPaused, async (newVal, oldVal) => {
     }
 });
 
+// Watch Visualization Layers Toggles
+watch([showSegments, showSlope, map], () => {
+     updateLayerVisibility('trace-variant-common', showSegments.value);
+     updateLayerVisibility('trace-variant-new', showSegments.value);
+     updateLayerVisibility('trace-variant-abandoned', showSegments.value);
+     updateLayerVisibility('trace-slope', showSlope.value);
+});
+
+// --- Remote Sync ---
+watch([
+    isControlsCardVisible,
+    isAltitudeVisible,
+    isCommuneWidgetVisible,
+    isDistanceDisplayVisible,
+    isWeatherInfoVisible,
+    isCompassVisible,
+    hasVariants,
+    availableVariants,
+    animationState,
+    isFlytoActive
+], () => {
+    invoke('update_animation_state', { newState: animationState.value });
+    updateRemoteViewState();
+});
+
+function generateSlopeSegments(trackingPoints) {
+    // Deprecated in favor of Backend expression
+    return { type: 'FeatureCollection', features: [] };
+}
+
+
 onUnmounted(() => {
+    window.removeEventListener('keydown', handleInteraction);
     window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('keyup', handleKeyup);
+    window.removeEventListener('mousemove', handleInteraction);
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+
     cleanupMap();
     if (mapContainer.value) mapContainer.value.remove();
     activePopups.forEach(p => p.remove());
     activePopups.clear();
      unlistenFunctions.forEach(fn => fn());
 });
+
+// --- Remote Control Sync ---
+const lastSentSegmentIndex = ref(-1);
+
+function buildFullSegmentList() {
+    const rawSegments = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
+    const fullList = [];
+    const totalDistKm = totalDistanceRef.value / 1000;
+
+    // 1. Add COMMON at start if needed
+    if (rawSegments.length > 0 && rawSegments[0].points[0].distance > 0.01) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: rawSegments[0].points[0].distance,
+            isGap: true,
+            id: `gap_start`
+        });
+    }
+    
+    for (let i = 0; i < rawSegments.length; i++) {
+        const seg = rawSegments[i];
+        const segStart = seg.points[0].distance;
+        
+        let segEnd = seg.lengthM ? (segStart + seg.lengthM/1000) : null;
+        if (seg.points.length > 1) {
+             const lastPtDist = seg.points[seg.points.length - 1].distance;
+             if (!segEnd || lastPtDist > segEnd) {
+                 segEnd = lastPtDist;
+             }
+        }
+        if (!segEnd) segEnd = segStart + 0.1;
+
+        fullList.push({
+            ...seg,
+            id: `seg_${i}`,
+            computedStart: segStart,
+            computedEnd: segEnd,
+            isGap: false,
+            originalIndex: i
+        });
+        
+        if (i < rawSegments.length - 1) {
+            const nextSeg = rawSegments[i+1];
+            const nextStart = nextSeg.points[0].distance;
+            
+            if (segEnd && nextStart > segEnd + 0.01) { 
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    computedStart: segEnd,
+                    computedEnd: nextStart,
+                    isGap: true,
+                    id: `gap_${i}`
+                });
+            } else if (segEnd && nextStart > segEnd) {
+                fullList[fullList.length - 1].computedEnd = nextStart;
+            }
+        } else {
+            // 2. Add COMMON at end if needed
+            if (segEnd && totalDistKm > segEnd + 0.01) {
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    computedStart: segEnd,
+                    computedEnd: totalDistKm,
+                    isGap: true,
+                    id: `gap_end`
+                });
+            }
+        }
+    }
+
+    // Special case: empty rawSegments (unlikely in this view but for safety)
+    if (rawSegments.length === 0 && totalDistKm > 0) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: totalDistKm,
+            isGap: true,
+            id: `gap_full`
+        });
+    }
+
+    return fullList;
+};
+
+// Compute current segment index based on distance (using FULL list)
+const currentSegmentIndex = computed(() => {
+    const segments = buildFullSegmentList();
+    if (segments.length === 0) return -1;
+    
+    const curDistKm = currentDistanceInMeters.value / 1000;
+    
+    // Check each segment
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        const end = seg.computedEnd !== null ? seg.computedEnd : Infinity;
+        
+        if (curDistKm >= seg.computedStart && curDistKm <= end) {
+            return i;
+        }
+    }
+    
+    // If before first segment
+    if (curDistKm < segments[0].computedStart) return 0;
+    // If after last segment
+    if (curDistKm > segments[segments.length - 1].computedEnd) return segments.length - 1;
+    
+    return -1;
+});
+
+const lastNotifiedDistance = ref(-1);
+
+// Watch for widget visibility changes to update remote
+watch([isControlsCardVisible, isAltitudeVisible, isCommuneWidgetVisible, isDistanceDisplayVisible, isWeatherInfoVisible, isCompassVisible], () => {
+    updateRemoteViewState();
+});
+
+// Watch for distance changes to update remote progress (every 100m)
+watch(currentDistanceInMeters, (newDist) => {
+    // Only notify if distance change >= 100m
+    if (Math.abs(newDist - lastNotifiedDistance.value) >= 100) {
+        invoke('notify_animation_progress', { 
+            currentDistance: newDist / 1000, 
+            currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+        }).catch(err => console.error("Failed to notify progress:", err));
+        lastNotifiedDistance.value = newDist;
+    }
+});
+
+// Watch for index change to update remote (Full state remains useful for metadata)
+watch(currentSegmentIndex, (newIndex) => {
+    if (newIndex !== lastSentSegmentIndex.value) {
+        lastSentSegmentIndex.value = newIndex;
+        // Trigger update to send new index to remote (and potentially updated metadata)
+        updateRemoteViewState(); 
+        
+        // Also send immediate progress update for the new index
+        invoke('notify_animation_progress', { 
+            currentDistance: currentDistanceInMeters.value / 1000, 
+            currentSegmentIndex: newIndex !== -1 ? newIndex : null
+        }).catch(err => console.error("Failed to notify index change:", err));
+    }
+});
+
+async function updateRemoteViewState() {
+    // Transform segments for remote (using FULL list)
+    // IMPORTANT: Clear segments if in Final View OR not in Variant mode (prevent fallback "Tronçon Commun")
+    const segmentsSource = (animationState.value === 'Vol_Final' || animationState.value === 'Termine' || !isVariantTrace.value) ? [] : buildFullSegmentList();
+    
+    const segments = segmentsSource.map((seg, idx) => ({
+        id: String(idx), // Ensure ID is a String for Rust compatibility
+        name: seg.type === 'DEPART' ? 'Départ' : (seg.type === 'ARRIVEE' ? 'Arrivée' : (seg.name || seg.filename || `Segment ${idx + 1}`)),
+        segmentType: seg.type,
+        startDistance: seg.computedStart,
+        endDistance: seg.computedEnd
+    }));
+
+    const viewState = {
+        isControlsCardVisible: isControlsCardVisible.value,
+        isAltitudeVisible: isAltitudeVisible.value,
+        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+        isStaticWeatherVisible: isWeatherInfoVisible.value,
+        isDynamicWeatherVisible: isCompassVisible.value,
+        currentSpeed: currentSpeed.value,
+        animationState: animationState.value,
+        isFlytoActive: isFlytoActive.value,
+        hasVariants: hasVariants.value,
+        isVariantTrace: isVariantTrace.value,
+        variantCount: availableVariants.value.length,
+        variants: availableVariants.value.map(v => ({ id: v.id, name: v.name })),
+        segments: segments,
+        currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+    };
+
+    invoke('update_visualize_view_state', { state: viewState })
+        .catch(err => console.error("[Remote] Failed to update view state:", err));
+};
+
+// --- Remote Initial Sync ---
+const remoteViewName = computed(() => isVariantTrace.value ? 'VisualizeVariant' : 'Visualize');
+
+watch(remoteViewName, (newName) => {
+    invoke('update_current_view', { newView: newName })
+        .catch(err => console.error("[Remote] Failed to update current view:", err));
+    updateRemoteViewState();
+}, { immediate: true });
+
+watch(selectedVariantId, () => {
+    // Force immediate remote update when changing variant
+    updateRemoteViewState();
+});
+
+watch(variantBlueSegmentsRef, () => {
+    // Ensure remote gets updated when segments data is loaded/calculated
+    updateRemoteViewState();
+}, { deep: true });
 
 </script>
 
@@ -1435,10 +2378,10 @@ onUnmounted(() => {
 .commune-display { position: absolute; top: 20px; left: 80px; width: 250px; height: 48px; max-height: 60px; overflow: hidden; background-color: white; border-width: 4px; border-style: solid; border-radius: 5px; color: black; padding: 4px; z-index: 1; display: flex; align-items: center; justify-content: center; }
 .speed-slider { width: 200px; }
 .speed-value-display { font-family: monospace; font-size: 0.9em; padding: 0 8px; min-width: 45px; text-align: center; }
-.jump-btn :deep(.v-btn__content) {
-  font-size: 1.25rem !important;
-  font-weight: 700 !important;
+#map-visualization-container-inner { 
+    transition: opacity 1s ease-in-out;
 }
+.initializing { opacity: 0; }
 </style>
 <style>
 /* Global style strictly for popups to avoid scoped issues if any - or keep standard */

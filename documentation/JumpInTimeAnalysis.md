@@ -1,6 +1,6 @@
 # Analyse : Implémentation du Saut Temporel (Time Jump)
 
-Ce document présente l'analyse technique et fonctionnelle pour l'ajout d'une fonctionnalité de "Saut dans le temps" dans les vues de visualisation (`VisualizeView` et `VisualizeVariantView`).
+Ce document présente l'analyse technique et fonctionnelle pour l'ajout d'une fonctionnalité de "Saut dans le temps" dans les vues de visualisation (`VisualizeView` et `VisualizeView`).
 
 ## 1. Besoin Fonctionnel
 
@@ -61,7 +61,7 @@ Le composable `useAnimationController` doit être enrichi :
 
 ### 3.3. Séquence de Saut (`performTimeJump`)
 
-Voici l'algorithme détaill de la fonction à implémenter dans les vues (`VisualizeView` et `VisualizeVariantView`) :
+Voici l'algorithme détaill de la fonction à implémenter dans les vues (`VisualizeView` et `VisualizeView`) :
 
 **Entrée :** `targetDistance` (en mètres).
 
@@ -99,7 +99,7 @@ Voici l'algorithme détaill de la fonction à implémenter dans les vues (`Visua
 ### `src/composables/visualize/useAnimationController.js`
 *   **Ajout** : Fonction `setTimeFromDistance(distance, totalDist, totalDur)`.
 
-### `src/views/VisualizeView.vue` & `VisualizeVariantView.vue`
+### `src/views/VisualizeView.vue` & `VisualizeView.vue`
 *   **Modification** : Template, écoute de `@jump-to` sur le composant `<altitude-s-v-g>`.
 *   **Ajout** : Fonction `handleJumpRequest(distance)`.
 *   **Logique** : Implémentation de la séquence décrite en 3.3.
@@ -136,7 +136,7 @@ sequenceDiagram
     View->>View: Reprise Animation (si Play actif)
 ```
 
-## 6. Points Prédéfinis (VisualizeVariantView)
+## 6. Points Prédéfinis (VisualizeView)
 
 Pour intégrer les "points prédéfinis" mentionnés :
 *   Les segments de variantes possèdent déjà des ancres (Début, Fin).
