@@ -52,7 +52,7 @@
     </v-row>
 
     <!-- NEW: Segment Bar (Bottom) -->
-    <div v-if="isVariantMode" class="w-100">
+    <div v-if="isVariantMode" class="w-100 mt-auto">
         <v-divider class="w-75 mx-auto my-4"></v-divider>
         <SegmentBar 
             :segments="variantSegments"
@@ -86,11 +86,11 @@ const theme = useTheme()
 
 const isDark = computed(() => theme.global.current.value.dark)
 
-const isVariantMode = computed(() => store.appState === 'VisualizeVariantView' || store.appState?.viewName === 'VisualizeVariantView');
+const isVariantMode = computed(() => store.visualizeViewState?.isVariantTrace ?? false);
 // Mock or real data from store
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
 // Get current index from SSE update
-const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? 0);
+const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? null);
 const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
 
 
@@ -104,47 +104,7 @@ function resetSpeed() {
     playbackControls.value?.resetSpeed()
 }
 
-// Playback and Speed logic moved to PlaybackControls component
-// const isPlaying = computed(() => store.visualizeViewState?.animationState === 'En_Animation');
-// const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
-
-// const speedModel = ref(50) 
-
-// --- Speed Logic (Logarithmic Scale) ---
-// Fetch settings from store (camelCase IDs from Rust struct)
-// const minSpeed = computed(() => store.remoteSettings?.speedMinValue ?? 0.1);
-// const maxSpeed = computed(() => store.remoteSettings?.speedMaxValue ?? 20.0);
-// const defaultSpeed = computed(() => store.remoteSettings?.speedDefaultValue ?? 1.0);
-
-// function mapSliderToSpeed(sliderValue) {
-//     const min = minSpeed.value;
-//     const max = maxSpeed.value;
-    
-//     // ... logic consistent
-//     if (sliderValue <= 0) return min;
-//     if (sliderValue >= 100) return max;
-    
-//     const minLog = Math.log(min);
-//     const maxLog = Math.log(max);
-    
-//     const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
-//     return Math.exp(logVal);
-// }
-
-// function mapSpeedToSlider(speed) {
-//     const min = minSpeed.value;
-//     const max = maxSpeed.value;
-
-//     if (speed <= min) return 0;
-//     if (speed >= max) return 100;
-    
-//     const minLog = Math.log(min);
-//     const maxLog = Math.log(max);
-    
-//     return ((Math.log(speed) - minLog) / (maxLog - minLog)) * 100;
-    
-
-
+// --- Toggles ---
 const toggles = computed(() => [
     { 
         id: 'communes', 

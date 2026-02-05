@@ -52,11 +52,14 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
                 }
                 map.value.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration?.value || 1.5 });
                 map.value.setFog({});
+
+                // Resolve earlier to show Europe tiles loading instead of black screen
+                resolve(map.value);
             });
 
             map.value.on('load', () => {
                 isMapLoaded.value = true;
-                resolve(map.value);
+                // isMapLoaded remains for layers logic
             });
         });
     };

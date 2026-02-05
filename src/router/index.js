@@ -19,8 +19,8 @@ const routes = [
   {
     path: '/visualize/:circuitId',
     name: 'Visualize',
-    component: VisualizeView,
-    props: true
+    component: () => import('../views/VisualizeVariantView.vue'),
+    props: route => ({ circuitId: route.params.circuitId, traceType: 'main' })
   },
   {
     path: '/settings',

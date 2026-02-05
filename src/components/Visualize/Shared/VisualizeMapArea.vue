@@ -1,6 +1,6 @@
 <template>
   <!-- Map Container (Absolute Full) -->
-  <div ref="mapVisualizationContainer" class="map-container">
+  <div ref="mapVisualizationContainer" :class="['map-container', { 'initializing': isInitializing }]">
       
       <!-- Back Button (Floating Top Left) -->
       <transition name="fade">
@@ -34,7 +34,8 @@ const props = defineProps({
   isCursorHidden: { type: Boolean, default: false },
   isCenterMarkerVisible: { type: Boolean, default: false },
   centerMarkerColor: { type: String, default: 'red' },
-  showBackButton: { type: Boolean, default: true }
+  showBackButton: { type: Boolean, default: true },
+  isInitializing: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['go-back', 'register-map-container']);
@@ -55,6 +56,11 @@ onMounted(() => {
   top: 0;
   left: 0;
   overflow: hidden;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.map-container.initializing {
+  opacity: 0;
 }
 
 .back-button {

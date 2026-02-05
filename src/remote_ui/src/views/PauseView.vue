@@ -155,11 +155,7 @@ const theme = useTheme()
 const isDark = computed(() => theme.global.current.value.dark)
 
 // --- Variant Logic ---
-const isVariantMode = computed(() => {
-    const rawState = store.appState;
-    const appView = (typeof rawState === 'string') ? rawState : (rawState?.viewName || '');
-    return appView === 'VisualizeVariant' || appView === 'VisualizeVariantView';
-});
+const isVariantMode = computed(() => store.visualizeViewState?.isVariantTrace ?? false);
 const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
 const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? -1);
 const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? false); 
@@ -219,8 +215,9 @@ const isFinished = computed(() => store.visualizeViewState?.animationState === '
 function triggerVariant() { 
     if (isVariantMode.value) {
         store.sendCommand('return_to_main_trace');
-    } else if (variantCount.value === 1) {
-        store.sendCommand('trigger_variant_selection'); 
+    } else if (variantCount.value === 1 && variants.value.length > 0) {
+        // Direct select if only one
+        store.sendCommand('select_variant', { variantId: variants.value[0].id });
     } else if (variantCount.value > 1) {
         showVariantDialog.value = true;
     }

@@ -113,32 +113,36 @@ export function useTraceLayers(map) {
             }
 
             // Layer 3: Slope / Full Trace (Aller)
-            map.value.addLayer({
-                id: 'trace-slope-aller',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                paint: {
-                    'line-width': slopeThickness || traceWidth,
-                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['all', ['!=', ['get', 'segment_type'], 'retour_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
-            });
+            if (!map.value.getLayer('trace-slope-aller')) {
+                map.value.addLayer({
+                    id: 'trace-slope-aller',
+                    type: 'line',
+                    source: 'colored-segments',
+                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                    paint: {
+                        'line-width': slopeThickness || traceWidth,
+                        'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
+                        'line-color': ['get', 'color_raw']
+                    },
+                    filter: ['all', ['!=', ['get', 'segment_type'], 'retour_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
+                });
+            }
 
             // Layer 3: Slope / Full Trace (Retour)
-            map.value.addLayer({
-                id: 'trace-slope-retour',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Default hidden
-                paint: {
-                    'line-width': slopeThickness || traceWidth,
-                    'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['all', ['!=', ['get', 'segment_type'], 'aller_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
-            });
+            if (!map.value.getLayer('trace-slope-retour')) {
+                map.value.addLayer({
+                    id: 'trace-slope-retour',
+                    type: 'line',
+                    source: 'colored-segments',
+                    layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Default hidden
+                    paint: {
+                        'line-width': slopeThickness || traceWidth,
+                        'line-opacity': slopeOpacityLogic !== undefined ? slopeOpacityLogic : traceOpacity,
+                        'line-color': ['get', 'color_raw']
+                    },
+                    filter: ['all', ['!=', ['get', 'segment_type'], 'aller_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
+                });
+            }
 
             // Hide legacy standard layers if they exist
             updateLayerVisibility('trace-complete', false);
