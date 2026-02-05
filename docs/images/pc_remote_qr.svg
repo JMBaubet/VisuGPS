@@ -1,0 +1,60 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#121212" />
+  
+  <!-- Content (Directly on background) -->
+  <text x="45" y="60" font-family="Roboto, sans-serif" font-size="22" font-weight="bold" fill="white">Connecter une télécommande</text>
+  
+  <text x="45" y="100" font-family="Roboto, sans-serif" font-size="14" fill="#B0BEC5">Interface Réseau :</text>
+  <rect x="45" y="125" width="310" height="36" rx="4" fill="#2C2C2C" stroke="#444" stroke-width="1" />
+  <text x="55" y="148" font-family="Roboto, sans-serif" font-size="14" fill="white">192.168.1.15 (en0)</text>
+  <path d="M340,138 L345,143 L350,138" fill="none" stroke="white" stroke-width="2" />
+
+  <!-- QR Code Area -->
+  <rect x="125" y="180" width="150" height="150" rx="4" fill="white" />
+  <g transform="translate(140, 195)">
+    <!-- Main Squares (Position Markers) -->
+    <rect x="0" y="0" width="30" height="30" fill="#121212" />
+    <rect x="4" y="4" width="22" height="22" fill="white" />
+    <rect x="8" y="8" width="14" height="14" fill="#121212" />
+    
+    <rect x="90" y="0" width="30" height="30" fill="#121212" />
+    <rect x="94" y="4" width="22" height="22" fill="white" />
+    <rect x="98" y="8" width="14" height="14" fill="#121212" />
+    
+    <rect x="0" y="90" width="30" height="30" fill="#121212" />
+    <rect x="4" y="94" width="22" height="22" fill="white" />
+    <rect x="8" y="98" width="14" height="14" fill="#121212" />
+    
+    <!-- Realistic Random Dot Pattern -->
+    <rect x="35" y="0" width="10" height="10" fill="#121212" />
+    <rect x="55" y="0" width="10" height="5" fill="#121212" />
+    <rect x="75" y="5" width="5" height="15" fill="#121212" />
+    
+    <rect x="115" y="35" width="5" height="10" fill="#121212" />
+    <rect x="110" y="55" width="10" height="10" fill="#121212" />
+    <rect x="115" y="100" width="5" height="20" fill="#121212" />
+
+    <rect x="35" y="115" width="15" height="5" fill="#121212" />
+    <rect x="60" y="110" width="20" height="10" fill="#121212" />
+    <rect x="70" y="95" width="10" height="10" fill="#121212" />
+
+    <rect x="0" y="35" width="10" height="15" fill="#121212" />
+    <rect x="5" y="60" width="5" height="20" fill="#121212" />
+    <rect x="15" y="45" width="10" height="5" fill="#121212" />
+
+    <!-- Central clutter -->
+    <rect x="40" y="40" width="15" height="15" fill="#121212" />
+    <rect x="65" y="35" width="10" height="5" fill="#121212" />
+    <rect x="85" y="45" width="5" height="15" fill="#121212" />
+    <rect x="45" y="70" width="30" height="10" fill="#121212" />
+    <rect x="80" y="85" width="10" height="20" fill="#121212" />
+    <rect x="40" y="95" width="10" height="10" fill="#121212" />
+    <rect x="95" y="65" width="10" height="5" fill="#121212" />
+  </g>
+
+  <text x="200" y="345" font-family="Roboto, sans-serif" font-size="12" fill="#2196F3" text-anchor="middle">http://192.168.1.15:9001/</text>
+
+  <!-- Button -->
+  <text x="315" y="375" font-family="Roboto, sans-serif" font-size="14" font-weight="bold" fill="#2196F3">FERMER</text>
+</svg>
