@@ -10,7 +10,7 @@
 
     <!-- Resume / Actions Overlay (Top Item) -->
     <transition name="fade">
-      <div v-if="isVisible && isPaused && !controlsVisible" class="d-flex flex-column align-center bottom-controls" @wheel.stop>
+      <div v-if="isVisible && isPaused && !controlsVisible && allowOverlay" class="d-flex flex-column align-center bottom-controls" @wheel.stop>
           <!-- Extra Actions Slot (Variants etc) -->
           <slot name="extra-overlay-actions"></slot>
       </div>
@@ -73,6 +73,7 @@ import { computed } from 'vue';
 const props = defineProps({
   isVisible: { type: Boolean, default: true },
   isAltitudeVisible: { type: Boolean, default: true },
+  allowOverlay: { type: Boolean, default: true },
   
   // Animation State
   isPaused: { type: Boolean, required: true }, // v-model

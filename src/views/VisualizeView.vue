@@ -10,20 +10,23 @@
     @register-map-container="(el) => { mapContainer = el }"
   />
 
-  <VisualizeInfoDisplay
-    :is-visible="showWidgets"
-    :show-distance="isDistanceDisplayVisible"
-    :distance-display="distanceDisplay"
-    :total-distance="totalDistanceRef / 1000"
-    :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
-    :commune-name="currentCommuneName"
-    :commune-border-color="communeWidgetBorderColor"
-  />
+  <transition name="fade">
+    <VisualizeInfoDisplay
+        v-if="showWidgets && is3DWidgetsReady"
+        :is-visible="true"
+        :show-distance="isDistanceDisplayVisible"
+        :distance-display="distanceDisplay"
+        :total-distance="totalDistanceRef / 1000"
+        :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
+        :commune-name="currentCommuneName"
+        :commune-border-color="communeWidgetBorderColor"
+    />
+  </transition>
 
   <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
         <WeatherWidgetDynamic 
-            v-if="showWidgets && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
+            v-if="showWidgets && is3DWidgetsReady && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
             :weather="currentWeather" 
             :bearing="currentCameraBearing" 
             :trace-bearing="currentTraceBearing" 
@@ -51,7 +54,8 @@
   <VisualizeControls
     v-if="showWidgets"
     :is-visible="showWidgets"
-    :is-altitude-visible="isAltitudeVisible"
+    :is-altitude-visible="isAltitudeVisible && is3DWidgetsReady"
+    :allow-overlay="is3DContext"
     v-model:is-paused="isPaused"
     :is-animation-finished="isAnimationFinished"
     v-model:is-rewinding="isRewinding"
@@ -63,35 +67,39 @@
     @reset="resetAnimation"
     @trigger-final-view="handleEndSequence(true)"
   >
-    <template #altitude-chart v-if="showWidgets">
-        <AltitudeSVG 
-            v-if="isMainTrace"
-            :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
-            :circuit-id="props.circuitId"
-            :current-distance="currentDistanceInMeters"
-            :total-distance="totalDistanceRef"
-            :tracking-points="trackingPointsWithDistanceRef"
-            :is-variant-comparison="false"
-            @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
-        />
-        
-        <AltitudeVariantSVG 
-            v-else
-            :key="`altitude-variant-${props.circuitId}`"
-            :current-distance="currentDistanceInMeters" 
-            :total-main-distance="masterTraceTotalDistance"
-            :main-trace-points="masterTrackingPoints"
-            :abandoned-segments="abandonedSegmentsRef"
-            :variant-blue-segments="variantBlueSegmentsRef"
-            @jump-requested="handleJumpRequest"
-        />
+    <template #altitude-chart v-if="showWidgets && is3DWidgetsReady">
+      <transition name="fade" appear>
+        <div>
+            <AltitudeSVG 
+                v-if="isMainTrace"
+                :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
+                :circuit-id="props.circuitId"
+                :current-distance="currentDistanceInMeters"
+                :total-distance="totalDistanceRef"
+                :tracking-points="trackingPointsWithDistanceRef"
+                :is-variant-comparison="false"
+                @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
+            />
+            
+            <AltitudeVariantSVG 
+                v-else
+                :key="`altitude-variant-${props.circuitId}`"
+                :current-distance="currentDistanceInMeters" 
+                :total-main-distance="masterTraceTotalDistance"
+                :main-trace-points="masterTrackingPoints"
+                :abandoned-segments="abandonedSegmentsRef"
+                :variant-blue-segments="variantBlueSegmentsRef"
+                @jump-requested="handleJumpRequest"
+            />
+        </div>
+      </transition>
     </template>
 
     <template #final-action>
         <v-menu v-if="isVariantTrace" location="top center" offset="10" open-on-hover>
             <template v-slot:activator="{ props: menuProps }">
                 <v-btn icon="mdi-map-marker-radius-outline" variant="text" size="small" v-bind="menuProps"
-                       :disabled="!isPaused || isAnimationFinished"
+                       :disabled="!isPaused || isAnimationFinished || !is3DContext"
                 ></v-btn>
             </template>
             <v-list density="compact" class="bg-surface pa-0 elevation-10" style="border-radius: 8px; min-width: 40px;">
@@ -110,25 +118,8 @@
         <!-- Variant Switching & Return -->
         <v-divider vertical class="mx-2"></v-divider>
         
-        <!-- Select another variant (if multiple) -->
-        <v-btn v-if="availableVariants.length > 1 && isVariantTrace" 
-            icon="mdi-format-list-bulleted" 
-            variant="text" 
-            title="Changer de variante" 
-            @click="showVariantSelection = true">
-        </v-btn>
-
-        <!-- Access variants from main trace -->
-        <v-btn v-if="isMainTrace && hasVariants"
-            icon="mdi-map-marker-path"
-            variant="text"
-            title="Mode Variantes"
-            :disabled="!isPaused && !isAnimationFinished"
-            @click="goToVariantView"
-        ></v-btn>
-
         <!-- Return to Main Trace -->
-        <v-btn v-if="isVariantTrace"
+        <v-btn v-if="isVariantTrace && is3DContext"
             icon="mdi-map-marker-distance" 
             variant="text" 
             color="secondary"
@@ -139,16 +130,7 @@
     </template>
     
     <template #extra-overlay-actions>
-       <v-btn v-if="isAnimationFinished && hasVariants && isMainTrace"
-             color="primary"
-             @click="goToVariantView"
-             size="x-large"
-             rounded
-             prepend-icon="mdi-map-marker-path"
-             title="Voir les variantes"
-      >
-        Variantes
-      </v-btn>
+       <!-- Overlay vidé à la demande de l'utilisateur pour une interface strictement minimale -->
     </template>
   </VisualizeControls>
 
@@ -264,6 +246,14 @@ const handleInteraction = () => {
     }, 3000);
 };
 const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Globale, Vol_Vers_Depart, En_Animation, En_Pause, Termine
+const is3DContext = computed(() => {
+    // Les widgets "3D" ne s'affichent que lors de la visualisation active (départ, animation, pause)
+    // Ils sont masqués pendant l'intro (Standard) et la sortie (FlyTo Global)
+    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart'].includes(animationState.value);
+});
+const is3DWidgetsReady = computed(() => {
+    return is3DContext.value && (!isWeatherInfoVisible.value && !isCompassVisible.value || currentWeather.value);
+});
 const showWidgets = ref(false);
 const hasVariants = ref(false);
 
@@ -283,6 +273,7 @@ const repriseAutoKm0 = computed(() => getSettingValue('Visualisation/Lancement/r
 const flyToKm0Duration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToKm0Duration'))); // Fixed path
 const flyToGlobalDuration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'))); // Fixed path
 const delayAfterAnimationEnd = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd'))); // Fixed path
+const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique')); // Nouveau paramètre
 const traceWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurTrace')); // Fixed path
 const traceOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteTrace')); // Fixed path
 const traceColor = computed(() => toHex(getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'))); // Fixed path
@@ -1050,6 +1041,9 @@ const initializeVisualization = async () => {
             // Mode Direct (Variante OU DirectStart pour trace principale)
             animationState.value = 'Vol_Vers_Depart';
             
+            // Afficher les widgets (ils seront filtrés par isIntroSequence pour Altitude/Ville/Distance)
+            showWidgets.value = true;
+            
             // Appliquer le zoom minimum
             mapInstance.setMinZoom(zoomMinimum.value);
             
@@ -1071,6 +1065,7 @@ const initializeVisualization = async () => {
         } else {
             // Mode Standard (Trace Principale avec séquence complète)
             animationState.value = 'Vol_Vers_Vue_Globale';
+            showWidgets.value = true; // Permettre l'affichage des Commandes dès maintenant
             
             // Calculer le zoom cible pour voir toute la trace
             const traceBbox = turf.bbox(lineStringRef.value);
@@ -1188,8 +1183,8 @@ const initializeVisualization = async () => {
         animationState.value = 'En_Pause_au_Depart';
         isInitializing.value = false;
         enableInteraction();
-
-        // Afficher les widgets UNIQUEMENT maintenant (au début de la pause au Km 0)
+        
+        // S'assurer que les widgets sont affichés (au cas où, bien qu'ils le soient déjà)
         showWidgets.value = true;
 
         // Ensure KM 0 messages are displayed during the initial pause
@@ -1654,11 +1649,9 @@ const handleEndSequence = async (skipDelay = false) => {
     isPaused.value = true;
     
     animationState.value = 'Vol_Final';
-    // Hide UI
-    isDistanceDisplayVisible.value = false;
-    isCommuneWidgetVisible.value = false;
-    isAltitudeVisible.value = false; 
-    // ...
+    // Hide UI elements contextually via animationState (is3DContext)
+    // We no longer overwrite the user preferences (refs) here to avoid losing them for the next loop.
+    
     // Hide Comet
      if (map.value.getSource('comet-source')) {
           map.value.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
@@ -1732,7 +1725,18 @@ const handleEndSequence = async (skipDelay = false) => {
     }
     
     animationState.value = 'Termine';
-     // Logic Reprise Auto...
+    
+    // Logic Reprise Auto
+    if (repriseAutomatique.value) {
+        // Optionnel : un petit délai supplémentaire avant de repartir ?
+        // Pour l'instant, on lance le reset et le start
+        setTimeout(async () => {
+            if (animationState.value === 'Termine') {
+                await resetAnimation();
+                isPaused.value = false; // Relancer l'animation
+            }
+        }, 1000); // 1s de pause sur la vue finale avant de repartir
+    }
 };
 
 const resetAnimation = async () => {
@@ -1744,14 +1748,10 @@ const resetAnimation = async () => {
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
     
-    // Restore UI
-    isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
-    isAltitudeVisible.value = getSettingValue('Variante/Visualisation/Widgets/altitude') ?? true;
-    isCommuneWidgetVisible.value = getSettingValue('Variante/Visualisation/Widgets/communes') ?? true;
-    isWeatherInfoVisible.value = getSettingValue('Variante/Visualisation/Widgets/meteo') ?? true;
-    isCompassVisible.value = getSettingValue('Variante/Visualisation/Widgets/boussole') ?? true;
-    isControlsCardVisible.value = getSettingValue('Variante/Visualisation/Widgets/commandes') ?? false;
-
+    // Restore UI (Note: we no longer reset visibility here to persist user toggles across session restarts)
+    // isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
+    // ... logic moved to initialization and persisted during session
+    
     // Restore Map Style for 3D View if changed
     if (map.value && mapStyle.value && map.value.getStyle()?.name !== mapStyle.value) { 
         // Or assume if we are in End State (standard map) we need to switch back

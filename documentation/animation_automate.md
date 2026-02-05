@@ -16,42 +16,43 @@ stateDiagram-v2
 
     [*] --> Init
     
-    Init: 🌑 Carte Masquée
-    Vol_Zoom: 🔭 [FLYTO] Zoom vers Vue Globale
-    Pause_Globale: 🛑 [PAUSE] Vue Globale
-    Vol_Km0_STD: ✈️ [FLYTO] Vol vers Km 0
-    Vol_Direct: ✈️ [FLYTO] Zoom km 0
+    Init: 🌑 Carte Masquée (zoomEurope)
+    Vol_Zoom: 🔭 [FLYTO] Zoom vers Vue Globale (durationEuropeToTrace)
+    Pause_Globale: 🛑 [PAUSE] Vue Globale (pauseBeforeStart)
+    Vol_Km0_STD: ✈️ [FLYTO] Vol vers Km 0 (durationTraceToStart)
+    Vol_Direct: ✈️ [FLYTO] Zoom km 0 (3s fixe)
     
-    Km0: 🛑 [PAUSE] Km 0
-    Anim: 🚀 [ANIM] En Mouvement
-    Pause: 🛑 [PAUSE] Manuelle
+    Km0: 🛑 [PAUSE] Km 0 (pauseAuKm0)
+    Anim: 🚀 [ANIM] En Mouvement (vitesse)
+    Pause: 🛑 [PAUSE] Manuelle (Infini)
     
-    Arrivee: 🛑 [PAUSE] Arrivée
-    Vol_Final: ✈️ [FLYTO] Vue Globale
+    Arrivee: 🛑 [PAUSE] Arrivée (delayAfterAnimationEnd)
+    Vol_Final: ✈️ [FLYTO] Vue Globale (flyToGlobalDuration)
 
     Init --> Vol_Zoom: traceType = 'main'
     Init --> Vol_Direct: traceType = 'variant'
     
     Vol_Zoom --> Pause_Globale
-    Pause_Globale --> Vol_Km0_STD
+    Pause_Globale --> Vol_Km0_STD: if repriseAutoVueTrace = true
     Vol_Km0_STD --> Km0
     Vol_Direct --> Km0
     
-    Km0 --> Anim
-    Anim --> Pause
-    Pause --> Anim
-    Pause --> Arrivee
-    Anim --> Arrivee
+    Km0 --> Anim: if repriseAutoKm0 = true
+    Anim --> Pause: Touche 'P'
+    Pause --> Anim: Action 'Reprise'
+    Pause --> Arrivee: Action 'Vue Finale'
+    Anim --> Arrivee: Fin de trace
     
-    Arrivee --> Vol_Final
+    Arrivee --> Vol_Final: if repriseAutomatique = true
+    Vol_Final --> Init: Boucle de Redémarrage
 
     %% Boutons et Navigation Finale
     GoHome: Retour Accueil
     ToVariant: Basculer vers Variantes
     ToMain: Retour Trace Principale
 
-    Vol_Final --> ToVariant
-    Vol_Final --> ToMain
+    Vol_Final --> ToVariant: if mode Main
+    Vol_Final --> ToMain: if mode Variant
     Vol_Final --> GoHome
     Pause --> GoHome
 
