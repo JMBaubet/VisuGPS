@@ -34,6 +34,6 @@ R : Cela arrive si les données d'altitude du GPX sont imprécises. L'applicatio
 R : L'application n'arrive peut-être pas à déterminer votre adresse IP locale. Vérifiez votre connexion réseau.
 
 **Q : "Impossible de se connecter" sur le mobile.**
-R : C'est souvent un blocage pare-feu. Autorisez VisuGPS dans le pare-feu de votre ordinateur pour le port 9001 (TCP).
+R : C'est souvent un blocage pare-feu ou une configuration réseau (Public/Privé). Consultez notre **[Guide de Configuration Réseau](./Reseau.md)** pour résoudre ce problème.
 
 [< Retour à l'accueil](./index.md)
