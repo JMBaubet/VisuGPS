@@ -1,10 +1,10 @@
 <template>
   <v-app>
-    <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
+    <v-main :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
       <Suspense>
         <router-view />
       </Suspense>
-    </v-container>
+    </v-main>
     <SnackbarContainer />
     <PairingDialog /> <!-- Added PairingDialog -->
     <MigrationReportModal v-model="showMigrationModal" :report="migrationReport" />
