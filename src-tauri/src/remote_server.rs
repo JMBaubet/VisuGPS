@@ -1,23 +1,23 @@
 use axum::{
-    extract::{Json, State, FromRef},
+    extract::{FromRef, Json, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
-use log::{debug, info, warn, error};
+use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::broadcast;
-use tauri::{AppHandle, Manager, Emitter};
 
-use crate::remote_sse::{sse_handler, healthcheck_handler, SseMessage, SseState};
-use crate::remote_clients;
-use crate::remote_blacklist;
-use crate::AppState;
 use crate::get_setting_value;
+use crate::remote_blacklist;
+use crate::remote_clients;
+use crate::remote_sse::{healthcheck_handler, sse_handler, SseMessage, SseState};
+use crate::AppState;
 
 /// État partagé du serveur remote control
 #[derive(Clone)]
@@ -83,7 +83,10 @@ async fn pair_handler(
     State(state): State<RemoteServerState>,
     Json(request): Json<PairingRequest>,
 ) -> impl IntoResponse {
-    debug!("Requête de pairing reçue pour client: {}", request.client_id);
+    debug!(
+        "Requête de pairing reçue pour client: {}",
+        request.client_id
+    );
 
     // Vérifier si la limite de télécommandes est atteinte
     let hb_state = state.app_handle.state::<crate::HeartbeatState>();
@@ -91,21 +94,26 @@ async fn pair_handler(
     let active_clients = hb_state.active_clients.lock().unwrap();
 
     // Compter les clients réellement actifs (heartbeat < 10s)
-    let active_count = active_clients.iter()
+    let active_count = active_clients
+        .iter()
         .filter(|(id, &t)| id.as_str() != request.client_id && (now - t) < 10)
         .count();
 
     if active_count >= 2 {
         warn!("Tentative de pairing rejetée: limite de 2 appareils connectés atteinte");
-        return (StatusCode::CONFLICT, Json(PairingResponse {
-            status: "busy".to_string(),
-            reason: Some("La limite de 2 télécommandes connectées est atteinte.".to_string()),
-            appState: None,
-            settings: None,
-            favorites: None,
-            session_token: None,
-            debug_info: None,
-        })).into_response();
+        return (
+            StatusCode::CONFLICT,
+            Json(PairingResponse {
+                status: "busy".to_string(),
+                reason: Some("La limite de 2 télécommandes connectées est atteinte.".to_string()),
+                appState: None,
+                settings: None,
+                favorites: None,
+                session_token: None,
+                debug_info: None,
+            }),
+        )
+            .into_response();
     }
     drop(active_clients); // Libérer le lock avant la suite
 
@@ -124,44 +132,48 @@ async fn pair_handler(
     // Vérifier si le client est blacklisté
     if remote_blacklist::is_client_blacklisted(&app_env_path, &request.client_id).unwrap_or(false) {
         debug!("Nouveau client mis en attente: {}", request.client_id);
-        return (StatusCode::FORBIDDEN, Json(PairingResponse {
-            status: "refused".to_string(),
-            reason: Some("Cet appareil a été bloqué.".to_string()),
-            appState: Some(current_app_view),
-            settings: None,
-            favorites: None,
-            session_token: None,
-            debug_info: None,
-        })).into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            Json(PairingResponse {
+                status: "refused".to_string(),
+                reason: Some("Cet appareil a été bloqué.".to_string()),
+                appState: Some(current_app_view),
+                settings: None,
+                favorites: None,
+                session_token: None,
+                debug_info: None,
+            }),
+        )
+            .into_response();
     }
 
     // Vérifier si le client est déjà autorisé
-    let is_authorized = remote_clients::is_client_authorized(&app_env_path, &request.client_id)
-        .unwrap_or(false);
+    let is_authorized =
+        remote_clients::is_client_authorized(&app_env_path, &request.client_id).unwrap_or(false);
 
     if is_authorized {
         debug!("Client déjà autorisé: {}", request.client_id);
-        
+
         // Générer un token de session
-        let session_token = uuid::Uuid::new_v4().to_string(); 
+        let session_token = uuid::Uuid::new_v4().to_string();
 
         // Lire les settings à chaud pour avoir les valeurs à jour
         let settings_path = app_env_path.join("settings.json");
         debug!("Reading settings from: {:?}", settings_path);
-        
+
         let current_settings = if settings_path.exists() {
-             match std::fs::read_to_string(&settings_path) {
+            match std::fs::read_to_string(&settings_path) {
                 Ok(content) => {
                     debug!("Settings file read successfully ({} bytes)", content.len());
                     serde_json::from_str(&content).unwrap_or_else(|e| {
                         error!("Failed to parse settings.json: {}", e);
                         state.settings.clone()
                     })
-                },
+                }
                 Err(e) => {
                     error!("Failed to read settings.json: {}", e);
                     state.settings.clone()
-                },
+                }
             }
         } else {
             warn!("Settings file not found at {:?}", settings_path);
@@ -178,23 +190,33 @@ async fn pair_handler(
                 } else {
                     None
                 }
-            }).unwrap_or(default)
+            })
+            .unwrap_or(default)
         };
 
         let speed_min = parse_setting_f32(
-            get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.min_value"),
-            0.1
+            get_setting_value(
+                &current_settings,
+                "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.min_value",
+            ),
+            0.1,
         );
         let speed_max = parse_setting_f32(
-            get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.max_value"),
-            20.0
+            get_setting_value(
+                &current_settings,
+                "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.max_value",
+            ),
+            20.0,
         );
         let speed_default = parse_setting_f32(
             get_setting_value(&current_settings, "data.groupes.Visualisation.groupes.Lecture.groupes.Vitesse.parametres.default_value"),
             1.0
         );
-        
-        debug!("Extracted Speed Settings: Min={}, Max={}, Default={}", speed_min, speed_max, speed_default);
+
+        debug!(
+            "Extracted Speed Settings: Min={}, Max={}, Default={}",
+            speed_min, speed_max, speed_default
+        );
 
         let remote_settings = RemoteSettings {
             speed_min_value: speed_min,
@@ -209,21 +231,30 @@ async fn pair_handler(
         };
 
         // Émettre l'événement de connexion
-        let _ = state.app_handle.emit("remote_control_status_changed", "connected");
+        let _ = state
+            .app_handle
+            .emit("remote_control_status_changed", "connected");
 
-        return (StatusCode::OK, Json(PairingResponse {
-            status: "accepted".to_string(),
-            reason: None,
-            appState: Some(current_app_view),
-            settings: Some(remote_settings),
-            favorites,
-            session_token: Some(session_token),
-            debug_info: None,
-        })).into_response();
+        return (
+            StatusCode::OK,
+            Json(PairingResponse {
+                status: "accepted".to_string(),
+                reason: None,
+                appState: Some(current_app_view),
+                settings: Some(remote_settings),
+                favorites,
+                session_token: Some(session_token),
+                debug_info: None,
+            }),
+        )
+            .into_response();
     }
 
     // Vérifier si le pairing est autorisé depuis la vue actuelle
-    if current_app_view != "Main" && current_app_view != "Settings" && current_app_view != "Visualize" {
+    if current_app_view != "Main"
+        && current_app_view != "Settings"
+        && current_app_view != "Visualize"
+    {
         debug!("Pairing refusé: vue non autorisée ({})", current_app_view);
         return (StatusCode::FORBIDDEN, Json(PairingResponse {
             status: "refused".to_string(),
@@ -237,8 +268,11 @@ async fn pair_handler(
     }
 
     // --- PROPER PAIRING LOGIC ---
-    debug!("Demande de couplage reçue pour le client: {}", request.client_id);
-    
+    debug!(
+        "Demande de couplage reçue pour le client: {}",
+        request.client_id
+    );
+
     {
         let app_state = state.app_handle.state::<Mutex<AppState>>();
         let app_state_lock = app_state.lock().unwrap();
@@ -247,20 +281,27 @@ async fn pair_handler(
     }
 
     // Notifier le Desktop qu'un client attend
-    let _ = state.app_handle.emit("remote_pairing_request", serde_json::json!({
-        "clientId": request.client_id,
-        "pairingCode": request.pairing_code
-    }));
+    let _ = state.app_handle.emit(
+        "remote_pairing_request",
+        serde_json::json!({
+            "clientId": request.client_id,
+            "pairingCode": request.pairing_code
+        }),
+    );
 
-    return (StatusCode::OK, Json(PairingResponse {
-        status: "pending".to_string(),
-        reason: None,
-        appState: Some(current_app_view),
-        settings: None,
-        favorites: None,
-        session_token: None,
-        debug_info: None,
-    })).into_response();
+    return (
+        StatusCode::OK,
+        Json(PairingResponse {
+            status: "pending".to_string(),
+            reason: None,
+            appState: Some(current_app_view),
+            settings: None,
+            favorites: None,
+            session_token: None,
+            debug_info: None,
+        }),
+    )
+        .into_response();
 }
 
 /// Handler pour POST /api/command
@@ -275,16 +316,22 @@ async fn command_handler(
     // Émettre l'événement vers l'application
     let event_name = format!("remote_command::{}", request.command);
     match state.app_handle.emit(&event_name, request.payload) {
-        Ok(_) => (StatusCode::OK, Json(CommandResponse {
-            status: "success".to_string(),
-            message: "Command executed".to_string(),
-        })),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(CommandResponse {
+                status: "success".to_string(),
+                message: "Command executed".to_string(),
+            }),
+        ),
         Err(e) => {
             error!("Erreur lors de l'émission de la commande: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(CommandResponse {
-                status: "error".to_string(),
-                message: format!("Failed to execute command: {}", e),
-            }))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(CommandResponse {
+                    status: "error".to_string(),
+                    message: format!("Failed to execute command: {}", e),
+                }),
+            )
         }
     }
 }
@@ -297,19 +344,22 @@ async fn heartbeat_handler(
     let client_id = params.get("clientId").cloned();
     let hb_state = state.app_handle.state::<crate::HeartbeatState>();
     let now = chrono::Utc::now().timestamp();
-    
+
     let mut active_clients = hb_state.active_clients.lock().unwrap();
 
     if let Some(id) = client_id {
         // Compter les clients actifs (en excluant celui-ci s'il existe déjà)
-        let active_count = active_clients.iter()
+        let active_count = active_clients
+            .iter()
             .filter(|(&ref cid, &t)| cid != &id && (now - t) < 10)
             .count();
 
         if active_count < 2 || active_clients.contains_key(&id) {
             if !active_clients.contains_key(&id) {
                 info!("Nouvelle télécommande connectée: {}", id);
-                let _ = state.app_handle.emit("remote_control_status_changed", "connected");
+                let _ = state
+                    .app_handle
+                    .emit("remote_control_status_changed", "connected");
             }
             active_clients.insert(id, now);
             return StatusCode::OK.into_response();
@@ -317,14 +367,12 @@ async fn heartbeat_handler(
             return (StatusCode::CONFLICT, "Remote connection limit (2) reached").into_response();
         }
     }
-    
+
     StatusCode::BAD_REQUEST.into_response()
 }
 
 /// Handler pour GET /api/state (fallback si SSE ne fonctionne pas)
-async fn state_handler(
-    State(state): State<RemoteServerState>,
-) -> impl IntoResponse {
+async fn state_handler(State(state): State<RemoteServerState>) -> impl IntoResponse {
     let app_state = state.app_handle.state::<Mutex<AppState>>();
     let app_state_lock = app_state.lock().unwrap();
 
@@ -347,12 +395,16 @@ struct DocItem {
 /// Handler pour GET /api/docs
 async fn docs_list_handler(State(state): State<RemoteServerState>) -> impl IntoResponse {
     let app_handle = &state.app_handle;
-    
+
     // Pointer vers la racine "docs" au lieu de "DocUtilisateur"
     let docs_path = if cfg!(debug_assertions) {
-         PathBuf::from("../docs")
+        PathBuf::from("../docs")
     } else {
-         app_handle.path().resource_dir().unwrap_or_default().join("docs")
+        app_handle
+            .path()
+            .resource_dir()
+            .unwrap_or_default()
+            .join("docs")
     };
 
     debug!("Listing docs from {:?}", docs_path);
@@ -370,30 +422,32 @@ async fn docs_list_handler(State(state): State<RemoteServerState>) -> impl IntoR
                     // Calculer le chemin relatif pour l'ID/Filename
                     // ex: DocUtilisateur/index.md
                     if let Ok(rel_path) = path.strip_prefix(&docs_path) {
-                         let filename_str = rel_path.to_string_lossy().into_owned();
-                         // Normaliser les slashs pour Windows/Unix uniformité
-                         let filename_normalized = filename_str.replace('\\', "/");
+                        let filename_str = rel_path.to_string_lossy().into_owned();
+                        // Normaliser les slashs pour Windows/Unix uniformité
+                        let filename_normalized = filename_str.replace('\\', "/");
 
-                         // Essayer de lire le titre (# Title)
-                         let title = if let Ok(content) = std::fs::read_to_string(&path) {
-                             content.lines().next()
-                                 .filter(|l| l.starts_with("# "))
-                                 .map(|l| l[2..].trim().to_string())
-                                 .unwrap_or_else(|| filename_normalized.clone())
-                         } else {
-                             filename_normalized.clone()
-                         };
+                        // Essayer de lire le titre (# Title)
+                        let title = if let Ok(content) = std::fs::read_to_string(&path) {
+                            content
+                                .lines()
+                                .next()
+                                .filter(|l| l.starts_with("# "))
+                                .map(|l| l[2..].trim().to_string())
+                                .unwrap_or_else(|| filename_normalized.clone())
+                        } else {
+                            filename_normalized.clone()
+                        };
 
-                         docs.push(DocItem {
-                             filename: filename_normalized,
-                             title,
-                         });
+                        docs.push(DocItem {
+                            filename: filename_normalized,
+                            title,
+                        });
                     }
                 }
             }
         }
     }
-    
+
     // Tri alphabétique par filename pour l'instant
     docs.sort_by(|a, b| a.filename.cmp(&b.filename));
 
@@ -408,14 +462,18 @@ async fn docs_content_handler(
     // Sécurité basique : pas de .. pour éviter de remonter dans l'arborescence serveur
     // MAIS, on doit autoriser les slashs et backslashs pour les sous-dossiers
     if filename.contains("..") {
-         return (StatusCode::BAD_REQUEST, "Invalid filename").into_response();
+        return (StatusCode::BAD_REQUEST, "Invalid filename").into_response();
     }
 
     let app_handle = &state.app_handle;
     let docs_path = if cfg!(debug_assertions) {
-         PathBuf::from("../docs")
+        PathBuf::from("../docs")
     } else {
-         app_handle.path().resource_dir().unwrap_or_default().join("docs")
+        app_handle
+            .path()
+            .resource_dir()
+            .unwrap_or_default()
+            .join("docs")
     };
 
     let file_path = docs_path.join(&filename);
@@ -426,14 +484,16 @@ async fn docs_content_handler(
     }
 }
 
-
 use tower_http::services::ServeDir;
-
 
 // ... imports existants ...
 
 /// Créer le routeur Axum avec toutes les routes
-pub fn create_router(state: RemoteServerState, static_path: PathBuf, docs_root_path: PathBuf) -> Router {
+pub fn create_router(
+    state: RemoteServerState,
+    static_path: PathBuf,
+    docs_root_path: PathBuf,
+) -> Router {
     Router::new()
         // Routes API
         .route("/api/health", get(healthcheck_handler))
@@ -447,7 +507,7 @@ pub fn create_router(state: RemoteServerState, static_path: PathBuf, docs_root_p
         // Servir les fichiers annexes de la documentation (images, etc.)
         .nest_service("/static-docs", ServeDir::new(docs_root_path))
         // Servir les fichiers statiques (fallback)
-        .nest_service("/", ServeDir::new(static_path)) 
+        .nest_service("/", ServeDir::new(static_path))
         // État partagé unique
         .with_state(state)
 }
@@ -460,7 +520,7 @@ pub async fn start_axum_server(
     sse_sender: broadcast::Sender<SseMessage>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let sse_state = Arc::new(SseState { tx: sse_sender });
-    
+
     let server_state = RemoteServerState {
         sse_state,
         app_handle: app_handle.clone(),
@@ -469,7 +529,7 @@ pub async fn start_axum_server(
 
     // Déterminer le chemin des fichiers statiques
     // En dev : ../src/remote_client
-    // En prod : resource_dir/remote_client
+    // En prod : resource_dir/_up_/src/remote_client (car tauri.conf.json utilise ../src/remote_client)
     let static_path = if cfg!(debug_assertions) {
         // Mode DEV: on suppose qu'on est dans src-tauri, donc on remonte
         let mut path = std::env::current_dir()?;
@@ -483,16 +543,22 @@ pub async fn start_axum_server(
         path.join("src").join("remote_client")
     } else {
         // Mode PROD
-        app_handle.path().resource_dir()?.join("remote_client")
+        // Les ressources définies avec ../ dans tauri.conf.json sont copiées dans _up_/
+        app_handle
+            .path()
+            .resource_dir()?
+            .join("_up_")
+            .join("src")
+            .join("remote_client")
     };
-    
+
     info!("Serving remote client files from: {:?}", static_path);
 
     // Déterminer le chemin des docs pour le static serving
     let docs_path = if cfg!(debug_assertions) {
-         PathBuf::from("../docs")
+        PathBuf::from("../docs")
     } else {
-         app_handle.path().resource_dir()?.join("docs")
+        app_handle.path().resource_dir()?.join("docs")
     };
     info!("Serving docs static files from: {:?}", docs_path);
 

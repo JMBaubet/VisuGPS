@@ -6,6 +6,7 @@ import path from 'node:path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // Utiliser des chemins relatifs pour le build (nécessaire pour le serveur HTTP Axum)
   plugins: [
     vue({
       template: { transformAssetUrls }

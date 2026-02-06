@@ -1,14 +1,14 @@
 use axum::{
     extract::State,
+    http::StatusCode,
     response::sse::{Event, KeepAlive, Sse},
     response::IntoResponse,
-    http::StatusCode,
 };
-use tokio_stream::{Stream, StreamExt};
 use log::{debug, error};
 use std::convert::Infallible;
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use tokio_stream::{Stream, StreamExt};
 
 /// Structure pour gérer les événements SSE
 #[derive(Clone, Debug, serde::Serialize)]
@@ -45,7 +45,10 @@ impl SseState {
     }
 
     /// Envoyer une mise à jour d'état de visualisation
-    pub fn send_visualize_view_state_update(&self, state: &crate::remote_control::VisualizeViewState) {
+    pub fn send_visualize_view_state_update(
+        &self,
+        state: &crate::remote_control::VisualizeViewState,
+    ) {
         self.send(SseMessage {
             event_type: "visualize_view_state_update".to_string(),
             data: serde_json::to_value(state).unwrap_or_default(),
@@ -83,7 +86,11 @@ impl SseState {
     }
 
     /// Envoyer une mise à jour d'avancement de l'animation
-    pub fn send_animation_progress_update(&self, current_distance: f64, current_segment_index: Option<usize>) {
+    pub fn send_animation_progress_update(
+        &self,
+        current_distance: f64,
+        current_segment_index: Option<usize>,
+    ) {
         self.send(SseMessage {
             event_type: "animation_progress_update".to_string(),
             data: serde_json::json!({
@@ -99,11 +106,21 @@ pub async fn sse_handler(
     State(state): State<Arc<SseState>>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     debug!("Nouvelle connexion SSE établie");
-    
+
     let rx = state.tx.subscribe();
-    
+
+    // Créer un événement initial pour confirmer la connexion immédiatement
+    // Cela aide les clients (Safari Mobile) à valider l'ouverture du stream
+    let initial_msg = SseMessage {
+        event_type: "connection_established".to_string(),
+        data: serde_json::json!({ "status": "ok" }),
+    };
+
     // Convertir le broadcast receiver en stream manuellement
     let stream = async_stream::stream! {
+        // Envoyer le message initial d'abord
+        yield Ok::<SseMessage, Infallible>(initial_msg);
+
         let mut rx = rx;
         loop {
             match rx.recv().await {
@@ -121,20 +138,25 @@ pub async fn sse_handler(
         match msg {
             Ok(sse_msg) => {
                 debug!("Envoi événement SSE: {}", sse_msg.event_type);
-                
+
                 // Créer un événement SSE avec type et données
                 let event = Event::default()
                     .event(&sse_msg.event_type)
                     .json_data(sse_msg.data)
                     .ok();
-                
+
                 event.map(Ok)
             }
             Err(_) => None,
         }
     });
 
-    Sse::new(event_stream).keep_alive(KeepAlive::default())
+    // Configuration Keep-Alive plus agressive pour éviter le buffering des proxys/routeurs (et Safari Mobile)
+    let keep_alive = KeepAlive::new()
+        .interval(std::time::Duration::from_secs(15))
+        .text("keep-alive");
+
+    Sse::new(event_stream).keep_alive(keep_alive)
 }
 
 /// Handler pour un simple ping (healthcheck)
