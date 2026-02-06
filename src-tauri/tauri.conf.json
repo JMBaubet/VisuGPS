@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost https://asset.localhost https://api.iconify.design data: blob:; connect-src 'self' http://ipc.localhost https://api.mapbox.com https://events.mapbox.com https://api.open-meteo.com http://connectivitycheck.gstatic.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net;",
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost https://asset.localhost https://api.iconify.design data: blob:; connect-src 'self' http://ipc.localhost https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.open-meteo.com http://connectivitycheck.gstatic.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; child-src 'self' blob:;",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -49,7 +49,8 @@
     ],
     "resources": [
       "../public",
-      "../docs"
+      "../docs",
+      "../src/remote_client"
     ]
   }
 }

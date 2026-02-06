@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "node update-build-date.js && vite",
-    "build": "node update-build-date.js && vite build",
+    "build:remote": "cd src/remote_ui && npm install && npm run build",
+    "build": "npm run build:remote && node update-build-date.js && vite build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tauri": "tauri"
   },
