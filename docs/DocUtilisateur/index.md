@@ -53,10 +53,10 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 <small>
 
 
-*   **Version de l'application** : 1.0.3
-*   **Version d'export des circuits** : 1.0.0
-*   **Version d'export des contextes** : 1.0.0
+*   **Version de l'application** : 1.1.0      
+*   **Version d'export des circuits** : 1.1.0
+*   **Version d'export des contextes** : 1.1.0
 
 </small>
 
-<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 07/02/2026 à 13:54 (Commit 38aa2e0c56eaac8619e7aadb9a8d7efc11bbd147)</em></div>
+<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 07/02/2026 à 21:38 (Commit 4678bfffa229dba5d65aff0c7e46898f523da098)</em></div>

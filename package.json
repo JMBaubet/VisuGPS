@@ -1,7 +1,7 @@
 {
   "name": "visugps",
-  "version": "1.0.0",
-  "description": "VisuGPS - Visualisation 3D de fichiers GPX",
+  "version": "1.1.0",
+  "description": "VisuGPS - Gestion des variants et amélioration de la télécommande",
   "main": "index.js",
   "scripts": {
     "dev": "node update-build-date.js && vite",
