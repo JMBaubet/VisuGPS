@@ -15,7 +15,6 @@ dist-ssr/
 # --- Tauri / Rust ---
 /src-tauri/target/
 /src-tauri/.cargo-lock
-/src-tauri/Cargo.lock
 /src-tauri/.fingerprint/
 /src-tauri/.rustc_info.json
 /src-tauri/debug/

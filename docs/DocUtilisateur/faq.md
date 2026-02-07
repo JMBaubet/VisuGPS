@@ -12,6 +12,13 @@ R : VisuGPS est une application open-source sous licence Apache 2.0.
 **Q : Sur quels systèmes fonctionne-t-elle ?**
 R : VisuGPS est compatible avec Windows, macOS et Linux.
 
+---
+
+## Synchronisation multi-plateforme
+
+**Q : Je travaille sur macOS et Windows, comment garder mes versions synchronisées ?**
+R : Pour éviter les erreurs de compilation (Tauri mismatch), assurez-vous de toujours synchroniser vos fichiers "Lock". Consultez notre **[Guide de Synchronisation Multi-plateforme](../DocAnnexe/synchronisation_multiplateforme.md)** pour la procédure complète.
+
 ## Carte 3D et Mapbox
 
 **Q : La carte ne s'affiche pas ou reste noire.**
