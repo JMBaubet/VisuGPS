@@ -17,7 +17,7 @@ export function useTraceLayers(map) {
     const setupTraceLayers = (configs = {}) => {
         if (!map.value) return;
 
-        const {
+        let {
             traceWidth, traceOpacity, traceColor,
             lineStringData, // Standard Trace Source
             coloredSegmentsData, // Variant Source (Priority)
@@ -29,6 +29,21 @@ export function useTraceLayers(map) {
             // Slope specific
             slopeThickness, slopeOpacityLogic, slopeExpression
         } = { ...config, ...configs };
+
+        // AGGRESSIVE SANITIZATION: Strip problematic properties that trigger Mapbox v3 warnings
+        const sanitize = (data) => {
+            if (!data) return;
+            const features = data.features || (data.type === 'Feature' ? [data] : []);
+            features.forEach(f => {
+                if (f.properties) {
+                    const { icon, background, 'background-stroke': bgS, ...safe } = f.properties;
+                    f.properties = safe;
+                }
+            });
+        };
+        sanitize(lineStringData);
+        sanitize(coloredSegmentsData);
+        sanitize(masterTraceData);
 
         if (slopeExpression) slopeExpressionRef.value = slopeExpression;
         if (coloredSegmentsData) coloredSegmentsGeoJsonRef.value = coloredSegmentsData;

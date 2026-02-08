@@ -342,14 +342,21 @@ const initMap = async () => {
     };
     variantConfig.routingProfile = profileMap[profileLabel] || 'racingbike';
     
-    console.log(`[Init] Loaded profile: "${profileLabel}" mapped to "${variantConfig.routingProfile}"`);
-    console.log(`[Init] Using routing service: ${variantConfig.routingService}`);
+
 
     // Load the trace FIRST to get its center for map initialization
     try {
         const geojson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+        
+        // AGGRESSIVE SANITIZATION: Strip ALL properties from master trace to avoid Mapbox conflicts
+        if (geojson.features) {
+            geojson.features.forEach(f => f.properties = {});
+        } else if (geojson.properties) {
+            geojson.properties = {};
+        }
+        
         masterTraceGeojson.value = geojson;
-        console.log(`[Init] Master trace loaded: ${geojson.coordinates.length} points`);
+
     } catch (e) {
         console.error("Failed to load trace", e);
         isLoading.value = false;
@@ -358,7 +365,7 @@ const initMap = async () => {
     
     // Calculate trace center for map initialization
     const traceCenter = turf.center(masterTraceGeojson.value).geometry.coordinates;
-    console.log(`[Init] Trace center: [${traceCenter}]`);
+
 
     mapboxgl.accessToken = token;
 
@@ -428,7 +435,7 @@ const initMap = async () => {
        // Tracking Points Layer
        try {
             const trackingData = await invoke('read_tracking_file', { circuitId: props.circuitId });
-            console.log(`[Init] Loaded ${trackingData.length} tracking points for circuit ${props.circuitId}`);
+
             trackingPoints.value = trackingData;
             const trackingFeatures = trackingData.map(p => ({
                 type: 'Feature',
@@ -552,8 +559,22 @@ const loadCircuitTrace = async () => {
          return;
      }
      
-     console.log(`[loadCircuitTrace] Using already loaded trace: ${geojson.coordinates.length} points`);
-     
+     // Santize properties to avoid Mapbox warnings if GPX had weird data
+     // Some Mapbox styles treat properties like 'background' or 'icon' as variable overrides
+     if (geojson.properties) {
+         const { icon, background, 'background-stroke': bgStroke, ...safeProps } = geojson.properties;
+         geojson.properties = safeProps;
+         const sanitizedProperties = {};
+         for (const key in geojson.properties) {
+             // Only copy properties that are not objects and not null, and not known problematic names
+             if (typeof geojson.properties[key] !== 'object' && geojson.properties[key] !== null &&
+                 !['icon', 'background', 'fill', 'stroke', 'text'].includes(key.toLowerCase())) {
+                 sanitizedProperties[key] = geojson.properties[key];
+             }
+         }
+         geojson.properties = sanitizedProperties;
+     }
+
      const originalColor = resolveColor(getSettingValue('Variante/Edition/Trace Maîtresse/couleur'), '#BDBDBD');
      const originalWidth = getSettingValue('Variante/Edition/Trace Maîtresse/largeur') || 4;
      const originalOpacity = getSettingValue('Variante/Edition/Trace Maîtresse/opacite') !== undefined 
@@ -585,6 +606,7 @@ const loadCircuitTrace = async () => {
          
          // Fit bounds to show the entire trace
          const coords = geojson.coordinates;
+         
          const bounds = new mapboxgl.LngLatBounds(coords[0], coords[0]);
          for (const coord of coords) {
              bounds.extend(coord);
@@ -1832,7 +1854,6 @@ const goHome = () => {
 const checkRoutingServices = async () => {
     try {
         const status = await invoke('check_routing_services');
-        console.log("[Routing check]", status);
         
         let msg = "";
         let color = "warning";

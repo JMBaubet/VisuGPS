@@ -392,6 +392,7 @@ const loadFullVariant = async (variantId) => {
         if (map && map.getSource('circuit-line')) {
             map.getSource('circuit-line').setData({
                 type: 'Feature',
+                properties: {},
                 geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
             });
             if (map.getSource('variant-pin')) {
@@ -519,6 +520,7 @@ const loadMainTrace = async () => {
         if (map && map.getSource('circuit-line')) {
              map.getSource('circuit-line').setData({
                 type: 'Feature',
+                properties: {}, // Explicitly empty to avoid property pollution
                 geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
             });
             // Clear variant pin when returning to main trace
@@ -625,7 +627,6 @@ const backgroundLineStringCoordinates = ref([]);
 const couleurCroixCentraleEdition = computed(() => {
   const colorName = getSettingValue('Edition/Pause et Survol/couleurCroixCentraleEdition') || 'white';
   const resolvedColor = toHex(colorName);
-  console.log('[EditView] couleurCroixCentraleEdition:', colorName, '->', resolvedColor);
   return resolvedColor;
 });
 
@@ -1932,7 +1933,7 @@ onMounted(async () => {
     if (map && map.getSource('background-trace')) {
         map.getSource('background-trace').setData({
             type: 'Feature',
-            properties: {},
+            properties: {}, // Strict whitelist: none
             geometry: {
                 type: 'LineString',
                 coordinates: backgroundLineStringCoordinates.value,
@@ -2145,7 +2146,7 @@ onMounted(async () => {
         type: 'geojson',
         data: {
           type: 'Feature',
-          properties: {},
+          properties: {}, // Strict whitelist: none
           geometry: {
             type: 'LineString',
             coordinates: backgroundLineStringCoordinates.value,

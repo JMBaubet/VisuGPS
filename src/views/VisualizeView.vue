@@ -249,7 +249,7 @@ const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Gl
 const is3DContext = computed(() => {
     // Les widgets "3D" ne s'affichent que lors de la visualisation active (départ, animation, pause)
     // Ils sont masqués pendant l'intro (Standard) et la sortie (FlyTo Global)
-    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart'].includes(animationState.value);
+    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart', 'Survol_Evenementiel'].includes(animationState.value);
 });
 const is3DWidgetsReady = computed(() => {
     return is3DContext.value && !!(!isWeatherInfoVisible.value && !isCompassVisible.value || currentWeather.value);
