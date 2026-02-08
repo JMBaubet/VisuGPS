@@ -1018,8 +1018,13 @@ const finalizeMod = (modIndex) => {
 };
 
 const triggerAutoSave = async () => {
-    if (isSaving.value || modifications.value.length === 0) return;
+    // On autorise la sauvegarde même si modifications est vide (cas de suppression du dernier segment)
+    // tant que l'ID de variante existe (on ne crée pas de fichier pour rien si rien n'a été fait)
+    if (isSaving.value) return;
     
+    // Si on n'a plus de modifications mais qu'on a déjà un ID chargé, on veut quand même mettre à jour (supprimer le contenu)
+    if (modifications.value.length === 0 && !loadedVariantId.value) return;
+
     // Ensure ID exists before triggering auto-save
     if (!loadedVariantId.value) {
         loadedVariantId.value = `var_${crypto.randomUUID()}`;
@@ -1221,6 +1226,7 @@ const handleDeletePoint = (modIndex, pIndex) => {
     isModified.value = true;
     if (mod.points.length < 2) {
         mod.preview = null;
+        triggerAutoSave(); // On déclenche la sauvegarde quand même (cas du dernier point d'un DEPART/ARRIVEE)
     } else {
         // Recalcule le routage avec le point supprimé (cela déclenchera aussi triggerAutoSave)
         generatePreviewForMod(modIndex);
@@ -1694,14 +1700,24 @@ const confirmSaveVariant = async (silent = false) => {
                              
                              // Slice from new start to end
                              const sliced = turf.lineSlice(newStartPt, endPt, line);
-                             coords = sliced.geometry.coordinates;
+                             let slicedCoords = sliced.geometry.coordinates;
+
+                             // SECURITE : Vérifier que le premier point de la découpe est bien le point de départ calculé
+                             // car turf.lineSlice peut parfois inverser l'ordre des points selon la topologie.
+                             // On veut que le premier point [0] soit le plus éloigné de l'ancre (endPt).
+                             if (slicedCoords.length >= 2) {
+                                 const distFirstToAnchor = turf.distance(turf.point(slicedCoords[0]), endPt);
+                                 const distLastToAnchor = turf.distance(turf.point(slicedCoords[slicedCoords.length - 1]), endPt);
+                                 if (distFirstToAnchor < distLastToAnchor) {
+                                     console.log("[SaveVariant] Reversing sliced coords for DEPART to maintain direction.");
+                                     slicedCoords.reverse();
+                                 }
+                             }
+                             coords = slicedCoords;
                              
                              // Recalculate length
                              longueur = turf.length(turf.lineString(coords), { units: 'kilometers' });
                              console.log(`[SaveVariant] New DEPART length: ${(longueur * 1000).toFixed(2)}m`);
-                             
-                             // Update fullGeometry with trimmed coords
-                             // (Note: we need to re-map fullGeometry because coords changed)
                          } catch(e) {
                              console.error("[SaveVariant] Error trimming DEPART:", e);
                          }
@@ -1714,15 +1730,16 @@ const confirmSaveVariant = async (silent = false) => {
                  // Update the Start Point in the points list to match the new geometry start
                  let finalPoints = rawPoints();
                  if (coords.length > 0 && finalPoints.length > 0) {
-                     // For a Departure, we want to update the point that is NOT the anchor
-                     // (the one at the trimmed end of the LineString)
-                     const startPointIdx = finalPoints.findIndex(p => p.type !== 'anchor');
+                     // Pour un Départ, le point de début réel (à trimmer) est le DERNIER waypoint cliqué
+                     // car la séquence est [Ancre, W1, W2...] mais le routage commence à Wn.
+                     const startPointIdx = finalPoints.findLastIndex(p => p.type !== 'anchor');
                      
                      if (startPointIdx !== -1) {
+                         // On met à jour le waypoint le plus éloigné avec la coordonnée trimmée de la LineString
                          finalPoints[startPointIdx].lon = coords[0][0];
                          finalPoints[startPointIdx].lat = coords[0][1];
                      } else {
-                         // Fallback to index 0 if no waypoint found
+                         // Fallback à l'ancre si aucun waypoint (ne devrait pas arriver car length >= 2)
                          finalPoints[0].lon = coords[0][0];
                          finalPoints[0].lat = coords[0][1];
                      }
