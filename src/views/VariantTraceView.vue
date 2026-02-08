@@ -1194,20 +1194,35 @@ const confirmRename = async () => {
 };
 
 const handleDeletePoint = (modIndex, pIndex) => {
-    // If we are deleting an anchor that finalized the segment, un-finalize it
-    // Note: pIndex === 1 check assumes the structure [AnchorStart, ...Waypoints, AnchorEnd]
-    // But since we splice, we just check if it was finalized.
-    // Actually, logic is simpler: if we modify points of a finalized segment, it becomes un-finalized.
-    
     const mod = modifications.value[modIndex];
-    mod.finalized = false;
-    mod.routingStatus = null;
+    
+    // Supprime le point à l'index donné
     mod.points.splice(pIndex, 1);
     
+    // Si la modification était finalisée, on ne la dé-finalise que si on supprime une ancre critique
+    // Un segment nécessite 2 ancres (départ/fin). Un départ/arrivée déporté nécessite 1 ancre sur la trace.
+    if (mod.finalized) {
+        let stillValid = false;
+        if (mod.type === 'SEGMENT') {
+            const anchors = mod.points.filter(p => p.type === 'ANCHOR');
+            stillValid = (anchors.length >= 2);
+        } else {
+            // DEPART ou ARRIVEE
+            stillValid = mod.points.some(p => p.type === 'ANCHOR');
+        }
+        
+        if (!stillValid) {
+            console.log(`[handleDeletePoint] Mod ${modIndex} n'est plus valide après suppression d'un point.`);
+            mod.finalized = false;
+            mod.routingStatus = null;
+        }
+    }
+    
     isModified.value = true;
-    if (modifications.value[modIndex].points.length < 2) {
-        modifications.value[modIndex].preview = null;
+    if (mod.points.length < 2) {
+        mod.preview = null;
     } else {
+        // Recalcule le routage avec le point supprimé (cela déclenchera aussi triggerAutoSave)
         generatePreviewForMod(modIndex);
     }
     updateMarkers();
