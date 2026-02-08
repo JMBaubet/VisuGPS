@@ -252,7 +252,7 @@ const is3DContext = computed(() => {
     return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart'].includes(animationState.value);
 });
 const is3DWidgetsReady = computed(() => {
-    return is3DContext.value && (!isWeatherInfoVisible.value && !isCompassVisible.value || currentWeather.value);
+    return is3DContext.value && !!(!isWeatherInfoVisible.value && !isCompassVisible.value || currentWeather.value);
 });
 const showWidgets = ref(false);
 const hasVariants = ref(false);
@@ -1457,6 +1457,10 @@ const handleJumpRequest = async (targetDistanceKm) => {
     // 5. Reprise
     isFlytoActive.value = false;
     
+    // Force remote update
+    await nextTick();
+    updateRemoteViewState();
+    
     if (wasPlaying) {
         isPaused.value = false;
     } else {
@@ -1611,12 +1615,20 @@ const executeFlytoSequence = async (flytoData) => {
     });
 
     animationState.value = 'En_Pause';
+    
+    // Allow interaction during pause
+    isFlytoActive.value = false;
+    updateRemoteViewState();
+    
     // Wait for Play
     await new Promise(resolve => {
         const stop = watch(isPaused, (val) => {
             if(!val) { stop(); resolve(); }
         });
     });
+
+    isFlytoActive.value = true; // Lock again for return flight
+    updateRemoteViewState();
 
     animationState.value = 'Survol_Evenementiel';
     const durationBack = Math.max(200, duration / currentSpeed.value);
@@ -1632,6 +1644,11 @@ const executeFlytoSequence = async (flytoData) => {
     isFlytoActive.value = false;
     isPaused.value = false;
     animationState.value = 'En_Animation';
+    
+    // Force remote update to clear "Repositionnement..." overlay
+    await nextTick();
+    updateRemoteViewState();
+
     lastTimestamp = 0; // Reset timer for smooth resume
     requestAnimationFrame(animateLoop); // Restart loop explicitly
 };
@@ -2356,6 +2373,13 @@ watch(remoteViewName, (newName) => {
 
 watch(selectedVariantId, () => {
     // Force immediate remote update when changing variant
+    updateRemoteViewState();
+});
+
+
+
+watch(isFlytoActive, () => {
+    // Safety net for any other flyto triggers
     updateRemoteViewState();
 });
 

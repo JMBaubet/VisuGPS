@@ -1,33 +1,35 @@
 <template>
-  <!-- Commune Widget (Positioned Top Left relative to BackButton) -->
-  <transition name="fade-opacity">
-    <div 
-      v-if="isVisible && showCommune && communeName !== 'N/A'" 
-      class="commune-display" 
-      @wheel.stop
-    >
-       <v-card variant="elevated" class="pa-2 d-flex align-center commune-card" :style="{ border: `4px solid ${communeBorderColor}` }">
-          <span class="font-weight-bold ml-1 mr-1">{{ communeName }}</span>
-       </v-card>
-    </div>
-  </transition>
-
-  <!-- Distance Widget (Top Center) -->
-  <div class="top-center-container">
+  <div class="visualize-info-display-root">
+    <!-- Commune Widget (Positioned Top Left relative to BackButton) -->
     <transition name="fade-opacity">
-      <v-card 
-        v-if="isVisible && showDistance" 
-        variant="elevated" 
-        class="distance-display widget-card" 
+      <div 
+        v-if="isVisible && showCommune && communeName !== 'N/A'" 
+        class="commune-display" 
         @wheel.stop
       >
-        <div class="d-flex align-center justify-center fill-height px-4">
-          <span class="font-weight-bold">Distance :&nbsp;</span>
-          <span class="font-weight-bold">{{ distanceDisplay }}</span> 
-          <span class="font-weight-bold">&nbsp;/ {{ totalDistanceFormatted }} km</span>
-        </div>  
-      </v-card>
+         <v-card variant="elevated" class="pa-2 d-flex align-center commune-card" :style="{ border: `4px solid ${communeBorderColor}` }">
+            <span class="font-weight-bold ml-1 mr-1">{{ communeName }}</span>
+         </v-card>
+      </div>
     </transition>
+  
+    <!-- Distance Widget (Top Center) -->
+    <div class="top-center-container">
+      <transition name="fade-opacity">
+        <v-card 
+          v-if="isVisible && showDistance" 
+          variant="elevated" 
+          class="distance-display widget-card" 
+          @wheel.stop
+        >
+          <div class="d-flex align-center justify-center fill-height px-4">
+            <span class="font-weight-bold">Distance :&nbsp;</span>
+            <span class="font-weight-bold">{{ distanceDisplay }}</span> 
+            <span class="font-weight-bold">&nbsp;/ {{ totalDistanceFormatted }} km</span>
+          </div>  
+        </v-card>
+      </transition>
+    </div>
   </div>
 </template>
 
