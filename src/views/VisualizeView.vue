@@ -60,7 +60,7 @@
     :is-animation-finished="isAnimationFinished"
     v-model:is-rewinding="isRewinding"
     v-model:current-speed="currentSpeed"
-    :controls-visible="isControlsCardVisible"
+    :controls-visible="isControlsCardVisible && is3DWidgetsReady"
     :min-speed="minSpeedValue"
     :max-speed="maxSpeedValue"
     :default-speed="defaultSpeedValue"
@@ -171,6 +171,7 @@ import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
+import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
 import AltitudeVariantSVG from '@/components/Visualize/AltitudeVariantSVG.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
@@ -225,6 +226,7 @@ const { interruptUpdate } = useCommunesUpdate();
 const { toHex } = useVuetifyColors();
 const { createMessageSVG } = useMessageDisplay();
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
+const { isRemoteConnected } = useRemoteControlStatus();
 
 // --- Mode Detection ---
 const isVariantTrace = computed(() => !!selectedVariantId.value);
@@ -2084,11 +2086,22 @@ onMounted(async () => {
     if (mapboxToken.value) {
         await initializeVisualization();
         setupRemoteControl();
+        
+        // Initial check: if remote is already connected, hide controls
+        if (isRemoteConnected.value) {
+            isControlsCardVisible.value = false;
+        }
     } else {
         const unwatch = watch(mapboxToken, (token) => {
             if (token) {
                 initializeVisualization();
                 setupRemoteControl();
+                
+                // Initial check: if remote is already connected, hide controls
+                if (isRemoteConnected.value) {
+                    isControlsCardVisible.value = false;
+                }
+
                 unwatch();
             }
         });
@@ -2158,6 +2171,26 @@ watch([
 ], () => {
     invoke('update_animation_state', { newState: animationState.value });
     updateRemoteViewState();
+});
+
+// --- Remote Connection Watcher ---
+watch(isRemoteConnected, (newValue) => {
+    if (newValue) {
+        // Only hide if we are in a relevant state (not during Intro)
+        // If Intro is running, the widget is already hidden by v-if="showWidgets"
+        if (is3DWidgetsReady.value) {
+             isControlsCardVisible.value = false;
+             showSnackbar("Télécommande connectée : Interface allégée active", "info");
+        }
+    }
+});
+
+// Also watch for when widgets become ready to apply the rule if remote is already connected
+watch(is3DWidgetsReady, (ready) => {
+    if (ready && isRemoteConnected.value) {
+        // Force hide again to override default behavior where everything shows up
+        isControlsCardVisible.value = false;
+    }
 });
 
 function generateSlopeSegments(trackingPoints) {
