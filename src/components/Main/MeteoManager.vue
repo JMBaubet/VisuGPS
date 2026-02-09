@@ -102,7 +102,7 @@
         </div>
 
         <div v-if="editedScenarios.length > 0" class="scenarios-list">
-            <v-row v-for="(scen, idx) in editedScenarios" :key="idx" dense align="center" class="mb-1 pa-2 rounded border">
+            <v-row v-for="(scen, idx) in editedScenarios" :key="scen.id" dense align="center" class="mb-1 pa-2 rounded border">
                 <!-- Reference Selection -->
                 <v-col cols="1" class="d-flex justify-center">
                     <v-btn icon size="x-small" variant="text" @click="setReference(idx)" :color="scen.isReference ? 'primary' : 'grey'" title="Définir comme groupe de référence">
@@ -290,8 +290,11 @@ const initData = () => {
 
     // Scenarios Logic
     if (config.scenarios && Array.isArray(config.scenarios) && config.scenarios.length > 0) {
-        // Deep copy
-        editedScenarios.value = JSON.parse(JSON.stringify(config.scenarios));
+        // Deep copy and add unique IDs for Vue keys
+        editedScenarios.value = JSON.parse(JSON.stringify(config.scenarios)).map((s, i) => ({
+            ...s,
+            id: s.id || `scen-${Date.now()}-${i}`
+        }));
         
         // Ensure at least one reference exists (default to 1st if none)
         if (!editedScenarios.value.some(s => s.isReference)) {
@@ -312,6 +315,7 @@ const createDefaultGroup = () => {
     const defaultSpeed = getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
     
     editedScenarios.value = [{
+        id: `scen-${Date.now()}-0`,
         nom: "Gr. 1",
         heureDepart: defaultTime,
         vitesseMoyenne: defaultSpeed,
@@ -355,11 +359,14 @@ const addGroup = () => {
     const defaultSpeed = getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
     
     editedScenarios.value.push({
+        id: `scen-${Date.now()}-${nextNum}`,
         nom: `Gr. ${nextNum}`,
         heureDepart: defaultTime,
         vitesseMoyenne: defaultSpeed,
         isReference: false
     });
+    
+    saveMeteo();
 };
 
 const setReference = (idx) => {
@@ -370,16 +377,17 @@ const setReference = (idx) => {
 
 const removeGroup = (idx) => {
     editedScenarios.value.splice(idx, 1);
-    // Renumber remaining groups to keep Gr. 1, Gr. 2 order?
-    // User requested "Gr. 1, Gr. 2, ..." so it's cleaner to re-assign names.
+    
+    // Renumber remaining groups to keep Gr. 1, Gr. 2 order
     editedScenarios.value.forEach((s, i) => {
         s.nom = `Gr. ${i + 1}`;
     });
     
     if (editedScenarios.value.length === 0) {
-        // Warn or allow? "Le Groupe 1 sera créé par défaut" logic in initData suggests we might want to enforce it.
-        // But let's allow empty momentarily, user can add back.
+        createDefaultGroup();
     }
+    
+    saveMeteo();
 };
 
 const closeDialog = () => {
@@ -393,20 +401,15 @@ const saveMeteo = async () => {
     }
 
     try {
+        // Prepare data for backend: remove the local 'id' field to match Rust struct
+        const scenariosToSave = editedScenarios.value.map(({ id, ...rest }) => rest);
+
         await invoke('update_circuit_meteo', {
             circuitId: props.circuit.circuitId,
-            // Backend expects these fields?
-            // The old backend update_circuit_meteo took (heureDepart, vitesseMoyenne, dateDepart, scenarios).
-            // We must adapt or check backend signature.
-            // Assuming we pass updated structure. If backend requires legacy fields, we can pass dummy or first group's values.
-            // Let's check GpxProcessor.rs or try to infer. 
-            // Previous call: update_circuit_meteo(circuitId, heureDepart, vitesseMoyenne, dateDepart, scenarios)
-            // We will pass Date and Scenarios. For legacy args, we pass Group 1's values.
-            
-            heureDepart: editedScenarios.value[0]?.heureDepart || "08:30",
-            vitesseMoyenne: Number(editedScenarios.value[0]?.vitesseMoyenne || 20.0),
+            heureDepart: scenariosToSave[0]?.heureDepart || "08:30",
+            vitesseMoyenne: Number(scenariosToSave[0]?.vitesseMoyenne || 20.0),
             dateDepart: editedDateDepart.value,
-            scenarios: editedScenarios.value
+            scenarios: scenariosToSave
         });
         
         showSnackbar('Configuration météo enregistrée', 'success');
@@ -519,11 +522,9 @@ const loadAndShowWeather = async () => {
 
 // Utils
 const getFilenameForDate = (dateStr) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const datePart = `${yyyy}${mm}${dd}`;
+    // Éviter le décalage de fuseau horaire de new Date(dateStr) en extrayant les parties manuellement
+    const [y, m, d] = dateStr.split('-').map(String);
+    const datePart = `${y}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
 
     const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
     const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;

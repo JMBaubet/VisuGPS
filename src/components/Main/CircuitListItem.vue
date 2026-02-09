@@ -223,11 +223,9 @@ const variantTooltipText = computed(() => {
 const weatherBtnColor = ref('grey');
 
 const getFilenameForDate = (dateStr) => {
-    const d = new Date(dateStr);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const datePart = `${yyyy}${mm}${dd}`;
+    // Éviter le décalage de fuseau horaire de new Date(dateStr) en extrayant les parties manuellement
+    const [y, m, d] = dateStr.split('-').map(String);
+    const datePart = `${y}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
 
     const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
     const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
