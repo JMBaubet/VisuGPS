@@ -31,7 +31,7 @@
       </div>
       
       <div class="flex-grow-1 overflow-y-auto">
-        <v-list density="compact" open-strategy="single" class="pa-0">
+        <v-list density="compact" v-model:opened="openGroups" class="pa-0">
           <div v-if="modifications.length === 0" class="text-center py-8 text-grey text-caption">
             {{ isEditing ? 'Chargement...' : 'Cliquez sur la carte pour ajouter des points' }}
           </div>
@@ -126,13 +126,20 @@
 
         <!-- Stats Section -->
         <div class="pa-4" v-if="modifications.length > 0">
+          <v-alert
+            v-if="hasUnfinalizedStartOrEnd"
+            density="compact"
+            type="error"
+            variant="tonal"
+            class="mb-2 text-caption"
+            icon="mdi-alert"
+          >
+            Veuillez valider le segment en cours d'édition pour l'enregistrer.
+          </v-alert>
+
           <div v-if="projectedStats.total > 0" class="text-center text-caption font-weight-bold text-primary mb-1">
              <v-icon size="small" start>mdi-social-distance</v-icon>
              Distance totale : {{ projectedStats.total.toFixed(2) }} km
-          </div>
-          <div class="text-center text-caption text-grey">
-            <v-icon size="x-small" start color="success">mdi-sync</v-icon>
-            Sauvegarde automatique active
           </div>
         </div>
       </div>
@@ -242,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const infoDialog = ref(false);
 const selectedVariant = ref(null);
@@ -299,12 +306,46 @@ const props = defineProps({
 
 const emit = defineEmits(['update:config', 'generate', 'save', 'delete-point', 'delete-mod', 'finalize-mod', 'rename-mod', 'update-routing', 'fly-to-mod', 'load-variant', 'delete-saved-variant', 'rename-saved-variant', 'reset']);
 
+const openGroups = ref([]);
+
+// Auto-expand new modifications
+watch(() => props.modifications.length, (newLength, oldLength) => {
+    if (newLength > oldLength) {
+        // New item added, find its index and open it
+        // We open ALL to be sure, or just the new one.
+        // Actually, sortedModifications uses originalIndex as value.
+        // Let's just ensure all indices are in openGroups if the user wants "visualize all points by default"
+        const allIndices = props.modifications.map((_, i) => i);
+        // Merge with existing open groups to not close what user might have closed?
+        // User asked "par defaut on puisse visualiser tous les points".
+        // Let's force open all on change, or just add new ones.
+        // Safer: add new ones.
+        // But since we can't easily know WHICH one is new without diffing, let's just Open All on load/change if simplistic.
+        // Better: just add all current indices to openGroups.
+        openGroups.value = [...new Set([...openGroups.value, ...allIndices])];
+    }
+}, { immediate: true });
+
+// Also watch when entering editing mode to expand existing mods
+watch(() => props.isEditing, (newVal) => {
+    if (newVal) {
+         const allIndices = props.modifications.map((_, i) => i);
+         openGroups.value = [...new Set([...openGroups.value, ...allIndices])];
+    }
+});
+
 const routingProfiles = ['bike', 'mtb', 'racingbike', 'car', 'foot'];
 
 // Profiles are now managed in the Toolbar, we keep this as a proxy if needed but most logic moved
 const proxyRoutingProfile = computed({
   get: () => props.config.routingProfile,
   set: (val) => emit('update:config', { ...props.config, routingProfile: val })
+});
+
+const hasUnfinalizedStartOrEnd = computed(() => {
+  return props.modifications.some(m => 
+    (m.type === 'DEPART' || m.type === 'ARRIVEE') && !m.finalized
+  );
 });
 
 const sortedModifications = computed(() => {

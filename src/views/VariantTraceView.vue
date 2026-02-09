@@ -787,7 +787,7 @@ const handleMapClick = (e) => {
             // Set a default and show dialog
             variantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
             showSaveDialog.value = true;
-            console.log(`[AutoSave] New Variant ID generated, waiting for name...`);
+            // console.log(`[AutoSave] New Variant ID generated, waiting for name...`);
         }
 
         activeMod = { 
@@ -997,7 +997,7 @@ const handleMapClick = (e) => {
         const modIndex = modifications.value.indexOf(activeMod);
         generatePreviewForMod(modIndex).then(() => {
             if (activeMod && activeMod.finalized) {
-                console.log("[AutoSave] Segment auto-finalized, triggering save...");
+                // console.log("[AutoSave] Segment auto-finalized, triggering save...");
                 triggerAutoSave();
             }
         });
@@ -1031,7 +1031,7 @@ const triggerAutoSave = async () => {
         loadedVariantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    console.log("[AutoSave] Triggering for ID:", loadedVariantId.value);
+    // console.log("[AutoSave] Triggering for ID:", loadedVariantId.value);
     await confirmSaveVariant(true); // true = silent
 };
 
@@ -1111,7 +1111,7 @@ const handleLoadVariant = async (variantId) => {
                 routingStatus: rm.routingStatus || null
             };
 
-            console.log(`[LoadVariant] Mod ${index} status:`, rm.routingStatus);
+            // console.log(`[LoadVariant] Mod ${index} status:`, rm.routingStatus);
 
             if (rm.type === 'SEGMENT_DEVIATION') {
                 mod.type = 'SEGMENT';
@@ -1217,7 +1217,7 @@ const handleDeletePoint = (modIndex, pIndex) => {
         }
         
         if (!stillValid) {
-            console.log(`[handleDeletePoint] Mod ${modIndex} n'est plus valide après suppression d'un point.`);
+            // console.log(`[handleDeletePoint] Mod ${modIndex} n'est plus valide après suppression d'un point.`);
             mod.finalized = false;
             mod.routingStatus = null;
         }
@@ -1323,7 +1323,12 @@ const generatePreviewForMod = async (modIndex) => {
         
         // --- ZOOM ET MISE À JOUR VISUELLE AVANT ALTITUDES ---
         updatePreviewSource();
-        handleFlyToMod(modIndex);
+        
+        // Empêcher le zoom automatique pendant l'édition de points intermédiaires
+        // Le zoom ne se fait que si le segment est finalisé (validé ou terminé avec 2 ancres pour un segment)
+        if (mod.finalized) {
+            handleFlyToMod(modIndex);
+        }
 
         // --- IMMEDIATELY FETCH ALTITUDES IF FINALIZED ---
         if (mod.finalized && mod.preview && mod.preview.coordinates) {
@@ -1333,7 +1338,7 @@ const generatePreviewForMod = async (modIndex) => {
                 
                 // Inject altitudes into preview coordinates
                 mod.preview.coordinates = mod.preview.coordinates.map((c, i) => [c[0], c[1], altitudes[i] || 0]);
-                console.log(`[Preview] Altitudes fetched for finalized mod ${modIndex}`);
+                // console.log(`[Preview] Altitudes fetched for finalized mod ${modIndex}`);
                 
              } catch (altError) {
                 console.warn("Could not fetch altitudes during preview:", altError);
@@ -1494,7 +1499,7 @@ const confirmSaveVariant = async (silent = false) => {
             let longueur = 0;
             let coords = (mod.preview && mod.preview.coordinates) ? mod.preview.coordinates : mod.points.map(p => p.coords);
 
-            console.log(`[SaveVariant] Mod ${mod.type}, points: ${mod.points.length}, coords: ${coords.length}`);
+            // console.log(`[SaveVariant] Mod ${mod.type}, points: ${mod.points.length}, coords: ${coords.length}`);
             if (coords && Array.isArray(coords) && coords.length >= 2) {
                 try {
                     const line = turf.lineString(coords);
@@ -1688,7 +1693,7 @@ const confirmSaveVariant = async (silent = false) => {
                      
                      // If remainder is significant (e.g. > 0.5m), we trim it from the START
                      if (remainder > 0.5) {
-                         console.log(`[SaveVariant] Trimming DEPART segment by ${remainder.toFixed(2)}m to reach modulo 100.`);
+                         // console.log(`[SaveVariant] Trimming DEPART segment by ${remainder.toFixed(2)}m to reach modulo 100.`);
                          
                          try {
                              const line = turf.lineString(coords);
@@ -1717,7 +1722,7 @@ const confirmSaveVariant = async (silent = false) => {
                              
                              // Recalculate length
                              longueur = turf.length(turf.lineString(coords), { units: 'kilometers' });
-                             console.log(`[SaveVariant] New DEPART length: ${(longueur * 1000).toFixed(2)}m`);
+                             // console.log(`[SaveVariant] New DEPART length: ${(longueur * 1000).toFixed(2)}m`);
                          } catch(e) {
                              console.error("[SaveVariant] Error trimming DEPART:", e);
                          }
