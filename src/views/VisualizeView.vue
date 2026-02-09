@@ -2231,7 +2231,6 @@ watch(isRemoteConnected, (newValue) => {
         // If Intro is running, the widget is already hidden by v-if="showWidgets"
         if (is3DWidgetsReady.value) {
              isControlsCardVisible.value = false;
-             showSnackbar("Télécommande connectée : Interface allégée active", "info");
         }
     }
 });
