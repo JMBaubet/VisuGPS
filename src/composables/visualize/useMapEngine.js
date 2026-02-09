@@ -12,13 +12,39 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
                 resolve();
                 return;
             }
-            map.value.flyTo({
-                ...options,
-                ...overrideOptions
-            });
-            map.value.once('moveend', () => {
-                resolve();
-            });
+
+            const combinedOptions = { ...options, ...overrideOptions };
+            const duration = combinedOptions.duration || 0;
+            let resolved = false;
+
+            const safeResolve = () => {
+                if (!resolved) {
+                    resolved = true;
+                    if (timeout) clearTimeout(timeout);
+                    map.value.off('moveend', onMoveEnd);
+                    resolve();
+                }
+            };
+
+            const onMoveEnd = () => {
+                safeResolve();
+            };
+
+            // Attach listener BEFORE calling flyTo to avoid race condition
+            map.value.once('moveend', onMoveEnd);
+
+            // Safety timeout: duration + 500ms margin (minimum 1000ms safety)
+            const timeout = setTimeout(() => {
+                console.warn("[flyToPromise] Safety timeout reached. Forcing resolution.");
+                safeResolve();
+            }, Math.max(duration + 500, 1000));
+
+            try {
+                map.value.flyTo(combinedOptions);
+            } catch (err) {
+                console.error("[flyToPromise] flyTo error:", err);
+                safeResolve();
+            }
         });
     };
 

@@ -360,7 +360,11 @@ const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisat
 const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace'))); // Kept for specific variant logic
 const showAbandoned = computed(() => getSettingValue('Variante/Visualisation/afficherSegmentAbandonne'));
 
-const formatDuration = (val) => (val > 100 ? val : val * 1000);
+const formatDuration = (val) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return 1000; // Default safety fallback
+    return (num > 100 ? num : num * 1000);
+};
 
 // --- Using New Composables ---
 // 1. Map Engine
