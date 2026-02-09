@@ -151,7 +151,7 @@ const setupPolling = (interval) => {
   }
   // Set up new interval
   serviceCheckInterval = setInterval(() => {
-    checkAllServices();
+    checkAllServices(true); // Poll only Mapbox/Internet, skip Open-Meteo to save requests
   }, interval);
 };
 

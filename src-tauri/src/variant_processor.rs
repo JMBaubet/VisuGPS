@@ -181,23 +181,20 @@ async fn prepare_points_3d(points_raw: &Vec<VariantPoint>, segment_name: &str) -
     let mut coords_for_fetch = Vec::new();
 
     for (i, p) in points_raw.iter().enumerate() {
-        // Consider None or 0.0 as a candidate for fetching (if we want to be sure)
-        // Note: 0.0 is technically valid (sea level), but often means "missing" in router outputs.
+        // Only fetch if altitude is missing (None)
         if let Some(alt) = p.alt {
-            if alt != 0.0 {
-                final_3d.push(vec![p.lon, p.lat, alt]);
-                continue;
-            }
+            final_3d.push(vec![p.lon, p.lat, alt]);
+        } else {
+            final_3d.push(vec![p.lon, p.lat, 0.0]); // Placeholder
+            missing_alt_indices.push(i);
+            coords_for_fetch.push([p.lon, p.lat]);
         }
-        
-        final_3d.push(vec![p.lon, p.lat, 0.0]); // Placeholder
-        missing_alt_indices.push(i);
-        coords_for_fetch.push([p.lon, p.lat]);
     }
 
     let mut warning = None;
 
     if !coords_for_fetch.is_empty() {
+        // Optimization: only fetch if at least one point is missing altitude (handled by filter above)
         match crate::elevation_provider::fetch_altitudes(&coords_for_fetch).await {
             Ok(fetched_alts) => {
                 for (i, alt) in missing_alt_indices.iter().zip(fetched_alts.iter()) {
@@ -209,7 +206,6 @@ async fn prepare_points_3d(points_raw: &Vec<VariantPoint>, segment_name: &str) -
                 let msg = format!("Récupération des altitudes pour le segment <b>{}</b>, en échec !", segment_name);
                 println!("{}", msg);
                 warning = Some(msg);
-                // On ne retourne pas d'erreur, on garde juste les points à 0.0 (qui seront réparés par la suite).
             }
         }
     }
@@ -229,13 +225,8 @@ async fn enhance_geojson_altitudes(geojson_str: String) -> (String, Option<Strin
 
         for (i, coord) in coords.iter().enumerate() {
             if let Some(c_arr) = coord.as_array() {
-                let alt = if c_arr.len() >= 3 {
-                    c_arr[2].as_f64().unwrap_or(0.0)
-                } else {
-                    0.0
-                };
-
-                if alt < 1.0 {
+                // Only consider as missing if dimension is < 3
+                if c_arr.len() < 3 {
                     missing_indices.push(i);
                     coords_to_fetch.push([c_arr[0].as_f64().unwrap_or(0.0), c_arr[1].as_f64().unwrap_or(0.0)]);
                 }
@@ -1475,6 +1466,7 @@ pub async fn calculate_route(
     service: String,
     profile: String,
     points: Vec<[f64; 2]>,
+    skip_altitude: Option<bool>,
 ) -> Result<RouteResult, String> {
     if points.len() < 2 {
         return Err("Il faut au moins 2 points pour calculer un itinéraire.".to_string());
@@ -1536,8 +1528,12 @@ pub async fn calculate_route(
 
             match result {
                 Ok(geojson_raw) => {
-                    // Enrichissement des altitudes et réparation des trous
-                    let (geojson, alt_warning) = enhance_geojson_altitudes(geojson_raw).await;
+                    // Enrichissement des altitudes et réparation des trous (uniquement si demandé)
+                    let (geojson, alt_warning) = if skip_altitude.unwrap_or(false) {
+                        (geojson_raw, None)
+                    } else {
+                        enhance_geojson_altitudes(geojson_raw).await
+                    };
                     
                     let mut warning = if is_fallback {
                         if last_error.is_empty() {

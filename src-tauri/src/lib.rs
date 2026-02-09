@@ -127,13 +127,8 @@ async fn check_mapbox_status(token: String) -> MapboxStatusResult {
 }
 
 #[tauri::command]
-async fn check_open_meteo_status() -> bool {
-    let client = reqwest::Client::new();
-    let url = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true";
-    match client.get(url).send().await {
-        Ok(response) => response.status().is_success(),
-        Err(_) => false,
-    }
+async fn check_open_meteo_status() -> String {
+    crate::elevation_provider::check_open_meteo_status().await
 }
 
 #[tauri::command]

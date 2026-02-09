@@ -8,7 +8,7 @@ const WeatherService = {
      * @param {Number} endHour - e.g. 20
      * @returns {Array} - Array of { increment, hours: { [hour]: { temp... } } }
      */
-    async fetchWeatherMatrix(sampledPoints, dateStr, startHour = 6, endHour = 20) {
+    async fetchWeatherMatrix(sampledPoints, dateStr, startHour = 6, endHour = 20, signal = null) {
         if (!sampledPoints || sampledPoints.length === 0) return [];
 
         const CHUNK_SIZE = 100;
@@ -22,25 +22,54 @@ const WeatherService = {
 
         try {
             // Helper for retry logic
-            const fetchWithRetry = async (url, retries = 3, backoff = 2000) => {
+            const fetchWithRetry = async (url, retries = 3, backoff = 2000, timeout = 5000) => {
                 for (let i = 0; i < retries; i++) {
-                    const response = await fetch(url);
-                    if (response.status === 429) {
-                        console.warn(`Rate limit hit (429), waiting ${backoff}ms...`);
-                        await new Promise(r => setTimeout(r, backoff));
-                        backoff *= 2; // Exponential backoff
-                        continue;
+                    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), timeout);
+
+                    // Link to external signal
+                    const onAbort = () => controller.abort();
+                    if (signal) signal.addEventListener('abort', onAbort);
+
+                    try {
+                        const response = await fetch(url, { signal: controller.signal });
+                        clearTimeout(id);
+                        if (signal) signal.removeEventListener('abort', onAbort);
+
+                        if (response.status === 429) {
+                            console.warn(`Rate limit hit (429), waiting ${backoff}ms...`);
+                            await new Promise(r => setTimeout(r, backoff));
+                            backoff *= 2; // Exponential backoff
+                            continue;
+                        }
+                        if (!response.ok) {
+                            throw new Error(`Weather API error: ${response.statusText}`);
+                        }
+                        return response;
+                    } catch (e) {
+                        clearTimeout(id);
+                        if (signal) signal.removeEventListener('abort', onAbort);
+
+                        // If it was externally aborted, stop retrying
+                        if (signal?.aborted) throw e;
+                        if (e.name === 'AbortError' && !signal?.aborted) {
+                            // Timeout abort
+                            console.warn(`Weather API timeout after ${timeout}ms.`);
+                        }
+
+                        if (i === retries - 1) throw e;
+                        console.warn(`Weather API attempt ${i + 1} failed: ${e.message}. Retrying...`);
                     }
-                    if (!response.ok) {
-                        throw new Error(`Weather API error: ${response.statusText}`);
-                    }
-                    return response;
                 }
                 throw new Error("Max retries reached for Weather API");
             };
 
             const results = [];
             for (const chunk of chunks) {
+                if (signal?.aborted) break; // Stop processing chunks if aborted
+
                 const lats = chunk.map(p => p.lat);
                 const lons = chunk.map(p => p.lon);
 
@@ -112,7 +141,7 @@ const WeatherService = {
         }
     },
 
-    async generateWeatherForecasts(circuit, trackingPoints, scenarios, circuitId) {
+    async generateWeatherForecasts(circuit, trackingPoints, scenarios, circuitId, signal = null) {
         if (!circuit || !trackingPoints || trackingPoints.length === 0) {
             console.warn("WeatherService: Missing inputs");
             return [];
@@ -174,7 +203,7 @@ const WeatherService = {
 
         // 4. Fetch from API
         console.log("WeatherService: Calling fetchWeatherMatrix with", sampledPoints.length, "points");
-        const result = await this.fetchWeatherMatrix(sampledPoints, dateStr);
+        const result = await this.fetchWeatherMatrix(sampledPoints, dateStr, 6, 20, signal);
         console.log("WeatherService: fetchWeatherMatrix returned", result?.length, "items");
 
         // 5. Save to Cache

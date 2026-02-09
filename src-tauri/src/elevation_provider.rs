@@ -1,4 +1,10 @@
 // No imports needed for now as we use serde_json::Value
+use once_cell::sync::Lazy;
+use tokio::sync::Mutex;
+
+// Global locks to prevent concurrent requests to rate-limited APIs
+static OPEN_METEO_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+static OPENTOPODATA_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
 #[derive(Debug, PartialEq)]
 pub enum ElevationProvider {
@@ -167,11 +173,49 @@ async fn fetch_ign(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
     Ok(altitudes)
 }
 
+
+// Public function to check status with lock
+pub async fn check_open_meteo_status() -> String {
+    // Try to acquire the lock without waiting
+    let _guard = match OPEN_METEO_LOCK.try_lock() {
+        Ok(g) => g,
+        Err(_) => return "BUSY".to_string(), // Lock is held, meaning a fetch is in progress
+    };
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5)) // Short timeout for check
+        .build()
+        .unwrap_or_default();
+
+    // Simple request to check connectivity
+    let url = format!("{}?latitude=52.52&longitude=13.41&elevation=nan", OPEN_METEO_URL);
+
+    match client.get(&url).send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                "OK".to_string()
+            } else if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                "RATE_LIMITED".to_string()
+            } else {
+                "UNREACHABLE".to_string()
+            }
+        },
+        Err(_) => "UNREACHABLE".to_string(),
+    }
+}
+
 async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
+    // Acquire the lock to ensure sequential requests
+    let _lock = OPEN_METEO_LOCK.lock().await;
+
     let client = reqwest::Client::new();
     let mut altitudes = Vec::new();
+    let total_chunks = (points.len() as f64 / 90.0).ceil() as usize;
 
-    for chunk in points.chunks(100) {
+    // Reduced chunk size to 90 to avoid URL too long issues and "bursty" behavior
+    for (i, chunk) in points.chunks(90).enumerate() {
+        println!("Open-Meteo: Fetching chunk {}/{} ({} points)", i + 1, total_chunks, chunk.len());
+        
         let lons: Vec<String> = chunk.iter().map(|p| p[0].to_string()).collect();
         let lats: Vec<String> = chunk.iter().map(|p| p[1].to_string()).collect();
 
@@ -197,7 +241,7 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
                     } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
                         println!("Open-Meteo Rate Limit 429 (attempt {}/{}). Retrying...", attempts, max_attempts);
                         if attempts < max_attempts {
-                            let wait_time = std::time::Duration::from_millis(1000 * 2_u64.pow(attempts as u32));
+                            let wait_time = std::time::Duration::from_millis(1500 * 2_u64.pow(attempts as u32));
                             tokio::time::sleep(wait_time).await;
                         }
                     } else {
@@ -230,14 +274,17 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
             return Err("Format de réponse Open-Meteo invalide".to_string());
         }
         
-        // Throttle - Be nice to the API (500ms pause)
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        // Increased Throttle - Be nicer to the API (800ms pause)
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
     }
 
     Ok(altitudes)
 }
 
 async fn fetch_opentopodata(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
+    // Acquire the lock to ensure sequential requests
+    let _lock = OPENTOPODATA_LOCK.lock().await;
+
     let client = reqwest::Client::new();
     let mut altitudes = Vec::new();
 

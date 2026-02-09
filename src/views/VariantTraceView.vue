@@ -639,8 +639,13 @@ const handleMapClick = (e) => {
                 showSnackbar("Veuillez utiliser les points de contrôle pour l'ancrage.", "warning");
                 return;
             }
+            // Snap to 3D coordinate if available in tracking point
+            const snapCoords = (minInfo.point.altitude !== undefined && minInfo.point.altitude !== null) 
+                ? [minInfo.point.coordonnee[0], minInfo.point.coordonnee[1], minInfo.point.altitude]
+                : minInfo.point.coordonnee;
+                
             isSnap = true;
-            newPoint = { coords: minInfo.point.coordonnee, type: 'ANCHOR', index: minInfo.point.increment };
+            newPoint = { coords: snapCoords, type: 'ANCHOR', index: minInfo.point.increment };
         }
     }
 
@@ -1007,6 +1012,7 @@ const handleMapClick = (e) => {
 const finalizeMod = (modIndex) => {
     const mod = modifications.value[modIndex];
     if (mod) {
+        isLoading.value = true; // Prevent premature auto-save trigger by watcher
         mod.finalized = true;
         mod.routingLocked = true; // Lock settings
         isModified.value = true;
@@ -1020,7 +1026,7 @@ const finalizeMod = (modIndex) => {
 const triggerAutoSave = async () => {
     // On autorise la sauvegarde même si modifications est vide (cas de suppression du dernier segment)
     // tant que l'ID de variante existe (on ne crée pas de fichier pour rien si rien n'a été fait)
-    if (isSaving.value) return;
+    if (isSaving.value || isLoading.value) return;
     
     // Si on n'a plus de modifications mais qu'on a déjà un ID chargé, on veut quand même mettre à jour (supprimer le contenu)
     if (modifications.value.length === 0 && !loadedVariantId.value) return;
@@ -1058,7 +1064,7 @@ const handleUpdateRouting = async (modIndex) => {
     // Regenerate preview (and altitude if finalized)
     await generatePreviewForMod(modIndex);
     isModified.value = true;
-    triggerAutoSave();
+    // triggerAutoSave() is already called in generatePreviewForMod's finally block
 };
 
 const handleFlyToMod = (modIndex) => {
@@ -1289,7 +1295,8 @@ const generatePreviewForMod = async (modIndex) => {
         const routeResultStr = await invoke('calculate_route', {
             service: mod.routingService || variantConfig.routingService,
             profile: mod.routingProfile || variantConfig.routingProfile,
-            points: coords
+            points: coords.map(c => [c[0], c[1]]), // Ensure 2D points for router
+            skipAltitude: !mod.finalized
         });
         
         const routeResult = routeResultStr; 
@@ -1330,27 +1337,9 @@ const generatePreviewForMod = async (modIndex) => {
             handleFlyToMod(modIndex);
         }
 
-        // --- IMMEDIATELY FETCH ALTITUDES IF FINALIZED ---
-        if (mod.finalized && mod.preview && mod.preview.coordinates) {
-             try {
-                const pointsToFetch = mod.preview.coordinates.map(c => [c[0], c[1]]);
-                const altitudes = await invoke('get_altitudes', { points: pointsToFetch });
-                
-                // Inject altitudes into preview coordinates
-                mod.preview.coordinates = mod.preview.coordinates.map((c, i) => [c[0], c[1], altitudes[i] || 0]);
-                // console.log(`[Preview] Altitudes fetched for finalized mod ${modIndex}`);
-                
-             } catch (altError) {
-                console.warn("Could not fetch altitudes during preview:", altError);
-                if (mod.routingStatus !== 'ROUTE_FAIL') {
-                    mod.routingStatus = 'ALT_FAIL';
-                    if (!altErrorShown) {
-                        const label = mod.name || (mod.type === 'SEGMENT' ? `le segment ${modIndex + 1}` : mod.type);
-                        showSnackbar(`Récupération des altitudes pour le segment <b>${label}</b>, en échec !`, "warning");
-                    }
-                }
-             }
-        }
+        // Altitude fetching is now handled by calculate_route in the backend
+        // when mod.finalized is true (via skipAltitude: false).
+        // The results are already present in mod.preview.coordinates.
 
         // Calculate length
         if (mod.preview && mod.preview.coordinates) {
@@ -1402,7 +1391,11 @@ const generatePreviewForMod = async (modIndex) => {
         updatePreviewSource();
     } finally {
         isLoading.value = false;
-      triggerAutoSave(); }
+        // Only trigger auto-save if the segment is finalized to save Open-Meteo requests during edit
+        if (mod.finalized) {
+            triggerAutoSave();
+        }
+    }
 };
 
 const updatePreviewSource = () => {
@@ -1665,8 +1658,13 @@ const confirmSaveVariant = async (silent = false) => {
             // -----------------------------------
 
             // Preparation de la géométrie complète (pour les fichiers permanents)
-            // Note: Use 'coords' which might have been modified by padding logic
-            const fullGeometry = coords.map(c => ({ lat: c[1], lon: c[0], alt: c[2] || 0 }));
+            // Note: Use 'coords' which might have been modified by padding logic.
+            // Pass null for altitude if missing so backend can decide whether to fetch.
+            const fullGeometry = coords.map(c => ({ 
+                lat: c[1], 
+                lon: c[0], 
+                alt: (c.length >= 3 && c[2] !== undefined && c[2] !== null) ? c[2] : null 
+            }));
 
             if (mod.type === 'SEGMENT') {
                 // For segment, waypoints = intermediate points between anchors
@@ -1676,8 +1674,8 @@ const confirmSaveVariant = async (silent = false) => {
 
                 return {
                     type: 'SEGMENT_DEVIATION',
-                    anchorStart: { index: anchors[0].index, coords: anchors[0].coords },
-                    anchorEnd: { index: anchors[anchors.length-1].index, coords: anchors[anchors.length-1].coords },
+                    anchorStart: { index: anchors[0].index, coords: [anchors[0].coords[0], anchors[0].coords[1]] },
+                    anchorEnd: { index: anchors[anchors.length-1].index, coords: [anchors[anchors.length-1].coords[0], anchors[anchors.length-1].coords[1]] },
                     waypoints: waypoints,
                     fullGeometry: fullGeometry,
                     longueur: longueur,

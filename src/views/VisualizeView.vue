@@ -254,7 +254,9 @@ const is3DContext = computed(() => {
     return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart', 'Survol_Evenementiel'].includes(animationState.value);
 });
 const is3DWidgetsReady = computed(() => {
-    return is3DContext.value && !!(!isWeatherInfoVisible.value && !isCompassVisible.value || currentWeather.value);
+    // Return true as long as we are in 3D context. 
+    // Individual widgets handle their own "no data" state.
+    return is3DContext.value; 
 });
 const showWidgets = ref(false);
 const hasVariants = ref(false);
@@ -818,7 +820,8 @@ const initializeVisualization = async () => {
         }
 
         // 7. Initialize Weather
-        await initWeather(circuit, trackingPointsWithDistanceRef.value);
+        // 7. Initialize Weather (Non-blocking)
+        initWeather(circuit, trackingPointsWithDistanceRef.value).catch(e => console.warn("Background weather init failed:", e));
 
         // 8. Generate Slope Colors
         const slopeColors = {
@@ -1952,7 +1955,18 @@ const setupRemoteControl = async () => {
 
 
 // --- Weather ---
+// --- Weather ---
+const weatherAbortController = ref(null);
+
 async function initWeather(circuit, trackingPoints) {
+    // Cancel previous request if any
+    if (weatherAbortController.value) {
+        console.log("Cancelling previous weather request");
+        weatherAbortController.value.abort();
+    }
+    weatherAbortController.value = new AbortController();
+    const signal = weatherAbortController.value.signal;
+
     if (!trackingPoints || trackingPoints.length === 0) {
         console.warn("Tracking Points empty in initWeather");
     }
@@ -1977,10 +1991,34 @@ async function initWeather(circuit, trackingPoints) {
     simulationStartDate.value = startDate;
     try {
         const scenarios = await invoke('get_circuit_scenarios', { circuitId: props.circuitId });
+        if (signal.aborted) return;
+
         circuitScenarios.value = scenarios;
-        weatherForecasts.value = await WeatherService.generateWeatherForecasts({ ...circuit, dateDepart: startDate }, trackingPoints, scenarios, props.circuitId);
-    } catch (e) { console.warn("Weather init error", e); }
+        weatherForecasts.value = await WeatherService.generateWeatherForecasts(
+            { ...circuit, dateDepart: startDate }, 
+            trackingPoints, 
+            scenarios, 
+            props.circuitId,
+            signal
+        );
+    } catch (e) { 
+        if (e.name === 'AbortError' || signal.aborted) {
+            console.log("Weather init aborted");
+        } else {
+            console.warn("Weather init error", e); 
+        }
+    } finally {
+        if (weatherAbortController.value?.signal === signal) {
+            weatherAbortController.value = null;
+        }
+    }
 }
+
+onUnmounted(() => {
+    if (weatherAbortController.value) {
+        weatherAbortController.value.abort();
+    }
+});
 
 const wasPausedBeforeArrowRight = ref(false);
 
