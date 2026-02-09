@@ -370,16 +370,19 @@ const getModIconColor = (type) => {
 };
 
 const getModColor = (mod) => {
-    // If our internal parameters don't match the global ones, the segment is "out of sync"
+    // 1. Priorité aux statuts d'erreur ou d'alerte
+    if (mod.routingStatus === 'ROUTE_FAIL') return 'error'; // Rouge
+    if (mod.routingStatus === 'ALT_FAIL') return 'warning';   // Orange
+
+    // 2. Si le segment n'est pas synchronisé avec les paramètres globaux (et n'a pas d'erreur critique)
     if (mod.routingProfile !== props.config.routingProfile || mod.routingService !== props.config.routingService) {
-         return 'primary'; // Blue: Needs refresh/Sync
+         return 'primary'; // Bleu: Needs refresh/Sync
     }
 
-    if (mod.routingStatus === 'ROUTE_FAIL') return 'error'; // Red
-    if (mod.routingStatus === 'ALT_FAIL') return 'warning';   // Orange
-    if (mod.routingStatus === 'SUCCESS') return 'success';   // Green
+    // 3. Succès et synchronisé
+    if (mod.routingStatus === 'SUCCESS') return 'success';   // Vert
     
-    return 'primary'; // Blue (default)
+    return 'primary'; // Bleu (par défaut)
 };
 
 const getVariantEyeColor = (variant) => {

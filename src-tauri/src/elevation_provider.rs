@@ -4,6 +4,7 @@
 pub enum ElevationProvider {
     IGN,
     OpenMeteo,
+    OpenTopoData,
 }
 
 impl std::fmt::Display for ElevationProvider {
@@ -11,6 +12,7 @@ impl std::fmt::Display for ElevationProvider {
         match self {
             ElevationProvider::IGN => write!(f, "IGN"),
             ElevationProvider::OpenMeteo => write!(f, "Open-Meteo"),
+            ElevationProvider::OpenTopoData => write!(f, "OpenTopoData"),
         }
     }
 }
@@ -60,6 +62,7 @@ pub fn get_best_provider(points: &[[f64; 2]]) -> ElevationProvider {
 
 const IGN_API_URL: &str = "https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json";
 const OPEN_METEO_URL: &str = "https://api.open-meteo.com/v1/elevation";
+const OPENTOPODATA_URL: &str = "https://api.opentopodata.org/v1/srtm30m";
 
 pub async fn fetch_altitudes(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
     if points.is_empty() {
@@ -69,9 +72,23 @@ pub async fn fetch_altitudes(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String>
     let provider = get_best_provider(points);
     println!("Utilisation du fournisseur d'altitude : {}", provider);
 
-    match provider {
+    let result = match provider {
         ElevationProvider::IGN => fetch_ign(points).await,
         ElevationProvider::OpenMeteo => fetch_open_meteo(points).await,
+        ElevationProvider::OpenTopoData => fetch_opentopodata(points).await,
+    };
+
+    // Fallback logic: if primary provider fails, try OpenTopoData (unless it was already the primary)
+    match result {
+        Ok(altitudes) => Ok(altitudes),
+        Err(e) => {
+            if provider != ElevationProvider::OpenTopoData {
+                println!("Fournisseur d'altitude {} en échec : {}. Tentative de secours via OpenTopoData...", provider, e);
+                fetch_opentopodata(points).await
+            } else {
+                Err(e)
+            }
+        }
     }
 }
 
@@ -215,6 +232,74 @@ async fn fetch_open_meteo(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
         
         // Throttle - Be nice to the API (500ms pause)
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+
+    Ok(altitudes)
+}
+
+async fn fetch_opentopodata(points: &Vec<[f64; 2]>) -> Result<Vec<f64>, String> {
+    let client = reqwest::Client::new();
+    let mut altitudes = Vec::new();
+
+    // Respect limitations: Max 100 locations per request
+    for chunk in points.chunks(100) {
+        let coords: Vec<String> = chunk.iter().map(|p| format!("{},{}", p[1], p[0])).collect();
+        let url = format!(
+            "{}?locations={}",
+            OPENTOPODATA_URL,
+            coords.join("|")
+        );
+
+        let mut attempts = 0;
+        let max_attempts = 3;
+        let mut loop_resp = None;
+
+        while attempts < max_attempts {
+            attempts += 1;
+            match client.get(&url).send().await {
+                Ok(resp) => {
+                    let status = resp.status();
+                    if status.is_success() {
+                        loop_resp = Some(resp);
+                        break;
+                    } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        println!("OpenTopoData Rate Limit 429 (attempt {}/{}). Retrying...", attempts, max_attempts);
+                        if attempts < max_attempts {
+                            let wait_time = std::time::Duration::from_millis(2000 * 2_u64.pow(attempts as u32 - 1));
+                            tokio::time::sleep(wait_time).await;
+                        }
+                    } else {
+                         return Err(format!("OpenTopoData API Error: {}", status));
+                    }
+                },
+                Err(e) => {
+                    println!("OpenTopoData Request failed (attempt {}/{}): {}", attempts, max_attempts, e);
+                    if attempts < max_attempts {
+                        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+                    } else {
+                         return Err(format!("OpenTopoData Request failed after {} attempts: {}", max_attempts, e));
+                    }
+                }
+            }
+        }
+
+        if loop_resp.is_none() {
+             return Err(format!("OpenTopoData API failed after {} attempts (likely Rate Limit)", max_attempts));
+        }
+        let resp = loop_resp.unwrap();
+
+        let json: serde_json::Value = resp.json().await.map_err(|e| format!("OpenTopoData Parse error: {}", e))?;
+
+        if let Some(results) = json.get("results").and_then(|v| v.as_array()) {
+            for res in results {
+                altitudes.push(res.get("elevation").and_then(|v| v.as_f64()).unwrap_or(0.0));
+            }
+        } else {
+            return Err("Format de réponse OpenTopoData invalide".to_string());
+        }
+        
+        // Respect limitations: Max 1 call per second
+        tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
     }
 
     Ok(altitudes)
