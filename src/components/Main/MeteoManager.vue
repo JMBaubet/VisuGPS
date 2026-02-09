@@ -105,17 +105,22 @@
             <!-- Sorting Header -->
             <v-row dense class="px-2 mb-1 text-grey-darken-1">
                 <v-col cols="1" class="d-flex justify-center"></v-col>
-                <v-col cols="2" class="d-flex align-center">
+                <v-col :cols="colsName" class="d-flex align-center">
                     <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('nom')">
                         NOM <v-icon size="x-small">{{ getSortIcon('nom') }}</v-icon>
                     </span>
                 </v-col>
-                <v-col cols="4" class="d-flex align-center">
+                <v-col :cols="colsTime" class="d-flex align-center">
                     <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('heure')">
                         DÉPART <v-icon size="x-small">{{ getSortIcon('heure') }}</v-icon>
                     </span>
                 </v-col>
-                <v-col cols="4"></v-col>
+                <v-col :cols="colsSpeed" class="d-flex align-center">
+                     <span class="text-caption font-weight-bold">VITESSE</span>
+                </v-col>
+                <v-col v-if="hasVariants" cols="4" class="d-flex align-center">
+                     <span class="text-caption font-weight-bold">CIRCUIT</span>
+                </v-col>
                 <v-col cols="1"></v-col>
             </v-row>
 
@@ -128,17 +133,17 @@
                 </v-col>
 
                 <!-- Group Name (Read-only or strict) -->
-                <v-col cols="2">
+                <v-col :cols="colsName">
                     <div class="font-weight-bold ml-2">{{ scen.nom }}</div>
                 </v-col>
                 
                 <!-- Departure Time -->
-                <v-col cols="4">
+                <v-col :cols="colsTime">
                    <EditTime v-model="scen.heureDepart" label="Heure Départ" step="300" />
                 </v-col>
                 
                 <!-- Average Speed -->
-                <v-col cols="4">
+                <v-col :cols="colsSpeed">
                     <v-text-field
                         v-model.number="scen.vitesseMoyenne"
                         label="Vitesse (km/h)"
@@ -150,6 +155,22 @@
                         hide-details
                         variant="outlined"
                     ></v-text-field>
+                </v-col>
+
+                <!-- Variant Selection -->
+                <v-col v-if="hasVariants" cols="4">
+                    <v-select
+                        v-model="scen.variantId"
+                        :items="availableVariants"
+                        item-title="title"
+                        item-value="value"
+                        label="Circuit"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        :color="scen.variantId ? 'blue' : undefined"
+                        :class="scen.variantId ? 'text-blue' : ''"
+                    ></v-select>
                 </v-col>
                 
                 <!-- Delete Action (Only for the group with highest number) -->
@@ -320,7 +341,9 @@ const initData = () => {
         // Deep copy and add unique IDs for Vue keys
         editedScenarios.value = JSON.parse(JSON.stringify(config.scenarios)).map((s, i) => ({
             ...s,
-            id: s.id || `scen-${Date.now()}-${i}`
+            id: s.id || `scen-${Date.now()}-${i}`,
+            // Ensure variantId is reactive even if undefined in source
+            variantId: s.variantId || null 
         }));
         
         // Ensure at least one reference exists (default to 1st if none)
@@ -333,7 +356,27 @@ const initData = () => {
     }
     
     // Check cache status
-    nextTick(() => checkWeatherStatus());
+    nextTick(() => {
+        checkWeatherStatus();
+        loadVariants();
+    });
+};
+
+const availableVariants = ref([]);
+
+const loadVariants = async () => {
+    try {
+        const variants = await invoke('get_variants', { circuitId: props.circuit.circuitId });
+        // Transform for selection
+        availableVariants.value = [
+            { title: 'Principale', value: null },
+            ...variants.map(v => ({ title: v.name, value: v.id }))
+        ];
+    } catch (e) {
+        console.error("Failed to load variants:", e);
+        // Fallback to just main trace
+        availableVariants.value = [{ title: 'Principale', value: null }];
+    }
 };
 
 const createDefaultGroup = () => {
@@ -346,7 +389,8 @@ const createDefaultGroup = () => {
         nom: "Gr. 1",
         heureDepart: defaultTime,
         vitesseMoyenne: defaultSpeed,
-        isReference: true
+        isReference: true,
+        variantId: null
     }];
 };
 
@@ -364,6 +408,12 @@ watch(editedDateDepart, () => {
 });
 
 // Computed
+const hasVariants = computed(() => availableVariants.value.length > 1);
+
+const colsName = computed(() => hasVariants.value ? 2 : 4);
+const colsTime = computed(() => hasVariants.value ? 2 : 3);
+const colsSpeed = computed(() => hasVariants.value ? 2 : 3);
+
 const isValid = computed(() => {
     return editedScenarios.value.length > 0 && editedDateDepart.value;
 });
@@ -409,7 +459,8 @@ const addGroup = () => {
         nom: `Gr. ${nextNum}`,
         heureDepart: defaultTime,
         vitesseMoyenne: defaultSpeed,
-        isReference: false
+        isReference: false,
+        variantId: null
     });
     
     saveMeteo();

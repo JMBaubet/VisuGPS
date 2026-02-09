@@ -131,6 +131,8 @@ pub struct MeteoScenario {
     pub vitesse_moyenne: f64,
     #[serde(rename = "isReference", default)]
     pub is_reference: bool,
+    #[serde(rename = "variantId", default, skip_serializing_if = "Option::is_none")]
+    pub variant_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
