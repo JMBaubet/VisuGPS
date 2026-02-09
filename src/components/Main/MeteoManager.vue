@@ -102,7 +102,24 @@
         </div>
 
         <div v-if="editedScenarios.length > 0" class="scenarios-list">
-            <v-row v-for="(scen, idx) in editedScenarios" :key="scen.id" dense align="center" class="mb-1 pa-2 rounded border">
+            <!-- Sorting Header -->
+            <v-row dense class="px-2 mb-1 text-grey-darken-1">
+                <v-col cols="1" class="d-flex justify-center"></v-col>
+                <v-col cols="2" class="d-flex align-center">
+                    <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('nom')">
+                        NOM <v-icon size="x-small">{{ getSortIcon('nom') }}</v-icon>
+                    </span>
+                </v-col>
+                <v-col cols="4" class="d-flex align-center">
+                    <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('heure')">
+                        DÉPART <v-icon size="x-small">{{ getSortIcon('heure') }}</v-icon>
+                    </span>
+                </v-col>
+                <v-col cols="4"></v-col>
+                <v-col cols="1"></v-col>
+            </v-row>
+
+            <v-row v-for="(scen, idx) in editedScenarios" :key="scen.id" dense align="center" class="mb-1 pa-2 rounded">
                 <!-- Reference Selection -->
                 <v-col cols="1" class="d-flex justify-center">
                     <v-btn icon size="x-small" variant="text" @click="setReference(idx)" :color="scen.isReference ? 'primary' : 'grey'" title="Définir comme groupe de référence">
@@ -135,9 +152,17 @@
                     ></v-text-field>
                 </v-col>
                 
-                <!-- Delete Action -->
+                <!-- Delete Action (Only for the group with highest number) -->
                 <v-col cols="1" class="d-flex justify-end">
-                    <v-btn icon size="x-small" color="error" variant="text" @click="removeGroup(idx)" title="Supprimer ce groupe">
+                    <v-btn 
+                        v-if="isHighestGroup(scen) && editedScenarios.length > 1"
+                        icon 
+                        size="x-small" 
+                        color="error" 
+                        variant="text" 
+                        @click="removeGroup(idx)" 
+                        title="Supprimer ce groupe (dernier numéro)"
+                    >
                         <v-icon>mdi-delete</v-icon>
                     </v-btn>
                 </v-col>
@@ -212,6 +237,8 @@ const isDownloadingWeather = ref(false);
 
 const showDocDialog = ref(false);
 const currentDocPath = ref('');
+const sortKey = ref(null);
+const sortAsc = ref(true);
 
 const openDoc = (path) => {
   currentDocPath.value = path;
@@ -341,6 +368,19 @@ const isValid = computed(() => {
     return editedScenarios.value.length > 0 && editedDateDepart.value;
 });
 
+const maxGroupNum = computed(() => {
+    return Math.max(...editedScenarios.value.map(s => {
+        const match = s.nom.match(/Gr\. (\d+)/);
+        return match ? parseInt(match[1]) : 0;
+    }));
+});
+
+const isHighestGroup = (scen) => {
+    const match = scen.nom.match(/Gr\. (\d+)/);
+    const num = match ? parseInt(match[1]) : 0;
+    return num === maxGroupNum.value;
+};
+
 const hasChanges = computed(() => {
     const config = props.circuit.meteoConfig || {};
     const oldDate = config.dateDepart || "";
@@ -353,10 +393,16 @@ const hasChanges = computed(() => {
 
 // Actions
 const addGroup = () => {
-    const nextNum = editedScenarios.value.length + 1;
-    // Get defaults again for new group
-    const defaultTime = getSettingValue('Visualisation/Météo/heureDepart') || "08:30";
-    const defaultSpeed = getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
+    const nextNum = maxGroupNum.value + 1;
+    
+    // Find the current "highest" group to inherit its values
+    const lastGroup = editedScenarios.value.find(s => {
+        const match = s.nom.match(/Gr\. (\d+)/);
+        return match && parseInt(match[1]) === maxGroupNum.value;
+    });
+
+    const defaultTime = lastGroup?.heureDepart || getSettingValue('Visualisation/Météo/heureDepart') || "08:30";
+    const defaultSpeed = lastGroup?.vitesseMoyenne || getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
     
     editedScenarios.value.push({
         id: `scen-${Date.now()}-${nextNum}`,
@@ -376,18 +422,41 @@ const setReference = (idx) => {
 };
 
 const removeGroup = (idx) => {
+    // We only allow removing the last group, so index doesn't strictly matter if we trust UI
     editedScenarios.value.splice(idx, 1);
-    
-    // Renumber remaining groups to keep Gr. 1, Gr. 2 order
-    editedScenarios.value.forEach((s, i) => {
-        s.nom = `Gr. ${i + 1}`;
-    });
     
     if (editedScenarios.value.length === 0) {
         createDefaultGroup();
     }
     
     saveMeteo();
+};
+
+const sortScenarios = (criteria) => {
+    if (sortKey.value === criteria) {
+        sortAsc.value = !sortAsc.value;
+    } else {
+        sortKey.value = criteria;
+        sortAsc.value = true;
+    }
+
+    if (criteria === 'nom') {
+        editedScenarios.value.sort((a, b) => {
+            const res = a.nom.localeCompare(b.nom, undefined, { numeric: true });
+            return sortAsc.value ? res : -res;
+        });
+    } else if (criteria === 'heure') {
+        editedScenarios.value.sort((a, b) => {
+            const res = a.heureDepart.localeCompare(b.heureDepart);
+            return sortAsc.value ? res : -res;
+        });
+    }
+    saveMeteo();
+};
+
+const getSortIcon = (criteria) => {
+    if (sortKey.value !== criteria) return 'mdi-sort';
+    return sortAsc.value ? 'mdi-sort-ascending' : 'mdi-sort-descending';
 };
 
 const closeDialog = () => {
@@ -589,7 +658,14 @@ const checkWeatherStatus = async () => {
 
 <style scoped>
 .scenarios-list {
-  max-height: 300px;
+  max-height: 350px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+.hover-text-primary:hover {
+  color: rgb(var(--v-theme-primary)) !important;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

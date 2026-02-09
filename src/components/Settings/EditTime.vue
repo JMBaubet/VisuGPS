@@ -63,4 +63,8 @@ const adjustTime = (deltaMinutes) => {
 
 <style scoped>
 /* Custom styling if needed */
+:deep(.v-field__prepend-inner .v-icon) {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
 </style>
