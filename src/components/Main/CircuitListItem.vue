@@ -199,7 +199,7 @@ const vignettePlaceholderStyle = computed(() => {
 });
 
 const isView3dDisabled = computed(() => {
-  return serviceStatus.value !== 'connected';
+  return !['connected', 'open_meteo_unreachable'].includes(serviceStatus.value);
 });
 
 const variantLabel = computed(() => {

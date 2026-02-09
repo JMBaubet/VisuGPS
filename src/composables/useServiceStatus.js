@@ -52,32 +52,26 @@ export function useServiceStatus() {
     try {
       const result = await invoke('check_mapbox_status', { token });
       if (result.success) {
+        // --- Auto-update Status from Start to MapBoxOK if token is valid ---
+        // On le fait DES QUE Mapbox est validé, sans attendre Open-Meteo
+        if (status.value === 'Start') {
+          console.log("Valid token detected globally, updating Status to MapBoxOK");
+          updateReferenceField('Status', 'MapBoxOK');
+        }
 
-        // Nouvelle vérification Open-Meteo
+        // Nouvelle vérification Open-Meteo (NON BLOQUANTE)
         try {
           const openMeteoOk = await invoke('check_open_meteo_status');
           if (openMeteoOk) {
             updateStatus('connected', 'Tous les services sont opérationnels (Mapbox & Open-Meteo).');
           } else {
-            updateStatus('mapbox_unreachable', 'Service Météo (Open-Meteo) injoignable.');
-            // Note : on utilise 'mapbox_unreachable' pour déclencher l'icône bleue/warning 
-            // ou on crée un nouveau statut. 
-            // L'implémentation plan prévoyait 'open_meteo_unreachable'.
-            // Ajustons pour utiliser un nouveau statut.
             updateStatus('open_meteo_unreachable', 'Service Météo (Open-Meteo) injoignable ou erreur.');
-            return;
           }
         } catch (e) {
           console.error('Error checking Open-Meteo status:', e);
           updateStatus('open_meteo_unreachable', 'Erreur vérification Open-Meteo.');
-          return;
         }
 
-        // Auto-update Status from Start to MapBoxOK if token is valid
-        if (status.value === 'Start') {
-          console.log("Valid token detected globally, updating Status to MapBoxOK");
-          updateReferenceField('Status', 'MapBoxOK');
-        }
       } else {
         if (result.reason === 'unreachable') {
           updateStatus('mapbox_unreachable', 'Serveur Mapbox inaccessible.');

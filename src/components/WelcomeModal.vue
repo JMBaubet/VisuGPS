@@ -133,7 +133,7 @@ const mapboxToken = ref('');
 const checking = ref(false);
 const tokenError = ref('');
 
-const isMapboxValid = computed(() => serviceStatus.value === 'connected');
+const isMapboxValid = computed(() => ['connected', 'open_meteo_unreachable'].includes(serviceStatus.value));
 
 const title = computed(() => {
   if (status.value === 'Update') return 'Mise à jour VisuGPS';
