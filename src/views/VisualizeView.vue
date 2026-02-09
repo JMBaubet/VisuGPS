@@ -118,6 +118,15 @@
         <!-- Variant Switching & Return -->
         <v-divider vertical class="mx-2"></v-divider>
         
+        <!-- Sélection de Variante -->
+        <v-btn v-if="hasVariants && isPaused"
+            icon="mdi-map-marker-path" 
+            variant="text" 
+            color="primary"
+            title="Choisir une variante" 
+            @click="goToVariantView">
+        </v-btn>
+
         <!-- Return to Main Trace -->
         <v-btn v-if="isVariantTrace && is3DContext"
             icon="mdi-map-marker-distance" 
