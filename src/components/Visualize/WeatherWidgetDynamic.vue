@@ -173,7 +173,7 @@ const props = defineProps({
   activeGroups: { type: Array, default: () => [] }, // Groups with full context (id, speed, startTime, variantId)
 
   weatherMatrix: {
-    type: Array,
+    type: [Array, Object],
     default: () => []
   },
   currentDistance: {
@@ -213,7 +213,18 @@ const processedScenarios = computed(() => {
     // If we have "activeGroups" (rich objects), use them preferentially over "scenarios" (legacy/flat objects)
     const sourceGroups = props.activeGroups.length > 0 ? props.activeGroups : props.scenarios;
 
-    if (!sourceGroups.length || !props.weatherMatrix.length || !props.simulationStartDate) return [];
+    // DEBUG LOGS
+    // console.log("WeatherWidgetDynamic: sourceGroups", sourceGroups.length);
+    // console.log("WeatherWidgetDynamic: weatherMatrix type", typeof props.weatherMatrix, Array.isArray(props.weatherMatrix));
+    // console.log("WeatherWidgetDynamic: viewedVariantId", props.viewedVariantId);
+
+    const hasWeather = Array.isArray(props.weatherMatrix) 
+        ? props.weatherMatrix.length > 0 
+        : (props.weatherMatrix && Object.keys(props.weatherMatrix).length > 0);
+
+    if (!sourceGroups.length || !hasWeather || !props.simulationStartDate) return [];
+    
+    if (!props.simulationStartDate) return [];
     
     // Ensure simulationStartDate is a Date object
     const baseDate = new Date(props.simulationStartDate);
@@ -222,18 +233,14 @@ const processedScenarios = computed(() => {
     // Filter by variant if viewed
     let groupsToProcess = sourceGroups;
     if (props.viewedVariantId) {
+        // Show ONLY groups on this variant
+        // Modified per user request: "je ne veux voir que les groupes du variant"
         groupsToProcess = sourceGroups.filter(g => g.variantId === props.viewedVariantId);
     }
-    
-    // Fallback if filtering leaves nothing (should not happen if logic is correct, but safe check)
-    // If we are on Main Trace (viewedVariantId is null), we keep all groups (or filter those without variantId if explicit main trace logic existed)
-    // For now, if viewedVariantId is null, we show everything (behavior compatible with previous version)
 
     return groupsToProcess.map((group, index) => {
-        // Normalize properties (handle both structure types)
-        // Ensure we have a unique ID for comparison. If group.id is missing, use a generated one.
+        // Normalize properties
         const groupId = group.id || `generated-group-${index}`; 
-
         const startTimeStr = group.heureDepart || group.start || "09:00";
         const speed = group.vitesseMoyenne || group.speed || 20;
         const variantId = group.variantId || null;
@@ -242,20 +249,46 @@ const processedScenarios = computed(() => {
         let isOffTrack = false;
 
         // --- VARIANT LOGIC ---
-        // If we are viewing a specific variant (props.viewedVariantId), we assume currentDistance IS the distance on that variant.
-        // So no mapping needed for groups on this variant.
-        // If we were improperly showing a Main Trace group on a Variant View, we would need mapping, but we filtered them out.
-
-        // If we are viewing Main Trace (viewedVariantId == null) BUT the group is on a variant:
+        
+        // 1. Viewing Main Trace (viewedVariantId == null) BUT the group is on a variant:
         if (!props.viewedVariantId && variantId && props.variantMappings[variantId]) {
             const mapping = props.variantMappings[variantId];
             const calculatedDist = TraceMappingService.getRealDistanceFromMain(props.currentDistance, mapping);
             
+            // console.log(`[WWD] Group ${group.nom} (Var ${variantId}) at MainKm ${props.currentDistance}: Mapped=${calculatedDist}`);
+            
             if (calculatedDist === null) {
-                isOffTrack = true;
+                 // Fallback: If we are viewing Main Trace, and mapping fails, maybe we are still on common trace?
+                 // Or rather, if mapping fails on Main Trace View, it means the current main location is NOT on the variant.
+                 // So "Off Track" is technically correct.
+                 // BUT, if the user says "Trace Commune", it means they expect it to work.
+                 // If the mapping tolerance was the issue, the fix in TraceMappingService might help.
+                 // If it is truly off track (e.g. shortcut), we should show nothing.
+                 
+                 // However, to be safe against data glitches:
+                 // If we are on Main Trace View, we are looking at `props.currentDistance` of Main Trace.
+                 // If the group is assigned to a variant, we want to know what weather is at this point.
+                 // If the variant PASSES here (Common), we use Variant Weather.
+                 // If the variant DOES NOT pass here, we should say "Hors Parcours".
+                 
+                 // The user complaint "je ne vois plus les données ... quand ils sont sur la trace commune".
+                 // This implies validity.
+                 
+                 isOffTrack = true; 
             } else {
                 realDistance = calculatedDist;
             }
+        }
+        // 2. Viewing Variant (viewedVariantId != null) AND the group is on Main Trace (variantId == null):
+        else if (props.viewedVariantId && !variantId && props.variantMappings[props.viewedVariantId]) {
+             const mapping = props.variantMappings[props.viewedVariantId];
+             // Map Variant Distance -> Main Distance
+             const mainDist = TraceMappingService.getMainDistanceFromVariant(props.currentDistance, mapping);
+             if (mainDist === null) {
+                 isOffTrack = true; // We are on a NEW segment where Main Trace doesn't exist
+             } else {
+                 realDistance = mainDist;
+             }
         }
         // ------------------------------
 
@@ -271,28 +304,38 @@ const processedScenarios = computed(() => {
             };
         }
 
-        // Calculate time, weather, etc...
+        // Calculate time
         const [h, m] = startTimeStr.split(':').map(Number);
         const startDateTime = new Date(baseDate);
-        // Reset to the specific start time of the group
         startDateTime.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
 
         const timeFromStartHours = realDistance / speed;
         const arrivalTime = new Date(startDateTime.getTime() + timeFromStartHours * 3600000); // ms
         
         // Find weather at this time/location
-        const weather = WeatherService.getCurrentWeather(realDistance, arrivalTime, props.weatherMatrix);
+        // Resolve correct weather source
+        let targetWeatherMatrix = [];
+        if (Array.isArray(props.weatherMatrix)) {
+            // Legacy/Single mode
+            targetWeatherMatrix = props.weatherMatrix;
+        } else if (typeof props.weatherMatrix === 'object') {
+            // Map mode: { 'main': [], 'varId': [] }
+            // Use variantId if present, else 'main'
+            const key = variantId || 'main';
+            targetWeatherMatrix = props.weatherMatrix[key] || [];
+        }
+
+        const weather = WeatherService.getCurrentWeather(realDistance, arrivalTime, targetWeatherMatrix);
         
         return {
             ...group,
-            id: groupId, // Ensure safe ID is propagated
+            id: groupId,
             nom: group.nom || group.name,
-            isReference: group.isReference, // Original reference property
+            isReference: group.isReference,
             isOffTrack: false,
             arrivalTime: arrivalTime,
             weather: weather,
             weatherInfo: weather ? getWeatherInfo(weather.code) : null,
-            // Helper for sorting/finding latest
             startMinutes: (isNaN(h) ? 9 : h) * 60 + (isNaN(m) ? 0 : m)
         };
     });
@@ -315,15 +358,26 @@ const windSourceGroup = computed(() => {
 
 const weatherToDisplay = computed(() => {
     // Priority: 
-    // 1. Wind Source Group (if active)
-    // 2. First group
-    // 3. Global weather props
+    // 1. Wind Source Group (Blue Star - Variant Mode)
+    // 2. Reference Group (Yellow Star)
+    // 3. First Group (if connected/valid)
+    // 4. Global weather props (Camera/Comet)
+    
     if (windSourceGroup.value && windSourceGroup.value.weather) {
         return windSourceGroup.value.weather;
     }
-    if (processedScenarios.value.length === 1) {
-        return processedScenarios.value[0].weather || props.weather;
+    
+    // Find reference group (Yellow)
+    const refGroup = processedScenarios.value.find(s => s.isReference);
+    if (refGroup && refGroup.weather) {
+        return refGroup.weather;
     }
+    
+    // Fallback to first group if valid weather
+    if (processedScenarios.value.length > 0 && processedScenarios.value[0].weather) {
+        return processedScenarios.value[0].weather;
+    }
+    
     return props.weather;
 });
 

@@ -17,91 +17,15 @@
       </v-card-title>
 
       <v-card-text>
-        <!-- Global Weather Configuration -->
-        <v-card variant="tonal" color="blue-grey" class="mb-4 pa-2">
-            <!-- Row 1: Date -->
-            <v-row dense align="center" class="mb-2">
-                <v-col cols="12">
-                    <v-select
-                        v-model="editedDateDepart"
-                        :items="availableDateOptions"
-                        item-title="title"
-                        item-value="value"
-                        label="Date de départ"
-                        density="compact"
-                        variant="underlined"
-                        hide-details
-                        prepend-icon="mdi-calendar"
-                    ></v-select>
-                </v-col>
-            </v-row>
-
-            <!-- Row 2: File Management -->
-            <v-row dense align="center">
-                <v-col cols="12">
-                     <!-- Status & Action when file exists -->
-                     <div v-if="weatherFilePresent" class="d-flex align-center justify-end">
-                        <div 
-                            class="text-caption mr-2 text-right font-weight-bold" 
-                            :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
-                        >
-                            Le fichier météo pour le {{ formattedDateLong }} a été mis à jour {{ weatherFileRelativeTime }}.
-                        </div>
-                        <v-btn
-                            size="small"
-                            color="info"
-                            variant="flat"
-                            class="mr-2"
-                            @click="loadAndShowWeather"
-                            prepend-icon="mdi-eye"
-                            :disabled="!isValid"
-                        >
-                            Voir
-                        </v-btn>
-                        <v-btn
-                            size="small"
-                            color="warning"
-                            variant="flat"
-                            :loading="isDownloadingWeather"
-                            @click="downloadWeather"
-                            prepend-icon="mdi-update"
-                        >
-                            Mettre à jour
-                        </v-btn>
-                     </div>
-
-                     <!-- Status & Action when missing -->
-                     <div v-else class="d-flex align-center justify-end">
-                        <div class="text-caption text-red mr-2 text-right font-weight-bold">
-                           Aucun fichier météo pour le {{ formattedDateLong }}.
-                        </div>
-                        <v-btn
-                            size="small"
-                            color="primary"
-                            variant="flat"
-                            :loading="isDownloadingWeather"
-                            @click="downloadWeather"
-                            prepend-icon="mdi-download"
-                            :disabled="!isValid"
-                        >
-                            Télécharger
-                        </v-btn>
-                     </div>
-                </v-col>
-            </v-row>
-        </v-card>
-
-        <v-divider class="mb-4"></v-divider>
-
-        <!-- Groups Management -->
-        <div class="d-flex justify-space-between align-center mb-2">
+        <!-- Groups Management (Moved up) -->
+        <div class="d-flex justify-space-between align-center mb-2 mt-2">
             <div class="text-subtitle-1 font-weight-bold">Groupes</div>
             <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addGroup">
                 Ajouter Groupe
             </v-btn>
         </div>
 
-        <div v-if="editedScenarios.length > 0" class="scenarios-list">
+        <div v-if="editedScenarios.length > 0" class="scenarios-list mb-4">
             <!-- Sorting Header -->
             <v-row dense class="px-2 mb-1 text-grey-darken-1">
                 <v-col cols="1" class="d-flex justify-center"></v-col>
@@ -192,6 +116,88 @@
         <div v-else class="text-center py-4 text-grey">
             Aucun groupe défini. Le Groupe 1 sera créé par défaut.
         </div>
+
+        <v-divider class="mb-4"></v-divider>
+
+        <!-- Global Weather Configuration -->
+        <v-card variant="tonal" color="blue-grey" class="mb-4 pa-2">
+            <!-- Row 1: Date -->
+            <v-row dense align="center" class="mb-2">
+                <v-col cols="12">
+                    <v-select
+                        v-model="editedDateDepart"
+                        :items="availableDateOptions"
+                        item-title="title"
+                        item-value="value"
+                        label="Date de départ"
+                        density="compact"
+                        variant="underlined"
+                        hide-details
+                        prepend-icon="mdi-calendar"
+                    ></v-select>
+                </v-col>
+            </v-row>
+
+            <!-- Row 2: File Management -->
+            <v-row dense align="center">
+                <v-col cols="12">
+                     <!-- Status & Action when file exists -->
+                     <div v-if="weatherFilePresent" class="d-flex align-center justify-end">
+                        <div class="d-flex flex-column align-end mr-2">
+                             <div 
+                                class="text-caption font-weight-bold" 
+                                :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
+                            >
+                                Le fichier météo pour le {{ formattedDateLong }} a été mis à jour {{ weatherFileRelativeTime }}.
+                            </div>
+                            <div v-if="weatherMissingCount > 0" class="text-caption text-red font-weight-bold">
+                                {{ weatherMissingCount }} fichier{{ weatherMissingCount > 1 ? 's' : '' }} manquant{{ weatherMissingCount > 1 ? 's' : '' }}
+                            </div>
+                        </div>
+                        <v-btn
+                            size="small"
+                            color="info"
+                            variant="flat"
+                            class="mr-2"
+                            @click="loadAndShowWeather"
+                            prepend-icon="mdi-eye"
+                            :disabled="!isValid"
+                        >
+                            Voir
+                        </v-btn>
+                        <v-btn
+                            size="small"
+                            color="warning"
+                            variant="flat"
+                            :loading="isDownloadingWeather"
+                            @click="downloadWeather"
+                            prepend-icon="mdi-update"
+                        >
+                            Mettre à jour
+                        </v-btn>
+                     </div>
+
+                     <!-- Status & Action when missing -->
+                     <div v-else class="d-flex align-center justify-end">
+                        <div class="text-caption text-red mr-2 text-right font-weight-bold">
+                           Aucun fichier météo pour le {{ formattedDateLong }}.
+                        </div>
+                        <v-btn
+                            size="small"
+                            color="primary"
+                            variant="flat"
+                            :loading="isDownloadingWeather"
+                            @click="downloadWeather"
+                            prepend-icon="mdi-download"
+                            :disabled="!isValid"
+                        >
+                            Télécharger
+                        </v-btn>
+                     </div>
+                </v-col>
+            </v-row>
+        </v-card>
+
       </v-card-text>
 
       <v-card-actions class="pa-4 pt-0">
@@ -253,6 +259,7 @@ const weatherStatus = ref('Inconnu'); // Legacy, kept if needed, but we use spli
 const weatherFilePresent = ref(false);
 const weatherFileRelativeTime = ref("");
 const weatherFileAgeHours = ref(0);
+const weatherMissingCount = ref(0);
 
 const isDownloadingWeather = ref(false);
 
@@ -552,55 +559,104 @@ const downloadWeather = async () => {
     isDownloadingWeather.value = true;
     
     try {
-        // 1. We must save first if there are changes, otherwise download might use old config?
-        // Actually weather download depends on Date (filename) and Track (lat/lon). 
-        // It does NOT depend on Speed/Time for *fetching* the matrix (which covers the whole day).
-        // It mainly needs the Date.
-        // But for consistency we should ensure track data is loaded.
-        
-        let trackData = await invoke('read_tracking_file', { circuitId: props.circuit.circuitId });
-        if (!trackData || trackData.length === 0) {
-            throw new Error("Aucun point de tracking trouvé");
-        }
-        
-        // 2. Sample (1km resolution - as decided)
-        const segmentLengthValue = Number(getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
-        const sampled = [];
-        trackData.forEach((p, i) => {
-            if (i % 10 === 0 || i === trackData.length - 1) {
-                const inc = p.increment !== undefined ? p.increment : Math.round(i / 10);
-                if (p.coordonnee) {
-                    sampled.push({
-                        lat: p.coordonnee[1],
-                        lon: p.coordonnee[0],
-                        increment: inc,
-                        km: p.distance || (inc * segmentLengthValue) / 1000
-                    });
-                }
-            }
+        // Identify all unique variants needed (null = main trace)
+        const variantsToUpdate = new Set();
+        editedScenarios.value.forEach(s => {
+            variantsToUpdate.add(s.variantId || null);
         });
 
-        if (sampled.length === 0) throw new Error("Échantillonnage vide");
-
-        // 3. Fetch Matrix
         const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
         const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
-        
-        const matrix = await WeatherService.fetchWeatherMatrix(sampled, editedDateDepart.value, startH, endH);
-        
-        if (matrix && matrix.length > 0) {
-            // 4. Save Cache
-            const filename = getFilenameForDate(editedDateDepart.value);
-            await invoke('save_weather_cache', {
-                circuitId: props.circuit.circuitId,
-                filename,
-                content: JSON.stringify(matrix, null, 2)
-            });
-            showSnackbar('Météo téléchargée avec succès', 'success');
+
+        let successCount = 0;
+
+        for (const varId of variantsToUpdate) {
+            if (varId === null) {
+                // --- Process Main Trace ---
+                let trackData = await invoke('read_tracking_file', { circuitId: props.circuit.circuitId });
+                if (!trackData || trackData.length === 0) {
+                    console.warn("Main trace empty, skipping");
+                    continue;
+                }
+                
+                // Sample (1km resolution)
+                const segmentLengthValue = Number(getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
+                const sampled = [];
+                trackData.forEach((p, i) => {
+                    if (i % 10 === 0 || i === trackData.length - 1) {
+                        const inc = p.increment !== undefined ? p.increment : Math.round(i / 10);
+                        if (p.coordonnee) {
+                            sampled.push({
+                                lat: p.coordonnee[1],
+                                lon: p.coordonnee[0],
+                                increment: inc,
+                                km: p.distance || (inc * segmentLengthValue) / 1000
+                            });
+                        }
+                    }
+                });
+
+                if (sampled.length > 0) {
+                    const matrix = await WeatherService.fetchWeatherMatrix(sampled, editedDateDepart.value, startH, endH);
+                    if (matrix && matrix.length > 0) {
+                        const filename = getFilenameForDate(editedDateDepart.value);
+                        await invoke('save_weather_cache', {
+                            circuitId: props.circuit.circuitId,
+                            filename,
+                            content: JSON.stringify(matrix, null, 2)
+                        });
+                        successCount++;
+                    }
+                }
+
+            } else {
+                // --- Process Variant ---
+                // Load tracking file for variant
+                const variantTracking = await invoke('read_tracking_file', { 
+                    circuitId: props.circuit.circuitId, 
+                    filename: `tracking_${varId}_FULL.json`
+                });
+
+                if (variantTracking && variantTracking.length > 0) {
+                    // Group by segments (contiguous typeTroncon)
+                    const segments = [];
+                    let currentSeg = null;
+                    
+                    variantTracking.forEach(pt => {
+                        const type = pt.typeTroncon || "Commun"; // Default if missing
+                        
+                        if (!currentSeg || currentSeg.type !== type) {
+                            if (currentSeg) segments.push(currentSeg);
+                            currentSeg = {
+                                id: `seg-${segments.length}`,
+                                type: type,
+                                points: []
+                            };
+                        }
+                        if (pt.coordonnee) {
+                            currentSeg.points.push(pt.coordonnee);
+                        }
+                    });
+                    if (currentSeg) segments.push(currentSeg);
+
+                    // Generate Weather
+                    await WeatherService.generateVariantWeather(
+                        props.circuit.circuitId,
+                        varId,
+                        segments,
+                        editedDateDepart.value
+                    );
+                    successCount++;
+                }
+            }
+        }
+
+        if (successCount > 0) {
+            showSnackbar(`${successCount} météo(s) mise(s) à jour`, 'success');
             emit('downloaded');
             checkWeatherStatus();
         } else {
-            throw new Error("Aucune donnée reçue de l'API");
+            showSnackbar("Aucune mise à jour effectuée check console.", "warning");
         }
 
     } catch (e) {
@@ -615,11 +671,22 @@ const downloadWeather = async () => {
 const showWeatherWidget = ref(false);
 const weatherMatrix = ref([]);
 const weatherDate = ref(null);
+const currentRefVariant = ref(null);
 
 const loadAndShowWeather = async () => {
     if (!props.circuit?.circuitId || !editedDateDepart.value) return;
     
-    const filename = getFilenameForDate(editedDateDepart.value);
+    // Find reference variant to load correct file
+    const refScenario = editedScenarios.value.find(s => s.isReference);
+    const varId = refScenario?.variantId || null;
+
+    let filename;
+    if (varId) {
+        filename = `weather_variant_${varId}_${editedDateDepart.value}.json`;
+    } else {
+        filename = getFilenameForDate(editedDateDepart.value);
+    }
+
     try {
         const cacheContent = await invoke('check_weather_cache', { 
             circuitId: props.circuit.circuitId, 
@@ -627,12 +694,51 @@ const loadAndShowWeather = async () => {
         });
         
         if (cacheContent) {
-            weatherMatrix.value = JSON.parse(cacheContent);
+            const data = JSON.parse(cacheContent);
+            // If variant, data is segment-based. Widget might need raw matrix?
+            // WeatherWidgetStatic expects simple matrix (array of points).
+            // For variant, we might need to "flatten" it or adapt Widget.
+            // For now, let's just check if it's array.
+            
+            if (Array.isArray(data)) {
+                 // Check if it's segment structure (objects with segmentId) or flat matrix
+                 if (data.length > 0 && data[0].segmentId) {
+                     // It's variant structure. Flatten it for static widget?? 
+                     // Or just pick points. 
+                     // Static widget uses 'km' property.
+                     // Variant structure: points have 'km_local'.
+                     // This is tricky. Static widget might show weirdness if km restarts 0.
+                     // But for verification purpose it's better than nothing.
+                     // Let's flatten and add a fake cumulative distance?
+                     // Or just pass as is and let widget fail/display weirdly?
+                     
+                     const flat = [];
+                     let cumDist = 0;
+                     data.forEach(seg => {
+                         seg.points.forEach(p => {
+                            flat.push({
+                                km: cumDist + (p.km_local || 0),
+                                hours: p.meteo
+                            });
+                         });
+                         // Approx cumulative add... tough without knowing seg length.
+                         // Assume max local km is length.
+                         if (seg.points.length > 0) {
+                             const maxK = Math.max(...seg.points.map(p => p.km_local));
+                             cumDist += maxK;
+                         }
+                     });
+                     weatherMatrix.value = flat;
+                 } else {
+                     weatherMatrix.value = data;
+                 }
+            }
+            
             const [y, m, d] = editedDateDepart.value.split('-').map(Number);
             weatherDate.value = new Date(y, m - 1, d);
             showWeatherWidget.value = true;
         } else {
-            showSnackbar("Aucun fichier météo trouvé pour cette date.", "warning");
+            showSnackbar("Aucun fichier météo trouvé pour cette référence.", "warning");
         }
     } catch (e) {
         console.error("Failed to load weather:", e);
@@ -658,55 +764,77 @@ const getFilenameForDate = (dateStr) => {
 const checkWeatherStatus = async () => {
     if (!props.circuit?.circuitId || !editedDateDepart.value) return;
     
-    const filename = getFilenameForDate(editedDateDepart.value);
-    try {
-        const metadata = await invoke('check_weather_cache_metadata', { 
-            circuitId: props.circuit.circuitId, 
-            filename 
-        });
-        
-        if (metadata) {
-            weatherFilePresent.value = true;
+    // Check global status: all used variants must have weather
+    // Default to main trace filename check for simpler "Present" status initially
+    // But we should verify all.
+    
+    const variantsToCheck = new Set();
+    if (editedScenarios.value.length === 0) {
+        variantsToCheck.add(null);
+    } else {
+        editedScenarios.value.forEach(s => variantsToCheck.add(s.variantId || null));
+    }
+    
+    let anyPresent = false;
+    let missingCount = 0;
+    let newest = 0; // timestamp
+    
+    for (const varId of variantsToCheck) {
+        const fname = varId 
+            ? `weather_variant_${varId}_${editedDateDepart.value}.json` 
+            : getFilenameForDate(editedDateDepart.value);
             
-            const d = new Date(metadata);
-            const now = new Date();
-            const diffMs = now - d;
-            const diffHours = diffMs / (1000 * 60 * 60); // Float hours
-            
-            weatherFileAgeHours.value = diffHours;
-            
-            // Format relative time
-            if (diffMs < 0) {
-                 weatherFileRelativeTime.value = "à l'instant";
+        try {
+            const metadata = await invoke('check_weather_cache_metadata', { 
+                circuitId: props.circuit.circuitId, 
+                filename: fname
+            });
+            if (!metadata) {
+                missingCount++;
             } else {
-                const days = Math.floor(diffHours / 24);
-                const hours = Math.floor(diffHours % 24);
-                if (days > 0) {
-                    weatherFileRelativeTime.value = `il y a ${days}j et ${hours}h`;
-                } else if (hours > 0) {
-                    weatherFileRelativeTime.value = `il y a ${hours}h`;
-                } else {
-                    weatherFileRelativeTime.value = `il y a moins d'1h`;
-                }
+                anyPresent = true;
+                const ts = new Date(metadata).getTime();
+                if (ts > newest) newest = ts;
             }
-            
-            weatherStatus.value = `Présent (MAJ ${weatherFileRelativeTime.value})`;
-        } else {
-            weatherFilePresent.value = false;
-            weatherFileAgeHours.value = 9999;
-            weatherFileRelativeTime.value = "";
-            weatherStatus.value = 'Non téléchargé';
+        } catch {
+            missingCount++;
         }
-    } catch (e) {
-        console.warn("Check weather failed", e);
-        weatherStatus.value = 'Erreur vérification';
+    }
+    
+
+    if (anyPresent) {
+        weatherFilePresent.value = true;
+        const d = new Date(newest);
+        const now = new Date();
+        const diffMs = now - d;
+        const diffHours = diffMs / (1000 * 60 * 60);
+        weatherFileAgeHours.value = diffHours;
+        
+        // Status Text Logic
+        let timeStr = "";
+        if (diffMs < 0) timeStr = "à l'instant";
+        else {
+            const days = Math.floor(diffHours / 24);
+            const hours = Math.floor(diffHours % 24);
+            if (days > 0) timeStr = `il y a ${days}j et ${hours}h`;
+            else if (hours > 0) timeStr = `il y a ${hours}h`;
+            else timeStr = `il y a moins d'1h`;
+        }
+        
+        weatherFileRelativeTime.value = timeStr;
+        weatherMissingCount.value = missingCount;
+
+    } else {
         weatherFilePresent.value = false;
         weatherFileAgeHours.value = 9999;
+        weatherMissingCount.value = missingCount; // Actually if none present, missingCount is total.
     }
 };
 
+watch(editedScenarios, () => {
+    checkWeatherStatus();
+}, { deep: true });
 </script>
-
 <style scoped>
 .scenarios-list {
   max-height: 350px;

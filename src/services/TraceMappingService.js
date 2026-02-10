@@ -91,6 +91,9 @@ class TraceMappingService {
             variantCumulDist += segmentLengthKm;
         }
 
+        console.log(`[TraceMappingService] Built ${segments.length} segments. Common count: ${segments.filter(s => s.type === 'COMMON').length}`);
+        // console.log("Segments:", JSON.stringify(segments, null, 2));
+
         return {
             totalDistance: variantCumulDist,
             segments: segments
@@ -146,8 +149,8 @@ class TraceMappingService {
         // Find which 'COMMON' segment contains currentMainKm
         const commonSeg = mapping.segments.find(s =>
             s.type === 'COMMON' &&
-            currentMainKm >= (s.mainStartKm - 0.005) &&
-            currentMainKm <= (s.mainEndKm + 0.005) // Add tolerance (5m)
+            currentMainKm >= (s.mainStartKm - 0.05) && // Increased tolerance to 50m
+            currentMainKm <= (s.mainEndKm + 0.05)
         );
 
         if (commonSeg) {
@@ -168,6 +171,30 @@ class TraceMappingService {
      */
     isOffTrack(currentMainKm, mapping) {
         return this.getRealDistanceFromMain(currentMainKm, mapping) === null;
+    }
+
+    /**
+     * Converts a distance on the Variant to the corresponding distance on the Main Trace.
+     * @param {number} currentVariantKm 
+     * @param {Object} mapping 
+     * @returns {number|null} corresponding Main Trace Km, or null if on a NEW segment (not on Main Trace).
+     */
+    getMainDistanceFromVariant(currentVariantKm, mapping) {
+        if (!mapping || !mapping.segments) return currentVariantKm;
+
+        // Find which 'COMMON' segment contains currentVariantKm
+        const commonSeg = mapping.segments.find(s =>
+            s.type === 'COMMON' &&
+            currentVariantKm >= (s.variantStartKm - 0.005) &&
+            currentVariantKm <= (s.variantEndKm + 0.005)
+        );
+
+        if (commonSeg) {
+            const offset = currentVariantKm - commonSeg.variantStartKm;
+            return commonSeg.mainStartKm + offset;
+        }
+
+        return null;
     }
 }
 

@@ -36,7 +36,7 @@
             :scenarios="circuitScenarios"
             :active-groups="activeGroups"
             :variant-mappings="variantMappings"
-            :weather-matrix="weatherForecasts"
+            :weather-matrix="allWeatherForecasts"
             :current-distance="currentDistanceInMeters / 1000"
             :simulation-start-date="simulationStartDate"
             :viewed-variant-id="selectedVariantId"
@@ -44,8 +44,8 @@
     </transition>
     <transition name="fade">
         <WeatherWidgetStatic 
-            v-if="showWeatherTable && weatherForecasts.length > 0" 
-            :weather-matrix="weatherForecasts" 
+            v-if="showWeatherTable && currentViewWeather.length > 0" 
+            :weather-matrix="currentViewWeather" 
             :scenarios="circuitScenarios"
             :date="simulationStartDate"
             @close="showWeatherTable = false" 
@@ -558,7 +558,13 @@ const communeWidgetBorderColor = computed(() => '#F44336');
 const isBackButtonVisibleFinal = computed(() => isBackButtonVisible.value && (animationState.value === 'En_Pause' || animationState.value === 'Termine' || animationState.value === 'En_Phase_au_Depart'));
 
 // Weather State
-const weatherForecasts = ref([]);
+const allWeatherForecasts = ref({});
+const currentViewWeather = computed(() => {
+    // Support both structures during transition or fallback
+    if (Array.isArray(allWeatherForecasts.value)) return allWeatherForecasts.value;
+    const key = selectedVariantId.value || 'main'; // 'main' key for main trace
+    return allWeatherForecasts.value[key] || [];
+});
 const simulationStartDate = ref(null);
 const currentWeather = ref(null);
 const showWeatherTable = ref(false);
@@ -1468,7 +1474,7 @@ const animateLoop = (timestamp) => {
     }
 
     // 5b. Update Weather
-    if (simulationStartDate.value && weatherForecasts.value?.length > 0) {
+    if (simulationStartDate.value && currentViewWeather.value?.length > 0) {
         const timeMs = accumulatedTime.value || 0;
         const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
         
@@ -1481,7 +1487,7 @@ const animateLoop = (timestamp) => {
             return;
         }
         
-        const newWeather = WeatherService.getCurrentWeather(distanceTraveled, currentSimDate, weatherForecasts.value);
+        const newWeather = WeatherService.getCurrentWeather(distanceTraveled, currentSimDate, currentViewWeather.value);
         if (newWeather) {
             currentWeather.value = newWeather;
             // Debug: console.log("Weather updated:", newWeather.temperature, "°C");
@@ -1526,10 +1532,10 @@ const handleJumpRequest = async (targetDistanceKm) => {
     checkLayers(targetDistanceKm);
     
     // Weather
-    if (simulationStartDate.value && weatherForecasts.value?.length > 0) {
+    if (simulationStartDate.value && currentViewWeather.value?.length > 0) {
          const timeMs = accumulatedTime.value || 0;
          const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
-         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, weatherForecasts.value);
+         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, currentViewWeather.value);
          if (newWeather) currentWeather.value = newWeather;
     }
     
@@ -2072,52 +2078,84 @@ const setupRemoteControl = async () => {
 const weatherAbortController = ref(null);
 
 async function initWeather(circuit, trackingPoints) {
-    // Cancel previous request if any
     if (weatherAbortController.value) {
-        console.log("Cancelling previous weather request");
         weatherAbortController.value.abort();
     }
     weatherAbortController.value = new AbortController();
     const signal = weatherAbortController.value.signal;
 
-    if (!trackingPoints || trackingPoints.length === 0) {
-        console.warn("Tracking Points empty in initWeather");
-    }
     let startDate = null;
     if (!circuit || !circuit.dateDepart) {
         startDate = new Date();
-        startDate.setDate(startDate.getDate() + 1); // Default to tomorrow
-        startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
+        startDate.setDate(startDate.getDate() + 1); 
+        startDate.setHours(9, 0, 0, 0); 
     } else {
         startDate = new Date(circuit.dateDepart);
-        // If date is older than 30 days, fallback to tomorrow (Open-Meteo Forecast limit)
         const now = new Date();
-        const diffTime = now - startDate; // positive if past
+        const diffTime = now - startDate; 
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         if (diffDays > 30 || diffDays < -14) {
-             console.warn("Date trop ancienne/lointaine pour météo, utilisation date du lendemain:", startDate);
+             console.warn("Date trop ancienne/lointaine, utilisation date du lendemain:", startDate);
              startDate = new Date();
              startDate.setDate(startDate.getDate() + 1);
-             startDate.setHours(9, 0, 0, 0); // Force 9:00 AM
+             startDate.setHours(9, 0, 0, 0); 
         }
     }
     simulationStartDate.value = startDate;
+    const dateStr = startDate.toISOString().split('T')[0];
+    const dateCompact = dateStr.replace(/-/g, '');
+
     try {
         const scenarios = await invoke('get_circuit_scenarios', { circuitId: props.circuitId });
         if (signal.aborted) return;
+        circuitScenarios.value = scenarios || [];
 
-        circuitScenarios.value = scenarios;
-        weatherForecasts.value = await WeatherService.generateWeatherForecasts(
-            { ...circuit, dateDepart: startDate }, 
-            trackingPoints, 
-            scenarios, 
-            props.circuitId,
-            signal
-        );
+        // Identify variants to load
+        const variantsToLoad = new Set();
+        if (scenarios) {
+            scenarios.forEach(s => {
+                if (s.variantId) variantsToLoad.add(s.variantId);
+                else variantsToLoad.add(null);
+            });
+        }
+        // Always include current view context
+        if (selectedVariantId.value) variantsToLoad.add(selectedVariantId.value);
+        else variantsToLoad.add(null);
+
+        const loadedData = {};
+
+        for (const vid of variantsToLoad) {
+            if (signal.aborted) break;
+            
+            let filename;
+            if (vid) {
+                 filename = `weather_variant_${vid}_${dateStr}.json`;
+            } else {
+                 // Main Trace (Legacy/Default format from WeatherService)
+                 // Note: Ideally this should respect settings, but WeatherService writes -06-to-20.json
+                 filename = `${dateCompact}-06-to-20.json`;
+            }
+
+            try {
+                const content = await invoke('check_weather_cache', { 
+                    circuitId: props.circuitId, 
+                    filename 
+                });
+                
+                if (content) {
+                    const data = JSON.parse(content);
+                    loadedData[vid || 'main'] = data;
+                    // console.log(`[VisualizeView] Loaded weather for ${vid || 'main'}`);
+                }
+            } catch (e) {
+                // Silent fail for missing files
+            }
+        }
+        
+        allWeatherForecasts.value = loadedData;
+
     } catch (e) { 
-        if (e.name === 'AbortError' || signal.aborted) {
-            console.log("Weather init aborted");
-        } else {
+        if (e.name !== 'AbortError' && !signal.aborted) {
             console.warn("Weather init error", e); 
         }
     } finally {

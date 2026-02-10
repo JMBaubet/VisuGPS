@@ -243,28 +243,56 @@ const updateWeatherColor = async () => {
         return;
     }
     
+    // Identify variants to check based on scenarios
+    const variantsToCheck = new Set();
+    if (config.scenarios && Array.isArray(config.scenarios) && config.scenarios.length > 0) {
+        config.scenarios.forEach(s => variantsToCheck.add(s.variantId || null));
+    } else {
+        // Default to main trace if no scenarios defined yet
+        variantsToCheck.add(null);
+    }
+    
+    let allPresent = true;
+    let allRecent = true; // All files < 3h old?
+    
     try {
-        const filename = getFilenameForDate(config.dateDepart);
-        const metadata = await invoke('check_weather_cache_metadata', { 
-            circuitId: props.circuit.circuitId, 
-            filename 
-        });
-        
-        if (metadata) {
-             const d = new Date(metadata);
-             const now = new Date();
-             const diffHours = (now - d) / (1000 * 60 * 60);
-             
-             if (diffHours < 3) {
-                 weatherBtnColor.value = 'success'; // Green
-             } else {
-                 weatherBtnColor.value = 'info'; // Blue
-             }
-        } else {
-             weatherBtnColor.value = 'error'; // Red
+        for (const varId of variantsToCheck) {
+            let filename;
+            if (varId) {
+                filename = `weather_variant_${varId}_${config.dateDepart}.json`;
+            } else {
+                filename = getFilenameForDate(config.dateDepart);
+            }
+            
+            const metadata = await invoke('check_weather_cache_metadata', { 
+                circuitId: props.circuit.circuitId, 
+                filename 
+            });
+            
+            if (!metadata) {
+                allPresent = false;
+                break; // One missing is enough to be "incomplete"
+            } else {
+                const d = new Date(metadata);
+                const now = new Date();
+                const diffHours = (now - d) / (1000 * 60 * 60);
+                if (diffHours >= 3) {
+                    allRecent = false;
+                }
+            }
         }
+        
+        if (!allPresent) {
+            weatherBtnColor.value = 'error'; // Red: Missing data for at least one used variant
+        } else if (allRecent) {
+             weatherBtnColor.value = 'success'; // Green: All present and recent
+        } else {
+             weatherBtnColor.value = 'info'; // Blue: All present but some are old
+        }
+        
     } catch (e) {
-        weatherBtnColor.value = 'grey'; // Error checking
+        console.warn("Weather check failed", e);
+        weatherBtnColor.value = 'grey'; 
     }
 };
 

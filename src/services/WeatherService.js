@@ -247,6 +247,115 @@ const WeatherService = {
         }
 
         return null;
+    },
+
+    /**
+     * Generate weather for a specific variant.
+     * @param {String} circuitId 
+     * @param {String} variantId 
+     * @param {Array} segments - Array of { id, type, points: [[lon, lat], ...] }
+     * @param {String} dateStr 
+     */
+    async generateVariantWeather(circuitId, variantId, segments, dateStr, signal = null) {
+        if (!segments || segments.length === 0) return;
+
+        const sampledPoints = [];
+        const SAMPLING_STEP_KM = 1.0;
+        let totalVariantKm = 0; // Absolute distance tracker
+
+        // Helper to calc distance (Haversine approx is enough for this or simple spherical)
+        const getDist = (p1, p2) => {
+            const R = 6371e3; // metres
+            const φ1 = p1[1] * Math.PI / 180; // lat
+            const φ2 = p2[1] * Math.PI / 180;
+            const Δφ = (p2[1] - p1[1]) * Math.PI / 180;
+            const Δλ = (p2[0] - p1[0]) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // in meters
+        };
+
+        segments.forEach(seg => {
+            if (!seg.points || seg.points.length < 2) return;
+
+            let currentDistM = 0; // Distance within this segment
+            let nextSampleM = 0; // Relative to segment
+
+            // We iterate points to calculate distance and sample
+            // Note: Unlike previous implementation, we must be careful about continuity.
+            // But since segments are from "read_tracking_file" which returns ordered segments,
+            // we can just accumulate totalVariantKm.
+
+            // However, the segments might not be perfectly continuous in GPS terms (jumps),
+            // but effectively they are the sequence.
+
+            seg.points.forEach((p2, i) => {
+                if (i === 0) return;
+                const p1 = seg.points[i - 1];
+                const d = getDist(p1, p2);
+
+                // If this is the very first point of the very first segment, we might want a sample at 0?
+                // The loop starts at i=1.
+                // Let's add point 0 manually if needed or just rely on loop.
+                // Standard logic:
+
+                while (currentDistM + d >= nextSampleM) {
+                    const remaining = nextSampleM - currentDistM;
+                    const ratio = remaining / d;
+
+                    // Interpolate
+                    const lat = p1[1] + (p2[1] - p1[1]) * ratio;
+                    const lon = p1[0] + (p2[0] - p1[0]) * ratio;
+
+                    // Global KM
+                    const absKm = totalVariantKm + (currentDistM + remaining) / 1000;
+
+                    sampledPoints.push({
+                        lat,
+                        lon,
+                        increment: sampledPoints.length,
+                        // segmentId: seg.id, 
+                        km: absKm
+                    });
+
+                    nextSampleM += (SAMPLING_STEP_KM * 1000);
+                }
+
+                currentDistM += d;
+            });
+
+            totalVariantKm += (currentDistM / 1000);
+        });
+
+        console.log(`[WeatherService] Variant ${variantId}: Sampled ${sampledPoints.length} points.`);
+
+        if (sampledPoints.length === 0) return;
+
+        // Fetch
+        const flatResults = await this.fetchWeatherMatrix(sampledPoints, dateStr, 6, 20, signal);
+
+        // Re-structure results: Just return FLAT array with KM!
+        // This makes it compatible with getCurrentWeather logic (which expects .km property)
+
+        // Save
+        const filename = `weather_variant_${variantId}_${dateStr}.json`;
+        try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('save_weather_cache', {
+                circuitId,
+                filename,
+                content: JSON.stringify(flatResults, null, 2)
+            });
+            console.log(`[WeatherService] Saved variant weather (FLAT): ${filename}`);
+        } catch (e) {
+            console.warn("WeatherService: Cache save failed", e);
+            throw e;
+        }
+
+        return flatResults;
     }
 };
 
