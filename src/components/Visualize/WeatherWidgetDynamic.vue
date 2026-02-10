@@ -252,8 +252,13 @@ const processedScenarios = computed(() => {
         }
 
         // Calculate time, weather, etc...
+        const [h, m] = startTimeStr.split(':').map(Number);
+        const startDateTime = new Date(baseDate);
+        // Reset to the specific start time of the group
+        startDateTime.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
+
         const timeFromStartHours = realDistance / speed;
-        const arrivalTime = new Date(baseDate.getTime() + timeFromStartHours * 3600000); // ms
+        const arrivalTime = new Date(startDateTime.getTime() + timeFromStartHours * 3600000); // ms
         
         // Find weather at this time/location
         const weather = WeatherService.getCurrentWeather(realDistance, arrivalTime, props.weatherMatrix);
