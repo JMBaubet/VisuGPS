@@ -39,6 +39,7 @@
             :weather-matrix="weatherForecasts"
             :current-distance="currentDistanceInMeters / 1000"
             :simulation-start-date="simulationStartDate"
+            :viewed-variant-id="selectedVariantId"
         />
     </transition>
     <transition name="fade">

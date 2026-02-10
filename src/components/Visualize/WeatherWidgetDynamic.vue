@@ -19,7 +19,10 @@
                                 <span class="text-caption text-truncate font-weight-bold" style="max-width: 100px;">
                                     {{ scen.nom || `Groupe ${idx+1}` }}
                                 </span>
-                                <v-icon v-if="scen.isReference || (!hasExplicitRef && idx === 0)" size="10" color="primary" class="ml-1">mdi-star</v-icon>
+                                <!-- Original Reference Star (Yellow/Primary) - Only on Main Trace -->
+                                <v-icon v-if="!viewedVariantId && (scen.isReference || (!hasExplicitRef && idx === 0))" size="10" color="primary" class="ml-1">mdi-star</v-icon>
+                                <!-- Wind Source Indicator (Blue Star) - Only on Variant Trace -->
+                                <v-icon v-if="viewedVariantId && windSourceGroup && scen.id === windSourceGroup.id" size="10" color="blue" class="ml-1" title="Source vent">mdi-star-four-points</v-icon>
                             </div>
                             <span class="text-grey-darken-1" style="font-size: 0.7rem; margin-top: -4px;">{{ formatRowTime(scen.arrivalTime) }}</span>
                         </div>
@@ -180,6 +183,10 @@ const props = defineProps({
   simulationStartDate: {
     type: [Date, String, Object],
     default: null
+  },
+  viewedVariantId: {
+    type: String,
+    default: null
   }
 });
 
@@ -191,12 +198,7 @@ const myHeading = computed(() => {
     return props.bearing;
 });
 
-const weatherToDisplay = computed(() => {
-    if (processedScenarios.value.length === 1) {
-        return processedScenarios.value[0].weather || props.weather;
-    }
-    return props.weather;
-});
+
 
 const weatherInfo = computed(() => weatherToDisplay.value ? getWeatherInfo(weatherToDisplay.value.code) : null);
 
@@ -217,8 +219,21 @@ const processedScenarios = computed(() => {
     const baseDate = new Date(props.simulationStartDate);
     if (isNaN(baseDate.getTime())) return [];
 
-    return sourceGroups.map(group => {
+    // Filter by variant if viewed
+    let groupsToProcess = sourceGroups;
+    if (props.viewedVariantId) {
+        groupsToProcess = sourceGroups.filter(g => g.variantId === props.viewedVariantId);
+    }
+    
+    // Fallback if filtering leaves nothing (should not happen if logic is correct, but safe check)
+    // If we are on Main Trace (viewedVariantId is null), we keep all groups (or filter those without variantId if explicit main trace logic existed)
+    // For now, if viewedVariantId is null, we show everything (behavior compatible with previous version)
+
+    return groupsToProcess.map((group, index) => {
         // Normalize properties (handle both structure types)
+        // Ensure we have a unique ID for comparison. If group.id is missing, use a generated one.
+        const groupId = group.id || `generated-group-${index}`; 
+
         const startTimeStr = group.heureDepart || group.start || "09:00";
         const speed = group.vitesseMoyenne || group.speed || 20;
         const variantId = group.variantId || null;
@@ -226,8 +241,13 @@ const processedScenarios = computed(() => {
         let realDistance = props.currentDistance;
         let isOffTrack = false;
 
-        // --- VARIANT LOGIC (PLAN B) ---
-        if (variantId && props.variantMappings[variantId]) {
+        // --- VARIANT LOGIC ---
+        // If we are viewing a specific variant (props.viewedVariantId), we assume currentDistance IS the distance on that variant.
+        // So no mapping needed for groups on this variant.
+        // If we were improperly showing a Main Trace group on a Variant View, we would need mapping, but we filtered them out.
+
+        // If we are viewing Main Trace (viewedVariantId == null) BUT the group is on a variant:
+        if (!props.viewedVariantId && variantId && props.variantMappings[variantId]) {
             const mapping = props.variantMappings[variantId];
             const calculatedDist = TraceMappingService.getRealDistanceFromMain(props.currentDistance, mapping);
             
@@ -265,16 +285,50 @@ const processedScenarios = computed(() => {
         
         return {
             ...group,
+            id: groupId, // Ensure safe ID is propagated
             nom: group.nom || group.name,
-            isReference: group.isReference,
+            isReference: group.isReference, // Original reference property
             isOffTrack: false,
             arrivalTime: arrivalTime,
             weather: weather,
-            weatherInfo: weather ? getWeatherInfo(weather.code) : null
+            weatherInfo: weather ? getWeatherInfo(weather.code) : null,
+            // Helper for sorting/finding latest
+            startMinutes: (isNaN(h) ? 9 : h) * 60 + (isNaN(m) ? 0 : m)
         };
     });
 });
 
+const windSourceGroup = computed(() => {
+    if (processedScenarios.value.length === 0) return null;
+    
+    // DEBUG: Only compute Wind Source if we are in Variant Mode (viewedVariantId is set)
+    // If we are in Main Trace mode, we might want to stick to standard behavior (no blue star, or just first group?)
+    // The requirement was: "Dans cette visualisation [alternative] on affichera... Une start bleu".
+    // So for Main Trace, we should probably NOT show the blue star.
+    if (!props.viewedVariantId) return null;
+
+    // Find the group with the LATEST start time
+    return processedScenarios.value.reduce((latest, current) => {
+        return (current.startMinutes > latest.startMinutes) ? current : latest;
+    }, processedScenarios.value[0]); 
+});
+
+const weatherToDisplay = computed(() => {
+    // Priority: 
+    // 1. Wind Source Group (if active)
+    // 2. First group
+    // 3. Global weather props
+    if (windSourceGroup.value && windSourceGroup.value.weather) {
+        return windSourceGroup.value.weather;
+    }
+    if (processedScenarios.value.length === 1) {
+        return processedScenarios.value[0].weather || props.weather;
+    }
+    return props.weather;
+});
+
+// REMOVED old weatherToDisplay logic to rely on windSourceGroup
+// REMOVED old computed properties that might conflict
 
 
 const formatRowTime = (date) => {
