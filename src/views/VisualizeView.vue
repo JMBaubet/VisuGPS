@@ -122,7 +122,7 @@
         <v-divider vertical class="mx-2"></v-divider>
         
         <!-- Sélection de Variante -->
-        <v-btn v-if="hasVariants && isPaused"
+        <v-btn v-if="accessibleVariants.length > 0 && isPaused"
             icon="mdi-map-marker-path" 
             variant="text" 
             color="primary"
@@ -151,7 +151,7 @@
         <v-card>
             <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
             <v-list>
-                <v-list-item v-for="v in availableVariants" :key="v.id" @click="selectVariant(v.id)" link>
+                <v-list-item v-for="v in accessibleVariants" :key="v.id" @click="selectVariant(v.id)" link>
                     <template v-slot:prepend>
                         <v-icon icon="mdi-map-marker-path" color="primary"></v-icon>
                     </template>
@@ -273,6 +273,26 @@ const is3DWidgetsReady = computed(() => {
 });
 const showWidgets = ref(false);
 const hasVariants = ref(false);
+
+// --- Filtered Variants Logic ---
+const accessibleVariants = computed(() => {
+    // If no variants at all
+    if (!hasVariants.value) return [];
+    
+    // If no active groups (should not happen if weather initialized, but safe check)
+    if (!activeGroups.value || activeGroups.value.length === 0) return [];
+
+    // Get all variant IDs used by active groups
+    // Note: 'null' in variantId means Main Trace, which is not a "variant" in availableVariants
+    const usedVariantIds = new Set(
+        activeGroups.value
+            .map(g => g.variantId)
+            .filter(id => id !== null) // Filter out main trace
+    );
+
+    // Filter availableVariants
+    return availableVariants.value.filter(v => usedVariantIds.has(v.id));
+});
 
 
 
@@ -571,10 +591,10 @@ const returnToMainTrace = () => {
 };
 const goBack = () => { router.push({ name: 'Main' }); };
 const goToVariantView = () => { 
-    if (availableVariants.value.length > 1) {
+    if (accessibleVariants.value.length > 1) {
         showVariantSelection.value = true;
-    } else if (availableVariants.value.length === 1) {
-        selectVariant(availableVariants.value[0].id);
+    } else if (accessibleVariants.value.length === 1) {
+        selectVariant(accessibleVariants.value[0].id);
     }
 };
 const getToHexImproved = (n) => toHex(getSettingValue(n));
@@ -2296,7 +2316,7 @@ watch([
     isWeatherInfoVisible,
     isCompassVisible,
     hasVariants,
-    availableVariants,
+    accessibleVariants,
     animationState,
     isFlytoActive
 ], () => {
@@ -2515,8 +2535,8 @@ async function updateRemoteViewState() {
         isFlytoActive: isFlytoActive.value,
         hasVariants: hasVariants.value,
         isVariantTrace: isVariantTrace.value,
-        variantCount: availableVariants.value.length,
-        variants: availableVariants.value.map(v => ({ id: v.id, name: v.name })),
+        variantCount: accessibleVariants.value.length,
+        variants: accessibleVariants.value.map(v => ({ id: v.id, name: v.name })),
         segments: segments,
         currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
     };
