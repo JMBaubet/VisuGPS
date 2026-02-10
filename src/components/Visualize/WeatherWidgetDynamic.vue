@@ -25,7 +25,10 @@
                         </div>
                         
                         <!-- Weather Data -->
-                        <div v-if="scen.weather" class="d-flex align-center flex-grow-1 justify-end">
+                        <div v-if="scen.isOffTrack" class="d-flex align-center flex-grow-1 justify-end">
+                             <span class="text-caption text-grey-darken-1 font-italic">(Hors trace)</span>
+                        </div>
+                        <div v-else-if="scen.weather" class="d-flex align-center flex-grow-1 justify-end">
                             <!-- Icon -->
                             <v-icon v-if="scen.weatherInfo" size="small" :color="resolveIconColor(scen.weatherInfo.color)" class="mr-2">{{ scen.weatherInfo.icon }}</v-icon>
                             
@@ -124,6 +127,8 @@ import { computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { getWeatherInfo } from '@/services/WeatherIcons';
 import CompassWidget from './CompassWidget.vue';
+import TraceMappingService from '@/services/TraceMappingService';
+import WeatherService from '@/services/WeatherService';
 
 const props = defineProps({
   weather: {
@@ -156,6 +161,14 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  
+  // NEW: Variant Support
+  variantMappings: { 
+    type: Object, 
+    default: () => ({}) 
+  }, // { variantId: mappingObject }
+  activeGroups: { type: Array, default: () => [] }, // Groups with full context (id, speed, startTime, variantId)
+
   weatherMatrix: {
     type: Array,
     default: () => []
@@ -195,73 +208,69 @@ const timeLabel = computed(() => {
 });
 
 const processedScenarios = computed(() => {
-    if (!props.scenarios.length || !props.weatherMatrix.length || !props.simulationStartDate) return [];
+    // If we have "activeGroups" (rich objects), use them preferentially over "scenarios" (legacy/flat objects)
+    const sourceGroups = props.activeGroups.length > 0 ? props.activeGroups : props.scenarios;
+
+    if (!sourceGroups.length || !props.weatherMatrix.length || !props.simulationStartDate) return [];
     
     // Ensure simulationStartDate is a Date object
     const baseDate = new Date(props.simulationStartDate);
     if (isNaN(baseDate.getTime())) return [];
 
-    return props.scenarios.map(scen => {
-        const startTimeStr = scen.heureDepart || scen.start || "09:00";
-        const speed = scen.vitesseMoyenne || scen.speed || 20;
+    return sourceGroups.map(group => {
+        // Normalize properties (handle both structure types)
+        const startTimeStr = group.heureDepart || group.start || "09:00";
+        const speed = group.vitesseMoyenne || group.speed || 20;
+        const variantId = group.variantId || null;
 
-        // 1. Calculate Estimated Arrival Date/Time
-        const [h, m] = startTimeStr.split(':').map(Number);
-        const arrivalDate = new Date(baseDate);
-        arrivalDate.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
-        
-        const travelTimeHours = props.currentDistance / (speed || 20);
-        arrivalDate.setTime(arrivalDate.getTime() + travelTimeHours * 3600000);
-        
-        // 2. Find Best Location Point in Matrix
-        let bestPoint = null;
-        let minDiff = Infinity;
-        
-        for (const pt of props.weatherMatrix) {
-            // Use km if available, fallback to increment estimation
-            const ptKm = (pt.km != null) ? pt.km : (pt.increment * 0.1);
-            const diff = Math.abs(ptKm - props.currentDistance);
+        let realDistance = props.currentDistance;
+        let isOffTrack = false;
+
+        // --- VARIANT LOGIC (PLAN B) ---
+        if (variantId && props.variantMappings[variantId]) {
+            const mapping = props.variantMappings[variantId];
+            const calculatedDist = TraceMappingService.getRealDistanceFromMain(props.currentDistance, mapping);
             
-            if (diff < minDiff) {
-                minDiff = diff;
-                bestPoint = pt;
+            if (calculatedDist === null) {
+                isOffTrack = true;
+            } else {
+                realDistance = calculatedDist;
             }
         }
+        // ------------------------------
+
+        if (isOffTrack) {
+            return {
+                ...group,
+                nom: group.nom || group.name,
+                isReference: group.isReference,
+                isOffTrack: true,
+                arrivalTime: null,
+                weather: null,
+                weatherInfo: null
+            };
+        }
+
+        // Calculate time, weather, etc...
+        const timeFromStartHours = realDistance / speed;
+        const arrivalTime = new Date(baseDate.getTime() + timeFromStartHours * 3600000); // ms
         
-        // Fallback to first point if matrix not empty
-        if (!bestPoint && props.weatherMatrix.length > 0) {
-            bestPoint = props.weatherMatrix[0];
-        }
-
-        // 3. Find Best Hour in Point Data
-        let weatherAtHour = null;
-        if (bestPoint && bestPoint.hours) {
-            const targetHour = arrivalDate.getHours();
-            
-            // Direct lookup
-            weatherAtHour = bestPoint.hours[targetHour];
-
-            // Fallback: Matrix might only have data for certain hours (e.g. 6-20)
-            if (!weatherAtHour) {
-                const hours = Object.keys(bestPoint.hours).map(Number).sort((a,b) => a-b);
-                if (hours.length > 0) {
-                    // Find closest available hour
-                    const closestHour = hours.reduce((prev, curr) => {
-                        return (Math.abs(curr - targetHour) < Math.abs(prev - targetHour) ? curr : prev);
-                    });
-                    weatherAtHour = bestPoint.hours[closestHour];
-                }
-            }
-        }
-
+        // Find weather at this time/location
+        const weather = WeatherService.getCurrentWeather(realDistance, arrivalTime, props.weatherMatrix);
+        
         return {
-            ...scen,
-            arrivalTime: arrivalDate,
-            weather: weatherAtHour || props.weather, // Ultimate fallback
-            weatherInfo: (weatherAtHour || props.weather) ? getWeatherInfo((weatherAtHour || props.weather).code) : null
+            ...group,
+            nom: group.nom || group.name,
+            isReference: group.isReference,
+            isOffTrack: false,
+            arrivalTime: arrivalTime,
+            weather: weather,
+            weatherInfo: weather ? getWeatherInfo(weather.code) : null
         };
     });
 });
+
+
 
 const formatRowTime = (date) => {
     if (!date) return '--:--';

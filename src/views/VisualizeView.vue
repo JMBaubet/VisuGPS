@@ -34,6 +34,8 @@
             :show-info="isWeatherInfoVisible"
             :show-compass="isCompassVisible"
             :scenarios="circuitScenarios"
+            :active-groups="activeGroups"
+            :variant-mappings="variantMappings"
             :weather-matrix="weatherForecasts"
             :current-distance="currentDistanceInMeters / 1000"
             :simulation-start-date="simulationStartDate"
@@ -197,7 +199,8 @@ import { useCameraManager } from '@/composables/visualize/useCameraManager.js';
 import { useCircuitData } from '@/composables/visualize/useCircuitData.js';
 import { useTraceLayers } from '@/composables/visualize/useTraceLayers.js';
 import { useAnimationController } from '@/composables/visualize/useAnimationController.js';
-import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpolator.js'; // NEW
+import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpolator.js';
+import TraceMappingService from '@/services/TraceMappingService'; // NEW
 
 const props = defineProps({
   circuitId: { type: String, required: true },
@@ -269,6 +272,8 @@ const is3DWidgetsReady = computed(() => {
 });
 const showWidgets = ref(false);
 const hasVariants = ref(false);
+
+
 
 // --- Settings Computed ---
 const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
@@ -453,6 +458,10 @@ const masterTrackingPoints = ref([]);
 const abandonedSegmentsRef = ref([]);
 const variantBlueSegmentsRef = ref([]);
 
+// New Refs for Variant Weather
+const variantMappings = ref({});
+const activeGroups = ref([]); // Replaces or augments circuitScenarios for display
+
 // --- Navigation Menu Computed ---
 const navigationItems = computed(() => {
     const list = [];
@@ -615,6 +624,10 @@ const initializeVisualization = async () => {
         const variants = await invoke('get_variants', { circuitId: props.circuitId });
         availableVariants.value = variants;
         hasVariants.value = variants.length > 0;
+        
+        // --- NEW: Load Variant Mappings (Prepared) ---
+        // We will load the actual mappings AFTER tracking data is available (Step 3 or 4).
+
 
         // 2. Load LineString & Calculate Trace Center
         let lineString;
@@ -798,6 +811,72 @@ const initializeVisualization = async () => {
         const nominalTotalKm = totalDistanceRef.value / 1000;
         const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
         totalDurationAt1xRef.value = nominalTotalKm * msPerKm; 
+
+        // --- NEW: Load Variant Mappings (Execution) ---
+        // Now that we have the "Main/Master" tracking points, we can compute mappings.
+        // Identify which tracking points to use as reference:
+        // - If Main Trace Mode: trackingPointsWithDistanceRef (which IS the main trace)
+        // - If Variant Mode: masterTrackingPoints (loaded in step 3.A)
+        const referencePoints = isMainTrace.value ? trackingPointsWithDistanceRef.value : masterTrackingPoints.value;
+
+        if (referencePoints && referencePoints.length > 0) {
+            const variantsToLoad = new Set();
+            
+            // 1. Groups in Scenarios
+            // Since currentCircuitRef might not contain full scenarios details, we explicitly fetch them.
+            try {
+                const scenarios = await invoke('get_circuit_scenarios', { circuitId: props.circuitId });
+                if (scenarios && scenarios.length > 0) {
+                     // Update the ref so it's consistent everywhere (including for initWeather later)
+                     if (currentCircuitRef.value) currentCircuitRef.value.scenarios = scenarios;
+                     circuitScenarios.value = scenarios; // Also update the dedicated ref immediately
+
+                     scenarios.forEach(s => {
+                        if (s.variantId) variantsToLoad.add(s.variantId);
+                    });
+                    console.log(`[VisualizeView] Fetched ${scenarios.length} scenarios. Variants to load:`, [...variantsToLoad]);
+                } else {
+                    console.warn(`[VisualizeView] No scenarios returned by backend.`);
+                }
+            } catch (e) {
+                console.warn(`[VisualizeView] Failed to fetch scenarios explicitly:`, e);
+            }
+
+            // 2. Current Variant (if any)
+            if (selectedVariantId.value) variantsToLoad.add(selectedVariantId.value);
+
+            // Load all identified mappings
+            const loadedMappings = {};
+            for (const vid of variantsToLoad) {
+                try {
+                    const mapping = await TraceMappingService.loadVariantMapping(props.circuitId, vid, referencePoints);
+                    if (mapping) {
+                        loadedMappings[vid] = mapping;
+                    }
+                } catch (e) {
+                    console.warn(`Failed to load mapping for variant ${vid}`, e);
+                }
+            }
+            variantMappings.value = loadedMappings;
+        }
+
+        // --- NEW: Compute Active Groups with Context ---
+        // Use the scenarios we just fetched (circuitScenarios is now populated)
+        if (circuitScenarios.value && circuitScenarios.value.length > 0) {
+            activeGroups.value = circuitScenarios.value.map(scen => {
+                return {
+                    ...scen,
+                    // Ensure core properties exist
+                    nom: scen.nom || scen.name || 'Groupe',
+                    vitesseMoyenne: scen.vitesseMoyenne || scen.speed || 20,
+                    heureDepart: scen.heureDepart || scen.start || "09:00",
+                    isReference: scen.isReference || false,
+                    // TraceType context for WeatherWidget
+                    variantId: scen.variantId || null
+                };
+            });
+        }
+
 
         // 5. Populate control points
         controlPointIndicesRef.value = trackingPointsWithDistanceRef.value
