@@ -1283,7 +1283,10 @@ const updateMarkers = () => {
 
 const generatePreviewForMod = async (modIndex) => {
     const mod = modifications.value[modIndex];
-    if (mod.points.length < 2) return;
+    if (mod.points.length < 2) {
+        isLoading.value = false;
+        return;
+    }
 
     isLoading.value = true;
     try {
