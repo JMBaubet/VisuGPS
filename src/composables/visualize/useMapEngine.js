@@ -4,9 +4,12 @@ import mapboxgl from 'mapbox-gl';
 export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExaggeration) {
     const map = shallowRef(null);
     const isMapLoaded = ref(false);
+    let currentFlyToId = 0; // Tracks the latest flyTo request to handle interruptions
 
     // Fonction flyTo sous forme de Promise pour séquencer les animations
     const flyToPromise = (options, overrideOptions = {}) => {
+        const myFlyToId = ++currentFlyToId;
+
         return new Promise((resolve) => {
             if (!map.value) {
                 resolve();
@@ -27,6 +30,8 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
             };
 
             const onMoveEnd = () => {
+                // Resolved regardless of ID mismatch (interruption) to ensure awaiters unblock.
+                // Logic flow control handles semantic interruptions.
                 safeResolve();
             };
 
@@ -35,7 +40,9 @@ export function useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExagger
 
             // Safety timeout: duration + 500ms margin (minimum 1000ms safety)
             const timeout = setTimeout(() => {
-                console.warn("[flyToPromise] Safety timeout reached. Forcing resolution.");
+                if (currentFlyToId === myFlyToId) {
+                    console.warn("[flyToPromise] Safety timeout reached. Forcing resolution.");
+                }
                 safeResolve();
             }, Math.max(duration + 500, 1000));
 

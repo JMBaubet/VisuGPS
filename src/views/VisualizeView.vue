@@ -250,6 +250,7 @@ const isDirectStart = computed(() => route.query.directStart === 'true' || isVar
 const mapContainer = ref(null);
 const isCursorHidden = ref(false); 
 let cursorTimeout = null;
+const isInitSequenceRunning = ref(false); // Flag to protect initialization sequence
 
 const handleInteraction = () => {
     isCursorHidden.value = false;
@@ -620,6 +621,7 @@ const initializeVisualization = async () => {
     await useSettings().initSettings();
 
     isInitializing.value = true;
+    isInitSequenceRunning.value = true; // Start protection
     showWidgets.value = false;
     
     // Reset Data & Animation State
@@ -632,7 +634,7 @@ const initializeVisualization = async () => {
     activePopups.forEach(p => p.remove());
     activePopups.clear();
 
-    resetAnimation(); 
+    resetState(); // Use synchronous reset to avoid async flyTo interference
     
     try {
         // 0.5 Ensure we have a variant ID (only for variant mode)
@@ -1197,18 +1199,13 @@ const initializeVisualization = async () => {
             
             isFlytoActive.value = true;
             
-            // Démarrer le flyTo (carte déjà révélée ou en cours d'apparition)
+        // Démarrer le flyTo (carte déjà révélée ou en cours d'apparition)
             const flyToTask = flyToPromise({
                 zoom: globalView.zoom,
                 bearing: 0,
                 pitch: 0
             }, { duration: durationEuropeToTrace.value });
             
-            // Déclencher les messages à 50% du vol depuis l'Europe
-            setTimeout(() => {
-                checkEvents(0);
-            }, durationEuropeToTrace.value / 2);
-
             // Attendre 200ms pour s'assurer que le zoom a bien commencé (optionnel, pour fluidité)
             await new Promise(r => setTimeout(r, 200));
             isInitializing.value = false; // Sécurité si pas déjà fait
@@ -1224,6 +1221,20 @@ const initializeVisualization = async () => {
             
             // Pause d'observation
             if (repriseAutoVueTrace.value) {
+                // Attendre que la map soit stable (idle) avant de compter la pause
+                // Cela évite de compter le temps pendant le chargement des tuiles
+                if (!mapInstance.loaded()) {
+                    await new Promise(resolve => {
+                       const onIdle = () => {
+                           mapInstance.off('idle', onIdle);
+                           resolve();
+                       };
+                       mapInstance.on('idle', onIdle);
+                       // Safety timeout 3s
+                       setTimeout(onIdle, 3000);
+                    });
+                }
+                
                 await new Promise(r => setTimeout(r, pauseBeforeStart.value));
             } else {
                 // Pause manuelle
@@ -1323,6 +1334,7 @@ const initializeVisualization = async () => {
              if (repriseAutoKm0.value) {
                  // Auto-resume after delay
                  setTimeout(() => {
+                     // Check 'isInitSequenceRunning' to ensure we don't resume if user left view/reset
                      if (isPaused.value && animationState.value === 'En_Pause_au_Depart') {
                          isPaused.value = false;
                      }
@@ -1336,6 +1348,8 @@ const initializeVisualization = async () => {
     } catch (error) {
         console.error("Init Visualization Variant Failed:", error);
         showSnackbar("Erreur d'initialisation variante", "error");
+    } finally {
+        isInitSequenceRunning.value = false; // End protection
     }
 };
 
@@ -1880,14 +1894,24 @@ const handleEndSequence = async (skipDelay = false) => {
     }
 };
 
-const resetAnimation = async () => {
-    // Reset Logic
+const resetState = () => {
     resetTime();
     isPaused.value = true;
     isAnimationFinished.value = false;
     triggeredPauseIncrement.value = null;
     triggeredFlytoIncrement.value = null;
     isFlytoActive.value = false;
+    animationState.value = 'Initialisation';
+    
+    if (map.value) {
+        activePopups.forEach(p => p.remove());
+        activePopups.clear();
+    }
+};
+
+const resetAnimation = async () => {
+    // Reset Logic
+    resetState();
     
     // Restore UI (Note: we no longer reset visibility here to persist user toggles across session restarts)
     // isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
@@ -2306,6 +2330,9 @@ onMounted(async () => {
 
 // Sync isPaused with animationState for UI visibility
 watch(isPaused, async (newVal, oldVal) => {
+    // Protection: do not interfere if initialization sequence is running
+    if (isInitSequenceRunning.value) return;
+
     if (newVal) {
         cameraMoved.value = false;
         if (animationState.value === 'En_Animation') {
