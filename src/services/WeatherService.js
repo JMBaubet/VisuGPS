@@ -262,6 +262,7 @@ const WeatherService = {
         const sampledPoints = [];
         const SAMPLING_STEP_KM = 1.0;
         let totalVariantKm = 0; // Absolute distance tracker
+        let nextGlobalSampleKm = 0; // Next target KM to sample (global)
 
         // Helper to calc distance (Haversine approx is enough for this or simple spherical)
         const getDist = (p1, p2) => {
@@ -282,46 +283,47 @@ const WeatherService = {
             if (!seg.points || seg.points.length < 2) return;
 
             let currentDistM = 0; // Distance within this segment
-            let nextSampleM = 0; // Relative to segment
-
-            // We iterate points to calculate distance and sample
-            // Note: Unlike previous implementation, we must be careful about continuity.
-            // But since segments are from "read_tracking_file" which returns ordered segments,
-            // we can just accumulate totalVariantKm.
-
-            // However, the segments might not be perfectly continuous in GPS terms (jumps),
-            // but effectively they are the sequence.
 
             seg.points.forEach((p2, i) => {
                 if (i === 0) return;
                 const p1 = seg.points[i - 1];
-                const d = getDist(p1, p2);
+                const d = getDist(p1, p2); // meters
+                const dKm = d / 1000;
 
-                // If this is the very first point of the very first segment, we might want a sample at 0?
-                // The loop starts at i=1.
-                // Let's add point 0 manually if needed or just rely on loop.
-                // Standard logic:
+                // Current Global Km range for this segment step:
+                // Start: totalVariantKm + (currentDistM / 1000)
+                // End:   totalVariantKm + ((currentDistM + d) / 1000)
 
-                while (currentDistM + d >= nextSampleM) {
-                    const remaining = nextSampleM - currentDistM;
-                    const ratio = remaining / d;
+                const startGlobalKm = totalVariantKm + (currentDistM / 1000);
 
-                    // Interpolate
-                    const lat = p1[1] + (p2[1] - p1[1]) * ratio;
-                    const lon = p1[0] + (p2[0] - p1[0]) * ratio;
+                // Check if next sample falls within this step
+                // We use a while loop because a long segment step might contain multiple sample points
+                while (nextGlobalSampleKm <= startGlobalKm + dKm + 0.0001) { // 0.0001 tolerance
 
-                    // Global KM
-                    const absKm = totalVariantKm + (currentDistM + remaining) / 1000;
+                    if (nextGlobalSampleKm >= startGlobalKm) {
+                        const ratio = (nextGlobalSampleKm - startGlobalKm) / dKm;
 
-                    sampledPoints.push({
-                        lat,
-                        lon,
-                        increment: sampledPoints.length,
-                        // segmentId: seg.id, 
-                        km: absKm
-                    });
+                        // Valid ratio [0, 1] usually
+                        // If dKm is tiny (0), avoidance
+                        const r = dKm > 0 ? Math.max(0, Math.min(1, ratio)) : 0;
 
-                    nextSampleM += (SAMPLING_STEP_KM * 1000);
+                        // Interpolate
+                        const lat = p1[1] + (p2[1] - p1[1]) * r;
+                        const lon = p1[0] + (p2[0] - p1[0]) * r;
+
+                        sampledPoints.push({
+                            lat,
+                            lon,
+                            increment: sampledPoints.length * 10, // *10 to match 100m unit expected by Widget
+                            km: nextGlobalSampleKm
+                        });
+
+                        nextGlobalSampleKm += SAMPLING_STEP_KM;
+                    } else {
+                        // nextGlobalSampleKm is behind startGlobalKm (should generally not happen if logic matches)
+                        // Catch up just in case
+                        nextGlobalSampleKm += SAMPLING_STEP_KM;
+                    }
                 }
 
                 currentDistM += d;

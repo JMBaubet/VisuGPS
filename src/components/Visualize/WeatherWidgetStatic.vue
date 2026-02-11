@@ -41,6 +41,9 @@
                        <input 
                            type="time" 
                            v-model="scen.heureDepart"
+                           step="300"
+                           @keydown.up.prevent="adjustTime(scen, 5)"
+                           @keydown.down.prevent="adjustTime(scen, -5)"
                            style="border: 1px solid rgba(0,0,0,0.3); border-radius: 3px; font-size: 0.8rem; padding: 1px 4px; width: 70px;" 
                        />
                    </div>
@@ -48,7 +51,10 @@
                        <input 
                            type="number" 
                            v-model.number="scen.vitesseMoyenne"
-                           style="border: 1px solid rgba(0,0,0,0.3); border-radius: 3px; font-size: 0.8rem; padding: 1px 4px; width: 40px; text-align: center;" 
+                           step="0.5"
+                           min="5"
+                           max="50"
+                           style="border: 1px solid rgba(0,0,0,0.3); border-radius: 3px; font-size: 0.8rem; padding: 1px 4px; width: 50px; text-align: center;" 
                        />
                        <span class="text-caption ml-1">km/h</span>
                    </div>
@@ -58,7 +64,7 @@
           </thead>
           <tbody>
             <tr v-for="row in matrixRows" :key="row.increment">
-              <td class="sticky-col font-weight-bold text-center">{{ row.km.toFixed(1) }} km</td>
+              <td class="sticky-col font-weight-bold text-center">{{ Math.round(row.km) }} km</td>
               <template v-for="(cell, cIdx) in row.cells">
                 <td 
                     v-if="!cell.hidden" 
@@ -124,6 +130,33 @@ const cycleStep = () => {
     const idx = steps.indexOf(selectedStep.value);
     const nextIdx = (idx + 1) % steps.length;
     selectedStep.value = steps[nextIdx];
+};
+
+const adjustTime = (scen, deltaMinutes) => {
+    if (!scen.heureDepart) return;
+    
+    // Parse current 'HH:MM'
+    let parts = scen.heureDepart.split(':');
+    if (parts.length < 2) return;
+    
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    
+    if (isNaN(h) || isNaN(m)) return;
+    
+    // Calculate total minutes
+    let total = h * 60 + m + deltaMinutes;
+    
+    // Wrap around 24h
+    const max = 24 * 60;
+    if (total < 0) total += max;
+    if (total >= max) total %= max;
+    
+    // Convert back
+    const newH = Math.floor(total / 60);
+    const newM = total % 60;
+    
+    scen.heureDepart = `${String(newH).padStart(2,'0')}:${String(newM).padStart(2,'0')}`;
 };
 const localScenarios = ref([]);
 

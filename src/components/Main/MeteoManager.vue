@@ -134,65 +134,188 @@
                         variant="underlined"
                         hide-details
                         prepend-icon="mdi-calendar"
-                    ></v-select>
+                    >
+                        <template v-slot:selection="{ item }">
+                            <span :class="item.raw.color">{{ item.title }}</span>
+                        </template>
+                        <template v-slot:item="{ props, item }">
+                            <v-list-item v-bind="props" :class="item.raw.color"></v-list-item>
+                        </template>
+                    </v-select>
                 </v-col>
             </v-row>
 
             <!-- Row 2: File Management -->
             <v-row dense align="center">
                 <v-col cols="12">
-                     <!-- Status & Action when file exists -->
-                     <div v-if="weatherFilePresent" class="d-flex align-center justify-end">
-                        <div class="d-flex flex-column align-end mr-2">
-                             <div 
+                     <div class="d-flex align-center justify-end">
+                        
+                        <!-- Status & Action when file exists -->
+                        <div v-if="weatherFilePresent" class="d-flex flex-column align-end mr-4">
+                            <div 
                                 class="text-caption font-weight-bold" 
                                 :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
                             >
-                                Le fichier météo pour le {{ formattedDateLong }} a été mis à jour {{ weatherFileRelativeTime }}.
-                            </div>
-                            <div v-if="weatherMissingCount > 0" class="text-caption text-red font-weight-bold">
-                                {{ weatherMissingCount }} fichier{{ weatherMissingCount > 1 ? 's' : '' }} manquant{{ weatherMissingCount > 1 ? 's' : '' }}
+                                Météo pour {{ formattedDateLong }} : à jour {{ oldestWeatherRelativeTime }}
                             </div>
                         </div>
+
+                        <!-- Status & Action when missing -->
+                        <div v-else class="text-caption text-red mr-4 text-right font-weight-bold">
+                           Pas de météo pour {{ currentRouteTitle }} le {{ formattedDateLong }}
+                        </div>
+
+                        <!-- Update Action -->
+                        <!-- Case 1: Multiple Routes -> Menu -->
+                        <div v-if="usedRoutes.length > 1" class="d-flex align-center mr-4">
+                            <v-menu location="bottom end">
+                                <template v-slot:activator="{ props }">
+                                    <v-btn
+                                        :color="globalUpdateStatus.color"
+                                        variant="flat"
+                                        v-bind="props"
+                                        :prepend-icon="globalUpdateStatus.icon"
+                                        append-icon="mdi-menu-down"
+                                        size="small"
+                                        :loading="isDownloadingWeather"
+                                    >
+                                        {{ globalUpdateStatus.text }}
+                                    </v-btn>
+                                </template>
+                                <v-list density="compact" nav>
+                                    <!-- Global Update Action -->
+                                    <v-list-item @click="() => downloadWeather()">
+                                        <template v-slot:prepend>
+                                            <v-icon :icon="globalUpdateStatus.icon" size="small"></v-icon>
+                                        </template>
+                                        <v-list-item-title class="font-weight-bold">
+                                            Tout mettre à jour
+                                        </v-list-item-title>
+                                    </v-list-item>
+                                    
+                                    <v-divider class="my-1"></v-divider>
+
+                                    <!-- Per-Route Update Actions -->
+                                    <v-list-item
+                                        v-for="(route, index) in usedRoutes"
+                                        :key="index"
+                                        :value="index"
+                                        @click="() => downloadWeather(route.value)"
+                                    >
+                                        <template v-slot:prepend>
+                                            <v-icon 
+                                                v-if="weatherStatusMap[route.value || 'main']?.present"
+                                                color="success"
+                                                size="small"
+                                            >
+                                                mdi-check-circle
+                                            </v-icon>
+                                            <v-icon 
+                                                v-else
+                                                color="error"
+                                                size="small"
+                                            >
+                                                mdi-alert-circle
+                                            </v-icon>
+                                        </template>
+                                        <v-list-item-title>
+                                            {{ route.title }}
+                                            <span 
+                                                v-if="weatherStatusMap[route.value || 'main']?.present" 
+                                                class="text-caption text-grey ml-2"
+                                            >
+                                                ({{ weatherStatusMap[route.value || 'main']?.relative }})
+                                            </span>
+                                            <span v-else class="text-caption text-error font-italic ml-2">
+                                                (Manquant)
+                                            </span>
+                                        </v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-menu>
+                        </div>
+                        
+                        <!-- Case 2: Single Route -> Simple Button -->
                         <v-btn
+                            v-else
+                            size="small"
+                            :color="globalUpdateStatus.color"
+                            variant="flat"
+                            :loading="isDownloadingWeather"
+                            @click="downloadWeather()"
+                            :prepend-icon="globalUpdateStatus.icon"
+                            class="mr-4"
+                        >
+                            {{ globalUpdateStatus.text }}
+                        </v-btn>
+
+                        <!-- Viewing Action -->
+                         <!-- Case 1: Multiple Routes -> Menu -->
+                        <div v-if="usedRoutes.length > 1" class="d-flex align-center ml-4">
+                            <v-menu location="bottom end">
+                                <template v-slot:activator="{ props }">
+                                    <v-btn
+                                        color="info"
+                                        variant="flat"
+                                        v-bind="props"
+                                        prepend-icon="mdi-eye"
+                                        append-icon="mdi-menu-down"
+                                        size="small"
+                                    >
+                                        Voir...
+                                    </v-btn>
+                                </template>
+                                <v-list density="compact" nav>
+                                    <v-list-item
+                                        v-for="(route, index) in usedRoutes"
+                                        :key="index"
+                                        :value="index"
+                                        @click="() => { selectedRoute = route.value; loadAndShowWeather(); }"
+                                        :disabled="!weatherStatusMap[route.value || 'main']?.present"
+                                    >
+                                        <template v-slot:prepend>
+                                            <v-icon 
+                                                v-if="weatherStatusMap[route.value || 'main']?.present"
+                                                color="success"
+                                                size="small"
+                                            >
+                                                mdi-check-circle
+                                            </v-icon>
+                                            <v-icon 
+                                                v-else
+                                                color="error"
+                                                size="small"
+                                            >
+                                                mdi-alert-circle
+                                            </v-icon>
+                                        </template>
+                                        <v-list-item-title>
+                                            {{ route.title }}
+                                            <span 
+                                                v-if="weatherStatusMap[route.value || 'main']?.present" 
+                                                class="text-caption text-grey ml-2"
+                                            >
+                                                ({{ weatherStatusMap[route.value || 'main']?.relative }})
+                                            </span>
+                                        </v-list-item-title>
+                                    </v-list-item>
+                                </v-list>
+                            </v-menu>
+                        </div>
+                        
+                        <!-- Case 2: Single Route -> Simple Button -->
+                         <v-btn
+                            v-else
                             size="small"
                             color="info"
                             variant="flat"
-                            class="mr-2"
                             @click="loadAndShowWeather"
                             prepend-icon="mdi-eye"
-                            :disabled="!isValid"
+                            :disabled="!isValid || !weatherFilePresent"
                         >
                             Voir
                         </v-btn>
-                        <v-btn
-                            size="small"
-                            color="warning"
-                            variant="flat"
-                            :loading="isDownloadingWeather"
-                            @click="downloadWeather"
-                            prepend-icon="mdi-update"
-                        >
-                            Mettre à jour
-                        </v-btn>
-                     </div>
 
-                     <!-- Status & Action when missing -->
-                     <div v-else class="d-flex align-center justify-end">
-                        <div class="text-caption text-red mr-2 text-right font-weight-bold">
-                           Aucun fichier météo pour le {{ formattedDateLong }}.
-                        </div>
-                        <v-btn
-                            size="small"
-                            color="primary"
-                            variant="flat"
-                            :loading="isDownloadingWeather"
-                            @click="downloadWeather"
-                            prepend-icon="mdi-download"
-                            :disabled="!isValid"
-                        >
-                            Télécharger
-                        </v-btn>
                      </div>
                 </v-col>
             </v-row>
@@ -217,7 +340,7 @@
     <WeatherWidgetStatic 
         v-if="showWeatherWidget"
         :weather-matrix="weatherMatrix"
-        :scenarios="editedScenarios"
+        :scenarios="filteredScenarios"
         :date="weatherDate"
         @close="showWeatherWidget = false"
         style="z-index: 2500;"
@@ -255,12 +378,10 @@ const { getSettingValue } = useSettings();
 const editedDateDepart = ref("");
 const editedScenarios = ref([]);
 
-const weatherStatus = ref('Inconnu'); // Legacy, kept if needed, but we use split vars now
-const weatherFilePresent = ref(false);
-const weatherFileRelativeTime = ref("");
-const weatherFileAgeHours = ref(0);
-const weatherMissingCount = ref(0);
+const selectedRoute = ref(null); // null = Main, string = Variant ID
+const weatherStatusMap = ref({}); // Stores status for each route
 
+const weatherStatus = ref('Inconnu'); // Legacy
 const isDownloadingWeather = ref(false);
 
 const showDocDialog = ref(false);
@@ -272,6 +393,124 @@ const openDoc = (path) => {
   currentDocPath.value = path;
   showDocDialog.value = true;
 };
+
+// Computed identifying available routes based on scenarios
+const usedRoutes = computed(() => {
+    const routes = new Map();
+    editedScenarios.value.forEach(s => {
+        const vId = s.variantId || null;
+        if (!routes.has(vId)) {
+            let title = 'Principale';
+            if (vId) {
+                const variant = availableVariants.value.find(v => v.value === vId);
+                title = variant ? variant.title : 'Variante Inconnue';
+            }
+            routes.set(vId, { value: vId, title });
+        }
+    });
+    // Sort: Main first, then alphabetic
+    return Array.from(routes.values()).sort((a, b) => {
+        if (a.value === null) return -1;
+        if (b.value === null) return 1;
+        return a.title.localeCompare(b.title);
+    });
+});
+
+// Auto-select route if current selection is invalid
+watch(usedRoutes, (routes) => {
+    if (routes.length > 0) {
+        // If current selection is not in list, default to first (usually Main)
+        const exists = routes.find(r => r.value === selectedRoute.value);
+        if (!exists) {
+            selectedRoute.value = routes[0].value;
+        }
+    } else {
+        selectedRoute.value = null;
+    }
+}, { immediate: true });
+
+const currentRouteTitle = computed(() => {
+    const r = usedRoutes.value.find(x => x.value === selectedRoute.value);
+    return r ? r.title : 'Route';
+});
+
+// Status Computed Properties based on selectedRoute
+const currentRouteStatus = computed(() => {
+    const key = selectedRoute.value || 'main'; // Use string 'main' for dictionary key if null
+    return weatherStatusMap.value[key] || { present: false, age: 0, relative: '', missing: true };
+});
+
+const weatherFilePresent = computed(() => currentRouteStatus.value.present);
+const weatherFileAgeHours = computed(() => currentRouteStatus.value.age);
+const weatherFileRelativeTime = computed(() => currentRouteStatus.value.relative);
+const weatherMissingCount = computed(() => 0); // Deprecated/Unused in new UI but kept for safety
+
+const oldestWeatherRelativeTime = computed(() => {
+    const routes = usedRoutes.value;
+    if (routes.length === 0) return '';
+    
+    // Find the status with the maximum age (oldest) that is present
+    let maxAge = -1;
+    let relativeStr = '';
+    
+    routes.forEach(r => {
+        const status = weatherStatusMap.value[r.value || 'main'];
+        if (status && status.present && status.age > maxAge) {
+            maxAge = status.age;
+            relativeStr = status.relative;
+        }
+    });
+    
+    return relativeStr;
+});
+
+const globalUpdateStatus = computed(() => {
+    const routes = usedRoutes.value;
+    if (routes.length === 0) return { color: 'error', text: 'Télécharger', icon: 'mdi-download' };
+
+    const statuses = routes.map(r => weatherStatusMap.value[r.value || 'main'] || { present: false, age: 0 });
+    
+    // 1. Red if everything is missing
+    const allMissing = statuses.every(s => !s.present);
+    if (allMissing) return { color: 'error', text: 'Télécharger', icon: 'mdi-download' };
+
+    // 2. Dark Orange if some are missing
+    const anyMissing = statuses.some(s => !s.present);
+    if (anyMissing) return { color: 'deep-orange', text: 'Télécharger...', icon: 'mdi-download' };
+
+    // 3. Light Orange if date > 12h
+    const anyVeryOld = statuses.some(s => s.age > 12);
+    if (anyVeryOld) return { color: 'orange', text: 'Mettre à jour...', icon: 'mdi-update' };
+
+    // 4. Blue if date > 4h
+    const anyOld = statuses.some(s => s.age > 4);
+    if (anyOld) return { color: 'info', text: 'Mettre à jour', icon: 'mdi-update' };
+
+    // 5. Green if all fresh (< 4h)
+    return { color: 'success', text: 'Mettre à jour', icon: 'mdi-check' };
+});
+
+const ageColorClass = computed(() => {
+    return weatherFileAgeHours.value < 3 ? 'text-green' : 'text-blue';
+});
+
+const dateColorClass = computed(() => {
+    if (!editedDateDepart.value) return 'text-white';
+    
+    const [y, m, d] = editedDateDepart.value.split('-').map(Number);
+    const inputDate = new Date(y, m - 1, d);
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Difference in days (approx)
+    const diffTime = inputDate - today;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'text-orange'; // Past
+    if (diffDays === 1) return 'text-green'; // Tomorrow
+    return 'text-white';
+});
 
 const formattedDateLong = computed(() => {
     if (!editedDateDepart.value) return "";
@@ -310,7 +549,16 @@ const availableDateOptions = computed(() => {
         let title = formatter.format(d);
         title = title.charAt(0).toUpperCase() + title.slice(1);
         
-        options.push({ title, value: iso });
+        // Determine Color
+        // Difference in days
+        const diffTime = d - today;
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+        
+        let colorClass = 'text-white';
+        if (diffDays < 0) colorClass = 'text-orange'; 
+        else if (diffDays === 1) colorClass = 'text-green';
+        
+        options.push({ title, value: iso, color: colorClass });
     }
     return options;
 });
@@ -548,7 +796,7 @@ const saveMeteo = async () => {
     }
 };
 
-const downloadWeather = async () => {
+const downloadWeather = async (specificVariantId = undefined) => {
     if (!props.circuit?.circuitId || !editedDateDepart.value) return;
     
     if (editedScenarios.value.length === 0) {
@@ -561,9 +809,16 @@ const downloadWeather = async () => {
     try {
         // Identify all unique variants needed (null = main trace)
         const variantsToUpdate = new Set();
-        editedScenarios.value.forEach(s => {
-            variantsToUpdate.add(s.variantId || null);
-        });
+        
+        if (specificVariantId !== undefined) {
+             // Update ONLY the specific one (can be null for main)
+             variantsToUpdate.add(specificVariantId);
+        } else {
+             // Update ALL unique used by scenarios
+            editedScenarios.value.forEach(s => {
+                variantsToUpdate.add(s.variantId || null);
+            });
+        }
 
         const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
         const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
@@ -671,14 +926,16 @@ const downloadWeather = async () => {
 const showWeatherWidget = ref(false);
 const weatherMatrix = ref([]);
 const weatherDate = ref(null);
-const currentRefVariant = ref(null);
+const filteredScenarios = ref([]); // Scenarios to display in widget
 
 const loadAndShowWeather = async () => {
     if (!props.circuit?.circuitId || !editedDateDepart.value) return;
     
-    // Find reference variant to load correct file
-    const refScenario = editedScenarios.value.find(s => s.isReference);
-    const varId = refScenario?.variantId || null;
+    // Select the cache file based on the CURRENT SELECTION
+    const varId = selectedRoute.value; // can be null (Main) or string (Variant ID)
+
+    // Filter scenarios to show only those matching the selected route
+    filteredScenarios.value = editedScenarios.value.filter(s => s.variantId === varId);
 
     let filename;
     if (varId) {
@@ -695,23 +952,10 @@ const loadAndShowWeather = async () => {
         
         if (cacheContent) {
             const data = JSON.parse(cacheContent);
-            // If variant, data is segment-based. Widget might need raw matrix?
-            // WeatherWidgetStatic expects simple matrix (array of points).
-            // For variant, we might need to "flatten" it or adapt Widget.
-            // For now, let's just check if it's array.
             
             if (Array.isArray(data)) {
-                 // Check if it's segment structure (objects with segmentId) or flat matrix
                  if (data.length > 0 && data[0].segmentId) {
-                     // It's variant structure. Flatten it for static widget?? 
-                     // Or just pick points. 
-                     // Static widget uses 'km' property.
-                     // Variant structure: points have 'km_local'.
-                     // This is tricky. Static widget might show weirdness if km restarts 0.
-                     // But for verification purpose it's better than nothing.
-                     // Let's flatten and add a fake cumulative distance?
-                     // Or just pass as is and let widget fail/display weirdly?
-                     
+                     // Flatten variant structure for static widget visualization
                      const flat = [];
                      let cumDist = 0;
                      data.forEach(seg => {
@@ -721,8 +965,6 @@ const loadAndShowWeather = async () => {
                                 hours: p.meteo
                             });
                          });
-                         // Approx cumulative add... tough without knowing seg length.
-                         // Assume max local km is length.
                          if (seg.points.length > 0) {
                              const maxK = Math.max(...seg.points.map(p => p.km_local));
                              cumDist += maxK;
@@ -738,7 +980,7 @@ const loadAndShowWeather = async () => {
             weatherDate.value = new Date(y, m - 1, d);
             showWeatherWidget.value = true;
         } else {
-            showSnackbar("Aucun fichier météo trouvé pour cette référence.", "warning");
+            showSnackbar("Aucun fichier météo trouvé pour ce parcours.", "warning");
         }
     } catch (e) {
         console.error("Failed to load weather:", e);
@@ -764,22 +1006,13 @@ const getFilenameForDate = (dateStr) => {
 const checkWeatherStatus = async () => {
     if (!props.circuit?.circuitId || !editedDateDepart.value) return;
     
-    // Check global status: all used variants must have weather
-    // Default to main trace filename check for simpler "Present" status initially
-    // But we should verify all.
-    
-    const variantsToCheck = new Set();
-    if (editedScenarios.value.length === 0) {
-        variantsToCheck.add(null);
-    } else {
-        editedScenarios.value.forEach(s => variantsToCheck.add(s.variantId || null));
-    }
-    
-    let anyPresent = false;
-    let missingCount = 0;
-    let newest = 0; // timestamp
-    
-    for (const varId of variantsToCheck) {
+    // Check status for ALL unique routes used
+    const routesToScan = usedRoutes.value; // [{value: null|id, title: ...}]
+    const updates = {};
+    let updatesCount = 0;
+
+    for (const route of routesToScan) {
+        const varId = route.value;
         const fname = varId 
             ? `weather_variant_${varId}_${editedDateDepart.value}.json` 
             : getFilenameForDate(editedDateDepart.value);
@@ -789,45 +1022,49 @@ const checkWeatherStatus = async () => {
                 circuitId: props.circuit.circuitId, 
                 filename: fname
             });
-            if (!metadata) {
-                missingCount++;
+
+            if (metadata) {
+                const updatedTime = new Date(metadata);
+                const now = new Date();
+                const diffMs = now - updatedTime;
+                const hours = diffMs / (1000 * 60 * 60);
+
+                let relative = "";
+                if (hours < 1) {
+                    const min = Math.round(diffMs / (1000 * 60));
+                    relative = `il y a ${min} min`;
+                } else if (hours < 24) {
+                    relative = `il y a ${Math.round(hours)}h`;
+                } else {
+                    relative = `il y a ${Math.round(hours / 24)}j`;
+                }
+
+                updates[varId || 'main'] = {
+                    present: true,
+                    age: hours,
+                    relative: relative,
+                    missing: false
+                };
             } else {
-                anyPresent = true;
-                const ts = new Date(metadata).getTime();
-                if (ts > newest) newest = ts;
+                updates[varId || 'main'] = {
+                    present: false,
+                    age: 0,
+                    relative: '',
+                    missing: true
+                };
             }
-        } catch {
-            missingCount++;
+        } catch (e) {
+            console.warn(`Check failed for ${varId}`, e);
+            updates[varId || 'main'] = { present: false, missing: true };
         }
+        updatesCount++;
     }
     
-
-    if (anyPresent) {
-        weatherFilePresent.value = true;
-        const d = new Date(newest);
-        const now = new Date();
-        const diffMs = now - d;
-        const diffHours = diffMs / (1000 * 60 * 60);
-        weatherFileAgeHours.value = diffHours;
-        
-        // Status Text Logic
-        let timeStr = "";
-        if (diffMs < 0) timeStr = "à l'instant";
-        else {
-            const days = Math.floor(diffHours / 24);
-            const hours = Math.floor(diffHours % 24);
-            if (days > 0) timeStr = `il y a ${days}j et ${hours}h`;
-            else if (hours > 0) timeStr = `il y a ${hours}h`;
-            else timeStr = `il y a moins d'1h`;
-        }
-        
-        weatherFileRelativeTime.value = timeStr;
-        weatherMissingCount.value = missingCount;
-
+    // Fallback if usedRoutes is empty (shouldn't happen with watcher)
+    if (updatesCount === 0) {
+        weatherStatusMap.value = {};
     } else {
-        weatherFilePresent.value = false;
-        weatherFileAgeHours.value = 9999;
-        weatherMissingCount.value = missingCount; // Actually if none present, missingCount is total.
+        weatherStatusMap.value = updates;
     }
 };
 
