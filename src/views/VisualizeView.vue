@@ -305,6 +305,8 @@ const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/s
 const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration')); 
 const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
 const durationEuropeToTrace = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationEuropeToTrace')));
+const margeLancement = computed(() => getSettingValue('Visualisation/Lancement/margeLancement') ?? 80);
+const margeFinalisation = computed(() => getSettingValue('Visualisation/Finalisation/margeFinalisation') ?? 80);
 const durationTraceToStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationTraceToStart')));
 const pauseBeforeStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseBeforeStart')));
 const repriseAutoVueTrace = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoVueTrace'));
@@ -1195,7 +1197,7 @@ const initializeVisualization = async () => {
             
             // Calculer le zoom cible pour voir toute la trace
             const traceBbox = turf.bbox(lineStringRef.value);
-            const globalView = mapInstance.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
+            const globalView = mapInstance.cameraForBounds(traceBbox, { padding: margeLancement.value, bearing: 0, pitch: 0 });
             
             isFlytoActive.value = true;
             
@@ -1945,7 +1947,7 @@ const handleEndSequence = async (skipDelay = false) => {
 
     /* Safe implementation of Final FlyTo */
     try {
-        const camParams = map.value.cameraForBounds(combinedBbox, { padding: 80, bearing: 0, pitch: 0 });
+        const camParams = map.value.cameraForBounds(combinedBbox, { padding: margeFinalisation.value, bearing: 0, pitch: 0 });
         if (camParams) {
              isFlytoActive.value = true;
              await flyToPromise({

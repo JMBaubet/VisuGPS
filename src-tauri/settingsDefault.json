@@ -1808,6 +1808,17 @@
                 "type": "booleen",
                 "defaut": true,
                 "doc": "docs/DocParametrage/Visualisation/Lancement/repriseAutoKm0.md"
+              },
+              {
+                "identifiant": "margeLancement",
+                "libelle": "Marge autour de la trace (Début)",
+                "description": "Marge en pixels autour de la trace lors du cadrage initial (vue globale).",
+                "type": "entier",
+                "defaut": 80,
+                "min": 20,
+                "max": 140,
+                "unite": "px",
+                "doc": "docs/DocParametrage/Visualisation/Lancement/margeLancement.md"
               }
             ]
           },
@@ -2013,6 +2024,17 @@
                 "critique": false,
                 "unite": "sec",
                 "doc": "docs/DocParametrage/Visualisation/Finalisation/pauseAvantReprise.md"
+              },
+              {
+                "identifiant": "margeFinalisation",
+                "libelle": "Marge autour de la trace (Fin)",
+                "description": "Marge en pixels autour de la trace lors du cadrage final après l'arrivée.",
+                "type": "entier",
+                "defaut": 80,
+                "min": 20,
+                "max": 140,
+                "unite": "px",
+                "doc": "docs/DocParametrage/Visualisation/Finalisation/margeFinalisation.md"
               }
             ]
           },

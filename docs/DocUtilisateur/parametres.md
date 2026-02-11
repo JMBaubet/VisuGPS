@@ -311,6 +311,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Durée de l'animation vers le départ](../DocParametrage/Visualisation/Lancement/durationTraceToStart.md)
 *   [Durée de la pause au Km 0](../DocParametrage/Visualisation/Lancement/pauseAuKm0.md)
 *   [Reprise automatique au Km 0](../DocParametrage/Visualisation/Lancement/repriseAutoKm0.md)
+*   [Marge autour de la trace (Début)](../DocParametrage/Visualisation/Lancement/margeLancement.md)
 
 ### 5.4. Lecture
 **Description** : Paramètres de contrôle de la vitesse et comportement dynamique pendant le mouvement.
@@ -339,6 +340,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 *   [Durée de l'animation vers le départ](../DocParametrage/Visualisation/Finalisation/flyToKm0Duration.md)
 *   [Reprise automatique](../DocParametrage/Visualisation/Finalisation/repriseAutomatique.md)
 *   [Durée de la pause avant reprise auto](../DocParametrage/Visualisation/Finalisation/pauseAvantReprise.md)
+*   [Marge autour de la trace (Fin)](../DocParametrage/Visualisation/Finalisation/margeFinalisation.md)
 
 ### 5.6. Profil Altitude
 **Description** : Configuration graphique de la vue en coupe du terrain.
