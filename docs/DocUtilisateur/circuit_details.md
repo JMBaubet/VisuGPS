@@ -11,6 +11,7 @@ Une fiche de circuit présente les données dans cet ordre :
 1.  **Identification** :
     *   **Nom du circuit** : Titre en gras. <img src="https://api.iconify.design/mdi/filter-variant.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Peut être filtré par nom"> <img src="https://api.iconify.design/mdi/sort-alphabetical-ascending.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Tri alphabétique">
     *   **Ville de départ** : Commune identifiée au départ du tracé. <img src="https://api.iconify.design/mdi/filter-variant.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Peut être filtré par ville"> <img src="https://api.iconify.design/mdi/sort-alphabetical-ascending.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Tri par ville">
+    *   **Date de météo** : Si une date est configurée et que les données sont disponibles, elle s'affiche après la ville de départ. Sa couleur indique la fraîcheur des données (Vert < 4h, Bleu < 12h, Orange > 12h).
 
 2.  **Statistiques Clés** :
     *   **Distance** : Kilométrage total. <img src="https://api.iconify.design/mdi/filter-variant.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Peut être filtré par plage de distance"> <img src="https://api.iconify.design/mdi/sort-numeric-ascending.svg?width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Tri par distance">
@@ -35,11 +36,12 @@ Une fiche de circuit présente les données dans cet ordre :
     <img src="https://api.iconify.design/mdi/pencil.svg?color=orange&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Orange/Jaune (en cours) 
     <img src="https://api.iconify.design/mdi/pencil.svg?color=blue&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Bleu (terminé). (voir [Mode Édition](./edition_intro.md))
     *   <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=green&width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Gestion Météo"> **Météo** : Ouvre le gestionnaire de scénarios météo. (voir [Gestionnaire Météo](./meteo_manager.md))
-    La couleur indique la fraîcheur des données :
-    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=grey&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Gris (Aucun groupe de configuré), 
-    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=green&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Vert (À jour < 3h),
-    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=blue&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Bleu (Données en cache),
-    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Rouge (Erreur/Pas de cache).
+    La couleur de l'icône indique l'état global des données :
+    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=grey&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Gris (Aucune date configurée), 
+    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=green&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Vert (Données fraîches < 4h),
+    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=blue&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Bleu (Données en cache < 12h),
+    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=orange&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Orange (Données anciennes > 12h),
+    <img src="https://api.iconify.design/mdi/sun-thermometer.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Rouge (Données manquantes pour au moins une trace).
     *   <img src="https://api.iconify.design/mdi/eye.svg?color=green&width=20" style="vertical-align: middle; margin-bottom: 3px;" title="Lancer la visualisation 3D"> **Visualiser** : Lance l'animation 3D. (voir [Mode Visualisation](./visualisation.md))
     La couleur de l'icône indique l'état de la configuration caméra : 
     <img src="https://api.iconify.design/mdi/eye.svg?color=red&width=20" style="vertical-align: middle; margin-bottom: 3px;"> Rouge (non commencé), 
