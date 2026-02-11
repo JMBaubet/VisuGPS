@@ -1206,6 +1206,45 @@ const initializeVisualization = async () => {
                 pitch: 0
             }, { duration: durationEuropeToTrace.value });
             
+            // Animation progressive des messages de départ (Km 0) à 50% du vol
+            const halfDuration = durationEuropeToTrace.value / 2;
+            setTimeout(() => {
+                 if (rangeEvents.value && map.value) {
+                    // Filtrer les messages présents au départ (Increment 0)
+                    const startMessages = rangeEvents.value.filter(m => m.startIncrement <= 0 && m.endIncrement >= 0);
+                    
+                    startMessages.forEach(m => {
+                        if (activePopups.has(m.eventId)) return;
+
+                        // Création manuelle avec transition d'opacité
+                        const content = createMessageSVG(m);
+                        const wrapperId = `popup-start-${m.eventId}`;
+                        // Opacité initiale 0, transition calée sur le reste du vol
+                        const wrappedContent = `<div id="${wrapperId}" style="opacity: 0; transition: opacity ${halfDuration}ms ease-out;">${content}</div>`;
+                        
+                        const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+                        const p = new mapboxgl.Popup({ 
+                            closeButton: false, 
+                            closeOnClick: false, 
+                            className: 'map-message-popup',
+                            anchor: anchor,
+                            maxWidth: 'none' 
+                        })
+                        .setLngLat(m.coord)
+                        .setHTML(wrappedContent)
+                        .addTo(map.value);
+                        
+                        activePopups.set(m.eventId, p);
+                        
+                        // Déclencher l'apparition
+                        requestAnimationFrame(() => {
+                            const el = document.getElementById(wrapperId);
+                            if (el) el.style.opacity = '1';
+                        });
+                    });
+                 }
+            }, halfDuration);
+
             // Attendre 200ms pour s'assurer que le zoom a bien commencé (optionnel, pour fluidité)
             await new Promise(r => setTimeout(r, 200));
             isInitializing.value = false; // Sécurité si pas déjà fait
