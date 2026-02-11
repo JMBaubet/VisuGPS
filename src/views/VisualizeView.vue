@@ -2085,12 +2085,14 @@ async function initWeather(circuit, trackingPoints) {
     const signal = weatherAbortController.value.signal;
 
     let startDate = null;
-    if (!circuit || !circuit.dateDepart) {
+    const configuredDate = circuit?.meteoConfig?.dateDepart || circuit?.dateDepart;
+
+    if (!configuredDate) {
         startDate = new Date();
         startDate.setDate(startDate.getDate() + 1); 
         startDate.setHours(9, 0, 0, 0); 
     } else {
-        startDate = new Date(circuit.dateDepart);
+        startDate = new Date(configuredDate);
         const now = new Date();
         const diffTime = now - startDate; 
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -2099,6 +2101,11 @@ async function initWeather(circuit, trackingPoints) {
              startDate = new Date();
              startDate.setDate(startDate.getDate() + 1);
              startDate.setHours(9, 0, 0, 0); 
+        } else {
+             // Set time based on "Start of Day" setting (default 6:00)
+             // We ignore circuit.meteoConfig.heureDepart as requested by user.
+             const startOfDay = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+             startDate.setHours(startOfDay, 0, 0, 0);
         }
     }
     simulationStartDate.value = startDate;
