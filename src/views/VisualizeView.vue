@@ -2388,18 +2388,18 @@ onMounted(async () => {
     await nextTick();
 
     if (mapboxToken.value) {
-        await initializeVisualization();
         setupRemoteControl();
+        await initializeVisualization();
         
         // Initial check: if remote is already connected, hide controls
         if (isRemoteConnected.value) {
             isControlsCardVisible.value = false;
         }
     } else {
-        const unwatch = watch(mapboxToken, (token) => {
+        const unwatch = watch(mapboxToken, async (token) => {
             if (token) {
-                initializeVisualization();
                 setupRemoteControl();
+                await initializeVisualization();
                 
                 // Initial check: if remote is already connected, hide controls
                 if (isRemoteConnected.value) {
