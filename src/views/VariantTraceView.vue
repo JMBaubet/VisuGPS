@@ -1012,11 +1012,20 @@ const handleMapClick = (e) => {
 const finalizeMod = (modIndex) => {
     const mod = modifications.value[modIndex];
     if (mod) {
-        isLoading.value = true; // Prevent premature auto-save trigger by watcher
+        isLoading.value = true;
         mod.finalized = true;
-        mod.routingLocked = true; // Lock settings
+        mod.routingLocked = true;
         isModified.value = true;
+        
+        // Mode change for Depart/Arrivee to return to default "SEGMENT" mode
+        const wasDepartOrArrivee = mod.type === 'DEPART' || mod.type === 'ARRIVEE';
+
         generatePreviewForMod(modIndex).then(() => {
+            if (wasDepartOrArrivee) {
+                currentMode.value = 'SEGMENT';
+                const label = mod.type === 'DEPART' ? 'Départ' : 'Arrivée';
+                showSnackbar(`${label} validé et enregistré.`, "success");
+            }
             triggerAutoSave();
         });
         updateMarkers();
