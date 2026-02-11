@@ -8,7 +8,9 @@
           {{ circuit.nom }}
         </div>
         <div>
-          <span class="text-caption">Départ : {{ circuit.villeDepart }}</span>
+          <span class="text-caption">
+            Départ : {{ circuit.villeDepart }}<template v-if="isWeatherAvailable && formattedMeteoDate">, le <span :class="weatherDateColor">{{ formattedMeteoDate }}</span></template>
+          </span>
         </div>
       </v-col>
 
@@ -187,6 +189,21 @@ const { serviceStatus } = useServiceStatus();
 
 const showConfirmDialog = ref(false);
 const vignetteUrl = ref('');
+const isWeatherAvailable = ref(false);
+const weatherDateColor = ref('');
+
+const formattedMeteoDate = computed(() => {
+  const config = props.circuit.meteoConfig || {};
+  if (!config.dateDepart) return null;
+  
+  try {
+    const [y, m, d] = config.dateDepart.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  } catch (e) {
+    return null;
+  }
+});
 
 const vignetteWidth = computed(() => {
   return getSettingValue('Accueil/TailleVignette') || 400;
@@ -240,6 +257,8 @@ const updateWeatherColor = async () => {
     const config = props.circuit.meteoConfig || {};
     if (!config.dateDepart) {
         weatherBtnColor.value = 'grey';
+        isWeatherAvailable.value = false;
+        weatherDateColor.value = '';
         return;
     }
     
@@ -253,7 +272,7 @@ const updateWeatherColor = async () => {
     }
     
     let allPresent = true;
-    let allRecent = true; // All files < 3h old?
+    let maxAgeHours = 0;
     
     try {
         for (const varId of variantsToCheck) {
@@ -271,28 +290,34 @@ const updateWeatherColor = async () => {
             
             if (!metadata) {
                 allPresent = false;
-                break; // One missing is enough to be "incomplete"
+                break;
             } else {
-                const d = new Date(metadata);
-                const now = new Date();
-                const diffHours = (now - d) / (1000 * 60 * 60);
-                if (diffHours >= 3) {
-                    allRecent = false;
-                }
+                const age = (new Date() - new Date(metadata)) / (1000 * 60 * 60);
+                if (age > maxAgeHours) maxAgeHours = age;
             }
         }
         
         if (!allPresent) {
-            weatherBtnColor.value = 'error'; // Red: Missing data for at least one used variant
-        } else if (allRecent) {
-             weatherBtnColor.value = 'success'; // Green: All present and recent
+            weatherBtnColor.value = 'error';
+            weatherDateColor.value = 'text-red';
+        } else if (maxAgeHours < 4) {
+             weatherBtnColor.value = 'success';
+             weatherDateColor.value = 'text-green';
+        } else if (maxAgeHours < 12) {
+             weatherBtnColor.value = 'info';
+             weatherDateColor.value = 'text-blue';
         } else {
-             weatherBtnColor.value = 'info'; // Blue: All present but some are old
+             weatherBtnColor.value = 'warning';
+             weatherDateColor.value = 'text-orange';
         }
+        
+        isWeatherAvailable.value = allPresent;
         
     } catch (e) {
         console.warn("Weather check failed", e);
         weatherBtnColor.value = 'grey'; 
+        isWeatherAvailable.value = false;
+        weatherDateColor.value = '';
     }
 };
 
