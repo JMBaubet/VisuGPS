@@ -68,7 +68,6 @@
                 <div class="d-flex align-center justify-center">
                     <!-- Home Button -->
                     <v-btn 
-                        v-if="isFinished"
                         size="60" 
                         rounded="circle"
                         :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
@@ -210,7 +209,6 @@ function handleCameraUpdate(payload) {
 
 
 // --- Playback Logic (Refactored to PlaybackControls) ---
-const isFinished = computed(() => store.visualizeViewState?.animationState === 'Termine' || store.visualizeViewState?.animationState === 'Vol_Final');
 
 function triggerVariant() { 
     if (isVariantMode.value) {
