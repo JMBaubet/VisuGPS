@@ -1900,6 +1900,49 @@ const handleEndSequence = async (skipDelay = false) => {
         }
     }
 
+    // ---------------------------------------------------------
+    // CLEANUP POPUPS: Show only messages relevant to the arrival
+    // ---------------------------------------------------------
+    activePopups.forEach(p => p.remove());
+    activePopups.clear();
+
+    if (rangeEvents.value && trackingPointsWithDistanceRef.value?.length > 0) {
+        const lastIncrement = trackingPointsWithDistanceRef.value.length - 1;
+        // Filter messages active at the very last point
+        const endMessages = rangeEvents.value.filter(m => 
+            m.startIncrement <= lastIncrement && m.endIncrement >= lastIncrement
+        );
+        
+        const flyDuration = flyToGlobalDuration.value || 3000;
+
+        endMessages.forEach(m => {
+             const content = createMessageSVG(m);
+             const wrapperId = `popup-end-${m.eventId}`;
+             // Wrapper avec opacité initiale 0 et transition configurée sur la durée du vol
+             const wrappedContent = `<div id="${wrapperId}" style="opacity: 0; transition: opacity ${flyDuration}ms ease-out;">${content}</div>`;
+
+             const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+             const p = new mapboxgl.Popup({ 
+                    closeButton: false, 
+                    closeOnClick: false, 
+                    className: 'map-message-popup',
+                    anchor: anchor,
+                    maxWidth: 'none'
+             })
+             .setLngLat(m.coord) 
+             .setHTML(wrappedContent)
+             .addTo(map.value);
+             
+             activePopups.set(m.eventId, p);
+
+             // Déclenche l'apparition progressive
+             requestAnimationFrame(() => {
+                 const el = document.getElementById(wrapperId);
+                 if (el) el.style.opacity = '1';
+             });
+        });
+    }
+
     /* Safe implementation of Final FlyTo */
     try {
         const camParams = map.value.cameraForBounds(combinedBbox, { padding: 80, bearing: 0, pitch: 0 });
