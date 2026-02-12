@@ -119,9 +119,8 @@ pub async fn get_slope_color_expression(
         vec!["line-progress"].into(),
     ];
 
-    // Build gradient with strictly ascending steps
-    // Small epsilon for hard transitions
-    let epsilon = 0.000001; 
+    // Build gradient with 25m soft transitions
+    let transition_length = 12.5; // 25m each side
     let mut last_val = 0.0;
 
     // Start
@@ -135,25 +134,24 @@ pub async fn get_slope_color_expression(
         
         // Only insert transition if color changes
         if current_color != next_color {
-            let junction_ratio = end_dist / total_distance;
-            
-            // Stop for current color (end of block)
-            let mut stop1 = junction_ratio;
-            if stop1 <= last_val { stop1 = last_val + epsilon; }
-            if stop1 >= 1.0 { break; }
-            
+            let transition_start_dist = end_dist - transition_length;
+            let transition_end_dist = end_dist + transition_length;
+
+            // Stop for current color (start of transition)
+            let stop1 = (transition_start_dist / total_distance).max(last_val + 0.000001).min(1.0);
             expression.push(stop1.into());
             expression.push(current_color.clone().into());
             last_val = stop1;
-            
-            // Stop for next color (start of next block)
-            let mut stop2 = junction_ratio + epsilon; // Hard transition
-             if stop2 <= last_val { stop2 = last_val + epsilon; }
-            if stop2 >= 1.0 { break; }
 
-            expression.push(stop2.into());
-            expression.push(next_color.clone().into());
-            last_val = stop2;
+            // Stop for next color (end of transition)
+            let stop2 = (transition_end_dist / total_distance).max(last_val + 0.000001).min(1.0);
+            if stop2 < 1.0 {
+                expression.push(stop2.into());
+                expression.push(next_color.clone().into());
+                last_val = stop2;
+            } else {
+                break;
+            }
         }
     }
 
