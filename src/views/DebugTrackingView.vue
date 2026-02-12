@@ -60,6 +60,11 @@
               <v-radio label="Gradient Aller (POC)" value="gradient_aller"></v-radio>
               <v-radio label="Gradient Retour (POC)" value="gradient_retour"></v-radio>
             </v-radio-group>
+
+            <v-divider class="my-4"></v-divider>
+            <p class="font-weight-bold">Environnement:</p>
+            <v-switch v-model="useSatellite" label="Vue Satellite" density="compact" hide-details color="primary"></v-switch>
+            <v-switch v-model="useRelief" label="Relief 3D" density="compact" hide-details color="primary" class="mt-2"></v-switch>
             
             <v-divider class="my-4"></v-divider>
             <p class="font-weight-bold">Zones de chevauchement:</p>
@@ -192,6 +197,9 @@ const layerGradients = ref({
 const coloredSegmentsGeoJson = ref(null);
 const variants = ref([]);
 const selectedVariantId = ref(null); // null = Trace Principale
+const useSatellite = ref(false);
+const useRelief = ref(false);
+const isStyleLoading = ref(false);
 
 const variantOptions = computed(() => {
     const options = [{ title: 'Trace Principale', value: null }];
@@ -437,7 +445,45 @@ function initializeMap() {
   map.on('load', () => {
     setupLayers();
   });
+
+  map.on('style.load', () => {
+    if (isStyleLoading.value) {
+        setupLayers();
+        updateMapFeatures();
+        updateLayerVisibility();
+        if (useRelief.value) activateRelief();
+        isStyleLoading.value = false;
+    }
+  });
 }
+
+function activateRelief() {
+    if (!map) return;
+    if (useRelief.value) {
+        if (!map.getSource('mapbox-dem')) {
+            map.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+        }
+        map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': 1 });
+    } else {
+        map.setTerrain(null);
+    }
+}
+
+watch(useSatellite, (val) => {
+    if (!map) return;
+    isStyleLoading.value = true;
+    const styleUrl = val ? 'mapbox://styles/mapbox/satellite-v9' : 'mapbox://styles/mapbox/streets-v11';
+    map.setStyle(styleUrl);
+});
+
+watch(useRelief, () => {
+    activateRelief();
+});
 
 function setupLayers() {
   const initialPointData = trackingPoints.value[0];
