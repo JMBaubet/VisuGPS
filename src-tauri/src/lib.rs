@@ -2637,6 +2637,8 @@ pub fn run() {
             trace_style::get_retour_segments_expression,
             trace_style::get_neutral_overlap_expression,
             trace_style::get_colored_segments_geojson,
+            trace_style::get_debug_full_aller_expression,
+            trace_style::get_debug_full_retour_expression,
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,

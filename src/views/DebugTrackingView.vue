@@ -57,6 +57,8 @@
               <v-radio label="Overlay Retour" value="retour"></v-radio>
               <v-radio label="Tous (Pentes)" value="all"></v-radio>
               <v-radio label="Statut Variante" value="status"></v-radio>
+              <v-radio label="Gradient Aller (POC)" value="gradient_aller"></v-radio>
+              <v-radio label="Gradient Retour (POC)" value="gradient_retour"></v-radio>
             </v-radio-group>
             
             <v-divider class="my-4"></v-divider>
@@ -389,10 +391,23 @@ async function loadNonMapData() {
             variantId: selectedVariantId.value
         });
 
-        if (geoJson) {
-            coloredSegmentsGeoJson.value = geoJson;
-            console.log('[Debug] Colored Segments GeoJSON loaded');
-        }
+            if (geoJson) {
+                coloredSegmentsGeoJson.value = geoJson;
+                console.log('[Debug] Colored Segments GeoJSON loaded');
+            }
+
+            // Charger les gradients directionnels (POC)
+            layerGradients.value.aller = await invoke('get_debug_full_aller_expression', {
+                circuitId: circuitId.value,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength
+            });
+            layerGradients.value.retour = await invoke('get_debug_full_retour_expression', {
+                circuitId: circuitId.value,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength
+            });
+            console.log('[Debug] POC Directional Gradients loaded');
     } catch (e) {
         console.error("Error getting colored segments:", e);
     }
@@ -513,6 +528,41 @@ function setupLayers() {
             filter: ['==', ['get', 'status'], 'NEW']
         });
     }
+  }
+
+  // Source and Layers for POC Gradients
+  if (lineString.value && !map.getSource('gpx-gradient-source')) {
+    map.addSource('gpx-gradient-source', { 
+        type: 'geojson', 
+        data: lineString.value, 
+        lineMetrics: true 
+    });
+  }
+
+  if (!map.getLayer('gpx-layer-gradient-aller')) {
+    map.addLayer({
+        id: 'gpx-layer-gradient-aller',
+        type: 'line',
+        source: 'gpx-gradient-source',
+        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
+        paint: {
+            'line-width': 4,
+            'line-gradient': layerGradients.value.aller || undefined
+        }
+    });
+  }
+
+  if (!map.getLayer('gpx-layer-gradient-retour')) {
+    map.addLayer({
+        id: 'gpx-layer-gradient-retour',
+        type: 'line',
+        source: 'gpx-gradient-source',
+        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' },
+        paint: {
+            'line-width': 4,
+            'line-gradient': layerGradients.value.retour || undefined
+        }
+    });
   }
 
   // Backup: Source for main lineString if colored segments fail (or unused but safe to keep)
@@ -639,15 +689,30 @@ function updateLayerVisibility() {
     const showAller = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'aller';
     const showRetour = selectedTraceLayer.value === 'all' || selectedTraceLayer.value === 'retour';
     const showStatus = selectedTraceLayer.value === 'status';
+    const showGradientAller = selectedTraceLayer.value === 'gradient_aller';
+    const showGradientRetour = selectedTraceLayer.value === 'gradient_retour';
     
     // Global toggle
     const globalVisible = showTrace.value;
 
     if (map.getLayer('gpx-trace-aller')) {
-        map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller && !showStatus ? 'visible' : 'none');
+        map.setLayoutProperty('gpx-trace-aller', 'visibility', globalVisible && showAller && !showStatus && !showGradientAller && !showGradientRetour ? 'visible' : 'none');
     }
     if (map.getLayer('gpx-trace-retour')) {
-        map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour && !showStatus ? 'visible' : 'none');
+        map.setLayoutProperty('gpx-trace-retour', 'visibility', globalVisible && showRetour && !showStatus && !showGradientAller && !showGradientRetour ? 'visible' : 'none');
+    }
+
+    if (map.getLayer('gpx-layer-gradient-aller')) {
+        map.setLayoutProperty('gpx-layer-gradient-aller', 'visibility', globalVisible && showGradientAller ? 'visible' : 'none');
+        if (showGradientAller && layerGradients.value.aller) {
+            map.setPaintProperty('gpx-layer-gradient-aller', 'line-gradient', layerGradients.value.aller);
+        }
+    }
+    if (map.getLayer('gpx-layer-gradient-retour')) {
+        map.setLayoutProperty('gpx-layer-gradient-retour', 'visibility', globalVisible && showGradientRetour ? 'visible' : 'none');
+        if (showGradientRetour && layerGradients.value.retour) {
+            map.setPaintProperty('gpx-layer-gradient-retour', 'line-gradient', layerGradients.value.retour);
+        }
     }
 
     if (map.getLayer('trace-variant-abandoned')) {

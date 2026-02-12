@@ -592,6 +592,157 @@ fn build_gradient_expression(
     Ok(serde_json::to_value(expression).unwrap())
 }
 
+/// Helper pour construire l'expression Mapbox avec transitions différenciées (POC)
+fn build_poc_gradient_expression(
+    colors: Vec<String>,
+    segment_length: f64,
+    total_distance: f64,
+) -> Result<serde_json::Value, String> {
+    if total_distance <= 0.0 {
+        return Ok(serde_json::json!(colors.first().cloned().unwrap_or_else(|| "#FFFFFF".to_string())));
+    }
+
+    let mut expression: Vec<serde_json::Value> = vec![
+        "interpolate".into(),
+        vec!["linear"].into(),
+        vec!["line-progress"].into(),
+    ];
+
+    let slope_transition = 12.5; // 25m total pour les pentes
+    let transparency_transition = 5.0; // 10m total pour la transparence
+    let mut last_val = 0.0;
+
+    expression.push(0.0.into());
+    expression.push(colors[0].clone().into());
+
+    for i in 1..colors.len() {
+        let junction_dist = i as f64 * segment_length;
+        let color_before = &colors[i - 1];
+        let color_after = &colors[i];
+
+        if color_before != color_after {
+            // Déterminer la longueur de transition selon le type de changement
+            let is_transparency_change = color_before == "rgba(0, 0, 0, 0)" || color_after == "rgba(0, 0, 0, 0)";
+            let t_len = if is_transparency_change { transparency_transition } else { slope_transition };
+
+            let transition_start_dist = junction_dist - t_len;
+            let transition_end_dist = junction_dist + t_len;
+
+            // Stop début transition
+            let stop1 = (transition_start_dist / total_distance).max(last_val + 0.000001).min(1.0);
+            expression.push(stop1.into());
+            expression.push(color_before.clone().into());
+            last_val = stop1;
+
+            // Stop fin transition
+            let stop2 = (transition_end_dist / total_distance).max(last_val + 0.000001).min(1.0);
+            if stop2 < 1.0 {
+                expression.push(stop2.into());
+                expression.push(color_after.clone().into());
+                last_val = stop2;
+            } else {
+                break;
+            }
+        }
+    }
+
+    expression.push(1.0.into());
+    expression.push(colors.last().unwrap().clone().into());
+
+    Ok(serde_json::to_value(expression).unwrap())
+}
+
+#[tauri::command]
+pub async fn get_debug_full_aller_expression(
+    state: State<'_, Mutex<crate::AppState>>,
+    circuit_id: String,
+    slope_colors: HashMap<String, String>,
+    segment_length: f64,
+) -> Result<serde_json::Value, String> {
+    get_debug_direction_expression(state, circuit_id, slope_colors, segment_length, "aller").await
+}
+
+#[tauri::command]
+pub async fn get_debug_full_retour_expression(
+    state: State<'_, Mutex<crate::AppState>>,
+    circuit_id: String,
+    slope_colors: HashMap<String, String>,
+    segment_length: f64,
+) -> Result<serde_json::Value, String> {
+    get_debug_direction_expression(state, circuit_id, slope_colors, segment_length, "retour").await
+}
+
+async fn get_debug_direction_expression(
+    state: State<'_, Mutex<crate::AppState>>,
+    circuit_id: String,
+    slope_colors: HashMap<String, String>,
+    segment_length: f64,
+    direction: &str,
+) -> Result<serde_json::Value, String> {
+    let (metadata_path, tracking_path) = {
+        let app_state = state.lock().unwrap();
+        let data_dir = app_state.app_env_path.clone();
+        let metadata_path = data_dir.join("data").join(&circuit_id).join("segments_metadata.json");
+        let tracking_path = data_dir.join("data").join(&circuit_id).join("tracking.json");
+        (metadata_path, tracking_path)
+    };
+
+    if !metadata_path.exists() {
+        return Ok(serde_json::json!("rgba(0, 0, 0, 0)"));
+    }
+
+    let metadata_content = fs::read_to_string(metadata_path).map_err(|e| e.to_string())?;
+    let metadata: crate::segment_analyzer::SegmentMetadata =
+        serde_json::from_str(&metadata_content).map_err(|e| e.to_string())?;
+
+    let tracking_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
+    let tracking_points: Vec<TrackingPoint> =
+        serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
+
+    let mut slopes = Vec::new();
+    for i in 1..tracking_points.len() {
+        let p1 = &tracking_points[i - 1];
+        let p2 = &tracking_points[i];
+        let altitude_change = p2.altitude - p1.altitude;
+        let slope = if segment_length > 0.0 {
+            (altitude_change / segment_length) * 100.0
+        } else {
+            0.0
+        };
+        slopes.push(slope);
+    }
+
+    let total_distance = (tracking_points.len() - 1) as f64 * segment_length;
+    let colors: Vec<String> = slopes
+        .iter()
+        .enumerate()
+        .map(|(i, &s)| {
+            let segment_km = (i as f64 * segment_length) / 1000.0;
+            
+            // Nouvelle logique simplifiée :
+            // On ne masque QUE la portion opposée au sein d'une zone d'overlap.
+            // Tout le reste (hors overlap ou portion spécifique de la direction) est affiché.
+            let should_hide = metadata.overlapping_zones.iter().any(|zone| {
+                if direction == "aller" {
+                    // Dans le calque ALLER, on masque la portion RETOUR de l'overlap
+                    segment_km >= zone.retour_start_km && segment_km <= zone.retour_end_km
+                } else {
+                    // Dans le calque RETOUR, on masque la portion ALLER de l'overlap
+                    segment_km >= zone.aller_start_km && segment_km <= zone.aller_end_km
+                }
+            });
+
+            if should_hide {
+                "rgba(0, 0, 0, 0)".to_string()
+            } else {
+                get_slope_color(s, &slope_colors)
+            }
+        })
+        .collect();
+
+    build_poc_gradient_expression(colors, segment_length, total_distance)
+}
+
 /// Génère une FeatureCollection de segments individuels avec propriétés typées
 /// Utilise la géométrie haute résolution de lineString.json découpée selon les segments tracking.json
 #[tauri::command]
