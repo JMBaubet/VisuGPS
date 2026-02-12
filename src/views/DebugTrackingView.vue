@@ -159,11 +159,14 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
 import { useSettings } from '@/composables/useSettings';
 import { useEnvironment } from '@/composables/useEnvironment';
+import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { buildSlopeColorsMap } from '@/composables/useSlopeColors';
 
 const route = useRoute();
 const router = useRouter();
 const { getSettingValue } = useSettings();
 const { mapboxToken } = useEnvironment();
+const { toHex } = useVuetifyColors();
 
 const goHome = () => {
   router.push('/');
@@ -358,26 +361,7 @@ watch(mapboxToken, (newToken) => {
 }, { immediate: true });
 
 
-function toHex(value) {
-  if (!value) return '#FF0000';
-  if (typeof value === 'string') {
-    if (value.startsWith('#') || value.startsWith('rgb')) return value;
-    // Map basic color names commonly used
-    const colors = {
-        'red': '#FF0000',
-        'blue': '#0000FF',
-        'green': '#008000',
-        'yellow': '#FFFF00',
-        'white': '#FFFFFF',
-        'black': '#000000',
-        'gray': '#808080',
-        'light-blue': '#ADD8E6',
-        'orange': '#FFA500'
-    };
-    return colors[value] || value; // fallback to value if not found (might fail if unknown name)
-  }
-  return '#FF0000';
-}
+// La fonction toHex locale a été supprimée au profit de useVuetifyColors
 
 async function loadNonMapData() {
   const lissageCapValue = await getSettingValue('Importation/Tracking/LissageCap');
@@ -395,14 +379,8 @@ async function loadNonMapData() {
     // Charger les gradients comme dans VisualizeView
     const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment') || 20;
     try {
-        const slopeColors = {
-            TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-            Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-            Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-            Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-            Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-            Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-        };
+        // Utilisation de la logique partagée pour construire la map de couleurs (incluant les pentes négatives)
+        const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
 
         const geoJson = await invoke('get_colored_segments_geojson', {
             circuitId: circuitId.value,
