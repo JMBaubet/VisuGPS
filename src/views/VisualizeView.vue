@@ -181,6 +181,7 @@ import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { buildSlopeColorsMap } from '@/composables/useSlopeColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
 import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
@@ -947,14 +948,7 @@ const initializeVisualization = async () => {
         initWeather(circuit, trackingPointsWithDistanceRef.value).catch(e => console.warn("Background weather init failed:", e));
 
         // 8. Generate Slope Colors
-        const slopeColors = {
-                TrancheNegative: getToHexImproved('Visualisation/Profil Altitude/Couleurs/TrancheNegative'),
-                Tranche1: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche1'),
-                Tranche2: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche2'),
-                Tranche3: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche3'),
-                Tranche4: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche4'),
-                Tranche5: getToHexImproved('Visualisation/Profil Altitude/Couleurs/Tranche5'),
-         };
+        const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
          
         // 9. Load Slope Expression (Variant only)
         if (isVariantTrace.value) {

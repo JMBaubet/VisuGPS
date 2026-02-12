@@ -115,6 +115,7 @@
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { getSlopeColor, buildSlopeColorsMap } from '@/composables/useSlopeColors';
 
 const emits = defineEmits(['jump-requested']);
 
@@ -271,14 +272,7 @@ async function processData() {
 
     const getX = (distFromStartMeters) => (distFromStartMeters / contextTotalDistMeters) * viewBoxWidth.value;
 
-    const getSlopeColor = (slope) => {
-        if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
-        if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
-        if (slope < 6) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2') || 'yellow');
-        if (slope < 9) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3') || 'orange');
-        if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
-        return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
-    };
+    const slopeColorMap = await buildSlopeColorsMap(getSettingValue, toHex);
 
     const generateSegments = (points, xOffsetMeters = 0) => {
         const segs = [];
@@ -298,7 +292,7 @@ async function processData() {
             segs.push({
                 path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${graphBottomY} L ${x1},${graphBottomY} Z`,
                 linePath: `M ${x1},${y1} L ${x2},${y2}`,
-                color: getSlopeColor(slope)
+                color: getSlopeColor(slope, slopeColorMap)
             });
         }
         return segs;

@@ -128,6 +128,7 @@
 import { ref, onMounted, watch, computed, nextTick } from 'vue';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { getSlopeColor, buildSlopeColorsMap } from '@/composables/useSlopeColors';
 
 const emits = defineEmits(['jump-requested']);
 
@@ -312,14 +313,7 @@ async function processData() {
 
     const yScale = (alt) => graphDrawingHeight - ((alt - effectiveMinAltitude) / effectiveAltitudeSpan) * graphDrawingHeight + props.padding.top;
 
-    const getSlopeColor = (slope) => {
-        if (slope <= 0) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative') || 'light-blue');
-        if (slope < 3) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1') || 'green');
-        if (slope < 6) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2') || 'yellow');
-        if (slope < 9) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3') || 'orange');
-        if (slope < 12) return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4') || 'red');
-        return toHex(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5') || 'purple');
-    };
+    const slopeColorMap = await buildSlopeColorsMap(getSettingValue, toHex);
 
     // Generate Path Segments
     const segs = [];
@@ -344,7 +338,7 @@ async function processData() {
         segs.push({
             path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${baselineY} L ${x1},${baselineY} Z`,
             linePath: `M ${x1},${y1} L ${x2},${y2}`,
-            color: getSlopeColor(slope),
+            color: getSlopeColor(slope, slopeColorMap),
             altitude: p2.altitude,
             isAbandoned,
             x: x1,
@@ -412,7 +406,7 @@ async function processData() {
             varAltSegs.push({
                 path: `M ${x1},${y1} L ${x2},${y2} L ${x2},${baselineY} L ${x1},${baselineY} Z`,
                 linePath: `M ${x1},${y1} L ${x2},${y2}`,
-                color: getSlopeColor(slope), // Use slope color instead of solid blue
+                color: getSlopeColor(slope, slopeColorMap), // Use slope color instead of solid blue
                 altitude: p2.altitude
             });
         }
@@ -463,7 +457,7 @@ async function processData() {
             const p2 = seg.points[1];
             const slope = ((p2.altitude - varStartPt.altitude) / ((p2.distance - varStartPt.distance) * 1000)) * 100;
             
-            connectors.push({ x1: ax, y1: ay, x2: vx, y2: vy, color: getSlopeColor(slope) });
+            connectors.push({ x1: ax, y1: ay, x2: vx, y2: vy, color: getSlopeColor(slope, slopeColorMap) });
         }
 
         // 2. Exit Connector (End of Variant -> Anchor 2)
@@ -491,7 +485,7 @@ async function processData() {
                 masterSlope = ((mp2.altitude - mp1.altitude) / ((mp2.distance - mp1.distance) * 1000)) * 100;
             }
             
-            connectors.push({ x1: vx, y1: vy, x2: ax, y2: ay, color: getSlopeColor(masterSlope) });
+            connectors.push({ x1: vx, y1: vy, x2: ax, y2: ay, color: getSlopeColor(masterSlope, slopeColorMap) });
         }
     });
     altitudeConnectors.value = connectors;

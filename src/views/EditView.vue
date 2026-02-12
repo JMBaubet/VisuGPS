@@ -240,6 +240,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { buildSlopeColorsMap } from '@/composables/useSlopeColors';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
@@ -449,14 +450,7 @@ const loadFullVariant = async (variantId) => {
                 map.setPaintProperty('circuit-line', 'line-width', variantWidth);
                 
                 if (variantSlopeColoring) {
-                     const slopeColors = {
-                        TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                        Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                        Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                        Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                        Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                        Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-                    };
+                     const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
                     const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
                     
                     const colorExpression = await invoke('get_slope_color_expression', {
@@ -576,14 +570,7 @@ const loadMainTrace = async () => {
         if (map && map.getLayer('circuit-line')) {
             map.setPaintProperty('circuit-line', 'line-width', 4);
             // Re-apply slope coloring for main trace if needed, or default color
-             const slopeColors = {
-                TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-            };
+             const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
             const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
             const expression = await invoke('get_slope_color_expression', {
                 circuitId: circuitId,
@@ -1831,14 +1818,7 @@ onMounted(async () => {
 
     if (colorTraceBySlope) {
         try {
-            const slopeColors = {
-                TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-            };
+            const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
             const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
             segmentLengthRef.value = segmentLength / 1000.0; // Convert Main Trace segment length to km for calculations
 

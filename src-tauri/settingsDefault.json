@@ -2123,8 +2123,8 @@
                 "parametres": [
                   {
                     "identifiant": "TrancheNegative",
-                    "libelle": "Pente <= 0%",
-                    "description": "Couleur pour les pentes négatives ou nulles.",
+                    "libelle": "-1% ≤ Pente < 1% (base descentes)",
+                    "description": "Couleur de base pour les pentes quasi-plates et les descentes. Les sous-tranches de descente sont dérivées automatiquement avec des nuances Material Design (lighten/darken).",
                     "type": "couleur",
                     "defaut": "light-blue",
                     "surcharge": null,
@@ -2134,8 +2134,8 @@
                   },
                   {
                     "identifiant": "Tranche1",
-                    "libelle": "0% < Pente < 3%",
-                    "description": "Couleur pour les pentes de 0% à 3%.",
+                    "libelle": "1% ≤ Pente < 3%",
+                    "description": "Couleur pour les pentes de 1% à 3%.",
                     "type": "couleur",
                     "defaut": "green",
                     "surcharge": null,

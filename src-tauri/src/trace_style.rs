@@ -15,8 +15,18 @@ pub struct TrackingPoint {
 }
 
 fn get_slope_color(slope: f64, slope_colors: &HashMap<String, String>) -> String {
-    let color_key = if slope <= 0.0 {
-        "TrancheNegative"
+    let color_key = if slope < -12.0 {
+        "TrancheNeg6"
+    } else if slope < -9.0 {
+        "TrancheNeg5"
+    } else if slope < -6.0 {
+        "TrancheNeg4"
+    } else if slope < -3.0 {
+        "TrancheNeg3"
+    } else if slope < -1.0 {
+        "TrancheNeg2"
+    } else if slope < 1.0 {
+        "TrancheNeg1"
     } else if slope < 3.0 {
         "Tranche1"
     } else if slope < 6.0 {
