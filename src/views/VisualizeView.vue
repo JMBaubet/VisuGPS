@@ -866,7 +866,7 @@ const initializeVisualization = async () => {
                      scenarios.forEach(s => {
                         if (s.variantId) variantsToLoad.add(s.variantId);
                     });
-                    console.log(`[VisualizeView] Fetched ${scenarios.length} scenarios. Variants to load:`, [...variantsToLoad]);
+
                 } else {
                     console.warn(`[VisualizeView] No scenarios returned by backend.`);
                 }

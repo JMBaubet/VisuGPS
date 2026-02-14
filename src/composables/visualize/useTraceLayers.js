@@ -73,7 +73,10 @@ export function useTraceLayers(map) {
             const mainSourceId = masterTraceData ? 'trace-master-source' : 'colored-segments';
             const mainFilter = masterTraceData ? undefined : ['==', ['get', 'status'], 'ABANDONED']; // No filter if using full master trace
 
+
+
             if (!map.value.getLayer('trace-main-abandoned')) {
+
                 const layerOptions = {
                     id: 'trace-main-abandoned',
                     type: 'line',
@@ -91,6 +94,38 @@ export function useTraceLayers(map) {
                 }
 
                 map.value.addLayer(layerOptions);
+            } else {
+                // Refresh existing layer
+
+                const currentSource = map.value.getLayer('trace-main-abandoned').source;
+
+                // If source changed (e.g. from colored-segments to master-source), we MUST recreate the layer.
+                if (currentSource !== mainSourceId) {
+
+                    map.value.removeLayer('trace-main-abandoned');
+                    const layerOptions = {
+                        id: 'trace-main-abandoned',
+                        type: 'line',
+                        source: mainSourceId,
+                        layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
+                        paint: {
+                            'line-width': Math.max(1, (segmentThickness || traceWidth) - 1),
+                            'line-opacity': segmentOpacity !== undefined ? segmentOpacity : traceOpacity,
+                            'line-color': colorAbandoned || '#000000'
+                        }
+                    };
+                    if (mainFilter) layerOptions.filter = mainFilter;
+                    map.value.addLayer(layerOptions);
+                } else {
+                    // Just update filter and paint
+                    if (mainFilter) {
+                        map.value.setFilter('trace-main-abandoned', mainFilter);
+                    } else {
+                        map.value.setFilter('trace-main-abandoned', null);
+                    }
+                    map.value.setPaintProperty('trace-main-abandoned', 'line-color', colorAbandoned || '#000000');
+                    map.value.setPaintProperty('trace-main-abandoned', 'line-width', Math.max(1, (segmentThickness || traceWidth) - 1));
+                }
             }
 
             // Layer 2: Segments (Common)
@@ -158,6 +193,23 @@ export function useTraceLayers(map) {
                     filter: ['all', ['!=', ['get', 'segment_type'], 'aller_overlap'], ['!=', ['get', 'status'], 'ABANDONED']]
                 });
             }
+
+            // --- ENFORCE Z-INDEX ORDER (Bottom to Top) ---
+            const variantLayerOrder = [
+                'trace-main-abandoned',
+                'trace-variant-segment-common',
+                'trace-variant-segment-new',
+                'trace-slope-aller',
+                'trace-slope-retour',
+                'comet-layer'
+            ];
+
+            // Re-order layers by moving them to the top in the desired sequence
+            variantLayerOrder.forEach(layerId => {
+                if (map.value.getLayer(layerId)) {
+                    map.value.moveLayer(layerId);
+                }
+            });
 
             // Hide legacy standard layers if they exist
             updateLayerVisibility('trace-complete', false);
@@ -237,6 +289,7 @@ export function useTraceLayers(map) {
         // Standard Layers / Specific Layer Toggle
         if (typeof layerTypeIsSegments === 'string') {
             const id = layerTypeIsSegments;
+
             if (map.value.getLayer(id)) {
                 map.value.setLayoutProperty(id, 'visibility', isVisible ? 'visible' : 'none');
             }
