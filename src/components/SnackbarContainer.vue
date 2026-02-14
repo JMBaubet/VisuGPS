@@ -5,13 +5,13 @@
     :timeout="snackbar.timeout"
     location="bottom left"
   >
-    {{ snackbar.message }}
+    <div v-html="snackbar.message"></div>
     
   </v-snackbar>
 </template>
 
 <script setup>
-import { useSnackbar } from '../composables/useSnackbar';
+import { useSnackbar } from '@/composables/useSnackbar';
 
 const { snackbar } = useSnackbar();
 </script>

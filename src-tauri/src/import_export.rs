@@ -12,6 +12,16 @@ use serde::{Serialize, Deserialize};
 use zip::write::FileOptions;
 use std::time::SystemTime;
 
+fn sanitize_filename(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect::<String>()
+        .replace(" ", "_")
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImportDirEntry {
     pub name: String,
@@ -262,7 +272,7 @@ pub async fn export_circuit(
     };
 
     // 4. Create Zip
-    let zip_filename = format!("{}.vgps", circuit.nom.replace(" ", "_")); // Santize filename better?
+    let zip_filename = format!("{}.vgps", sanitize_filename(&circuit.nom));
     let zip_path = export_path.join(&zip_filename);
     let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
@@ -606,7 +616,7 @@ pub async fn export_context(
         return Err(format!("Export directory does not exist: {}", export_path.display()));
     }
 
-    let zip_filename = format!("Context_{}.vctx", mode_name);
+    let zip_filename = format!("Context_{}.vctx", sanitize_filename(&mode_name));
     let zip_path = export_path.join(&zip_filename);
     let file = fs::File::create(&zip_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);

@@ -50,28 +50,35 @@ L'application est divisée en plusieurs vues distinctes pour une meilleure clart
 
 2. **Génération d'une vignette** : Création et affichage de la miniature 2D pour la liste.
    
-   - ### Vue Édition (VueJS) `src/viewsEditView.vue`
+   - ### Vue Édition (VueJS) `src/views/VariantTraceView.vue`
    
-   Cette vue est dédiée à la configuration de la vue 3D et des animations.
+   Cette vue est dédiée à la configuration de la vue 3D et des animations à travers le système de **Variantes**.
 - **Visualisation 3D** : La trace GPX est affichée dans un environnement 3D interactif.
 
-- **Positionnement de la caméra** : L'utilisateur peut ajuster la position et l'angle de la caméra.
+- **Édition Live & Auto-Save** : Chaque segment est sauvegardé automatiquement dès sa finalisation. L'utilisateur nomme sa variante dès le début du tracé.
 
-- **Gestion des évènements** : L'utilisateur peut gérer des évènements de type Flyto, Pause et message, sont sauvegardés dans un fichier JSON.
+- **Verrouillage du Routage** : Permet de mixer différents profils de routage (Route, VTT, etc.) dans une même variante en verrouillant les segments terminés.
 
-- **Sauvegarde des paramètres** : Les paramètres de la caméra, essentiels pour la future animation, sont sauvegardés dans un fichier JSON.
+- **Positionnement de la caméra** : L'utilisateur peut ajuster la position et l'angle de la caméra (pour Edition classique).
+
+- **Gestion des événements** : L'utilisateur peut gérer des événements de type Flyto, Pause et message, sauvegardés dans un fichier JSON.
   
-  - ### Vue Visualisation(VueJS) `src/views/VisualizeView.vue`
+  - ### Vue Visualisation (VueJS) `src/views/VisualizeView.vue`
   
-  Cette vue permet de lire le fichier JSON créé en mode Édition pour visualiser une ou plusieurs traces avec une animation automatique.
+  Cette vue unifiée permet de visualiser soit une trace principale, soit une variante avec ses modifications. Elle lit les données (GPX, JSON) et gère l'animation automatique.
 
 - **Animation du marqueur** : Un marqueur se déplace le long de la trace selon les paramètres de caméra et de temps définis.
+- **Support Double Mode** : Gère nativement la trace principale (séquence complète) et les variantes (séquence directe ou personnalisée).
   
   - ### Vue Paramétrage (VueJS) `src/views/SettingsView.vue`
   
   Cette vue sert à configurer les paramètres globaux de l'application, qui sont stockés dans un fichier JSON dédié.
 
 ---
+
+## 🛠️ Skills
+
+Les skills personnalisés se trouvent dans .agent/skills/
 
 ## 🤝 Contribution
 

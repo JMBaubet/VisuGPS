@@ -115,17 +115,23 @@ fn default_orientation() -> String {
 
 // --- File I/O & Logic ---
 
-fn get_events_path(app_handle: &AppHandle, circuit_id: &str) -> Result<PathBuf, String> {
+fn get_events_path(app_handle: &AppHandle, circuit_id: &str, variant_id: Option<&str>) -> Result<PathBuf, String> {
     let state_mutex = app_handle.state::<Mutex<AppState>>();
     let app_state = state_mutex.lock().unwrap();
     let data_dir = app_state.app_env_path.join("data").join(circuit_id);
     fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create data directory for {}: {}", circuit_id, e))?;
-    Ok(data_dir.join("evt.json"))
+    
+    let filename = if let Some(vid) = variant_id {
+        format!("evt_{}.json", vid)
+    } else {
+        "evt.json".to_string()
+    };
+    Ok(data_dir.join(filename))
 }
 
-pub fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFile, String> {
-    let path = get_events_path(app_handle, circuit_id)?;
+pub fn read_events(app_handle: &AppHandle, circuit_id: &str, variant_id: Option<&str>) -> Result<EventsFile, String> {
+    let path = get_events_path(app_handle, circuit_id, variant_id)?;
     if !path.exists()
         || fs::read_to_string(&path)
             .map_err(|e| e.to_string())?
@@ -138,7 +144,7 @@ pub fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFil
             range_events: Vec::new(),
             texts: None,
         };
-        write_events(app_handle, circuit_id, &default_events)?;
+        write_events(app_handle, circuit_id, variant_id, &default_events)?;
         return Ok(default_events);
     }
 
@@ -150,9 +156,10 @@ pub fn read_events(app_handle: &AppHandle, circuit_id: &str) -> Result<EventsFil
 pub fn write_events(
     app_handle: &AppHandle,
     circuit_id: &str,
+    variant_id: Option<&str>,
     events_file: &EventsFile,
 ) -> Result<(), String> {
-    let path = get_events_path(app_handle, circuit_id)?;
+    let path = get_events_path(app_handle, circuit_id, variant_id)?;
     let content = serde_json::to_string_pretty(events_file).map_err(|e| e.to_string())?;
     fs::write(&path, content).map_err(|e| e.to_string())
 }
@@ -248,8 +255,8 @@ pub fn hydrate_events(
 // --- Tauri Commands ---
 
 #[tauri::command]
-pub fn get_events(app_handle: AppHandle, circuit_id: String) -> Result<HydratedEventsFile, String> {
-    let events_file = read_events(&app_handle, &circuit_id)?;
+pub fn get_events(app_handle: AppHandle, circuit_id: String, variant_id: Option<String>) -> Result<HydratedEventsFile, String> {
+    let events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
@@ -258,8 +265,9 @@ pub fn add_message_event(
     app_handle: AppHandle,
     circuit_id: String,
     payload: NewMessagePayload,
+    variant_id: Option<String>,
 ) -> Result<HydratedEventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
 
     let start_increment = payload
         .anchor_increment
@@ -281,7 +289,7 @@ pub fn add_message_event(
     };
 
     events_file.range_events.push(new_event);
-    write_events(&app_handle, &circuit_id, &events_file)?;
+    write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
@@ -290,10 +298,11 @@ pub fn delete_message_event(
     app_handle: AppHandle,
     circuit_id: String,
     event_id: String,
+    variant_id: Option<String>,
 ) -> Result<HydratedEventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     events_file.range_events.retain(|e| e.event_id != event_id);
-    write_events(&app_handle, &circuit_id, &events_file)?;
+    write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     hydrate_events(&app_handle, events_file, &circuit_id) // Passer circuit_id
 }
 
@@ -303,8 +312,9 @@ pub fn add_pause_event(
     circuit_id: String,
     increment: u32,
     override_existing: bool,
+    variant_id: Option<String>,
 ) -> Result<EventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     let events_at_increment = events_file
         .point_events
         .entry(increment)
@@ -328,7 +338,7 @@ pub fn add_pause_event(
         .any(|e| matches!(e, PointEvent::Pause))
     {
         events_at_increment.push(PointEvent::Pause);
-        write_events(&app_handle, &circuit_id, &events_file)?;
+        write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     }
     Ok(events_file)
 }
@@ -338,14 +348,15 @@ pub fn delete_pause_event(
     app_handle: AppHandle,
     circuit_id: String,
     increment: u32,
+    variant_id: Option<String>,
 ) -> Result<EventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     if let Some(events) = events_file.point_events.get_mut(&increment) {
         events.retain(|e| !matches!(e, PointEvent::Pause));
         if events.is_empty() {
             events_file.point_events.remove(&increment);
         }
-        write_events(&app_handle, &circuit_id, &events_file)?;
+        write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     }
     Ok(events_file)
 }
@@ -357,8 +368,9 @@ pub fn add_flyto_event(
     increment: u32,
     mut flyto_content: FlytoEventContent,
     override_existing: bool,
+    variant_id: Option<String>,
 ) -> Result<EventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     let events_at_increment = events_file
         .point_events
         .entry(increment)
@@ -385,7 +397,7 @@ pub fn add_flyto_event(
 
     events_at_increment.retain(|e| !matches!(e, PointEvent::Flyto(_)));
     events_at_increment.push(PointEvent::Flyto(flyto_content));
-    write_events(&app_handle, &circuit_id, &events_file)?;
+    write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     Ok(events_file)
 }
 
@@ -394,14 +406,15 @@ pub fn delete_flyto_event(
     app_handle: AppHandle,
     circuit_id: String,
     increment: u32,
+    variant_id: Option<String>,
 ) -> Result<EventsFile, String> {
-    let mut events_file = read_events(&app_handle, &circuit_id)?;
+    let mut events_file = read_events(&app_handle, &circuit_id, variant_id.as_deref())?;
     if let Some(events) = events_file.point_events.get_mut(&increment) {
         events.retain(|e| !matches!(e, PointEvent::Flyto(_)));
         if events.is_empty() {
             events_file.point_events.remove(&increment);
         }
-        write_events(&app_handle, &circuit_id, &events_file)?;
+        write_events(&app_handle, &circuit_id, variant_id.as_deref(), &events_file)?;
     }
     Ok(events_file)
 }

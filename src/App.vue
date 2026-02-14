@@ -1,10 +1,10 @@
 <template>
   <v-app>
-    <v-container :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
+    <v-main :class="[{ 'app-frame': showFrame }, frameColorClass]" fluid class="pa-0">
       <Suspense>
         <router-view />
       </Suspense>
-    </v-container>
+    </v-main>
     <SnackbarContainer />
     <PairingDialog /> <!-- Added PairingDialog -->
     <MigrationReportModal v-model="showMigrationModal" :report="migrationReport" />
@@ -20,6 +20,7 @@ import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useSharedUiState } from '@/composables/useSharedUiState';
+import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
 import SnackbarContainer from '@/components/SnackbarContainer.vue';
 import PairingDialog from '@/components/PairingDialog.vue';
 import MigrationReportModal from '@/components/MigrationReportModal.vue';
@@ -31,6 +32,7 @@ const { initSettings, status, updateReferenceField } = useSettings();
 const theme = useTheme();
 const { toggleBackButtonVisibility } = useSharedUiState();
 useCommunesUpdate(); // Initialize the composable
+useRemoteControlStatus(); // Start global remote control status tracking
 
 const showMigrationModal = ref(false);
 const migrationReport = ref('');
@@ -51,14 +53,16 @@ const frameColorClass = computed(() => {
 
 // Load settings on app mount
 onMounted(async () => {
-  await initSettings();
+  // await initSettings(); // Commented out to avoid double call with main.js for now, to be safe.
+  // Actually, let's keep it commented if main.js does it effectively. 
+  // But wait, the original code had both.
+  // main.js awaits it BEFORE mounting app. So settings should be ready here.
+  
   // Restore theme from localStorage
   const savedTheme = window.localStorage.getItem('theme');
   if (savedTheme) {
     theme.change(savedTheme);
   }
-
-
 
   // --- DIAGNOSTIC TEST RE-ADD ---
   listen('test-event', (event) => {

@@ -10,7 +10,7 @@ Le paramètre `sensibiliteZoom` ajuste la vitesse à laquelle la caméra zoome e
 
 -   **Libellé**: Sensibilité du zoom (1-500)
 -   **Type**: Entier
--   **Valeur par défaut**: 50
+-   **Valeur par défaut**: 150
 -   **Minimum**: 10
 -   **Maximum**: 200
 
@@ -30,6 +30,6 @@ L'ajustement de la sensibilité du zoom est essentiel pour permettre à l'utilis
 
 ## ⚠️ Recommandations
 
--   **Valeur par défaut (50)** : Cette valeur offre un zoom modéré, permettant un contrôle fin du niveau de détail.
+-   **Valeur par défaut (150)** : Cette valeur offre un zoom modéré, permettant un contrôle fin du niveau de détail.
 -   **Adapter aux préférences** : Les préférences de sensibilité sont très personnelles. Il est recommandé d'expérimenter pour trouver la valeur la plus confortable.
 ```

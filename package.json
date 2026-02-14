@@ -1,11 +1,12 @@
 {
   "name": "visugps",
-  "version": "1.0.0",
-  "description": "VisuGPS - Visualisation 3D de fichiers GPX",
+  "version": "1.1.0",
+  "description": "VisuGPS - Gestion des variants et amélioration de la télécommande",
   "main": "index.js",
   "scripts": {
     "dev": "node update-build-date.js && vite",
-    "build": "node update-build-date.js && vite build",
+    "build:remote": "cd src/remote_ui && npm install && npm run build",
+    "build": "npm run build:remote && node update-build-date.js && vite build",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tauri": "tauri"
   },

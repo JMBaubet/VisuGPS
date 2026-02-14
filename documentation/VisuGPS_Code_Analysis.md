@@ -182,6 +182,25 @@ Les composables sont un élément clé de l'architecture frontend, permettant de
 *   **Performance des Graphes/Cartes :** Pour des données très volumineuses (longues traces, nombreux points de tracking), les performances des composants `CameraGraph.vue` et des cartes Mapbox dans `DebugTrackingView.vue` et `EditView.vue` devront être surveillées et optimisées si nécessaire.
 *   **Accessibilité :** S'assurer que tous les composants Vuetify et les interactions personnalisées sont accessibles (navigation au clavier, lecteurs d'écran).
 
+### 1.10. Système des Variantes (Variant Processor)
+
+Le module `src-tauri/src/variant_processor.rs` gère la logique complexe de création de variantes de parcours :
+*   **Assemblage (Stitching)** : Fusionne les modifications (départ déporté, segments de déviation, arrivée reportée) avec la trace "Master".
+*   **Synchronisation Incrémentale** : Gère l'écriture immédiate des fichiers segments dès leur finalisation côté frontend.
+*   **Analyse Géospatiale** : Intègre `turf` (côté JS) et des algorithmes Rust pour détecter les chevauchements et générer des métadonnées de rendu (`segments_metadata`).
+*   **Traitement d'Altitude** : Récupère les altitudes en temps réel pour chaque segment et applique un lissage spécifique aux jonctions pour éviter les cassures visuelles en 3D.
+
+---
+
+### 2.7. Vue Édition des Variantes (`VariantTraceView.vue`)
+
+Cette vue est l'une des plus avancées du frontend :
+*   **Édition "Live"** : Chaque action (pose de point, changement de routage) est persistée sans bouton "Enregistrer" global.
+*   **Isolation du Routage** : Utilise un mécanisme de verrouillage (`routingLocked`) pour permettre de mixer différents profils de routage (ex: un segment "VTT" suivi d'un segment "Route") au sein d'une même variante.
+*   **Interaction Mapbox** : Gère des états complexes de prévisualisation (lignes bleues/rouges) et de manipulation de points d'ancrage dynamiques sur la trace principale.
+
+---
+
 ## 3. Conclusion Générale
 
 Le projet VisuGPS présente une architecture technique solide et bien pensée, tant au niveau du backend Rust/Tauri que du frontend Vue.js. La modularité, la gestion robuste de l'état et des configurations, ainsi que l'intégration transparente entre les deux parties, sont des points forts majeurs. L'attention portée aux détails de l'expérience utilisateur et la complexité des fonctionnalités géospatiales et d'animation sont impressionnantes. Les axes d'amélioration identifiés sont principalement des raffinements ou des extensions de bonnes pratiques, plutôt que des problèmes fondamentaux, ce qui témoigne de la qualité du travail déjà accompli.

@@ -1,0 +1,475 @@
+<template>
+  <v-list-item :value="circuit.circuitId" class="py-2">
+    <v-row align="center" class="w-100">
+      <!-- Colonne 1: Nom, Départ -->
+      <v-col cols="12" md="4">
+        <div class="font-weight-bold">
+          <v-icon v-if="circuit.favorite" color="yellow" size="small" class="mr-1">mdi-star</v-icon>
+          {{ circuit.nom }}
+        </div>
+        <div>
+          <span class="text-caption">
+            Départ : {{ circuit.villeDepart }}<template v-if="isWeatherAvailable && formattedMeteoDate">, le <span :class="weatherDateColor">{{ formattedMeteoDate }}</span></template>
+          </span>
+        </div>
+      </v-col>
+
+      <!-- Colonne 2: Distance, Dénivelé, Sommet -->
+      <v-col cols="12" md="3">
+        <div class="font-weight-bold">
+          Distance : {{ circuit.distanceKm }} km
+          <span class="mx-1">|</span>
+          Dénivelé : {{ circuit.deniveleM }} m
+        </div>
+        <div v-if="circuit.sommet" class="d-flex align-center justify-space-between mt-1">
+          <span class="text-caption">Sommet : {{ circuit.sommet.altitudeM }} m à {{ circuit.sommet.km }} km</span>
+          <v-tooltip location="top" :text="variantTooltipText" :disabled="!variantTooltipText">
+            <template v-slot:activator="{ props }">
+              <div v-bind="props" class="d-inline-block">
+                <v-chip
+                  size="x-small"
+                  :color="circuit.variantCount > 0 ? 'blue' : 'grey-darken-1'"
+                  variant="flat"
+                  class="text-caption clickable-chip"
+                  @click.stop="editVariants"
+                  :prepend-icon="circuit.variantCount === 0 ? 'mdi-plus' : 'mdi-source-branch'"
+                  :disabled="isVariantDisabled"
+                >
+                  {{ variantLabel }}
+                </v-chip>
+              </div>
+            </template>
+          </v-tooltip>
+        </div>
+      </v-col>
+
+      <!-- Colonne 3: Jauge et Traceur -->
+      <v-col cols="12" md="3" class="text-md-right">
+        <div class="d-flex flex-row align-center justify-end">
+          <span class="text-caption mr-4">Par : {{ circuit.traceur }}</span>
+          <div class="d-flex flex-row" style="width: 150px;">
+            <div class="w-100" v-if="showTrackingProgress">
+              <div class="text-caption text-center">% d'édition</div>
+              <v-progress-linear
+                :model-value="trackingProgress"
+                :bg-color="trackingBgColor"
+                :color="trackingProgressColor"
+                height="8"
+                rounded
+              ></v-progress-linear>
+            </div>
+          </div>
+        </div>
+      </v-col>
+
+      <!-- Colonne 4: Actions -->
+      <v-col cols="12" md="2" class="d-flex justify-end align-center">
+        <v-btn icon="mdi-bug" variant="text" v-if="isDev" @click.stop="debugCircuit" color="warning"></v-btn>
+        
+        <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
+
+        <v-menu open-on-hover location="start">
+          <template v-slot:activator="{ props: menuProps }">
+            <v-btn
+              icon="mdi-information"
+              variant="text"
+              v-bind="menuProps"
+              @click.stop="$emit('open-info', circuit)"
+              :color="informationIconColor"
+            ></v-btn>
+          </template>
+          <v-card>
+            <template v-if="vignetteUrl">
+              <v-img
+                :src="vignetteUrl"
+                :key="vignetteUrl"
+                :width="vignetteWidth"
+                aspect-ratio="16/9"
+                cover
+              >
+                <template v-slot:placeholder>
+                  <div class="d-flex align-center justify-center fill-height">
+                    <v-progress-circular
+                      color="grey-lighten-4"
+                      indeterminate
+                    ></v-progress-circular>
+                  </div>
+                </template>
+              </v-img>
+            </template>
+            <template v-else>
+              <div class="d-flex align-center justify-center fill-height" :style="vignettePlaceholderStyle">
+                <v-progress-circular
+                  color="grey-lighten-4"
+                  indeterminate
+                ></v-progress-circular>
+              </div>
+            </template>
+          </v-card>
+        </v-menu>
+
+
+
+
+        <v-btn icon="mdi-pencil" variant="text" @click.stop="editTracking" :color="editButtonColor" title="Éditer le tracking"></v-btn>
+        
+        <v-btn
+          icon="mdi-sun-thermometer"
+          variant="text"
+          @click.stop="openMeteo"
+          :color="weatherBtnColor"
+          title="Gestion Météo"
+        ></v-btn>
+
+        <v-btn 
+          :color="view3DButtonColor" 
+          icon="mdi-eye" 
+          variant="text" 
+          @click.stop="view3D"
+          :disabled="isView3dDisabled"
+          :title="isView3dDisabled ? 'Service Mapbox non disponible (vérifiez le token ou la connexion)' : 'Visualiser le circuit en 3D'">
+        </v-btn>
+        <v-btn icon="mdi-delete" variant="text" @click.stop="deleteCircuit" color="error" title="Supprimer le circuit"></v-btn>
+      </v-col>
+    </v-row>
+  </v-list-item>
+
+  <ConfirmationDialog
+    v-model="showConfirmDialog"
+    title="Confirmation de suppression"
+    :message="`Êtes-vous sûr de vouloir supprimer le circuit '${props.circuit.nom}' ? Cette action est irréversible.`"
+    confirm-text="Supprimer"
+    cancel-text="Annuler"
+    @confirm="proceedDeletion"
+    @cancel="showConfirmDialog = false"
+  />
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { invoke } from '@tauri-apps/api/core';
+import { join } from '@tauri-apps/api/path';
+import { useSnackbar } from '@/composables/useSnackbar';
+import { useEnvironment } from '@/composables/useEnvironment';
+import { useSettings } from '@/composables/useSettings';
+import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
+import { useCommuneColor } from '@/composables/useCommuneColor';
+import { useServiceStatus } from '@/composables/useServiceStatus';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
+
+const props = defineProps({
+  circuit: {
+    type: Object,
+    required: true,
+  },
+  allCommunes: {
+    type: Array,
+    default: () => [],
+  },
+  allTraceurs: {
+    type: Array,
+    default: () => [],
+  },
+  favoriteCount: {
+    type: Number,
+    default: 0,
+  },
+});
+
+const emit = defineEmits(['circuit-deleted', 'circuit-updated', 'open-meteo', 'open-info']);
+
+const isDev = ref(import.meta.env.DEV);
+const router = useRouter();
+const { showSnackbar } = useSnackbar();
+const { appEnvPath } = useEnvironment();
+const { getSettingValue } = useSettings();
+const { majCommuneIsRunning, circuitsProgress, startUpdate, updatingCircuitId } = useCommunesUpdate();
+const { serviceStatus } = useServiceStatus();
+
+const showConfirmDialog = ref(false);
+const vignetteUrl = ref('');
+const isWeatherAvailable = ref(false);
+const weatherDateColor = ref('');
+
+const formattedMeteoDate = computed(() => {
+  const config = props.circuit.meteoConfig || {};
+  if (!config.dateDepart) return null;
+  
+  try {
+    const [y, m, d] = config.dateDepart.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  } catch (e) {
+    return null;
+  }
+});
+
+const vignetteWidth = computed(() => {
+  return getSettingValue('Accueil/TailleVignette') || 400;
+});
+
+const vignettePlaceholderStyle = computed(() => {
+  const width = vignetteWidth.value;
+  const height = Math.round(width * 9 / 16);
+  return `width: ${width}px; height: ${height}px; background-color: #f0f0f0;`;
+});
+
+const isView3dDisabled = computed(() => {
+  return !['connected', 'open_meteo_unreachable'].includes(serviceStatus.value);
+});
+
+const variantLabel = computed(() => {
+  if (props.circuit.variantCount === 0) return 'Variante';
+  if (props.circuit.variantCount === 1) return '1 Variante';
+  return `${props.circuit.variantCount} Variantes`;
+});
+
+const isVariantDisabled = computed(() => {
+  return props.circuit.variantCount === 0 && trackingProgress.value < 99.9;
+});
+
+const variantTooltipText = computed(() => {
+  if (isVariantDisabled.value) {
+    return "Finalisez l'édition de la caméra (100%) pour activer la création de variantes.";
+  }
+  return null;
+});
+
+// Weather Status Logic
+const weatherBtnColor = ref('grey');
+
+const getFilenameForDate = (dateStr) => {
+    // Éviter le décalage de fuseau horaire de new Date(dateStr) en extrayant les parties manuellement
+    const [y, m, d] = dateStr.split('-').map(String);
+    const datePart = `${y}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
+
+    const startH = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+    const endH = getSettingValue('Visualisation/Météo/heureFinJournee') || 20;
+    
+    const sH = String(startH).padStart(2, '0');
+    const eH = String(endH).padStart(2, '0');
+
+    return `${datePart}-${sH}-to-${eH}.json`;
+};
+
+const updateWeatherColor = async () => {
+    const config = props.circuit.meteoConfig || {};
+    if (!config.dateDepart) {
+        weatherBtnColor.value = 'grey';
+        isWeatherAvailable.value = false;
+        weatherDateColor.value = '';
+        return;
+    }
+    
+    // Identify variants to check based on scenarios
+    const variantsToCheck = new Set();
+    if (config.scenarios && Array.isArray(config.scenarios) && config.scenarios.length > 0) {
+        config.scenarios.forEach(s => variantsToCheck.add(s.variantId || null));
+    } else {
+        // Default to main trace if no scenarios defined yet
+        variantsToCheck.add(null);
+    }
+    
+    let allPresent = true;
+    let maxAgeHours = 0;
+    
+    try {
+        for (const varId of variantsToCheck) {
+            let filename;
+            if (varId) {
+                filename = `weather_variant_${varId}_${config.dateDepart}.json`;
+            } else {
+                filename = getFilenameForDate(config.dateDepart);
+            }
+            
+            const metadata = await invoke('check_weather_cache_metadata', { 
+                circuitId: props.circuit.circuitId, 
+                filename 
+            });
+            
+            if (!metadata) {
+                allPresent = false;
+                break;
+            } else {
+                const age = (new Date() - new Date(metadata)) / (1000 * 60 * 60);
+                if (age > maxAgeHours) maxAgeHours = age;
+            }
+        }
+        
+        if (!allPresent) {
+            weatherBtnColor.value = 'error';
+            weatherDateColor.value = 'text-red';
+        } else if (maxAgeHours < 4) {
+             weatherBtnColor.value = 'success';
+             weatherDateColor.value = 'text-green';
+        } else if (maxAgeHours < 12) {
+             weatherBtnColor.value = 'info';
+             weatherDateColor.value = 'text-blue';
+        } else {
+             weatherBtnColor.value = 'warning';
+             weatherDateColor.value = 'text-orange';
+        }
+        
+        isWeatherAvailable.value = allPresent;
+        
+    } catch (e) {
+        console.warn("Weather check failed", e);
+        weatherBtnColor.value = 'grey'; 
+        isWeatherAvailable.value = false;
+        weatherDateColor.value = '';
+    }
+};
+
+const getVignetteUrl = async () => {
+  if (props.circuit.circuitId) {
+    try {
+      vignetteUrl.value = await invoke('get_thumbnail_as_base64', { circuitId: props.circuit.circuitId });
+    } catch (error) {
+      console.error('Failed to load thumbnail:', error);
+      vignetteUrl.value = ''; // Clear on error
+    }
+  }
+};
+
+const communeProgress = computed(() => {
+  return circuitsProgress.value[props.circuit.circuitId] !== undefined
+    ? circuitsProgress.value[props.circuit.circuitId]
+    : props.circuit.avancementCommunes;
+});
+
+const { color: communeIconColor } = useCommuneColor(communeProgress);
+
+const showTrackingProgress = computed(() => {
+  if (!props.circuit.distanceKm || props.circuit.distanceKm === 0) {
+    return false;
+  }
+  // Show only if progress is > 0 and < 100
+  return props.circuit.trackingKm > 0 && props.circuit.trackingKm < props.circuit.distanceKm;
+});
+
+const trackingProgress = computed(() => {
+  if (!props.circuit.distanceKm || props.circuit.distanceKm === 0) {
+    return 0;
+  }
+  return (props.circuit.trackingKm / props.circuit.distanceKm) * 100;
+});
+
+const trackingBgColor = computed(() => {
+  return getSettingValue('Edition/Vue 3D/Trace/couleur') || 'grey-lighten-2';
+});
+
+const trackingProgressColor = computed(() => {
+  return getSettingValue('Edition/Vue 3D/Trace/couleurAvancement') || 'primary';
+});
+
+const editButtonColor = computed(() => {
+  if (props.circuit.trackingKm === 0) return 'red-darken-2';
+  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'primary';
+  return trackingProgressColor.value;
+});
+
+const view3DButtonColor = computed(() => {
+  if (props.circuit.trackingKm === 0) return 'error';
+  if (props.circuit.trackingKm === props.circuit.distanceKm) return 'success';
+  return 'warning';
+});
+
+const informationIconColor = computed(() => {
+  return props.circuit.hasErrors ? 'error' : undefined;
+});
+
+const debugCircuit = () => {
+  router.push({ name: 'DebugTracking', params: { circuitId: props.circuit.circuitId } });
+};
+
+const updateCommunes = () => {
+  startUpdate(props.circuit.circuitId);
+};
+
+const editTracking = () => {
+  router.push({ name: 'EditView', params: { circuitId: props.circuit.circuitId } });
+};
+
+const editVariants = () => {
+  router.push({ name: 'VariantTraceView', params: { circuitId: props.circuit.circuitId } });
+};
+
+const openMeteo = () => {
+  emit('open-meteo', props.circuit);
+};
+
+const view3D = () => {
+  router.push({ name: 'Visualize', params: { circuitId: props.circuit.circuitId } });
+};
+
+const deleteCircuit = async () => {
+  showConfirmDialog.value = true;
+};
+
+const proceedDeletion = async () => {
+  try {
+    // 1. Mémoriser les informations liées (ville, traceur, messages)
+    const relatedIds = {
+      ville: props.circuit.villeDepartId,
+      traceur: props.circuit.traceurId,
+      messages: []
+    };
+
+    // Récupérer les messages avant que le dossier du circuit ne soit supprimé
+    try {
+      const events = await invoke('get_events', { circuitId: props.circuit.circuitId });
+      if (events && events.rangeEvents) {
+        // Collecter les IDs uniques de messages
+        const msgIds = new Set();
+        events.rangeEvents.forEach(e => {
+          if (e.messageId) msgIds.add(e.messageId);
+        });
+        relatedIds.messages = Array.from(msgIds);
+      }
+    } catch (e) {
+      console.warn('Impossible de récupérer les événements avant suppression:', e);
+    }
+
+    // 2. Supprimer le circuit
+    await invoke('delete_circuit', { circuitId: props.circuit.circuitId });
+    showSnackbar('Circuit supprimé avec succès.', 'success');
+    
+    // 3. Émettre l'événement avec les infos pour le nettoyage des orphelins
+    emit('circuit-deleted', relatedIds);
+  } catch (error) {
+    showSnackbar(`Erreur lors de la suppression du circuit : ${error}`, 'error');
+    console.error('Error deleting circuit:', error);
+  }
+};
+
+const handleCircuitUpdate = (updatedCircuit) => {
+  emit('circuit-updated', updatedCircuit);
+};
+
+onMounted(() => {
+  getVignetteUrl();
+  updateWeatherColor();
+});
+
+watch(() => props.circuit, () => {
+    updateWeatherColor();
+}, { deep: true });
+
+watch(appEnvPath, () => {
+  getVignetteUrl();
+});
+</script>
+
+<style scoped>
+.v-list-item {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+.clickable-chip {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.clickable-chip:hover {
+  opacity: 0.8;
+}
+</style>

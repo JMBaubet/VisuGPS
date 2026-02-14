@@ -42,13 +42,63 @@
         </v-btn>
         <span>{{ isParameterDoc ? 'Documentation des paramètres' : 'Manuel utilisateur' }}</span>
       </div>
+      <v-spacer></v-spacer>
+      <!-- Bouton Mobile -->
+      <v-btn
+        class="mr-2"
+        color="primary"
+        variant="tonal"
+        size="small"
+        prepend-icon="mdi-cellphone"
+        @click="toggleQrCode"
+      >
+        Mobile
+      </v-btn>
       <v-btn icon variant="text" @click="$emit('close')">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-card-title>
     
     <!-- Zone de scroll séparée pour éviter les glitchs sur la toolbar -->
-    <div class="flex-grow-1 overflow-y-auto pa-4" ref="scrollContainer">
+    <div class="flex-grow-1 overflow-y-auto pa-4 position-relative" ref="scrollContainer">
+      
+      <!-- Overlay QRCode Mobile -->
+      <v-fade-transition>
+        <div 
+          v-if="showQrCode"
+          class="position-absolute w-100 h-100 d-flex flex-column align-center justify-center bg-surface"
+          style="z-index: 20; top:0; left:0; opacity: 0.98;"
+        >
+          <div class="text-h5 mb-6 font-weight-bold">Lire sur Mobile</div>
+          
+          <div v-if="loadingQr" class="ma-4">
+             <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+          </div>
+          <div v-else-if="qrCodeBase64" class="d-flex flex-column align-center elevation-4 pa-4 rounded bg-white">
+             <img :src="qrCodeBase64" style="max-width: 250px; border-radius: 4px;" />
+          </div>
+          
+          <div class="mt-6" style="width: 300px;">
+             <v-select
+              v-model="selectedIp"
+              :items="availableIps"
+              item-title="title"
+              item-value="value"
+              label="Interface Réseau"
+              variant="outlined"
+              density="compact"
+              prepend-inner-icon="mdi-wifi"
+            ></v-select>
+          </div>
+          
+          <div class="mt-2 text-caption text-grey">{{ mobileUrl }}</div>
+          
+          <v-btn class="mt-8" color="primary" variant="tonal" size="large" @click="showQrCode = false" prepend-icon="mdi-book-open-page-variant">
+            Retour à la lecture
+          </v-btn>
+        </div>
+      </v-fade-transition>
+
       <div v-if="loading">Chargement de la documentation...</div>
       <div v-else-if="error">Erreur lors du chargement de la documentation: {{ error }}</div>
       <div v-else v-html="compiledMarkdown" class="markdown-body" @click="handleLinkClick" ref="contentRef"></div>
@@ -60,6 +110,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
 import { open as openUrl } from '@tauri-apps/plugin-shell';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import MarkdownIt from 'markdown-it';
 import mermaid from 'mermaid';
 import { nextTick } from 'vue';
@@ -113,6 +164,66 @@ const markdownContent = ref('');
 const loading = ref(false);
 const error = ref(null);
 const currentDocPath = ref(''); 
+const currentAbsoluteDocPath = ref(''); 
+
+// QRCode Mobile Logic
+const showQrCode = ref(false);
+const qrCodeBase64 = ref(null);
+const availableIps = ref([]);
+const selectedIp = ref(null);
+const loadingQr = ref(false);
+
+const mobileUrl = computed(() => {
+  if (!selectedIp.value) return '';
+  // On utilise le chemin relatif complet (après /docs/)
+  let relativePath = currentDocPath.value;
+  if (relativePath.startsWith('/docs/')) {
+    relativePath = relativePath.substring(6); // retire /docs/
+  } else if (relativePath.startsWith('/')) {
+    relativePath = relativePath.substring(1);
+  }
+  
+  return `http://${selectedIp.value}:9001/documentation.html#/read/${relativePath}`;
+});
+
+const loadInterfaces = async () => {
+    try {
+        const interfaces = await invoke('get_network_interfaces');
+        availableIps.value = interfaces.map((item) => ({
+            title: `${item[0]} (${item[1]})`,
+            value: item[1]
+        }));
+
+        if (availableIps.value.length > 0) {
+             const preferred = availableIps.value.find(i => i.value.startsWith('192.168.'));
+             selectedIp.value = preferred ? preferred.value : availableIps.value[0].value;
+        }
+    } catch (e) {
+        console.error("Error loading network interfaces:", e);
+    }
+};
+
+const generateQr = async () => {
+  if (!mobileUrl.value) return;
+  loadingQr.value = true;
+  try {
+     qrCodeBase64.value = await invoke('generate_qrcode_base64', { url: mobileUrl.value });
+  } catch(e) {
+     console.error(e);
+  } finally {
+     loadingQr.value = false;
+  }
+};
+
+const toggleQrCode = async () => {
+    showQrCode.value = !showQrCode.value;
+    if (showQrCode.value) {
+        if (availableIps.value.length === 0) await loadInterfaces();
+        else generateQr();
+    }
+};
+
+watch(selectedIp, generateQr);
 
 // Gestion de l'historique de navigation
 const history = ref([]);
@@ -167,6 +278,32 @@ function resolvePath(basePath, relativePath) {
   return stack.join('/');
 }
 
+// Fonction pour résoudre les chemins absolus (système de fichiers) pour les images
+function resolveAbsolutePath(baseAbsolutePath, relativePath) {
+  // Normaliser les séparateurs (Windows vs Unix) pour le traitement JS
+  const normalizedBase = baseAbsolutePath.replace(/\\/g, '/');
+  
+  const stack = normalizedBase.split('/');
+  // Retirer le nom du fichier actuel
+  stack.pop();
+  
+  const parts = relativePath.split('/');
+  for (const part of parts) {
+    if (part === '.') continue;
+    if (part === '..') {
+      if (stack.length > 0) stack.pop();
+    } else {
+      stack.push(part);
+    }
+  }
+  
+  // Reconstruire le chemin. Sur Windows convertFileSrc gère les slashs ou on peut laisser comme ça.
+  // Idéalement on garde le style unix pour convertFileSrc qui supporte les deux souvent, 
+  // mais si on est sur windows le root pourrait être "C:".
+  const result = stack.join('/');
+  return result;
+}
+
 const md = new MarkdownIt({
   html: true,
   breaks: true,
@@ -195,21 +332,19 @@ md.renderer.rules.image = function (tokens, idx, options, env, self) {
     const src = token.attrs[srcIndex][1];
     // Si c'est un chemin relatif (ne commence pas par / ou http), on le résout
     if (!src.startsWith('/') && !src.startsWith('http')) {
-        // En dev, on assume que les images sont servies depuis /docs/ si elles sont référencées dans la doc
-        // Mais attention, "resolvePath" donne un chemin absolu par rapport à la racine "docs" du backend
-        // Pour l'affichage frontend (<img>), il faut un chemin accessible par le navigateur.
-        // Si on est en dev, `npm run tauri dev` serv le dossier `public` à la racine.
-        // Mes docs sont dans /docs/...
-        
-        let resolved = resolvePath(currentDocPath.value, src);
-        
-        // Si le path résolu ne commence pas par /, on l'ajoute.
-        // On suppose que resolvePath retourne un chemin basé sur la racine du serveur de dev
-        // Ex: current = /docs/DocUtilisateur/index.md, src = ../images/logo.png
-        // resolved = /docs/images/logo.png
-        // Cela devrait fonctionner directement en dev car /docs est servi.
-        
-        token.attrs[srcIndex][1] = resolved;
+        if (currentAbsoluteDocPath.value) {
+            // Résolution basée sur le chemin absolu du fichier doc
+            const resolvedAbs = resolveAbsolutePath(currentAbsoluteDocPath.value, src);
+            console.log('Resolving Image Path:', { src, base: currentAbsoluteDocPath.value, resolved: resolvedAbs });
+            // Conversion en URL asset:// (ou http://asset.localhost sur Mac) via Tauri
+            const assetUrl = convertFileSrc(resolvedAbs);
+            console.log('Converted URI:', assetUrl);
+            token.attrs[srcIndex][1] = assetUrl;
+        } else {
+             // Fallback dev (path manipulation simple si backend path manquant)
+             let resolved = resolvePath(currentDocPath.value, src);
+             token.attrs[srcIndex][1] = resolved;
+        }
     }
   }
   return defaultImageRender(tokens, idx, options, env, self);
@@ -220,6 +355,10 @@ function normalizePaths(markdown) {
   // Regex pour attraper les src="..." dans les balises img
   return markdown.replace(/<img\s+[^>]*src="([^"]+)"[^>]*>/g, (match, src) => {
     if (!src.startsWith('/') && !src.startsWith('http')) {
+         if (currentAbsoluteDocPath.value) {
+             const resolvedAbs = resolveAbsolutePath(currentAbsoluteDocPath.value, src);
+             return match.replace(src, convertFileSrc(resolvedAbs));
+         }
          const resolved = resolvePath(currentDocPath.value, src);
          return match.replace(src, resolved);
     }
@@ -298,6 +437,7 @@ async function fetchDocumentation(path, isHistoryAction = false, anchor = null) 
     const relativePath = cleanPath.startsWith('/') ? cleanPath.substring(1) : cleanPath;
     const response = await invoke('get_doc_content', { path: relativePath });
     markdownContent.value = response.content;
+    currentAbsoluteDocPath.value = response.path;
   } catch (e) {
     error.value = e;
   } finally {

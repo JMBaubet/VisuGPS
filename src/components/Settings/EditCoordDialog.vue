@@ -1,0 +1,388 @@
+<template>
+  <v-dialog :model-value="show" @update:model-value="$emit('update:show', $event)" persistent max-width="800px">
+    <v-card v-if="parameter">
+      <v-card-title class="d-flex justify-space-between align-center">
+        <span class="text-h5" :class="{ 'text-warning': parameter.critique }">{{ parameter.libelle }}</span>
+        <v-icon
+          v-if="parameter.doc"
+          color="info"
+          @click="showDocDialog = true"
+          title="Afficher la documentation"
+        >mdi-book-open-page-variant-outline</v-icon>
+      </v-card-title>
+      <v-card-subtitle>{{ parameter.description }}</v-card-subtitle>
+      
+      <v-card-text class="pa-0">
+        <v-alert v-if="initializationError" type="error" variant="tonal" prominent class="ma-4">
+          <h5 class="alert-title">Erreur d'initialisation</h5>
+          {{ initializationError }}
+        </v-alert>
+        <div v-else class="map-container">
+          <div ref="mapContainer" class="map"></div>
+          <div class="crosshair">
+            <div class="crosshair-line top"></div>
+            <div class="crosshair-line right"></div>
+            <div class="crosshair-line bottom"></div>
+            <div class="crosshair-line left"></div>
+            <div class="crosshair-circle-outer"></div>
+            <div class="crosshair-circle-inner"></div>
+          </div>
+          <div class="coords-display">
+            <div v-if="editableCoord">
+              <div>Lon: {{ editableCoord.lon.toFixed(6) }}</div>
+              <div>Lat: {{ editableCoord.lat.toFixed(6) }}</div>
+            </div>
+          </div>
+        </div>
+      </v-card-text>
+
+      <v-card-actions>
+        <v-btn
+          v-if="hasSurcharge"
+          icon="mdi-format-color-marker-cancel"
+          variant="text"
+          @click="resetToDefault"
+          title="Annuler la surcharge"
+        ></v-btn>
+        <v-spacer></v-spacer>
+        <v-btn color="blue-darken-1" variant="text" @click="closeDialog">
+          Annuler
+        </v-btn>
+        <v-btn color="blue-darken-1" variant="text" @click="save">
+          Sauvegarder
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+
+    <v-dialog v-model="showDocDialog" max-width="800px">
+      <DocDisplay :doc-path="parameter.doc" @close="showDocDialog = false" />
+    </v-dialog>
+  </v-dialog>
+</template>
+
+<script setup>
+import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { useSettings } from '@/composables/useSettings';
+import DocDisplay from '@/components/DocDisplay.vue';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+// --- Data Parsing Helpers ---
+
+/**
+ * Parses a coordinate string e.g., "[-77.0364,38.8951]" into an object.
+ * @param {string} str The coordinate string.
+ * @returns {{lon: number, lat: number} | null}
+ */
+function parseCoordString(value) {
+  // Si la valeur est déjà un tableau, l'utiliser directement
+  if (Array.isArray(value) && value.length === 2 && typeof value[0] === 'number' && typeof value[1] === 'number') {
+    return { lon: value[0], lat: value[1] };
+  }
+
+  // Si la valeur est une chaîne, tenter de la parser en JSON
+  if (typeof value === 'string') {
+    try {
+      const arr = JSON.parse(value);
+      if (Array.isArray(arr) && arr.length === 2 && typeof arr[0] === 'number' && typeof arr[1] === 'number') {
+        return { lon: arr[0], lat: arr[1] };
+      }
+    } catch (e) {
+      console.error("Error parsing coordinate string:", value, e);
+    }
+  }
+  return null;
+}
+
+const props = defineProps({
+  show: Boolean,
+  parameter: Object,
+  groupPath: String,
+});
+
+const emit = defineEmits(['update:show']);
+
+const { getSettingValue } = useSettings();
+const { updateSetting } = useSettings();
+
+const showDocDialog = ref(false);
+const initializationError = ref(null);
+const surchargeRemoved = ref(false);
+
+// --- Map State ---
+const mapContainer = ref(null);
+let map = null;
+let surchargeMarker = null;
+
+// --- Component State ---
+const defaultCoord = computed(() => parseCoordString(props.parameter.defaut));
+const surchargeCoord = computed(() => props.parameter.surcharge ? parseCoordString(props.parameter.surcharge) : null);
+const editableCoord = ref(null);
+
+const hasSurcharge = computed(() => props.parameter?.surcharge != null);
+
+const initializeMap = () => {
+  if (map || !mapContainer.value || !editableCoord.value) return;
+
+  const mapboxToken = getSettingValue('Système/Tokens/mapbox');
+  if (!mapboxToken) {
+    initializationError.value = "Le token Mapbox n'est pas configuré. Veuillez le définir dans les paramètres 'Système/Tokens'.";
+    return;
+  }
+
+  mapboxgl.accessToken = mapboxToken;
+  map = new mapboxgl.Map({
+    container: mapContainer.value,
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [editableCoord.value.lon, editableCoord.value.lat],
+    zoom: 14,
+  });
+
+  map.on('error', (e) => {
+    // Si l'erreur est une erreur d'authentification (token invalide)
+    if (e.error && e.error.status === 401) {
+      destroyMap(); // Détruire la carte pour ne pas afficher un fond blanc
+      initializationError.value = "Le token Mapbox est invalide. Veuillez le corriger dans les paramètres 'Système/Tokens'.";
+    }
+  });
+
+  map.on('load', () => {
+    // Ajouter le marqueur pour la valeur par défaut
+    if (defaultCoord.value) {
+      const popup = new mapboxgl.Popup({ 
+        offset: 25, 
+        closeButton: false, 
+        closeOnClick: false,
+        className: 'visugps-popup' // Classe CSS personnalisée
+      }).setText('Position par défaut');
+
+      new mapboxgl.Marker({ color: '#2196F3' }) // Couleur bleue (info)
+        .setLngLat([defaultCoord.value.lon, defaultCoord.value.lat])
+        .setPopup(popup)
+        .addTo(map)
+        .togglePopup(); // Ouvre le popup par défaut
+    }
+
+    // Ajouter le marqueur pour la valeur de surcharge (si elle existe)
+    if (surchargeCoord.value) {
+      const popup = new mapboxgl.Popup({ 
+        offset: 25, 
+        closeButton: false, 
+        closeOnClick: false,
+        className: 'visugps-popup'
+      }).setText('Position paramétrée');
+
+      surchargeMarker = new mapboxgl.Marker({ color: 'green' })
+        .setLngLat([surchargeCoord.value.lon, surchargeCoord.value.lat])
+        .setPopup(popup)
+        .addTo(map)
+        .togglePopup();
+    }
+  });
+
+  // Mettre à jour les coordonnées lors du déplacement de la carte
+  map.on('move', () => {
+    surchargeRemoved.value = false; // L'utilisateur édite à nouveau, on annule l'intention de réinitialiser
+    const center = map.getCenter();
+    editableCoord.value = { lon: center.lng, lat: center.lat };
+  });
+};
+
+const destroyMap = () => {
+  if (map) {
+    map.remove();
+    map = null;
+  }
+};
+
+watch(() => props.show, (isVisible) => {
+  initializationError.value = null; // Réinitialiser l'erreur à chaque ouverture
+  surchargeRemoved.value = false; // Réinitialiser l'intention de suppression
+  if (isVisible && props.parameter) {
+    const initialValue = props.parameter.surcharge ?? props.parameter.defaut;
+    editableCoord.value = parseCoordString(initialValue);
+
+    if (!editableCoord.value) {
+      initializationError.value = `La valeur de la coordonnée ("${initialValue}") est invalide ou mal formatée. Le format attendu est "[longitude,latitude]".`;
+      return;
+    }
+    
+    // Initialiser la carte une fois que le dialogue est visible et le conteneur est prêt
+    nextTick(initializeMap);
+  } else {
+    destroyMap();
+  }
+}, { immediate: true });
+
+onUnmounted(() => {
+  destroyMap();
+});
+
+
+const closeDialog = () => {
+  emit('update:show', false);
+};
+
+const save = async () => {
+  if (!editableCoord.value) return;
+
+  // Vérifier si la position finale est la même que la position par défaut (avec une tolérance)
+  const isSameAsDefault = defaultCoord.value &&
+                        editableCoord.value.lon.toFixed(6) === defaultCoord.value.lon.toFixed(6) &&
+                        editableCoord.value.lat.toFixed(6) === defaultCoord.value.lat.toFixed(6);
+
+  // On annule la surcharge si l'utilisateur a cliqué sur réinitialiser OU si la position finale correspond au défaut
+  if (surchargeRemoved.value || isSameAsDefault) {
+    await updateSetting(props.groupPath, props.parameter.identifiant, null);
+  } else {
+    const decimals = props.parameter.decimales ?? 6; // 6 décimales par défaut
+    const lon = parseFloat(editableCoord.value.lon.toFixed(decimals));
+    const lat = parseFloat(editableCoord.value.lat.toFixed(decimals));
+    const valueToSave = [lon, lat];
+    await updateSetting(props.groupPath, props.parameter.identifiant, valueToSave);
+  }
+  
+  closeDialog();
+};
+
+const resetToDefault = () => {
+  if (defaultCoord.value) {
+    surchargeRemoved.value = true; // On note l'intention de supprimer la surcharge
+    editableCoord.value = { ...defaultCoord.value };
+    if (map) {
+      map.flyTo({ 
+        center: [defaultCoord.value.lon, defaultCoord.value.lat],
+        essential: true
+      });
+    }
+    // Supprimer le marqueur de surcharge de la carte et de la mémoire
+    if (surchargeMarker) {
+      surchargeMarker.remove();
+      surchargeMarker = null;
+    }
+  }
+};
+
+</script>
+
+<style scoped>
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 500px; /* Hauteur de la carte */
+}
+
+.map {
+  width: 100%;
+  height: 100%;
+}
+
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  color: red;
+}
+
+.crosshair-line-horz,
+.crosshair-line-vert,
+.crosshair-circle-outer,
+.crosshair-circle-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+}
+
+.crosshair-line {
+  position: absolute;
+  background-color: currentColor;
+}
+
+.crosshair-line.top {
+  top: 0;
+  left: 50%;
+  width: 2px;
+  height: 30%;
+  transform: translateX(-50%);
+}
+.crosshair-line.bottom {
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  height: 30%;
+  transform: translateX(-50%);
+}
+.crosshair-line.left {
+  top: 50%;
+  left: 0;
+  width: 30%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+.crosshair-line.right {
+  top: 50%;
+  right: 0;
+  width: 30%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.crosshair-circle-outer {
+  width: 100%;
+  height: 100%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.crosshair-circle-inner {
+  width: 40%;
+  height: 40%;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.coords-display {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+/* Correction du style de la popup pour les thèmes clair/sombre */
+:deep(.visugps-popup .mapboxgl-popup-content) {
+  background-color: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  padding: 8px 12px;
+  box-shadow: none;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+:deep(.visugps-popup .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip) {
+  border-top-color: rgb(var(--v-theme-surface));
+}
+
+:deep(.visugps-popup .mapboxgl-popup-anchor-top .mapboxgl-popup-tip) {
+  border-bottom-color: rgb(var(--v-theme-surface));
+}
+
+:deep(.visugps-popup .mapboxgl-popup-anchor-left .mapboxgl-popup-tip) {
+  border-right-color: rgb(var(--v-theme-surface));
+}
+
+:deep(.visugps-popup .mapboxgl-popup-anchor-right .mapboxgl-popup-tip) {
+  border-left-color: rgb(var(--v-theme-surface));
+}
+
+</style>

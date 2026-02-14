@@ -1,0 +1,21 @@
+<svg width="450" height="250" viewBox="0 0 450 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="450" height="250" fill="#121212" />
+  
+  <!-- Content (Directly on background) -->
+  <text x="50%" y="50" font-family="Roboto, sans-serif" font-size="20" font-weight="bold" fill="white" text-anchor="middle">Demande de Couplage Télécommande</text>
+  
+  <text x="50%" y="90" font-family="Roboto, sans-serif" font-size="14" fill="#B0BEC5" text-anchor="middle">Un client distant souhaite se connecter.</text>
+  
+  <g transform="translate(225, 115)">
+    <text x="-10" y="0" font-family="Roboto, sans-serif" font-size="14" fill="#B0BEC5" text-anchor="end">Code de couplage :</text>
+    <text x="10" y="0" font-family="Roboto, sans-serif" font-size="22" font-weight="900" fill="#2196F3" text-anchor="start">A1B2C3D4</text>
+  </g>
+  
+  <text x="50%" y="150" font-family="Roboto, sans-serif" font-size="14" fill="#B0BEC5" text-anchor="middle">Voulez-vous autoriser cette connexion ?</text>
+
+  <!-- Buttons -->
+  <text x="110" y="210" font-family="Roboto, sans-serif" font-size="14" font-weight="bold" fill="#757575" text-anchor="middle">ABANDONNER</text>
+  <text x="225" y="210" font-family="Roboto, sans-serif" font-size="14" font-weight="bold" fill="#EF5350" text-anchor="middle">REFUSER</text>
+  <text x="340" y="210" font-family="Roboto, sans-serif" font-size="14" font-weight="bold" fill="#66BB6A" text-anchor="middle">ACCEPTER</text>
+</svg>

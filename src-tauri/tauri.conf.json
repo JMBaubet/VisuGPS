@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "VisuGPS",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "identifier": "com.visugps.app",
   "build": {
     "frontendDist": "../dist",
@@ -20,18 +20,20 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost https://asset.localhost https://api.iconify.design data: blob:; connect-src 'self' http://ipc.localhost https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://api.open-meteo.com http://connectivitycheck.gstatic.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; child-src 'self' blob:;",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "../docs/**",
+          "$RESOURCE/**"
+        ]
+      }
     }
   },
   "plugins": {
     "process": {
       "allowlist": [
         "relaunch"
-      ]
-    },
-    "fs": {
-      "scope": [
-        "$APPDATA/com.visugps.app/VisuGPS/**"
       ]
     }
   },
@@ -47,7 +49,8 @@
     ],
     "resources": [
       "../public",
-      "../docs"
+      "../docs",
+      "../src/remote_client"
     ]
   }
 }

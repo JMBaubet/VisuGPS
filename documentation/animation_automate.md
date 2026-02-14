@@ -1,106 +1,100 @@
-# Automate de l'Animation de la Caméra (VisualizeView.vue)
+# Automate de l'Animation (VisualizeView)
 
-Ce document décrit le fonctionnement de l'animation de la caméra dans `VisualizeView.vue` sous la forme d'une machine à états. Chaque état représente un moment précis de l'animation, et les transitions décrivent les événements qui font passer d'un état à l'autre.
+Ce document détaille les cycles de vie de l'animation au sein du composant unifié `VisualizeView.vue`. L'automate gère intelligemment les deux modes d'entrée (Standard et Variante) tout en partageant un **Socle Commun**.
 
-## Diagramme des États
+---
+
+## 1. Flux Unifié (`VisualizeView.vue`)
+
+L'automate s'adapte dynamiquement selon que l'utilisateur visualise une **Trace Principale** (séquence contemplative complète) ou une **Variante** (accès direct au Km 0).
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-    [*] --> Initialisation
+    classDef common fill:#ffcc00,stroke:#d4a017,stroke-width:2px,color:black;
+    classDef entry fill:#e1f5fe,stroke:#01579b,color:black;
+    classDef bridge fill:#ffab91,stroke:#d84315,stroke-width:2px,color:black;
 
-    state "Séquence d'Introduction" as Intro {
-        direction TB
-        Initialisation --> Vol_Vers_Vue_Globale: Données chargées
-        Vol_Vers_Vue_Globale --> Pause_Observation: Fin du vol 1
-        Pause_Observation --> Vol_Vers_Depart: Fin de la pause
-        Vol_Vers_Depart --> En_Pause_au_Depart: Arrivée au km 0
-    }
+    [*] --> Init
+    
+    Init: 🌑 Carte Masquée (zoomEurope)
+    Vol_Zoom: 🔭 [FLYTO] Zoom vers Vue Globale (durationEuropeToTrace)
+    Pause_Globale: 🛑 [PAUSE] Vue Globale (pauseBeforeStart)
+    Vol_Km0_STD: ✈️ [FLYTO] Vol vers Km 0 (durationTraceToStart)
+    Vol_Direct: ✈️ [FLYTO] Zoom km 0 (3s fixe)
+    
+    Km0: 🛑 [PAUSE] Km 0 (pauseAuKm0)
+    Anim: 🚀 [ANIM] En Mouvement (vitesse)
+    Pause: 🛑 [PAUSE] Manuelle (Infini)
+    
+    Arrivee: 🛑 [PAUSE] Arrivée (delayAfterAnimationEnd)
+    Vol_Final: ✈️ [FLYTO] Vue Globale (flyToGlobalDuration)
 
-    state "Boucle Principale" as MainLoop {
-        direction TB
-        En_Pause_au_Depart --> En_Animation: Démarrage automatique
-        En_Animation --> En_Pause: Touche 'P' / Pause programmée
-        En_Pause --> En_Animation: Reprise utilisateur (touche 'P')
-        En_Animation --> Survol_Evenementiel: Événement Fly-To détecté
-        Survol_Evenementiel --> En_Pause: Retour à la trace
-    }
+    Init --> Vol_Zoom: traceType = 'main'
+    Init --> Vol_Direct: traceType = 'variant'
+    
+    Vol_Zoom --> Pause_Globale
+    Pause_Globale --> Vol_Km0_STD: if repriseAutoVueTrace = true
+    Vol_Km0_STD --> Km0
+    Vol_Direct --> Km0
+    
+    Km0 --> Anim: if repriseAutoKm0 = true
+    Anim --> Pause: Touche 'P'
+    Pause --> Anim: Action 'Reprise'
+    Pause --> Arrivee: Action 'Vue Finale'
+    Anim --> Arrivee: Fin de trace
+    
+    Arrivee --> Vol_Final: if repriseAutomatique = true
+    Vol_Final --> Init: Boucle de Redémarrage
 
-    state "Séquence de Fin" as EndSequence {
-        En_Animation --> Vol_Final: Fin de la trace (phase >= 1)
-        Vol_Final --> Termine: Fin du vol final
-        Termine --> En_Pause_au_Depart: Réinitialisation (touche 'R')
-    }
+    %% Boutons et Navigation Finale
+    GoHome: Retour Accueil
+    ToVariant: Basculer vers Variantes
+    ToMain: Retour Trace Principale
+
+    Vol_Final --> ToVariant: if mode Main
+    Vol_Final --> ToMain: if mode Variant
+    Vol_Final --> GoHome
+    Pause --> GoHome
+
+    class Km0,Anim,Pause,Arrivee,Vol_Final common
+    class Init,Vol_Zoom,Pause_Globale,Vol_Km0_STD,Vol_Direct entry
+    class ToVariant,ToMain bridge
 ```
 
-## Description des États
+---
 
-*   **Initialisation** : L'état initial. La vue est en cours de chargement, les données du circuit (`lineString`, `tracking`) sont récupérées. La carte n'est pas encore interactive.
+## 3. Points Techniques Clés
 
-*   **Vol_Vers_Vue_Globale** : Premier vol animé. La caméra part d'une vue large (Europe) pour se positionner sur une vue d'ensemble de la trace.
+### A. Initialisation Fluide
+L'initialisation est conçue pour garantir une transition visuelle parfaite dès l'apparition de la carte :
+1. La carte est initialisée avec `isInitializing = true` (masquée par un overlay).
+2. Le centre est immédiatement fixé sur le **centre géographique de la trace** (calculé via Turf.js).
+3. Le zoom est initialisé à la valeur de `zoomEurope` (défaut 5).
+4. La séquence de zoom vers la vue globale est lancée alors que la carte est encore masquée.
+5. `isInitializing` passe à `false` après un délai de 200ms : l'utilisateur voit alors l'animation déjà en cours, sans aucun sursaut initial.
 
-*   **Pause_Observation** : Une pause statique après le premier vol, permettant à l'utilisateur d'avoir un aperçu global du parcours.
+### B. Contrôle Présentateur (Reprises Manuelles)
+Trois points d'arrêt stratégiques peuvent être configurés pour attendre une action manuelle (`Play`) du présentateur :
+- **Vue Globale** : Paramètre `repriseAutoVueTrace`. Permet de présenter le parcours complet.
+- **Départ (Km 0)** : Paramètre `repriseAutoKm0`. Permet d'introduire le départ.
+- **Arrivée** : Paramètre `repriseAutomatique`. Permet de conclure la séquence.
 
-*   **Vol_Vers_Depart** : Second vol animé. La caméra zoome depuis la vue d'ensemble pour se positionner précisément au point de départ (km 0), adoptant les paramètres de caméra initiaux (pitch, bearing, zoom).
+---
 
-*   **En_Pause_au_Depart** : La caméra est arrivée au point de départ. L'animation est en pause, en attente du démarrage automatique ou d'une action de l'utilisateur. C'est aussi l'état de destination après une réinitialisation.
+## 4. Synthèse des Paramètres (Rappel)
+*Tous ces paramètres sont stockés dans `settingsDefault.json`.*
 
-*   **En_Animation** : État principal. La boucle `animate()` est active. La caméra suit la trace en interpolant sa position soit entre les points de contrôle, soit point par point.
-
-*   **En_Pause** : L'animation est suspendue (par l'utilisateur ou par un événement programmé). La caméra est fixe et les interactions manuelles (zoom, déplacement) sont possibles.
-
-*   **Survol_Evenementiel** : Un événement "Fly-To" a été déclenché. L'animation principale est suspendue pendant que la caméra effectue un vol vers une coordonnée spécifique.
-
-*   **Vol_Final** : La fin de la trace est atteinte. La caméra effectue un dernier vol pour revenir à une vue d'ensemble du circuit.
-
-*   **Termine** : L'animation est terminée et la caméra est sur la vue d'ensemble finale. Le système attend une action de l'utilisateur (par exemple, réinitialiser avec la touche 'R').
-
-## Description des Transitions
-
-*   **Initialisation -> Vol_Vers_Vue_Globale**
-    *   **Déclencheur :** Toutes les données nécessaires (`lineString`, `tracking.json`, `evt.json`) ont été chargées avec succès.
-    *   **Action :** La séquence d'introduction commence avec le premier `flyTo`.
-
-*   **Vol_Vers_Vue_Globale -> Pause_Observation**
-    *   **Déclencheur :** L'animation du premier `flyTo` est terminée.
-    *   **Action :** Un `setTimeout` est lancé pour la durée de la pause.
-
-*   **Pause_Observation -> Vol_Vers_Depart**
-    *   **Déclencheur :** Le `setTimeout` de la pause se termine.
-    *   **Action :** Le second `flyTo` vers le point de départ est initié.
-
-*   **Vol_Vers_Depart -> En_Pause_au_Depart**
-    *   **Déclencheur :** L'animation du second `flyTo` est terminée.
-    *   **Action :** L'interface utilisateur devient visible, l'animation est prête mais en pause.
-
-*   **En_Pause_au_Depart -> En_Animation**
-    *   **Déclencheur :** Fin du `setTimeout` de la pause initiale au km 0.
-    *   **Action :** La variable `isPaused` passe à `false`, la boucle `animate()` commence à faire avancer la caméra.
-
-*   **En_Animation -> En_Pause**
-    *   **Déclencheur :** L'utilisateur appuie sur la touche `P` OU l'animation atteint un `increment` correspondant à une pause programmée.
-    *   **Action :** La variable `isPaused` passe à `true`. Les interactions manuelles avec la carte sont réactivées.
-
-*   **En_Pause -> En_Animation**
-    *   **Déclencheur :** L'utilisateur appuie sur la touche `P` alors que l'animation est en pause.
-    *   **Action :** Si la caméra a été déplacée, un `flyTo` la ramène à sa position d'origine. Ensuite, `isPaused` passe à `false` et l'animation reprend.
-
-*   **En_Animation -> Survol_Evenementiel**
-    *   **Déclencheur :** L'animation atteint un `increment` correspondant à un événement "Fly-To".
-    *   **Action :** La fonction `executeFlytoSequence` est appelée. Elle met `isPaused` à `true` et lance le `flyTo` de l'événement.
-
-*   **Survol_Evenementiel -> En_Pause**
-    *   **Déclencheur :** L'utilisateur appuie sur `P` pour quitter le survol, et le `flyTo` de retour à la trace est terminé.
-    *   **Action :** L'état revient à `En_Pause`, prêt pour que l'utilisateur relance l'animation principale.
-
-*   **En_Animation -> Vol_Final**
-    *   **Déclencheur :** La variable `phase` de l'animation atteint ou dépasse `1`.
-    *   **Action :** La variable `isAnimationFinished` passe à `true`. Un `setTimeout` lance le `flyTo` final après un court délai.
-
-*   **Vol_Final -> Termine**
-    *   **Déclencheur :** L'animation du `flyTo` final est terminée.
-    *   **Action :** L'animation est complètement arrêtée.
-
-*   **Termine -> En_Pause_au_Depart**
-    *   **Déclencheur :** L'utilisateur appuie sur la touche `R`.
-    *   **Action :** La fonction `resetAnimation()` est appelée, ce qui remet le temps à 0 et replace la caméra au point de départ via un `flyTo`. L'application se retrouve dans le même état qu'à la fin de la séquence d'introduction.
+| Paramètre | Chemin | Usage | Valeur par défaut |
+| :--- | :--- | :--- | :--- |
+| `zoomEurope` | `Visualisation/Lancement/zoomEurope` | Standard | 5 |
+| `durationEuropeToTrace` | `Visualisation/Lancement/durationEuropeToTrace` | Standard | 5.0 s |
+| `pauseBeforeStart` | `Visualisation/Lancement/pauseBeforeStart` | Standard | 1.0 s |
+| `repriseAutoVueTrace` | `Visualisation/Lancement/repriseAutoVueTrace` | Standard | **true** |
+| `durationTraceToStart` | `Visualisation/Lancement/durationTraceToStart` | Standard | 2.0 s |
+| `pauseAuKm0` | `Visualisation/Lancement/pauseAuKm0` | **Commun** | 0.5 s |
+| `repriseAutoKm0` | `Visualisation/Lancement/repriseAutoKm0` | **Commun** | **true** |
+| `vitesse` | `Visualisation/Lecture/vitesse` | **Commun** | 3730 ms/km |
+| `timerReprisePause` | `Visualisation/Lecture/timerReprisePause` | **Commun** | 1.0 s |
+| `delayAfterAnimationEnd` | `Visualisation/Finalisation/delayAfterAnimationEnd` | **Commun** | 3.0 s |
+| `flyToGlobalDuration` | `Visualisation/Finalisation/flyToGlobalDuration` | **Commun** | 2.0 s |
+| `repriseAutomatique` | `Visualisation/Finalisation/repriseAutomatique` | **Commun** | **false** |

@@ -11,6 +11,7 @@
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
+          <v-btn color="grey darken-1" text @click="abandon()">Abandonner</v-btn>
           <v-btn color="red darken-1" text @click="reply(false)">Refuser</v-btn>
           <v-btn color="green darken-1" text @click="reply(true)">Accepter</v-btn>
         </v-card-actions>
@@ -29,7 +30,7 @@
 
   onMounted(() => {
     console.log("PairingDialog mounted, listening for events.");
-    listen('ask_pairing_approval', (event) => {
+    listen('remote_pairing_request', (event) => {
       console.log('Received pairing request:', event);
       if (event.payload) {
           clientId.value = event.payload.clientId;
@@ -42,14 +43,23 @@
     });
   });
 
+  const abandon = async () => {
+    dialog.value = false;
+    try {
+      await invoke('abandon_remote_client', { clientId: clientId.value });
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'abandon du couplage:", error);
+    }
+  };
+
   const reply = async (accepted) => {
     dialog.value = false;
     try {
-      await invoke('reply_to_pairing_request', {
-        clientId: clientId.value,
-        accepted: accepted,
-        clientName: `Client ${clientId.value.substring(0, 8)}` // Placeholder name
-      });
+      if (accepted) {
+        await invoke('approve_remote_client', { clientId: clientId.value });
+      } else {
+        await invoke('refuse_remote_client', { clientId: clientId.value });
+      }
     } catch (error) {
       console.error("Erreur lors de l'envoi de la réponse de couplage:", error);
     }

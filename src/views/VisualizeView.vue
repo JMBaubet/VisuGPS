@@ -1,37 +1,32 @@
 <template>
-  <div id="map-container" ref="mapContainer" :class="{ 'hide-cursor': isCursorHidden }"></div>
-
-  <center-marker v-if="isCenterMarkerVisible" :color="couleurCroixCentrale" />
+  <VisualizeMapArea
+    ref="visualizeMapAreaRef"
+    :is-cursor-hidden="isCursorHidden"
+    :is-center-marker-visible="isCenterMarkerVisible"
+    :center-marker-color="couleurCroixCentrale"
+    :show-back-button="showWidgets && isBackButtonVisibleFinal"
+    :is-initializing="isInitializing"
+    @go-back="goBack"
+    @register-map-container="(el) => { mapContainer = el }"
+  />
 
   <transition name="fade">
-    <v-btn v-if="!isInitializing && isBackButtonVisibleFinal" icon="mdi-arrow-left" class="back-button" @click="goBack" title="Retour à l'accueil (h)"></v-btn>
+    <VisualizeInfoDisplay
+        v-if="showWidgets && is3DWidgetsReady"
+        :is-visible="true"
+        :show-distance="isDistanceDisplayVisible"
+        :distance-display="distanceDisplay"
+        :total-distance="totalDistanceRef / 1000"
+        :show-commune="shouldShowCommuneWidget && isCommuneWidgetVisible"
+        :commune-name="currentCommuneName"
+        :commune-border-color="communeWidgetBorderColor"
+    />
   </transition>
-
-  <transition name="fade-opacity">
-    <div v-if="!isInitializing && shouldShowCommuneWidget && isCommuneWidgetVisible" class="commune-display" :style="{ borderColor: communeWidgetBorderColor }" @wheel.stop>
-      <span class="font-weight-bold">{{ currentCommuneName }}</span>
-    </div>
-  </transition>
-
-
-
-  <div class="top-center-container">
-    <transition name="fade-opacity">
-      <v-card v-if="!isInitializing && isDistanceDisplayVisible" variant="elevated" class="distance-display" @wheel.stop>
-            <div class="d-flex align-center justify-center fill-height px-4">
-              <span class="font-weight-bold">Distance :&nbsp;</span>
-              <span class="font-weight-bold">{{ distanceDisplay }}</span> <span class="font-weight-bold">&nbsp;/ {{ totalDistanceRef.toFixed(2) }} km</span>
-            </div>  
-      </v-card>
-    </transition>
-
-
-  </div>
 
   <div class="top-right-container" style="position: absolute; top: 10px; right: 10px; z-index: 1000; pointer-events: none;">
     <transition name="fade">
         <WeatherWidgetDynamic 
-            v-if="!isInitializing && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
+            v-if="showWidgets && is3DWidgetsReady && currentWeather && (isWeatherInfoVisible || isCompassVisible)" 
             :weather="currentWeather" 
             :bearing="currentCameraBearing" 
             :trace-bearing="currentTraceBearing" 
@@ -39,15 +34,18 @@
             :show-info="isWeatherInfoVisible"
             :show-compass="isCompassVisible"
             :scenarios="circuitScenarios"
-            :weather-matrix="weatherForecasts"
-            :current-distance="currentDistance"
+            :active-groups="activeGroups"
+            :variant-mappings="variantMappings"
+            :weather-matrix="allWeatherForecasts"
+            :current-distance="currentDistanceInMeters / 1000"
             :simulation-start-date="simulationStartDate"
+            :viewed-variant-id="selectedVariantId"
         />
     </transition>
     <transition name="fade">
         <WeatherWidgetStatic 
-            v-if="showWeatherTable && weatherForecasts.length > 0" 
-            :weather-matrix="weatherForecasts" 
+            v-if="showWeatherTable && currentViewWeather.length > 0" 
+            :weather-matrix="currentViewWeather" 
             :scenarios="circuitScenarios"
             :date="simulationStartDate"
             @close="showWeatherTable = false" 
@@ -56,2195 +54,2695 @@
     </transition>
   </div>
 
-              <div class="bottom-center-container">
-    <transition name="fade">
-      <div v-if="!isInitializing && isAltitudeVisible" class="altitude-svg-container" @wheel.stop>
-          <altitude-s-v-g :circuit-id="props.circuitId" :current-distance="currentDistanceInMeters" />
-      </div>
-    </transition>
-    <transition name="fade">
-      <v-btn v-if="!isInitializing && isPaused && !isControlsCardVisible"
-             color="warning"
-             @click="isAnimationFinished ? resetAnimation() : isPaused = false"
-             class="bottom-controls"
-             size="x-large"
-             rounded
-             title="Reprendre l'animation (P)"
-             @wheel.stop
-      >
-        Reprise
-      </v-btn>
-    </transition>
-    <transition name="fade-opacity">
-      <div v-if="!isInitializing && isControlsCardVisible" class="bottom-controls" title="Afficher/Masquer (Espace)" @wheel.stop>
-        <v-card variant="elevated" class="controls-card">
-            <div class="d-flex align-center pa-1">
-                            <v-btn :icon="isAnimationFinished ? 'mdi-reload' : 'mdi-rewind'" variant="text" size="x-small"
-                                   @mousedown="isAnimationFinished ? resetAnimation() : isRewinding = true"
-                                   @mouseup="isRewinding = false" @mouseleave="isRewinding = false"></v-btn>
-                            <v-btn :icon="isPaused ? 'mdi-play' : 'mdi-pause'" variant="text" @click="isPaused = !isPaused" :disabled="isAnimationFinished"></v-btn>
-                            <v-divider vertical class="mx-2"></v-divider>
-                            <v-slider
-                                v-model="sliderPosition"
-                                :min="0"
-                                :max="100"
-                                :step="1"
-                                hide-details
-                                class="align-center speed-slider"
-                                :disabled="isAnimationFinished"
-                            >
-                                <template v-slot:append>
-                                    <span class="speed-value-display">{{ currentSpeed.toFixed(1) }}x</span>
-                                    <v-btn icon="mdi-numeric-1-box-outline" variant="text" @click="currentSpeed = defaultSpeedValue" :disabled="isAnimationFinished"></v-btn>
-                                </template>
-                            </v-slider>          </div>
+  <VisualizeControls
+    v-if="showWidgets"
+    :is-visible="showWidgets"
+    :is-altitude-visible="isAltitudeVisible && is3DWidgetsReady"
+    :allow-overlay="is3DContext"
+    v-model:is-paused="isPaused"
+    :is-animation-finished="isAnimationFinished"
+    v-model:is-rewinding="isRewinding"
+    v-model:current-speed="currentSpeed"
+    :controls-visible="isControlsCardVisible && is3DWidgetsReady"
+    :min-speed="minSpeedValue"
+    :max-speed="maxSpeedValue"
+    :default-speed="defaultSpeedValue"
+    @reset="resetAnimation"
+    @trigger-final-view="handleEndSequence(true)"
+  >
+    <template #altitude-chart v-if="showWidgets && is3DWidgetsReady">
+      <transition name="fade" appear>
+        <div>
+            <AltitudeSVG 
+                v-if="isMainTrace"
+                :key="`altitude-${props.circuitId}-${totalDistanceRef}`"
+                :circuit-id="props.circuitId"
+                :current-distance="currentDistanceInMeters"
+                :total-distance="totalDistanceRef"
+                :tracking-points="trackingPointsWithDistanceRef"
+                :is-variant-comparison="false"
+                @jump-requested="(distRef) => handleJumpRequest(distRef / 1000)"
+            />
+            
+            <AltitudeVariantSVG 
+                v-else
+                :key="`altitude-variant-${props.circuitId}`"
+                :current-distance="currentDistanceInMeters" 
+                :total-main-distance="masterTraceTotalDistance"
+                :main-trace-points="masterTrackingPoints"
+                :abandoned-segments="abandonedSegmentsRef"
+                :variant-blue-segments="variantBlueSegmentsRef"
+                @jump-requested="handleJumpRequest"
+            />
+        </div>
+      </transition>
+    </template>
+
+    <template #final-action>
+        <v-menu v-if="isVariantTrace" location="top center" offset="10" open-on-hover>
+            <template v-slot:activator="{ props: menuProps }">
+                <v-btn icon="mdi-map-marker-radius-outline" variant="text" size="small" v-bind="menuProps"
+                       :disabled="!isPaused || isAnimationFinished || !is3DContext"
+                ></v-btn>
+            </template>
+            <v-list density="compact" class="bg-surface pa-0 elevation-10" style="border-radius: 8px; min-width: 40px;">
+                <v-list-item v-for="(item, i) in navigationItems" :key="i" @click="handleNavigationClick(item)"
+                             link class="pa-0 justify-center">
+                    <div class="d-flex justify-center w-100 py-2">
+                        <v-icon :icon="item.icon" :color="item.color" size="small"></v-icon>
+                    </div>
+                </v-list-item>
+            </v-list>
+        </v-menu>
+    </template>
+
+
+    <template #extra-controls>
+        <!-- Variant Switching & Return -->
+        <v-divider vertical class="mx-2"></v-divider>
+        
+        <!-- Sélection de Variante -->
+        <v-btn v-if="accessibleVariants.length > 0 && isPaused"
+            icon="mdi-map-marker-path" 
+            variant="text" 
+            color="primary"
+            title="Choisir une variante" 
+            @click="goToVariantView">
+        </v-btn>
+
+        <!-- Return to Main Trace -->
+        <v-btn v-if="isVariantTrace && is3DContext"
+            icon="mdi-map-marker-distance" 
+            variant="text" 
+            color="secondary"
+            title="Retour Trace Principale" 
+            :disabled="!isPaused"
+            @click="returnToMainTrace">
+        </v-btn>
+    </template>
+    
+    <template #extra-overlay-actions>
+       <!-- Overlay vidé à la demande de l'utilisateur pour une interface strictement minimale -->
+    </template>
+  </VisualizeControls>
+
+    <!-- Variant Selection Dialog -->
+    <v-dialog v-model="showVariantSelection" persistent max-width="500" scrim="black" opacity="0.5">
+        <v-card>
+            <v-card-title class="text-h5 bg-primary text-white">Choisir une variante</v-card-title>
+            <v-list>
+                <v-list-item v-for="v in accessibleVariants" :key="v.id" @click="selectVariant(v.id)" link>
+                    <template v-slot:prepend>
+                        <v-icon icon="mdi-map-marker-path" color="primary"></v-icon>
+                    </template>
+                    <v-list-item-title>{{ v.name }}</v-list-item-title>
+                    <v-list-item-subtitle>
+                        {{ (v.stats.totalDistance).toFixed(1) }} km • {{ v.stats.totalAscent.toFixed(0) }}m D+
+                    </v-list-item-subtitle>
+                </v-list-item>
+            </v-list>
+            <v-card-actions>
+                <v-spacer></v-spacer>
+                <v-btn text @click="showVariantSelection = false">Annuler</v-btn>
+            </v-card-actions>
         </v-card>
-      </div>
-    </transition>
-  </div>
+    </v-dialog>
+
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch, nextTick, reactive } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import mapboxgl from 'mapbox-gl';
 import * as turf from '@turf/turf';
-import { useTheme } from 'vuetify';
 import { useSettings } from '@/composables/useSettings';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { buildSlopeColorsMap } from '@/composables/useSlopeColors';
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
-import AltitudeSVG from '@/components/AltitudeSVG.vue';
-import CenterMarker from '@/components/CenterMarker.vue';
-
-import WeatherWidgetDynamic from '@/components/WeatherWidgetDynamic.vue';
-import WeatherWidgetStatic from '@/components/WeatherWidgetStatic.vue';
+import { useRemoteControlStatus } from '@/composables/useRemoteControlStatus';
+import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
+import AltitudeVariantSVG from '@/components/Visualize/AltitudeVariantSVG.vue';
+import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
+import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
 import WeatherService from '@/services/WeatherService';
+// Shared Components
+import VisualizeMapArea from '@/components/Visualize/Shared/VisualizeMapArea.vue';
+import VisualizeInfoDisplay from '@/components/Visualize/Shared/VisualizeInfoDisplay.vue';
+import VisualizeControls from '@/components/Visualize/Shared/VisualizeControls.vue';
 
-
+// --- Nouveaux Composables ---
+import { useMapEngine } from '@/composables/visualize/useMapEngine.js';
+import { useCameraManager } from '@/composables/visualize/useCameraManager.js';
+import { useCircuitData } from '@/composables/visualize/useCircuitData.js';
+import { useTraceLayers } from '@/composables/visualize/useTraceLayers.js';
+import { useAnimationController } from '@/composables/visualize/useAnimationController.js';
+import { useCameraInterpolator } from '@/composables/visualize/useCameraInterpolator.js';
+import TraceMappingService from '@/services/TraceMappingService'; // NEW
 
 const props = defineProps({
-  circuitId: {
-    type: String,
-    required: true,
-  },
-});
-
-const animationState = ref('Initialisation');
-
-watch(animationState, (newState) => {
-  invoke('update_animation_state', { newState });
-  // Automatically control isBackButtonVisible based on animationState
-  if (newState === 'En_Pause' || newState === 'Termine' || newState === 'En_Pause_au_Depart') {
-    isBackButtonVisible.value = true;
-  } else {
-    isBackButtonVisible.value = false;
+  circuitId: { type: String, required: true },
+  variantId: { type: String, default: null }, // Optional
+  traceType: { 
+    type: String, 
+    default: 'variant', // Par défaut variante pour compatibilité
+    validator: (v) => ['main', 'variant'].includes(v)
   }
 });
 
 const router = useRouter();
+const route = useRoute();
+
+const showVariantSelection = ref(false);
+const availableVariants = ref([]);
+const selectedVariantId = ref(props.variantId || route.query.variantId);
+
+const selectVariant = (id) => {
+    selectedVariantId.value = id;
+    showVariantSelection.value = false;
+    
+    // Update URL to reflect the new variant
+    router.replace({ 
+        name: 'VisualizeVariant', 
+        params: { circuitId: props.circuitId, variantId: id },
+        query: route.query 
+    });
+    
+    initializeVisualization();
+};
 const { settings, getSettingValue } = useSettings();
 const { showSnackbar } = useSnackbar();
 const { interruptUpdate } = useCommunesUpdate();
-const { current: theme } = useTheme();
 const { toHex } = useVuetifyColors();
 const { createMessageSVG } = useMessageDisplay();
-
-// --- Center Marker Logic ---
-const afficherCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale'));
-const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
-const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
-const isCenterMarkerVisible = computed(() => {
-  return afficherCroixCentrale.value && animationState.value === 'En_Pause';
-});
-
 const { isBackButtonVisible, toggleBackButtonVisibility } = useSharedUiState();
+const { isRemoteConnected } = useRemoteControlStatus();
 
-const shouldShowBackButtonBasedOnAnimationState = computed(() => {
-    const state = animationState.value;
-    return state === 'En_Pause' || state === 'Termine' || state === 'En_Pause_au_Depart';
-});
+// --- Mode Detection ---
+const isVariantTrace = computed(() => !!selectedVariantId.value);
+const isMainTrace = computed(() => !selectedVariantId.value);
+const isDirectStart = computed(() => route.query.directStart === 'true' || isVariantTrace.value);
 
-const isBackButtonVisibleFinal = computed(() => {
-    return isBackButtonVisible.value && shouldShowBackButtonBasedOnAnimationState.value;
-});
-
-const isInitializing = ref(true);
-const isDistanceDisplayVisible = ref(getSettingValue('Visualisation/Widgets/distance') ?? true);
-const isControlsCardVisible = ref(getSettingValue('Visualisation/Widgets/commandes') ?? true);
-const isCommuneWidgetVisible = ref(getSettingValue('Visualisation/Widgets/communes') ?? true);
-const isAltitudeVisible = ref(getSettingValue('Visualisation/Widgets/altitude') ?? true);
-const isCursorHidden = ref(false);
-
-// --- Weather State ---
-const weatherForecasts = ref([]);
-const simulationStartDate = ref(null);
-const currentWeather = ref(null);
-// const isWeatherVisible = ref(true); // Removed
-const isStaticWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true);
-const showWeatherTable = ref(false); // Widget Météo Tableau (Shift+M)
-const isDynamicWeatherVisible = ref(getSettingValue('Visualisation/Météo/Widgets/boussole') ?? true);
-const isWeatherInfoVisible = ref(isStaticWeatherVisible.value);
-const isCompassVisible = ref(isDynamicWeatherVisible.value);
-const currentTraceBearing = ref(0);
-const currentCameraBearing = ref(0);
-const currentCircuitRef = ref(null); // Added for settings priority
-
-// Weather Settings
-// Prioritize circuit settings if available, otherwise fallback to global settings
-const meteoActif = computed(() => getSettingValue('Visualisation/Météo/meteoActif') ?? true);
-
-const defaultHeureDepart = computed(() => {
-    if (currentCircuitRef.value?.meteoConfig?.heureDepart) {
-        return currentCircuitRef.value.meteoConfig.heureDepart;
-    }
-    return getSettingValue('Visualisation/Météo/heureDepart') || "08:30";
-});
-
-const defaultVitesseMoyenne = computed(() => {
-    if (currentCircuitRef.value?.meteoConfig?.vitesseMoyenne) {
-        return currentCircuitRef.value.meteoConfig.vitesseMoyenne;
-    }
-    return getSettingValue('Visualisation/Météo/vitesseMoyenne') || 20.0;
-});
-
-const orientationBoussole = computed(() => {
-    if (currentCircuitRef.value?.meteoConfig?.orientationBoussole) {
-        return currentCircuitRef.value.meteoConfig.orientationBoussole;
-    }
-    return getSettingValue('Visualisation/Météo/orientationBoussole') || "Trace";
-});
-
-const currentOrientationMode = ref(orientationBoussole.value);
-watch(orientationBoussole, (newVal) => {
-    currentOrientationMode.value = newVal;
-});
-
-const currentDistance = computed(() => currentDistanceInMeters.value / 1000);
-const circuitScenarios = computed(() => currentCircuitRef.value?.meteoConfig?.scenarios || []);
-
-// --- Commune Widget State ---
-const avancementCommunes = ref(0);
-const currentCommuneName = ref('');
-const shouldShowCommuneWidget = computed(() => avancementCommunes.value > 6);
-const communeWidgetBorderColor = computed(() => theme.value.colors['red-darken-3'] || '#C62828');
-
-const unlistenFunctions = [];
-
+// --- Initialization + Refs ---
 const mapContainer = ref(null);
-let map = null;
-let animationFrameId = null;
-let cursorTimer = null;
-let isMapInitialized = false;
-let warningShown = false;
-let accumulatedTime = 0;
-let lastTimestamp = 0;
-let activePopups = new Map();
+const isCursorHidden = ref(false); 
+let cursorTimeout = null;
+const isInitSequenceRunning = ref(false); // Flag to protect initialization sequence
 
-const lineStringRef = ref(null);
-const trackingDataRef = ref(null);
-const totalDistanceRef = ref(0);
+const handleInteraction = () => {
+    isCursorHidden.value = false;
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+    cursorTimeout = setTimeout(() => {
+        // Hide cursor only if not paused (optional, but usually desired in full screen)
+        // For now, let's keep it simple: hide after 3s of inactivity
+        isCursorHidden.value = true;
+    }, 3000);
+};
+const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Globale, Vol_Vers_Depart, En_Animation, En_Pause, Termine
+const is3DContext = computed(() => {
+    // Les widgets "3D" ne s'affichent que lors de la visualisation active (départ, animation, pause)
+    // Ils sont masqués pendant l'intro (Standard) et la sortie (FlyTo Global)
+    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart', 'Survol_Evenementiel'].includes(animationState.value);
+});
+const is3DWidgetsReady = computed(() => {
+    // Return true as long as we are in 3D context. 
+    // Individual widgets handle their own "no data" state.
+    return is3DContext.value; 
+});
+const showWidgets = ref(false);
+const hasVariants = ref(false);
+
+// --- Filtered Variants Logic ---
+const accessibleVariants = computed(() => {
+    // If no variants at all
+    if (!hasVariants.value) return [];
+    
+    // If no active groups (should not happen if weather initialized, but safe check)
+    if (!activeGroups.value || activeGroups.value.length === 0) return [];
+
+    // Get all variant IDs used by active groups
+    // Note: 'null' in variantId means Main Trace, which is not a "variant" in availableVariants
+    const usedVariantIds = new Set(
+        activeGroups.value
+            .map(g => g.variantId)
+            .filter(id => id !== null) // Filter out main trace
+    );
+
+    // Filter availableVariants
+    return availableVariants.value.filter(v => usedVariantIds.has(v.id));
+});
+
+
+
+// --- Settings Computed ---
+const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
+const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styleVisualisation'));
+const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/styleLancement'));
+// Use Edition setting as verified source
+const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration')); 
+const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
+const durationEuropeToTrace = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationEuropeToTrace')));
+const margeLancement = computed(() => getSettingValue('Visualisation/Lancement/margeLancement') ?? 80);
+const margeFinalisation = computed(() => getSettingValue('Visualisation/Finalisation/margeFinalisation') ?? 80);
+const durationTraceToStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/durationTraceToStart')));
+const pauseBeforeStart = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseBeforeStart')));
+const repriseAutoVueTrace = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoVueTrace'));
+const pauseAuKm0 = computed(() => formatDuration(getSettingValue('Visualisation/Lancement/pauseAuKm0'))); 
+const repriseAutoKm0 = computed(() => getSettingValue('Visualisation/Lancement/repriseAutoKm0'));
+const flyToKm0Duration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToKm0Duration'))); // Fixed path
+const flyToGlobalDuration = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/flyToGlobalDuration'))); // Fixed path
+const delayAfterAnimationEnd = computed(() => formatDuration(getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd'))); // Fixed path
+const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique')); // Nouveau paramètre
+const traceWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurTrace')); // Fixed path
+const traceOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteTrace')); // Fixed path
+const traceColor = computed(() => toHex(getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'))); // Fixed path
+const cometWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurComete')); // Fixed path
+const cometColor = computed(() => toHex(getSettingValue('Visualisation/Vue 3D/Trace/couleurComete'))); // Fixed path
+const cometOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete')); // Fixed path
+const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/longueurComete')); // Fixed path
+const dynamicZoomIntensity = computed(() => getSettingValue('Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique') || 10);
+const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/colorerSelonPente')); // Fixed path - wait, verify Visualisation vs Edition?
+const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment') || 100); // Fixed path
+const jumpDuration = computed(() => getSettingValue('Visualisation/Lecture/jumpDuration') ?? 2.0);
+
+// Remote Control Sensitivities
+const remoteSensX = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 200) / 100);
+const remoteSensY = computed(() => (getSettingValue('Système/Télécommande/sensibilitePointDeVueY') ?? 200) / 100);
+const remoteSensCap = computed(() => (getSettingValue('Système/Télécommande/sensibiliteCap') ?? 50) / 100);
+const remoteSensZoom = computed(() => (getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 50) / 100);
+const remoteSensTilt = computed(() => (getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50) / 100);
+
+// --- Helper: Contextual Setting Path Resolver (Phase 6) ---
+const getSettingPath = (leafPath) => {
+    // 1. Widgets (Common structure suffix)
+    if (leafPath.startsWith('Widgets/')) {
+        if (isMainTrace.value) {
+            return `Visualisation/${leafPath}`;
+        } else {
+            return `Variante/Visualisation/${leafPath}`;
+        }
+    }
+
+    // 2. Custom Mappings (Trace, Map, etc.)
+    const mappings = {
+        'couleurTrace': {
+            main: 'Visualisation/Vue 3D/Trace/couleurTrace',
+            variant: 'Variante/Visualisation/couleurTrace'
+        },
+        'epaisseurTrace': {
+             main: 'Visualisation/Vue 3D/Trace/epaisseurTrace',
+             variant: 'Variante/Visualisation/epaisseurSegments' // Approximate fallback
+        }
+    };
+
+    if (mappings[leafPath]) {
+        return isMainTrace.value ? mappings[leafPath].main : mappings[leafPath].variant;
+    }
+
+    return leafPath;
+};
+
+// --- Computed Parameters (Unified) ---
+const isDistanceDisplayVisible = ref(getSettingValue(getSettingPath('Widgets/distance')) ?? true);
+const isControlsCardVisible = ref(getSettingValue(getSettingPath('Widgets/commandes')) ?? false);
+const isCommuneWidgetVisible = ref(getSettingValue(getSettingPath('Widgets/communes')) ?? true);
+const isAltitudeVisible = ref(getSettingValue(getSettingPath('Widgets/altitude')) ?? true);
+const isWeatherInfoVisible = ref(getSettingValue(getSettingPath('Widgets/meteo')) ?? true);
+const isCompassVisible = ref(getSettingValue(getSettingPath('Widgets/boussole')) ?? true);
+
+// Unified Trace Color (used by setupTraceLayers in main mode, etc.)
+const traceColorComputed = computed(() => toHex(getSettingValue(getSettingPath('couleurTrace'))));
+
+// --- Variant Visualization Settings (Specific) ---
+const showSegments = computed(() => getSettingValue('Variante/Visualisation/afficherSegments'));
+const showSlope = computed(() => getSettingValue('Variante/Visualisation/afficherPente'));
+const segmentThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurSegments'));
+const segmentOpacity = computed(() => getSettingValue('Variante/Visualisation/opaciteSegments'));
+const slopeThickness = computed(() => getSettingValue('Variante/Visualisation/epaisseurPente'));
+const slopeOpacity = computed(() => getSettingValue('Variante/Visualisation/opacitePente'));
+const colorNew = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurNouveau')));
+const colorCommon = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurCommun')));
+const colorAbandoned = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurAbandonne')));
+const colorTraceVariant = computed(() => toHex(getSettingValue('Variante/Visualisation/couleurTrace'))); // Kept for specific variant logic
+const showAbandoned = computed(() => getSettingValue('Variante/Visualisation/afficherSegmentAbandonne'));
+
+const formatDuration = (val) => {
+    const num = parseFloat(val);
+    if (isNaN(num)) return 1000; // Default safety fallback
+    return (num > 100 ? num : num * 1000);
+};
+
+// --- Using New Composables ---
+// 1. Map Engine
+const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap } = useMapEngine(mapContainer, mapboxToken, mapStyle, terrainExaggeration);
+
+// 2. Camera Manager
+const { pausedCameraOptions, currentCameraBearing: camBearing, saveCameraState, restoreCameraState, enableInteraction, disableInteraction, startBearingTracking } = useCameraManager(map);
+const currentCameraBearing = computed(() => camBearing.value);
+const currentOrientationMode = ref('Trace');
+
+// 3. Circuit Data
+const { loadCircuitData, processTrackingData, lineStringRef, trackingPointsWithDistanceRef, eventsRef, segmentMetadata } = useCircuitData();
+const totalDistanceRef = ref(0); 
 const totalDurationAt1xRef = ref(0);
-const trackingPointsWithDistanceRef = ref([]);
 const controlPointIndicesRef = ref([]);
 const pauseIncrements = ref([]);
 const flytoEvents = ref({});
 const rangeEvents = ref([]);
-const currentDistanceInMeters = ref(0);
-const segmentMetadata = ref(null); // Métadonnées des segments superposés
-const currentActiveZone = ref(null); // Zone active actuelle
-
-// Gradients pour les 4 layers de trace
-const layerGradients = ref({
-    main: null,
-    aller: null,
-    retour: null,
-    neutral: null
-});
-
-// Function to send the current state to the backend
-const sendVisualizeViewStateUpdate = async () => {
-    try {
-        await invoke('update_visualize_view_state', {
-            state: {
-                isControlsCardVisible: isControlsCardVisible.value,
-                isAltitudeVisible: isAltitudeVisible.value,
-                isCommuneWidgetVisible: isCommuneWidgetVisible.value,
-                isDistanceDisplayVisible: isDistanceDisplayVisible.value,
-                isStaticWeatherVisible: isWeatherInfoVisible.value,
-                isDynamicWeatherVisible: isCompassVisible.value,
-                currentSpeed: currentSpeed.value,
-                animationState: animationState.value
-            }
-        });
-    } catch (error) {
-        console.error("Failed to broadcast visual state update:", error);
-    }
-};
-
-// Watch for changes and send updates
-watch(isControlsCardVisible, sendVisualizeViewStateUpdate);
-watch(isAltitudeVisible, sendVisualizeViewStateUpdate);
-watch(isCommuneWidgetVisible, sendVisualizeViewStateUpdate);
-watch(isDistanceDisplayVisible, sendVisualizeViewStateUpdate);
-watch(isWeatherInfoVisible, sendVisualizeViewStateUpdate);
-watch(isCompassVisible, sendVisualizeViewStateUpdate);
-
-// Update remote control when initialization finishes
-watch(isInitializing, (newVal) => {
-    if (!newVal) {
-        sendVisualizeViewStateUpdate();
-    }
-});
-
-
-const centerEurope = computed(() => getSettingValue('Visualisation/Lancement/centerEurope'));
-const zoomEurope = computed(() => getSettingValue('Visualisation/Lancement/zoomEurope'));
-const durationEuropeToTrace = computed(() => {
-    const val = getSettingValue('Visualisation/Lancement/durationEuropeToTrace');
-    return val > 100 ? val : val * 1000;
-});
-const pauseBeforeStart = computed(() => {
-    const val = getSettingValue('Visualisation/Lancement/pauseBeforeStart');
-    return val > 100 ? val : val * 1000;
-});
-const durationTraceToStart = computed(() => {
-    const val = getSettingValue('Visualisation/Lancement/durationTraceToStart');
-    return val > 100 ? val : val * 1000;
-});
-
-
-// Helper function to promisify map.flyTo
-function flyToPromise(mapInstance, options) {
-    return new Promise(resolve => {
-        mapInstance.flyTo(options);
-        mapInstance.once('moveend', () => resolve());
-    });
-}
-
-
-
-
+const currentCircuitRef = shallowRef(null);
 const triggeredPauseIncrement = ref(null);
 const triggeredFlytoIncrement = ref(null);
-const isFlytoActive = ref(false);
+const isFlytoActive = ref(false); // Mode FlyTo exclusif
 const preFlytoCameraOptions = ref(null);
-const globalTraceCameraOptions = ref(null);
 
-async function executeFlytoSequence(flytoData) {
-    isWatcherActive = false; // Désactivation du watcher principal
-    isFlytoActive.value = true;
-    isPaused.value = true; // Pause de la boucle d'animation principale
+// 4. Trace Layers
+const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, updateVariantSlopeMode, updateVariantStyle, coloredSegmentsGeoJsonRef, slopeExpressionRef } = useTraceLayers(map);
 
-    // --- Phase 1: Vol vers la cible ---
-    animationState.value = 'Survol_Evenementiel';
-    preFlytoCameraOptions.value = {
-        center: map.getCenter(),
-        zoom: map.getZoom(),
-        pitch: map.getPitch(),
-        bearing: map.getBearing(),
-    };
-    //showSnackbar('Début du survol programmé...', 'info');
-    
-    // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
-    // Ajuster la durée en fonction de la vitesse, avec une durée minimale.
-    // Heuristique : si la durée est > 100, on considère qu'elle est déjà en ms (rétrocompatibilité).
-    const durationInMs = flytoData.duree > 100 ? flytoData.duree : flytoData.duree * 1000;
-    const durationToTarget = Math.max(200, durationInMs / currentSpeed.value);
+// 5. Animation Controller
+// Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
+const cameraMoved = ref(false);
 
-    await flyToPromise(map, {
-        center: flytoData.coord,
-        zoom: flytoData.zoom,
-        pitch: flytoData.pitch,
-        bearing: flytoData.cap,
-        duration: durationToTarget,
-    });
+const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
 
-    // --- Phase 2: En pause sur la cible ---
-    animationState.value = 'En_Pause';
-    //showSnackbar('Survol en pause. Appuyez sur Play pour continuer.', 'info');
-
-    // Activer l'interaction cartographique pendant la pause Flyto
-    if (map) {
-        map.interactive = true;
-        map.dragRotate.enable();
-        map.dragPan.enable();
-        map.scrollZoom.enable({ around: 'center' });
-        
-        // Détecter si l'utilisateur bouge la caméra pour le vol de retour (optionnel mais propre)
-        map.on('move', onMapInteraction);
-        map.on('zoom', onMapInteraction);
-        map.on('pitch', onMapInteraction);
-        map.on('rotate', onMapInteraction);
-        map.on('zoom', handleMapZoom);
-    }
-
-    // Attendre que l'utilisateur appuie sur "Play"
-    await new Promise(resolve => {
-        const unwatch = watch(() => isPaused.value, (newVal, oldVal) => {
-            if (oldVal === true && newVal === false) {
-                unwatch();
-                resolve();
-            }
-        });
-    });
-
-    // Désactiver l'interaction avant le vol de retour
-    if (map) {
-        map.interactive = false;
-        map.dragRotate.disable();
-        map.dragPan.disable();
-        map.scrollZoom.disable();
-        
-        map.off('move', onMapInteraction);
-        map.off('zoom', onMapInteraction);
-        map.off('pitch', onMapInteraction);
-        map.off('rotate', onMapInteraction);
-        map.off('zoom', handleMapZoom);
-    }
-
-    // --- Phase 3: Vol de retour vers la trace ---
-    animationState.value = 'Survol_Evenementiel';
-    //showSnackbar('Retour à la trace...', 'info');
-
-    // Ajuster également la durée du vol de retour.
-    const durationBackToTrace = Math.max(200, flytoData.duree / currentSpeed.value);
-
-    await flyToPromise(map, {
-        ...preFlytoCameraOptions.value,
-        duration: durationBackToTrace,
-    });
-
-    // --- Phase 4: Reprise de l'animation ---
-    isFlytoActive.value = false;
-    isPaused.value = false; // On relance l'animation
-    animationState.value = 'En_Animation'; // On définit l'état final explicitement
-    lastTimestamp = 0; // On réinitialise le timer pour une reprise propre
-    isWatcherActive = true; // Réactivation du watcher principal
-}
-
-  const animate = (timestamp) => {
-  if (isResuming.value) {
-      if (map) map.triggerRepaint();
-      animationFrameId = requestAnimationFrame(animate);
-      return;
-  }
-
-  if (isFlytoActive.value) {
-    if (map) map.triggerRepaint();
-    lastTimestamp = timestamp; 
-    animationFrameId = requestAnimationFrame(animate);
-    return;
-  }
-
-  // New, robust timing logic
-  if (isPaused.value) {
-    lastTimestamp = 0; // Invalidate lastTimestamp while paused
-    animationFrameId = requestAnimationFrame(animate);
-    return;
-  }
-  if (lastTimestamp === 0) {
-    // First frame after start or pause, just set the timestamp and skip a frame
-    lastTimestamp = timestamp;
-    animationFrameId = requestAnimationFrame(animate);
-    return;
-  }
-
-  // Cap deltaTime to prevent large jumps when the tab is inactive
-  const deltaTime = Math.min(timestamp - lastTimestamp, 100);
-  lastTimestamp = timestamp;
-
-  if (isRewinding.value) {
-      accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * currentSpeed.value));
-  }
-  else {
-      accumulatedTime += deltaTime * currentSpeed.value;
-  }
-
-  const phase = Math.min(accumulatedTime / totalDurationAt1xRef.value, 1);
-  const distanceTraveled = totalDistanceRef.value * phase;
-  distanceDisplay.value = distanceTraveled.toFixed(2);
-  currentDistanceInMeters.value = distanceTraveled * 1000;
-
-  // --- Refonte Phase 8 : Bascule Globale Aller -> Retour ---
-  // On ne gère plus des zones individuelles, mais une phase globale.
-  // Tant qu'on n'a pas dépassé le dernier segment "Aller", on affiche le calque Aller.
-  // Ensuite, on bascule sur le calque Retour pour toujours.
-  
-  if (segmentMetadata.value && segmentMetadata.value.overlappingZones && segmentMetadata.value.overlappingZones.length > 0) {
-      // Trouver le point de bascule ultime (le max de tous les aller_end_km)
-      // Correction: On utilise KM et pas Index, car Index Backend (LineString) != Index Frontend (Tracking)
-      
-      let maxAllerEndKm = 0;
-      segmentMetadata.value.overlappingZones.forEach(z => {
-          if (z.allerEndKm > maxAllerEndKm) maxAllerEndKm = z.allerEndKm;
-      });
-      
-      const isPhaseRetour = distanceTraveled > maxAllerEndKm;
-      
-      if (map) {
-          if (isPhaseRetour) {
-              // Mode Retour : Afficher uniquement l'overlay retour (qui contient tout sauf aller_overlap)
-              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'none') {
-                  map.setLayoutProperty('trace-overlap-aller', 'visibility', 'none');
-              }
-              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'visible') {
-                  map.setLayoutProperty('trace-overlap-retour', 'visibility', 'visible');
-                  console.log(`🔀 [Visualize] Bascule Phase RETOUR (Km ${distanceTraveled.toFixed(2)} > ${maxAllerEndKm.toFixed(2)})`);
-              }
-          } else {
-              // Mode Aller : Afficher uniquement l'overlay aller (qui contient tout sauf retour_overlap)
-              if (map.getLayoutProperty('trace-overlap-retour', 'visibility') !== 'none') {
-                  map.setLayoutProperty('trace-overlap-retour', 'visibility', 'none');
-              }
-              if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
-                  map.setLayoutProperty('trace-overlap-aller', 'visibility', 'visible');
-                  // console.log(`🔀 [Visualize] Phase ALLER`);
-              }
-          }
-      }
-  } else {
-      // Pas de metadata (trace simple) : "Aller" par défaut
-      if (map && map.getLayer('trace-overlap-aller')) {
-           if (map.getLayoutProperty('trace-overlap-aller', 'visibility') !== 'visible') {
-              map.setLayoutProperty('trace-overlap-aller', 'visibility', 'visible');
-           }
-      }
-  }
-
-  const cometLengthKm = cometLength.value / 1000;
-  const startDistance = Math.max(0, distanceTraveled - cometLengthKm);
-  if (distanceTraveled > startDistance) {
-      const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, distanceTraveled, { units: 'kilometers' });
-      map.getSource('comet-source').setData(cometSlice);
-  }
-  else {
-      map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
-  }
-
-  // --- Event and Camera Logic ---
-  if (!trackingPointsWithDistanceRef.value || trackingPointsWithDistanceRef.value.length < 2) return;
-
-  // 1. Find the current, real-time increment on the dense track for event handling
-  let currentPointIndex = 0;
-  for (let i = trackingPointsWithDistanceRef.value.length - 1; i >= 0; i--) {
-    if (trackingPointsWithDistanceRef.value[i].distance <= distanceTraveled) {
-      currentPointIndex = i;
-      break;
-    }
-  }
-
-  const currentPoint = trackingPointsWithDistanceRef.value[currentPointIndex];
-  if (currentPoint && currentPoint.commune) {
-      currentCommuneName.value = currentPoint.commune;
-  }
-
-    const currentIncrement = currentPoint?.increment;
-
-    // Si nous rembobinons et passons avant un événement déjà déclenché,
-    // nous réinitialisons son état pour qu'il puisse se redéclencher.
-    if (isRewinding.value) {
-        if (triggeredPauseIncrement.value !== null && currentIncrement < triggeredPauseIncrement.value) {
-            triggeredPauseIncrement.value = null;
-        }
-        if (triggeredFlytoIncrement.value !== null && currentIncrement < triggeredFlytoIncrement.value) {
-            triggeredFlytoIncrement.value = null;
-        }
-    }
-
-    // 2. Handle events using the accurate increment
-    if (currentIncrement !== undefined) {
-        // Popups
-        if (map && rangeEvents.value.length > 0) {
-            const newVisibleIds = new Set();
-            for (const msg of rangeEvents.value) {
-                const isVisible = currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement;
-
-                if (isVisible) {
-                    newVisibleIds.add(msg.eventId); // Use eventId here
-                }
-            }
-            const currentVisibleIds = new Set(activePopups.keys());
-            for (const id of currentVisibleIds) {
-                if (!newVisibleIds.has(id)) {
-                    activePopups.get(id)?.remove();
-                    activePopups.delete(id);
-                }
-            }
-            for (const id of newVisibleIds) {
-                if (!currentVisibleIds.has(id)) {
-                    const newMsg = rangeEvents.value.find(m => m.eventId === id); // Use eventId here
-                    if (newMsg && newMsg.message) {
-                        const svgContent = createMessageSVG(newMsg);
-
-                        const orientation = newMsg.orientation || 'Droite';
-                        const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
-
-                        const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, anchor: anchor, className: 'map-message-popup' })
-                            .setLngLat(newMsg.coord)
-                            .setHTML(svgContent)
-                            .addTo(map);
-                        activePopups.set(id, popup);
-                    }
-                }
-            }
-        }
-      // Flyto
-      const flytoData = flytoEvents.value[currentIncrement];
-      if (flytoData && triggeredFlytoIncrement.value !== currentIncrement) {
-          triggeredFlytoIncrement.value = currentIncrement;
-          executeFlytoSequence(flytoData);
-          animationFrameId = requestAnimationFrame(animate);
-          return;
-      }
-
-      // Pause
-      if (pauseIncrements.value.includes(currentIncrement)) {
-          if (triggeredPauseIncrement.value !== currentIncrement) {
-              isPaused.value = true;
-              triggeredPauseIncrement.value = currentIncrement;
-              //showSnackbar('Pause programmée atteinte.', 'info');
-          }
-      }
-  }
-
-  // 3. Determine camera keyframes and set camera
-  let prevCamKeyframe, nextCamKeyframe;
-
-  // Find the last control point we have passed
-  let lastPassedControlPointIndex = -1;
-  for (let i = controlPointIndicesRef.value.length - 1; i >= 0; i--) {
-    const cpIndex = controlPointIndicesRef.value[i];
-    if (trackingPointsWithDistanceRef.value[cpIndex].distance <= distanceTraveled) {
-      lastPassedControlPointIndex = cpIndex;
-      break;
-    }
-  }
-
-  if (lastPassedControlPointIndex !== -1) {
-    const controlPoint = trackingPointsWithDistanceRef.value[lastPassedControlPointIndex];
-    if (controlPoint.nbrSegment > 0) {
-      const nextCpIndex = lastPassedControlPointIndex + controlPoint.nbrSegment;
-      if (nextCpIndex < trackingPointsWithDistanceRef.value.length) {
-        // We found a valid segment defined by a control point
-        prevCamKeyframe = controlPoint;
-        nextCamKeyframe = trackingPointsWithDistanceRef.value[nextCpIndex];
-      }
-    }
-  }
-
-  // If we are between two control points of a valid segment, interpolate.
-  if (prevCamKeyframe && nextCamKeyframe && distanceTraveled < nextCamKeyframe.distance) {
-    const prevKeyframeDist = prevCamKeyframe.distance;
-    const nextKeyframeDist = nextCamKeyframe.distance;
-    const segmentDist = nextKeyframeDist - prevKeyframeDist;
-    const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
-
-    const lookAtPointLng = lerp(prevCamKeyframe.coordonnee[0], nextCamKeyframe.coordonnee[0], progressInSegment);
-    const lookAtPointLat = lerp(prevCamKeyframe.coordonnee[1], nextCamKeyframe.coordonnee[1], progressInSegment);
-
-    const prevZoom = prevCamKeyframe.editedZoom ?? prevCamKeyframe.zoom;
-    const nextZoom = nextCamKeyframe.editedZoom ?? nextCamKeyframe.zoom;
-    const prevPitch = prevCamKeyframe.editedPitch ?? prevCamKeyframe.pitch;
-    const nextPitch = nextCamKeyframe.editedPitch ?? nextCamKeyframe.pitch;
-    const prevCap = prevCamKeyframe.editedCap ?? prevCamKeyframe.cap;
-    const nextCap = nextCamKeyframe.editedCap ?? nextCamKeyframe.cap;
-    const zoom = lerp(prevZoom, nextZoom, progressInSegment) * dynamicZoomCoefficient.value;
-    const pitch = lerp(prevPitch, nextPitch, progressInSegment);
-    const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
-    map.setZoom(zoom);
-    map.setPitch(pitch);
-    map.setBearing(bearing);
-    map.setCenter([lookAtPointLng, lookAtPointLat]);
-    
-     // Calculate instantaneous track bearing using geometry
-    if (lineStringRef.value) {
-        try {
-                const p1 = turf.along(lineStringRef.value, distanceTraveled, {units: 'kilometers'});
-                const p2 = turf.along(lineStringRef.value, distanceTraveled + 0.01, {units: 'kilometers'});
-                currentTraceBearing.value = turf.bearing(p1, p2);
-        } catch (e) {
-            // Fallback
-             currentTraceBearing.value = bearing;
-        }
-    }
-  } else {
-    // Otherwise (no CPs, after last CP segment, or on a non-CP point), interpolate point-by-point for smooth movement.
-    if (currentPoint) {
-        const nextPointIndex = currentPointIndex + 1;
-        if (nextPointIndex < trackingPointsWithDistanceRef.value.length) {
-            const nextPoint = trackingPointsWithDistanceRef.value[nextPointIndex];
-
-            const prevKeyframeDist = currentPoint.distance;
-            const nextKeyframeDist = nextPoint.distance;
-            const segmentDist = nextKeyframeDist - prevKeyframeDist;
-            const progressInSegment = segmentDist > 0 ? (distanceTraveled - prevKeyframeDist) / segmentDist : 0;
-
-            const lookAtPointLng = lerp(currentPoint.coordonnee[0], nextPoint.coordonnee[0], progressInSegment);
-            const lookAtPointLat = lerp(currentPoint.coordonnee[1], nextPoint.coordonnee[1], progressInSegment);
-
-            const prevZoom = currentPoint.editedZoom ?? currentPoint.zoom;
-            const nextZoom = nextPoint.editedZoom ?? nextPoint.zoom;
-            const prevPitch = currentPoint.editedPitch ?? currentPoint.pitch;
-            const nextPitch = nextPoint.editedPitch ?? nextPoint.pitch;
-            const prevCap = currentPoint.editedCap ?? currentPoint.cap;
-            const nextCap = nextPoint.editedCap ?? nextPoint.cap;
-
-            const zoom = lerp(currentPoint.editedZoom ?? currentPoint.zoom, nextPoint.editedZoom ?? nextPoint.zoom, progressInSegment) * dynamicZoomCoefficient.value;
-            const pitch = lerp(prevPitch, nextPitch, progressInSegment);
-            const bearing = lerpAngle(prevCap, nextCap, progressInSegment);
-            
-            map.setZoom(zoom);
-            map.setPitch(pitch);
-            map.setBearing(bearing);
-            map.setCenter([lookAtPointLng, lookAtPointLat]);
-            
-            // Calculate instantaneous track bearing using geometry
-            if (lineStringRef.value) {
-                try {
-                     const p1 = turf.along(lineStringRef.value, distanceTraveled, {units: 'kilometers'});
-                     // Look ahead slightly (e.g. 10 meters) to smooth out jitter
-                     const p2 = turf.along(lineStringRef.value, distanceTraveled + 0.01, {units: 'kilometers'});
-                     currentTraceBearing.value = turf.bearing(p1, p2);
-                } catch (e) {
-                    console.warn("Error calculating track bearing:", e);
-                }
-            }
-        } else {
-            // At the very last point, just set the camera to its values
-            const zoom = (currentPoint.editedZoom ?? currentPoint.zoom) * dynamicZoomCoefficient.value;
-            const pitch = currentPoint.editedPitch ?? currentPoint.pitch;
-            const bearing = currentPoint.editedCap ?? currentPoint.cap;
-            const center = currentPoint.coordonnee;
-
-            map.setZoom(zoom);
-            map.setPitch(pitch);
-            map.setBearing(bearing);
-            map.setCenter(center);
-            
-            currentTraceBearing.value = bearing;
-        }
-    }
-  }
-
-  // Weather Dynamic Update
-  if (weatherForecasts.value.length > 0 && simulationStartDate.value && !isInitializing.value) {
-      // Calculate current simulation time based on Reference Scenario
-      // Allows compass to follow specific scenario speed/time regardless of animation playback speed
-      let currentSimTime;
-      
-      const refScen = circuitScenarios.value.find(s => s.isReference) || circuitScenarios.value[0];
-      if (refScen) {
-           const refStart = refScen.heureDepart || "09:00";
-           const refSpeed = Number(refScen.vitesseMoyenne) || 20;
-
-           const [h, m] = String(refStart).split(':').map(Number);
-           const startDate = new Date(simulationStartDate.value);
-           // Reset to Ref Start Time
-           startDate.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
-
-           const hoursElapsed = currentDistance.value / refSpeed;
-           currentSimTime = new Date(startDate.getTime() + hoursElapsed * 3600000);
-      } else {
-           // Fallback to global animation time if no scenarios defined
-           currentSimTime = new Date(simulationStartDate.value.getTime() + accumulatedTime);
-      }
-
-      const currentHour = currentSimTime.getHours();
-
-      // Calculate current increment (km)
-      const currentIncrement = Math.round(currentDistanceInMeters.value / 1000);
-
-      // Find forecast for this increment
-      // Find forecast for this increment/km
-      const forecast = weatherForecasts.value.find(f => {
-          if (f.km !== undefined) return Math.abs(f.km - currentDistance.value) < 0.5;
-          return f.increment === currentIncrement;
-      });
-      
-      if (forecast && forecast.hours) {
-          if (forecast.hours[currentHour]) {
-              currentWeather.value = forecast.hours[currentHour];
-          } else {
-              // Fallback to closest available hour if out of range
-             const keys = Object.keys(forecast.hours).map(Number).sort((a,b)=>a-b);
-             if (keys.length > 0) {
-                 const closestH = keys.reduce((prev, curr) => {
-                     return (Math.abs(curr - currentHour) < Math.abs(prev - currentHour) ? curr : prev);
-                 });
-                 currentWeather.value = forecast.hours[closestH];
-             }
-          }
-      }
-  }
-
-
-  if (map) map.triggerRepaint();
-
-  if (phase < 1 || isRewinding.value) {
-    animationFrameId = requestAnimationFrame(animate);
-  } else {
-    isAnimationFinished.value = true;
-    isPaused.value = true;
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-
-
-
-    // Start finalization sequence
-    setTimeout(async () => {
-      if (!map) return;
-
-      // Masquer les widgets pour la vue globale finale
-      isDistanceDisplayVisible.value = false;
-      isCommuneWidgetVisible.value = false;
-      isAltitudeVisible.value = false;
-      isControlsCardVisible.value = false;
-      isWeatherInfoVisible.value = false;
-      isCompassVisible.value = false;
-      sendVisualizeViewStateUpdate();
-
-      animationState.value = 'Vol_Final';
-
-      // Hide the comet
-      map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
-
-      const traceBbox = turf.bbox(lineStringRef.value);
-      
-      // Changement de style vers le style de lancement pour la vue globale finale
-      if (styleLancement.value !== mapStyle.value) {
-          map.setStyle(styleLancement.value);
-          await new Promise(resolve => map.once('style.load', resolve));
-      }
-
-      await flyToPromise(map, {
-          pitch: 0,
-          bearing: 0,
-          duration: flyToGlobalDuration.value,
-          ...(globalTraceCameraOptions.value || map.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 }))
-      });
-
-      animationState.value = 'Termine';
-
-      if (repriseAutomatique.value) {
-        const pauseMs = pauseAvantReprise.value;
-        if (pauseMs > 0) {
-            await new Promise(resolve => setTimeout(resolve, pauseMs));
-        }
-        resetAnimation();
-      }
-    }, delayAfterAnimationEnd.value);
-  }
-};
-
-const isPaused = ref(true);
-const isRewinding = ref(false);
-const isAnimationFinished = ref(false);
-const distanceDisplay = ref('0.00 km');
-
-const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value'));
-const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value'));
-const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value'));
-const sliderStep = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/slider_step'));
+// --- Speed Control Logic (Restore Logarithmic) ---
+const sliderPosition = ref(25); 
+const minSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/min_value') || 0.1);
+const maxSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/max_value') || 100.0);
+const defaultSpeedValue = computed(() => getSettingValue('Visualisation/Lecture/Vitesse/default_value') || 25.0);
 
 function mapSliderToSpeed(sliderValue) {
     const min = minSpeedValue.value;
     const max = maxSpeedValue.value;
-    const def = defaultSpeedValue.value;
-    if (![min, max, def].every(v => typeof v === 'number')) return def || 1.0;
-    const halfMax = max / 2;
-
-    if (sliderValue <= 20) {
-        const t = sliderValue / 20;
-        return min + t * (def - min);
-    } else if (sliderValue <= 80) {
-        const t = (sliderValue - 20) / 60;
-        return def + t * (halfMax - def);
-    } else {
-        const t = (sliderValue - 80) / 20;
-        return halfMax + t * (max - halfMax);
-    }
+    if (sliderValue <= 0) return min;
+    if (sliderValue >= 100) return max;
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const logVal = minLog + (maxLog - minLog) * (sliderValue / 100);
+    return Math.exp(logVal);
 }
 
 function mapSpeedToSlider(speed) {
     const min = minSpeedValue.value;
     const max = maxSpeedValue.value;
-    const def = defaultSpeedValue.value;
-    if (![min, max, def].every(v => typeof v === 'number')) return 20;
-    const halfMax = max / 2;
-
-    if (speed < min) return 0;
-    if (speed > max) return 100;
-
-    if (speed <= def) {
-        const range = def - min;
-        if (range <= 0) return 20;
-        const t = (speed - min) / range;
-        return t * 20;
-    } else if (speed <= halfMax) {
-        const range = halfMax - def;
-        if (range <= 0) return 80;
-        const t = (speed - def) / range;
-        return 20 + t * 60;
-    } else {
-        const range = max - halfMax;
-        if (range <= 0) return 100;
-        const t = (speed - halfMax) / range;
-        return 80 + t * 20;
-    }
+    if (speed <= min) return 0;
+    if (speed >= max) return 100;
+    const minLog = Math.log(min);
+    const maxLog = Math.log(max);
+    const val = (Math.log(speed) - minLog) / (maxLog - minLog);
+    return val * 100;
 }
 
-const sliderPosition = ref(mapSpeedToSlider(getSettingValue('Visualisation/Lecture/Vitesse/default_value')));
-
-const currentSpeed = computed({
-  get: () => mapSliderToSpeed(sliderPosition.value),
-  set: (newSpeed) => {
-    sliderPosition.value = mapSpeedToSlider(newSpeed);
-  }
+// Sync Slider -> Speed
+watch(sliderPosition, (newVal) => {
+    currentSpeed.value = mapSliderToSpeed(newVal);
 });
 
-const intensiteZoomDynamique = computed(() => getSettingValue('Visualisation/Lecture/ZoomDynamique/intensite_zoom_dynamique'));
-
-const dynamicZoomCoefficient = computed(() => {
-    const speed = currentSpeed.value;
-    const intensite = intensiteZoomDynamique.value;
-
-    if (speed === null || intensite === null) {
-        return 1.0; // Valeur par défaut si les paramètres ne sont pas chargés
+// Sync Speed -> Slider (Init)
+watch(currentSpeed, (newVal) => {
+    const calculatedSlider = mapSpeedToSlider(newVal);
+    if (Math.abs(calculatedSlider - sliderPosition.value) > 1) {
+        sliderPosition.value = calculatedSlider;
     }
+}, { immediate: true });
 
-    // Constantes A et type de fonction sont maintenant fixes.
-    const A = 1.0;
-    const B = intensite / 1000; // Conversion de l'entier (ex: 10) en flottant (ex: 0.01)
+// 6. Camera Interpolator (NEW)
+const { updateCameraPosition } = useCameraInterpolator(map);
 
-    // Implémentation de la fonction de zoom dynamique : coefficient = A / (speed^B)
-    if (speed === 0) return A; // Éviter la division par zéro ou puissance de zéro
-    return A / (speed ** B);
-});
+const modifications = ref([]);
+const fullRouteGeoJson = ref(null);
+const masterTraceGeoJson = ref(null);
+const variantStats = ref({ total: 0, current: 0 });
 
-watch(currentSpeed, (newSpeed) => {
-    if (newSpeed !== null && newSpeed !== undefined) {
-        invoke('update_animation_speed', { speed: newSpeed });
-    }
-});
+// New Refs for AltitudeVariantSVG
+const masterTraceTotalDistance = ref(1);
+const masterTrackingPoints = ref([]);
+const abandonedSegmentsRef = ref([]);
+const variantBlueSegmentsRef = ref([]);
 
-// --- Helper Functions ---
-const lerp = (start, end, t) => start * (1 - t) + end * t;
+// New Refs for Variant Weather
+const variantMappings = ref({});
+const activeGroups = ref([]); // Replaces or augments circuitScenarios for display
 
-const lerpAngle = (start, end, t) => {
-    let delta = end - start;
-    if (delta > 180) delta -= 360;
-    else if (delta < -180) delta += 360;
-    let result = start + delta * t;
-    result = result % 360;
-    if (result < 0) result += 360;
-    return result;
-};
-
-// Add this function to handle the zoom event
-const handleMapZoom = () => {
-    if (isPaused.value && map.getZoom() < zoomMinimum.value) {
-        map.setZoom(zoomMinimum.value);
-    }
-};
-
-const initWeather = async (circuit, trackPoints) => {
-    console.log("initWeather called", { 
-        meteoActif: meteoActif.value, 
-        circuitId: props.circuitId, 
-        trackPointsLength: trackPoints?.length 
-    });
-    if (!meteoActif.value) return;
-
-    const config = circuit?.meteoConfig || {};
-    // Start Time (e.g. "09:00")
-    const startTimeStr = config.heureDepart || defaultHeureDepart.value; // e.g. "09:00"
+// --- Navigation Menu Computed ---
+const navigationItems = computed(() => {
+    const list = [];
     
-    // Date Logic
-    let dateStr = config.dateDepart;
-    let computedDate = null;
+    // Sort variant segments by distance
+    const sorted = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
     
-    // Calculate Today (Local)
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // Check if stored date is valid and in the future
-    if (dateStr) {
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const storedDate = new Date(y, m - 1, d);
-        if (storedDate > today) {
-            computedDate = dateStr;
+    sorted.forEach((seg, index) => {
+        let icon = 'mdi-map-marker-path';
+        let color = 'primary';
+        let name = seg.name;
+        
+        if (seg.type === 'DEPART') {
+            icon = 'mdi-ray-start-arrow';
+            color = 'success';
+            if (!name) name = 'Départ';
+        } else if (seg.type === 'ARRIVEE') {
+            icon = 'mdi-ray-end-arrow';
+            color = 'error';
+            if (!name) name = 'Arrivée';
+        } else {
+             if (!name) name = `Segment ${index + 1}`;
         }
-    }
-
-    // Default to Tomorrow if no valid future date
-    if (!computedDate) {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const yyyy = tomorrow.getFullYear();
-        const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
-        const dd = String(tomorrow.getDate()).padStart(2, '0');
-        computedDate = `${yyyy}-${mm}-${dd}`;
-    }
-    dateStr = computedDate;
-
-    console.log("initWeather Date Logic:", {
-        rawConfigDate: config.dateDepart,
-        calculatedDate: dateStr
-    });
-
-    // Set Simulation Start Date Ref
-    const [h, m] = startTimeStr.split(':').map(Number);
-    const startD = new Date(dateStr);
-    startD.setHours(h, m, 0, 0);
-    simulationStartDate.value = startD;
-
-    try {
-        if (!trackPoints || trackPoints.length === 0) return;
-
-        // Sample points every 10 indices (approx 1km) and last point
-        const sampled = [];
-        trackPoints.forEach((p, i) => {
-            if (i % 10 === 0 || i === trackPoints.length - 1) {
-                // Determine increment (km)
-                // User logic: "increment 0, 10, 20" -> these are indices in the 100m array.
-                // So KM = index / 10.
-                const inc = Math.round(i / 10);
-
-                // Avoid duplicates (e.g. if last point is close to 10th)
-                if (!sampled.some(s => s.increment === inc)) {
-                    // trackPoints have coordonnee: [lon, lat]
-                    sampled.push({
-                        lat: p.coordonnee[1],
-                        lon: p.coordonnee[0],
-                        increment: inc,
-                        km: p.distance // Use the real distance calculated by backend
-                    });
-                }
-            }
+        
+        list.push({
+            icon,
+            color,
+            name,
+            distanceKm: seg.points[0].distance,
+            type: seg.type
         });
-
-        if (sampled.length > 0) {
-             // Filename: AAAMMJJ-HH-to-HH.json
-             const d = new Date(dateStr);
-             const yyyy = d.getFullYear();
-             const mm = String(d.getMonth() + 1).padStart(2, '0');
-             const dd = String(d.getDate()).padStart(2, '0');
-             const datePart = `${yyyy}${mm}${dd}`;
-
-             const startH = heureDebutJournee.value;
-             const endH = heureFinJournee.value;
-             
-             const sH = String(startH).padStart(2, '0');
-             const eH = String(endH).padStart(2, '0');
-
-             const filename = `${datePart}-${sH}-to-${eH}.json`;
-             console.log(`Checking weather cache: ${filename}`);
-
-             let matrix = null;
-             try {
-                  const cacheContent = await invoke('check_weather_cache', { circuitId: props.circuitId, filename });
-                  if (cacheContent) {
-                      console.log("Loading weather from cache");
-                      matrix = JSON.parse(cacheContent);
-                  }
-             } catch (err) {
-                 console.warn("Cache check failed", err);
-             }
-
-             if (!matrix) {
-                  console.log("Fetching weather from API (Matrix)");
-                  matrix = await WeatherService.fetchWeatherMatrix(sampled, dateStr, startH, endH);
-                  if (matrix && matrix.length > 0) {
-                       try {
-                           await invoke('save_weather_cache', { 
-                               circuitId: props.circuitId, 
-                               filename, 
-                               content: JSON.stringify(matrix, null, 2) 
-                           });
-                           console.log("Weather cache saved");
-                       } catch (err) {
-                           console.error("Failed to save cache", err);
-                       }
-                  }
-             }
-
-             weatherForecasts.value = matrix;
-             
-             // Set initial weather
-             if (matrix.length > 0) {
-                 const p0 = matrix[0]; 
-                 const startHour = startD.getHours();
-                 if (p0.hours && p0.hours[startHour]) {
-                    currentWeather.value = p0.hours[startHour];
-                 } else if (p0.hours) {
-                    const keys = Object.keys(p0.hours).sort();
-                    if (keys.length > 0) currentWeather.value = p0.hours[keys[0]];
-                 }
-             }
-        }
-    } catch (e) {
-        console.error("Weather init failed", e);
-    }
-};
-
-
-
-// --- Computed settings ---
-const mapboxToken = computed(() => getSettingValue('Système/Tokens/mapbox'));
-const styleLancement = computed(() => getSettingValue('Visualisation/Lancement/styleLancement'));
-const mapStyle = computed(() => getSettingValue('Visualisation/Vue 3D/Carte/styleVisualisation'));
-const terrainExaggeration = computed(() => getSettingValue('Edition/Vue 3D/Carte/exaggeration'));
-const traceColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurTrace'));
-const traceWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurTrace'));
-const traceOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteTrace'));
-const colorTraceBySlope = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/colorerSelonPente'));
-const segmentLength = computed(() => getSettingValue('Importation/Tracking/LongueurSegment'));
-const cometColor = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/couleurComete'));
-const cometWidth = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/epaisseurComete'));
-const cometOpacity = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/opaciteComete'));
-const cometLength = computed(() => getSettingValue('Visualisation/Vue 3D/Trace/longueurComete'));
-const heureDebutJournee = computed(() => getSettingValue('Visualisation/Météo/heureDebutJournee') || 6);
-const heureFinJournee = computed(() => getSettingValue('Visualisation/Météo/heureFinJournee') || 20);
-
-const animationSpeed = computed(() => {
-    const val = getSettingValue('Visualisation/Lecture/vitesse');
-    return val > 100 ? val : val * 1000;
-});
-const timerReprisePause = computed(() => {
-    const val = getSettingValue('Visualisation/Lecture/timerReprisePause');
-    return val > 100 ? val : val * 1000;
-});
-const masquerCurseurDelai = computed(() => {
-    const val = getSettingValue('Visualisation/Lecture/masquerCurseurDelai');
-    return val > 100 ? val : val * 1000;
-});
-const delayAfterAnimationEnd = computed(() => {
-    const val = getSettingValue('Visualisation/Finalisation/delayAfterAnimationEnd');
-    return (val > 100 ? val : val * 1000);
-}); 
-const flyToGlobalDuration = computed(() => {
-    const val = getSettingValue('Visualisation/Finalisation/flyToGlobalDuration');
-    return val > 100 ? val : val * 1000;
-});
-const flyToKm0Duration = computed(() => {
-    const val = getSettingValue('Visualisation/Finalisation/flyToKm0Duration');
-    return val > 100 ? val : val * 1000;
-});
-const pauseAuKm0 = computed(() => {
-    const val = getSettingValue('Visualisation/Lancement/pauseAuKm0');
-    return val > 100 ? val : val * 1000;
-});
-const repriseAutomatique = computed(() => getSettingValue('Visualisation/Finalisation/repriseAutomatique'));
-const pauseAvantReprise = computed(() => {
-    const val = getSettingValue('Visualisation/Finalisation/pauseAvantReprise');
-    return val > 100 ? val : val * 1000;
-});
-const baseMessageFontSize = computed(() => getSettingValue('Visualisation/Taille des Messages/baseFontSize'));
-
-const sensibilityCap = computed(() => getSettingValue('Système/Télécommande/sensibiliteCap') ?? 100);
-const sensibilityPointDeVueX = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueX') ?? 100);
-const sensibilityPointDeVueY = computed(() => getSettingValue('Système/Télécommande/sensibilitePointDeVueY') ?? 100);
-const sensibilityZoom = computed(() => getSettingValue('Système/Télécommande/sensibiliteZoom') ?? 100);
-const sensibilityTilt = computed(() => getSettingValue('Système/Télécommande/sensibiliteTilt') ?? 50);
-
-
-
-// --- Pause/Resume Logic ---
-const pausedCameraOptions = ref(null);
-const cameraMovedDuringPause = ref(false);
-const isResuming = ref(false); // Flag to block animation during flyTo
-let isWatcherActive = true;
-
-const onMapInteraction = () => {
-    if (isPaused.value) {
-        cameraMovedDuringPause.value = true;
-        // Une fois détecté, on peut supprimer les écouteurs pour optimiser
-        if (map) {
-            map.off('move', onMapInteraction);
-            map.off('zoom', onMapInteraction);
-            map.off('pitch', onMapInteraction);
-            map.off('rotate', onMapInteraction);
-        }
-    }
-};
-
-watch(isPaused, (paused) => {
-    if (!isWatcherActive) return; // Ne rien faire si le watcher est désactivé
-
-    // Notify the backend about the pause state change
-    invoke('update_animation_state', { newState: paused ? 'En_Pause' : 'En_Animation' });
-
-    if (paused) {
-        // On ne met à jour l'état que si un survol n'est pas déjà en train de gérer la pause.
-        if (!isFlytoActive.value) {
-            animationState.value = 'En_Pause';
-        }
-    } else {
-        // On ne passe en animation que si la reprise n'est pas déclenchée par la fin d'un survol.
-        if (!isFlytoActive.value) {
-            animationState.value = 'En_Animation';
-        }
-    }
-
-    if (!map) return;
-
-    if (paused) {
-        // --- PAUSING ---
-        isResuming.value = false; // Ensure resuming flag is off
-        pausedCameraOptions.value = {
-            center: map.getCenter(),
-            zoom: map.getZoom(),
-            pitch: map.getPitch(),
-            bearing: map.getBearing(),
-        };
-        cameraMovedDuringPause.value = false;
-
-        // Enable interactions
-        map.interactive = true;
-        map.dragRotate.enable();
-        map.dragPan.enable();
-        map.scrollZoom.enable({ around: 'center' });
-
-        // Listen for any interaction
-        map.on('move', onMapInteraction);
-        map.on('zoom', onMapInteraction);
-        map.on('pitch', onMapInteraction);
-        map.on('rotate', onMapInteraction);
-
-        // Add new listener for zoom minimum
-        map.on('zoom', handleMapZoom);
-
-    } else {
-        // --- RESUMING ---
-        // Disable interactions first
-        map.interactive = false;
-        map.dragRotate.disable();
-        map.dragPan.disable();
-        map.scrollZoom.disable();
-        map.off('move', onMapInteraction);
-        map.off('zoom', onMapInteraction);
-        map.off('pitch', onMapInteraction);
-        map.off('rotate', onMapInteraction);
-
-        // Remove listener for zoom minimum
-        map.off('zoom', handleMapZoom);
-
-        // On n'exécute la logique de reprise que si un survol n'est pas en cours.
-        if (!isFlytoActive.value) {
-            if (cameraMovedDuringPause.value && pausedCameraOptions.value) {
-                isResuming.value = true; // Block animation
-                //showSnackbar('Reprise de la position initiale...', 'info');
-                map.flyTo({
-                    ...pausedCameraOptions.value,
-                    duration: timerReprisePause.value,
-                    easing: (t) => t, // linear easing
-                });
-                map.once('moveend', () => {
-                    isResuming.value = false; // Unblock animation
-                    lastTimestamp = 0; // Reset timestamp to resume animation smoothly
-                });
-            } else {
-                 lastTimestamp = 0; // Reset timestamp for smooth resume even without flyTo
-            }
-        }
-
-        // Restart animation loop if it was stopped and we are effectively resuming
-        if (!isPaused.value && !animationFrameId) {
-            animationFrameId = requestAnimationFrame(animate);
-        }
-    }
-});
-
-// --- Message Display Functions for Initialization ---
-const getMessagesForKm0 = () => {
-  if (!rangeEvents.value || rangeEvents.value.length === 0) {
-    return { atKm0: [], nearKm0: [] };
-  }
-  
-  const atKm0 = [];
-  const nearKm0 = [];
-  
-  for (const msg of rangeEvents.value) {
-    // Messages visibles au km0 (startIncrement <= 0 && endIncrement >= 0)
-    if (msg.startIncrement <= 0 && msg.endIncrement >= 0) {
-      if (msg.anchorIncrement === 0) {
-        atKm0.push(msg);
-      } else {
-        nearKm0.push(msg);
-      }
-    }
-  }
-  
-  return { atKm0, nearKm0 };
-};
-
-const displayMessagesWithFade = async (messages, duration) => {
-  if (!map || messages.length === 0) return;
-  
-  const popupsToAnimate = [];
-  
-  // Créer les popups avec opacité 0
-  for (const msg of messages) {
-    const svgContent = createMessageSVG(msg);
-    const orientation = msg.orientation || 'Droite';
-    const anchor = orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
-    
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      anchor: anchor,
-      className: 'map-message-popup fade-in-message'
-    })
-      .setLngLat(msg.coord)
-      .setHTML(svgContent)
-      .addTo(map);
-    
-    // Stocker pour animation
-    popupsToAnimate.push({ popup, msg });
-    activePopups.set(msg.eventId, popup);
-  }
-  
-  // Animer l'opacité
-  const startTime = performance.now();
-  const animateOpacity = (timestamp) => {
-    const elapsed = timestamp - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    
-    popupsToAnimate.forEach(({ popup }) => {
-      const element = popup.getElement();
-      if (element) {
-        element.style.opacity = progress;
-      }
     });
     
-    if (progress < 1) {
-      requestAnimationFrame(animateOpacity);
+    // Final View Item
+    list.push({
+        icon: 'mdi-clock-end',
+        color: 'grey-darken-1',
+        name: 'Vue Finale',
+        distanceKm: totalDistanceRef.value / 1000,
+        type: 'FIN',
+        isFinalView: true
+    });
+    
+    return list;
+});
+
+const handleNavigationClick = (item) => {
+    if (item.isFinalView) {
+        handleEndSequence();
+    } else if (typeof item.distanceKm === 'number') {
+        handleJumpRequest(item.distanceKm);
     }
-  };
-  
-  requestAnimationFrame(animateOpacity);
 };
 
-const goBack = () => {
-  router.push({ name: 'Main' });
+
+
+// --- Legacy State ---
+const isInitializing = ref(true);
+const avancementCommunes = ref('Non calculé');
+const activePopups = new Map();
+let unlistenFunctions = [];
+
+// Widgets State
+// Widgets State (Unified moved up)
+const isCenterMarkerVisible = computed(() => getSettingValue('Visualisation/Lecture/afficherCroixCentrale') && isPaused.value);
+const couleurCroixCentrale = computed(() => getSettingValue('Visualisation/Lecture/couleurCroixCentrale'));
+const zoomMinimum = computed(() => (getSettingValue('Visualisation/Lecture/zoomMinimum') ?? 100) / 10);
+
+const currentCommuneName = ref("N/A");
+const shouldShowCommuneWidget = computed(() => (avancementCommunes.value === 'Terminé' || avancementCommunes.value == 100) && currentCommuneName.value !== "N/A");
+const communeWidgetBorderColor = computed(() => '#F44336'); 
+
+const isBackButtonVisibleFinal = computed(() => isBackButtonVisible.value && (animationState.value === 'En_Pause' || animationState.value === 'Termine' || animationState.value === 'En_Phase_au_Depart'));
+
+// Weather State
+const allWeatherForecasts = ref({});
+const currentViewWeather = computed(() => {
+    // Support both structures during transition or fallback
+    if (Array.isArray(allWeatherForecasts.value)) return allWeatherForecasts.value;
+    const key = selectedVariantId.value || 'main'; // 'main' key for main trace
+    return allWeatherForecasts.value[key] || [];
+});
+const simulationStartDate = ref(null);
+const currentWeather = ref(null);
+const showWeatherTable = ref(false);
+const circuitScenarios = ref([]);
+
+// Speed Slider Constants (Removed duplicates)
+
+// --- Methods ---
+
+const returnToMainTrace = () => { 
+    selectedVariantId.value = null;
+    let query = { directStart: 'true' };
+    if (map.value) {
+        const center = map.value.getCenter();
+        query = {
+            ...query,
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.value.getZoom(),
+            bearing: map.value.getBearing(),
+            pitch: map.value.getPitch()
+        };
+    }
+    router.replace({ 
+        name: 'Visualize', 
+        params: { circuitId: props.circuitId },
+        query: query
+    }); 
+    initializeVisualization();
+};
+const goBack = () => { router.push({ name: 'Main' }); };
+const goToVariantView = () => { 
+    if (accessibleVariants.value.length > 1) {
+        showVariantSelection.value = true;
+    } else if (accessibleVariants.value.length === 1) {
+        selectVariant(accessibleVariants.value[0].id);
+    }
+};
+const getToHexImproved = (n) => toHex(getSettingValue(n));
+
+// --- User Interactions ---
+const togglePlayPauseOrReset = () => {
+    if (isAnimationFinished.value) {
+        resetAnimation();
+    } else {
+        isPaused.value = !isPaused.value;
+    }
 };
 
-const resetAnimation = async () => {
-    accumulatedTime = 0;
-    isPaused.value = true;
+// --- Initialization Logic ---
+const initializeVisualization = async () => {
+    // Ensure settings are loaded before anything else
+    await useSettings().initSettings();
+
+    isInitializing.value = true;
+    isInitSequenceRunning.value = true; // Start protection
+    showWidgets.value = false;
+    
+    // Reset Data & Animation State
+    trackingPointsWithDistanceRef.value = [];
+    variantBlueSegmentsRef.value = [];   // Prevent ghost segments during reset
+    abandonedSegmentsRef.value = [];     // Prevent ghost segments
     isAnimationFinished.value = false;
-    warningShown = false;
-    triggeredPauseIncrement.value = null;
-    triggeredFlytoIncrement.value = null;
-    isFlytoActive.value = false;
-    preFlytoCameraOptions.value = null;
-    currentSpeed.value = defaultSpeedValue.value;
 
-    activePopups.forEach(popup => popup.remove());
+    // Clear existing popups
+    activePopups.forEach(p => p.remove());
     activePopups.clear();
 
-    // Fly to Km 0
-    if (map && trackingPointsWithDistanceRef.value && trackingPointsWithDistanceRef.value.length > 0) {
-        // Restaurer la visibilité des widgets selon les réglages
-        isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
-        isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
-        isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
-        isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? true;
-        isWeatherInfoVisible.value = true;
-        isCompassVisible.value = true;
-        isBackButtonVisible.value = true;
-        sendVisualizeViewStateUpdate();
-
-        // Restauration du style de visualisation (satellite) si nécessaire
-        if (mapStyle.value !== map.getStyle().style) {
-            map.setStyle(mapStyle.value);
-            await new Promise(resolve => map.once('style.load', resolve));
+    resetState(); // Use synchronous reset to avoid async flyTo interference
+    
+    try {
+        // 0.5 Ensure we have a variant ID (only for variant mode)
+        if (isVariantTrace.value && !selectedVariantId.value) {
+             showSnackbar("Aucune variante spécifiée.", "error");
+             setTimeout(() => goBack(), 1000);
+             return;
         }
 
-        const startCameraOptions = {
-            center: trackingPointsWithDistanceRef.value[0].coordonnee,
-            zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
-            pitch: trackingPointsWithDistanceRef.value[0].editedPitch ?? trackingPointsWithDistanceRef.value[0].pitch,
-            bearing: trackingPointsWithDistanceRef.value[0].editedCap ?? trackingPointsWithDistanceRef.value[0].cap,
-        };
-        await flyToPromise(map, {
-            ...startCameraOptions,
-            duration: flyToKm0Duration.value,
-        });
-    }
+        // 1. Load Circuit Metadata
+        const { circuit } = await loadCircuitData(props.circuitId);
+        currentCircuitRef.value = circuit;
+        if (circuit) avancementCommunes.value = circuit.avancementCommunes;
 
-    animationState.value = 'En_Pause_au_Depart';
-
-    // After flying to start, update the paused state to reflect the new camera position
-    // and reset the interaction flag. This prevents the "resume" logic from flying back
-    // to the pre-reset position.
-    if (map) {
-        pausedCameraOptions.value = {
-            center: map.getCenter(),
-            zoom: map.getZoom(),
-            pitch: map.getPitch(),
-            bearing: map.getBearing(),
-        };
-        cameraMovedDuringPause.value = false;
-    }
-
-    // Reset comet to start
-    map.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
-    // Restart animation loop if it was stopped
-    if (!animationFrameId) {
-        animationFrameId = requestAnimationFrame(animate);
-    }
-
-    // Démarrage automatique après la pause définie
-    const pauseMs = pauseAuKm0.value;
-    if (pauseMs > 0) {
-        await new Promise(resolve => setTimeout(resolve, pauseMs));
-    }
-    // On vérifie que l'état est toujours celui d'une réinitialisation avant de lancer
-    if (!isAnimationFinished.value) {
-        isPaused.value = false;
-    }
-};
+        // Load variants list
+        const variants = await invoke('get_variants', { circuitId: props.circuitId });
+        availableVariants.value = variants;
+        hasVariants.value = variants.length > 0;
+        
+        // --- NEW: Load Variant Mappings (Prepared) ---
+        // We will load the actual mappings AFTER tracking data is available (Step 3 or 4).
 
 
-
-const handleKeyDown = (e) => {
-    // Handle 'r' for reload specifically when animation is finished
-    if (isAnimationFinished.value) {
-        if (e.key === 'r' || e.key === 'R') {
-            resetAnimation();
-        }
-        return; // Ignore all other keys when finished
-    }
-
-    if (isInitializing.value) return; // Ignore all keys during initialization
-
-    if (e.key === 'p' || e.key === 'P') {
-        isPaused.value = !isPaused.value;
-    } else if (e.key === 'ArrowLeft') {
-        isRewinding.value = true;
-    } else if (e.key === 'ArrowDown') {
-        sliderPosition.value = Math.max(0, sliderPosition.value - 1);
-    } else if (e.key === 'ArrowUp') {
-        sliderPosition.value = Math.min(100, sliderPosition.value + 1);
-    } else if (e.key === 'a' || e.key === 'A') {
-        isAltitudeVisible.value = !isAltitudeVisible.value;
-        sendVisualizeViewStateUpdate();
-    } else if (e.key === 'c' || e.key === 'C') {
-        isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
-        sendVisualizeViewStateUpdate();
-    } else if (e.key === 'd' || e.key === 'D') {
-        isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
-        sendVisualizeViewStateUpdate();
-    } else if (e.key === 'm') {
-        isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
-    } else if (e.key === 'b') {
-        isCompassVisible.value = !isCompassVisible.value;
-    } else if (e.key === 'B') {
-        currentOrientationMode.value = currentOrientationMode.value === 'Trace' ? 'Camera' : 'Trace';
-    } else if (e.key === 'h' || e.key === 'H') {
-        toggleBackButtonVisibility();
-    } else if (e.code === 'Space') {
-        e.preventDefault();
-        isControlsCardVisible.value = !isControlsCardVisible.value;
-        sendVisualizeViewStateUpdate();
-    } else if (e.key === 'Delete') {
-        isBackButtonVisible.value = false;
-        isDistanceDisplayVisible.value = false;
-        isControlsCardVisible.value = false;
-        isCommuneWidgetVisible.value = false;
-        isAltitudeVisible.value = false;
-        isStaticWeatherVisible.value = false;
-        isDynamicWeatherVisible.value = false;
-        sendVisualizeViewStateUpdate();
-    }
-};
-
-const handleKeyUp = (e) => {
-    if (isInitializing.value) return; // Ignorer l'entrée clavier pendant l'initialisation
-
-    if (e.key === 'ArrowLeft') {
-        isRewinding.value = false;
-    }
-};
-
-// Fonction pour basculer la visibilité des layers selon la zone active
-const updateTraceGradient = async (zoneId, direction) => {
-    if (!map) return;
-
-    // Déterminer la visibilité des overlays
-    const showAllerOverlay = (zoneId !== null && direction === 'aller');
-    const showRetourOverlay = (zoneId !== null && direction === 'retour');
-console.log('[Layer Toggle]', {zoneId, direction, showAller: showAllerOverlay, showRetour: showRetourOverlay});
-    // trace-complete est toujours visible
-    if (map.getLayer('trace-complete')) {
-        map.setLayoutProperty('trace-complete', 'visibility', 'visible');
-    }
-    
-    // Basculer les overlays
-    if (map.getLayer('trace-overlap-aller')) {
-        map.setLayoutProperty('trace-overlap-aller', 'visibility', showAllerOverlay ? 'visible' : 'none');
-    }
-    
-    if (map.getLayer('trace-overlap-retour')) {
-        map.setLayoutProperty('trace-overlap-retour', 'visibility', showRetourOverlay ? 'visible' : 'none');
-    }
-};
-
-// Helper function to detect if current position is in an overlapping zone
-const getCurrentSegmentZone = (currentKm, metadata) => {
-    if (!metadata || !metadata.overlappingZones) return null;
-    
-    for (const zone of metadata.overlappingZones) {
-        // Vérifier si on est sur l'aller
-        if (currentKm >= zone.allerStartKm && currentKm <= zone.allerEndKm) {
-            return { zone, direction: 'aller' };
+        // 2. Load LineString & Calculate Trace Center
+        let lineString;
+        let traceCenter;
+        
+        if (isMainTrace.value) {
+            // Mode Trace Principale : charger directement la trace principale
+            lineString = await invoke('read_line_string_file', { circuitId: props.circuitId });
+            lineStringRef.value = lineString;
+            
+            // Pas de données master en mode main
+            masterTraceGeoJson.value = null;
+            masterTraceTotalDistance.value = 0;
+            masterTrackingPoints.value = [];
+            
+            // Calculate trace center
+            traceCenter = turf.center(lineString).geometry.coordinates;
+        } else {
+            // Mode Variante : charger master + variante
+            // A. Load MASTER Trace (Source of truth for original segments)
+            const masterGeoJson = await invoke('read_line_string_file', { circuitId: props.circuitId });
+            masterTraceGeoJson.value = masterGeoJson;
+            
+            // Calculate Master Trace Total Distance (using Turf)
+            if (masterGeoJson && masterGeoJson.coordinates) {
+                 const line = turf.lineString(masterGeoJson.coordinates);
+                 masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+            } else if (masterGeoJson && masterGeoJson.geometry && masterGeoJson.geometry.coordinates) {
+                 const line = turf.lineString(masterGeoJson.geometry.coordinates);
+                 masterTraceTotalDistance.value = turf.length(line, { units: 'meters' });
+            }
+            
+            // B. Load VARIANT LineString
+            lineString = await invoke('read_line_string_file', { 
+                circuitId: props.circuitId, 
+                filename: `lineString_${selectedVariantId.value}_FULL.json` 
+            });
+            lineStringRef.value = lineString;
+            
+            // Calculate trace center from master
+            traceCenter = turf.center(masterGeoJson).geometry.coordinates;
         }
         
-        // Vérifier si on est sur le retour
-        if (currentKm >= zone.retourStartKm && currentKm <= zone.retourEndKm) {
-            return { zone, direction: 'retour' };
+        // 0. Map Init (Pre-load to avoid black screen) - Now using trace center
+        let initialCenter = traceCenter; // Use trace center instead of Paris
+        let initialZoom = zoomEurope.value;
+        if (route.query.lat && route.query.lng && route.query.zoom) {
+             initialCenter = [parseFloat(route.query.lng), parseFloat(route.query.lat)];
+             initialZoom = parseFloat(route.query.zoom);
         }
-    }
-    
-    return null;
-};
+        
+        if (!map.value) {
+            // Mode INITIAL SETUP
+            let finalCenter = initialCenter;
+            let finalZoom = initialZoom;
+            let finalStyle = null;
 
-const initializeMap = async () => {
-  if (!settings.value || !mapboxToken.value) {
-    return;
-  }
-  mapboxgl.accessToken = mapboxToken.value;
+            if (!isDirectStart.value) {
+                // Séquence Standard : Démarrer sur l'Europe avec le style de lancement
+                finalZoom = zoomEurope.value;
+                finalStyle = styleLancement.value;
+            } else {
+                showWidgets.value = true;
+            }
 
-  try {
-    const [fetchedLineString, fetchedTrackingData, fetchedEvents, allCircuits] = await Promise.all([
-      invoke('read_line_string_file', { circuitId: props.circuitId }),
-      invoke('read_tracking_file', { circuitId: props.circuitId }),
-      invoke('get_events', { circuitId: props.circuitId }),
-      invoke('get_circuits_for_display')
-    ]);
-
-    const currentCircuit = allCircuits.find(c => c.circuitId === props.circuitId);
-    currentCircuitRef.value = currentCircuit || null; // Store in ref
-    if (currentCircuit) {
-        avancementCommunes.value = currentCircuit.avancementCommunes;
-    }
-
-    if (fetchedEvents) {
-        if (fetchedEvents.pointEvents) {
-            pauseIncrements.value = Object.keys(fetchedEvents.pointEvents)
-                .filter(increment =>
-                    fetchedEvents.pointEvents[increment].some(event => event.type === 'Pause')
-                )
-                .map(Number);
+            let instance = await initMapEngine(finalCenter, finalZoom, finalStyle);
+            if(!instance) throw new Error("Map failed to init");
             
-            const flytos = {};
-            for (const incrementStr in fetchedEvents.pointEvents) {
-                const increment = Number(incrementStr);
-                const flytoEvent = fetchedEvents.pointEvents[increment].find(event => event.type === 'Flyto');
-                if (flytoEvent) {
-                    flytos[increment] = flytoEvent.data;
+            // Listen for style data changes (which wipe custom layers)
+            instance.on('styledata', () => {
+                 if (map.value && !map.value.getLayer('trace-main-abandoned') && masterTraceGeoJson.value) {
+                     setupTraceLayers({
+                        traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: colorTraceVariant.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+                        masterTraceData: masterTraceGeoJson.value, 
+                        cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+                        slopeExpression: slopeExpressionRef.value,
+                        segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+                        slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
+                        colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
+                    });
+                    
+                    // Restore Visibility
+                    if (isVariantTrace.value) {
+                        updateLayerVisibility(true, showSegments.value);
+                        updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+                    }
+                 }
+            });
+            
+            // Reveal map as soon as style is ready (Europe view)
+            if (!isDirectStart.value) {
+                isInitializing.value = false;
+            }
+
+            // setMinZoom will be applied AFTER initial sequences to allow zoom 5 at start
+            
+            // Detect manual camera movement during pause
+            instance.on('movestart', (e) => {
+                if (isPaused.value && e.originalEvent) {
+                    cameraMoved.value = true;
+                }
+            });
+
+            if (route.query.bearing && route.query.pitch) {
+                instance.jumpTo({
+                    bearing: parseFloat(route.query.bearing),
+                    pitch: parseFloat(route.query.pitch)
+                });
+            }
+            startBearingTracking();
+        }
+        
+        // 3. Load Tracking Data
+        let trackingData;
+        
+        if (isMainTrace.value) {
+            // Mode Trace Principale : charger et traiter le tracking standard
+            const trackingRaw = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: 'tracking.json' 
+            });
+            const processed = await invoke('process_tracking_data', { 
+                lineStringGeojson: lineString,
+                trackingPointsJs: trackingRaw 
+            });
+            trackingPointsWithDistanceRef.value = processed.processedPoints;
+            totalDistanceRef.value = processed.totalDistanceKm * 1000; // En mètres
+        } else {
+            // Mode Variante
+            // A. Load MASTER Tracking Points (for Altitude Profile)
+            const masterTrackingRaw = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: 'tracking.json' 
+            });
+            const masterProcessed = await invoke('process_tracking_data', { 
+                lineStringGeojson: masterTraceGeoJson.value,
+                trackingPointsJs: masterTrackingRaw 
+            });
+            masterTrackingPoints.value = masterProcessed.processedPoints;
+
+            // B. Load Variant Details (Metadata + Stats)
+            const variantArchive = await invoke('get_variant_details', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value 
+            });
+            modifications.value = variantArchive.modifications || [];
+            variantStats.value = {
+                total: (variantArchive.metadata?.stats?.totalDistance || 0),
+                current: 0
+            };
+
+            // C. Load Overlap Metadata (Aller/Retour)
+            try {
+                segmentMetadata.value = await invoke('get_variant_overlap_metadata', { 
+                    circuitId: props.circuitId, 
+                    variantId: selectedVariantId.value 
+                });
+                if (segmentMetadata.value) {
+                    // console.log(`[VisualizeVariant] Metadata loaded: ${segmentMetadata.value.overlappingZones?.length || 0} overlap zones detected.`);
+                }
+            } catch (e) {
+                console.warn("[VisualizeVariant] Could not fetch variant overlap metadata:", e);
+                segmentMetadata.value = null;
+            }
+
+            // D. Load RECONSTITUTED Tracking (FULL)
+            trackingData = await invoke('read_tracking_file', { 
+                circuitId: props.circuitId, 
+                filename: `tracking_${selectedVariantId.value}_FULL.json` 
+            });
+            
+            trackingPointsWithDistanceRef.value = trackingData;
+            
+            // Use exact total distance from tracking
+            const nominalTotalKm = trackingData[trackingData.length - 1].distance;
+            totalDistanceRef.value = nominalTotalKm * 1000;
+        } 
+
+        // 4. Calculate Duration
+        const nominalTotalKm = totalDistanceRef.value / 1000;
+        const msPerKm = getSettingValue('Visualisation/Lecture/vitesse') || 3730;
+        totalDurationAt1xRef.value = nominalTotalKm * msPerKm; 
+
+        // --- NEW: Load Variant Mappings (Execution) ---
+        // Now that we have the "Main/Master" tracking points, we can compute mappings.
+        // Identify which tracking points to use as reference:
+        // - If Main Trace Mode: trackingPointsWithDistanceRef (which IS the main trace)
+        // - If Variant Mode: masterTrackingPoints (loaded in step 3.A)
+        const referencePoints = isMainTrace.value ? trackingPointsWithDistanceRef.value : masterTrackingPoints.value;
+
+        if (referencePoints && referencePoints.length > 0) {
+            const variantsToLoad = new Set();
+            
+            // 1. Groups in Scenarios
+            // Since currentCircuitRef might not contain full scenarios details, we explicitly fetch them.
+            try {
+                const scenarios = await invoke('get_circuit_scenarios', { circuitId: props.circuitId });
+                if (scenarios && scenarios.length > 0) {
+                     // Update the ref so it's consistent everywhere (including for initWeather later)
+                     if (currentCircuitRef.value) currentCircuitRef.value.scenarios = scenarios;
+                     circuitScenarios.value = scenarios; // Also update the dedicated ref immediately
+
+                     scenarios.forEach(s => {
+                        if (s.variantId) variantsToLoad.add(s.variantId);
+                    });
+                    console.log(`[VisualizeView] Fetched ${scenarios.length} scenarios. Variants to load:`, [...variantsToLoad]);
+                } else {
+                    console.warn(`[VisualizeView] No scenarios returned by backend.`);
+                }
+            } catch (e) {
+                console.warn(`[VisualizeView] Failed to fetch scenarios explicitly:`, e);
+            }
+
+            // 2. Current Variant (if any)
+            if (selectedVariantId.value) variantsToLoad.add(selectedVariantId.value);
+
+            // Load all identified mappings
+            const loadedMappings = {};
+            for (const vid of variantsToLoad) {
+                try {
+                    const mapping = await TraceMappingService.loadVariantMapping(props.circuitId, vid, referencePoints);
+                    if (mapping) {
+                        loadedMappings[vid] = mapping;
+                    }
+                } catch (e) {
+                    console.warn(`Failed to load mapping for variant ${vid}`, e);
                 }
             }
-            flytoEvents.value = flytos;
+            variantMappings.value = loadedMappings;
         }
-        rangeEvents.value = fetchedEvents.rangeEvents || []; // Utiliser les événements hydratés et filtrés
 
-        // --- Message Error Handling for VisualizeView ---
-        const missingMessageErrors = fetchedEvents.missingMessageErrors ?? []; // S'assurer que c'est un tableau
-        if (missingMessageErrors.length > 0) {
-            const missingMessageErrorsForLog = missingMessageErrors.map(errorDetail => ({
-                errorType: 'MissingMessage',
-                messageId: errorDetail.messageId,
-                anchorIncrement: errorDetail.anchorIncrement,
-                eventId: errorDetail.eventId,
-                timestamp: new Date().toISOString(),
-                description: errorDetail.description,
-            }));
-
-            try {
-                await invoke('save_error_event', { circuitId: props.circuitId, newErrors: missingMessageErrorsForLog });
-            } catch (error) {
-                console.error("Failed to save missing message errors to file:", error);
-            }
-        }
-    }
-
-    if (!fetchedLineString || !fetchedTrackingData || fetchedTrackingData.length < 2) {
-      console.error("Failed to load valid circuit data.");
-      return;
-    }
-
-    lineStringRef.value = fetchedLineString;
-    trackingDataRef.value = fetchedTrackingData;
-
-    const processedData = await invoke('process_tracking_data', {
-        lineStringGeojson: fetchedLineString,
-        trackingPointsJs: fetchedTrackingData
-    });
-
-    trackingPointsWithDistanceRef.value = processedData.processedPoints;
-    totalDistanceRef.value = processedData.totalDistanceKm;
-    totalDurationAt1xRef.value = totalDistanceRef.value * animationSpeed.value;
-
-    controlPointIndicesRef.value = trackingPointsWithDistanceRef.value.reduce((acc, p, index) => {
-        if (p.pointDeControl) acc.push(index);
-        return acc;
-    }, []);
-
-    // Charger les métadonnées de segments superposés
-    try {
-        const metadata = await invoke('get_segment_metadata', { circuitId: props.circuitId });
-        segmentMetadata.value = metadata;
-        
-        if (metadata && metadata.overlappingZones && metadata.overlappingZones.length > 0) {
-            console.log(`[Visualize] ${metadata.overlappingZones.length} zone(s) de superposition chargée(s)`);
-            metadata.overlappingZones.forEach(zone => {
-                console.log(`  Zone ${zone.zoneId}: Aller ${zone.allerStartKm.toFixed(1)}-${zone.allerEndKm.toFixed(1)}km, Retour ${zone.retourStartKm.toFixed(1)}-${zone.retourEndKm.toFixed(1)}km`);
+        // --- NEW: Compute Active Groups with Context ---
+        // Use the scenarios we just fetched (circuitScenarios is now populated)
+        if (circuitScenarios.value && circuitScenarios.value.length > 0) {
+            activeGroups.value = circuitScenarios.value.map(scen => {
+                return {
+                    ...scen,
+                    // Ensure core properties exist
+                    nom: scen.nom || scen.name || 'Groupe',
+                    vitesseMoyenne: scen.vitesseMoyenne || scen.speed || 20,
+                    heureDepart: scen.heureDepart || scen.start || "09:00",
+                    isReference: scen.isReference || false,
+                    // TraceType context for WeatherWidget
+                    variantId: scen.variantId || null
+                };
             });
-        } else {
-            console.log('[Visualize] Aucune zone de superposition pour ce circuit');
         }
-    } catch (err) {
-        console.warn('[Visualize] Pas de métadonnées de segments disponibles:', err);
-        segmentMetadata.value = null;
+
+
+        // 5. Populate control points
+        controlPointIndicesRef.value = trackingPointsWithDistanceRef.value
+            .map((p, i) => (p.pointDeControl ? i : -1))
+            .filter(i => i !== -1);
+
+        // 6. Load Events
+        const eventsFilename = isVariantTrace.value ? `${selectedVariantId.value}_FULL` : null;
+        try {
+            const events = await invoke('get_events', { 
+                circuitId: props.circuitId, 
+                variantId: eventsFilename 
+            });
+
+            if (events && events.pointEvents) {
+                pauseIncrements.value = Object.keys(events.pointEvents)
+                    .filter(k => events.pointEvents[k].some(e => e.type === 'Pause'))
+                    .map(Number);
+
+                const flytos = {};
+                Object.keys(events.pointEvents).forEach(k => {
+                    const ev = events.pointEvents[k].find(e => e.type === 'Flyto');
+                    if (ev) flytos[Number(k)] = ev.data;
+                });
+                flytoEvents.value = flytos;
+            }
+            rangeEvents.value = events?.rangeEvents || [];
+        } catch (e) {
+            console.warn("[Visualize] No events found:", e);
+            pauseIncrements.value = [];
+            flytoEvents.value = {};
+            rangeEvents.value = [];
+        }
+
+        // 7. Initialize Weather
+        // 7. Initialize Weather (Non-blocking)
+        initWeather(circuit, trackingPointsWithDistanceRef.value).catch(e => console.warn("Background weather init failed:", e));
+
+        // 8. Generate Slope Colors
+        const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
+         
+        // 9. Load Slope Expression (Variant only)
+        if (isVariantTrace.value) {
+            const expression = await invoke('get_variant_slope_expression', { 
+                circuitId: props.circuitId, 
+                variantId: selectedVariantId.value,
+                slopeColors: slopeColors
+            });
+            slopeExpressionRef.value = expression;
+        }
+
+        // 10. Generate Colored Segments (Slope-based + Aller/Retour)
+        try {
+            const geojson = await invoke('get_colored_segments_geojson', { 
+                circuitId: props.circuitId, 
+                variantId: isVariantTrace.value ? selectedVariantId.value : null,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength.value
+            });
+            coloredSegmentsGeoJsonRef.value = geojson;
+            
+            // 11. Extract Abandoned & Blue Segments (Variant only)
+            if (isVariantTrace.value) {
+                // Extract Abandoned Segments directly from Variant Modifications (Archive)
+            const abandonedRanges = [];
+            const segLen = segmentLength.value;
+            
+            if (modifications.value && modifications.value.length > 0) {
+                 modifications.value.forEach(modif => {
+                     let startIdx = 0;
+                     let endIdx = 0;
+                     let type = '';
+                     
+                     // Helper to check modification type keys (Using keys from logs: anchorIndexOnMaster, type)
+                     if (modif.type === 'DEPART_DEPORTE') {
+                         startIdx = 0;
+                         endIdx = modif.anchorIndexOnMaster;
+                         type = 'DEPART';
+                     } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                         startIdx = modif.anchorIndexOnMaster;
+                         endIdx = 999999; 
+                         type = 'ARRIVEE';
+                     } else if (modif.anchorStart && modif.anchorEnd) {
+                         startIdx = modif.anchorStart.index;
+                         endIdx = modif.anchorEnd.index;
+                         type = 'SEGMENT';
+                     } else if (modif.type === 'SEGMENT_DEVIATION') {
+                         startIdx = modif.anchorStart?.index || 0;
+                         endIdx = modif.anchorEnd?.index || 0;
+                         type = 'SEGMENT';
+                     }
+                     
+                     if (endIdx > startIdx) {
+                         const startM = startIdx * segLen;
+                         let endM = endIdx * segLen;
+                         if (endM > masterTraceTotalDistance.value) endM = masterTraceTotalDistance.value;
+                         abandonedRanges.push({ start: startM, end: endM });
+                     }
+                 });
+            }
+            
+            abandonedSegmentsRef.value = abandonedRanges;
+            
+            // Extract Blue Variant Segments
+            const blueSegments = [];
+            
+            if (trackingData && trackingData.length > 0 && modifications.value && modifications.value.length > 0) {
+                // 1. Sort modifications by their position on the MASTER trace
+                const sortedModifs = [...modifications.value].sort((a, b) => {
+                    const getStart = (m) => {
+                        if (m.type === 'DEPART_DEPORTE') return 0;
+                        if (m.type === 'ARRIVEE_REPORTEE') return 9999999;
+                        return m.anchorStart?.index || 0;
+                    };
+                    return getStart(a) - getStart(b);
+                });
+
+                // 2. Track cursors to calculate cumulative distance in VARIANT track
+                let masterCursorIdx = 0;
+                let variantCursorM = 0;
+
+                sortedModifs.forEach(modif => {
+                    let startAnchorIdx = 0;
+                    let endAnchorIdx = 0;
+                    let type = '';
+                    
+                    if (modif.type === 'DEPART_DEPORTE') {
+                        type = 'DEPART';
+                        startAnchorIdx = 0;
+                        endAnchorIdx = modif.anchorIndexOnMaster;
+                    } else if (modif.type === 'ARRIVEE_REPORTEE') {
+                        type = 'ARRIVEE';
+                        startAnchorIdx = modif.anchorIndexOnMaster;
+                        endAnchorIdx = 9999999; // Will be clamped
+                    } else {
+                        type = 'SEGMENT';
+                        startAnchorIdx = modif.anchorStart?.index || 0;
+                        endAnchorIdx = modif.anchorEnd?.index || 0;
+                    }
+
+                    // A. The variant tracking contains a "common" section before this modification
+                    // Distance of common section = (Start of modif - End of previous modif) * segmentLength
+                    const commonLenM = (startAnchorIdx - masterCursorIdx) * segLen;
+                    variantCursorM += commonLenM;
+
+                    // B. The modification itself starts here
+                    const variantStartM = variantCursorM;
+                    const variantLenM = (modif.longueur || 0) * 1000;
+                    const variantEndM = variantCursorM + variantLenM;
+
+                    // C. Extract points from trackingData based on calculated distances
+                    // Use a small 1m buffer for precision
+                    const startIndex = trackingData.findIndex(p => p.distance * 1000 >= (variantStartM - 1));
+                    const endIndex = trackingData.findLastIndex(p => p.distance * 1000 <= (variantEndM + 1));
+
+                    if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
+                        const slice = trackingData.slice(startIndex, endIndex + 1).map(p => ({
+                            distance: p.distance,
+                            altitude: p.altitude
+                        }));
+                        
+                        blueSegments.push({
+                            type,
+                            name: modif.name, // Support custom segment names
+                            // Junction point on Master is the anchor
+                            anchorM: type === 'DEPART' ? endAnchorIdx * segLen : startAnchorIdx * segLen,
+                            anchorEndM: type === 'SEGMENT' ? endAnchorIdx * segLen : 0,
+                            lengthM: variantLenM,
+                            points: slice
+                        });
+                    }
+
+                    // D. Advance cursors
+                    variantCursorM = variantEndM;
+                    masterCursorIdx = endAnchorIdx;
+                });
+            }
+            variantBlueSegmentsRef.value = blueSegments;
+            } else {
+                // Mode trace principale : pas de segments abandonnés ou bleus
+                abandonedSegmentsRef.value = [];
+                variantBlueSegmentsRef.value = [];
+            }
+        } catch(e) {
+            console.error("Colored segments load error", e);
+            coloredSegmentsGeoJsonRef.value = { type: 'FeatureCollection', features: [] };
+            abandonedSegmentsRef.value = [];
+            variantBlueSegmentsRef.value = [];
+        }
+
+        // 3. Map Layers (Once data is loaded)
+        setupTraceLayers({
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: colorTraceVariant.value, // Use Variant Trace Color
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            masterTraceData: masterTraceGeoJson.value, // Pass Master Trace for 'Main' layer
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            slopeExpression: slopeExpressionRef.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            slopeThickness: slopeThickness.value, slopeOpacityLogic: slopeOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
+        });
+
+        // Variant-specific watchers and initialization
+        if (isVariantTrace.value) {
+            // Apply Initial Visibility
+            // Segments Layers (Main+Variant) controlled by showSegments
+            updateLayerVisibility(true, showSegments.value);
+            updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+        
+        // Slope Layer Mode (Gradient vs Flat Color)
+        updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+        
+        // Watches for live setting updates
+        watch(showSegments, (newVal) => {
+            updateLayerVisibility(true, newVal);
+        });
+        
+        watch(showAbandoned, (newVal) => {
+             updateLayerVisibility('trace-main-abandoned', newVal);
+        });
+        
+        watch(showSlope, (newVal) => {
+            updateVariantSlopeMode(newVal, { trace: colorTraceVariant.value });
+        });
+        
+        // Watchers for Style Updates (Thickness, Opacity, Colors)
+        watch([segmentThickness, segmentOpacity, colorNew, colorCommon, colorAbandoned, colorTraceVariant, slopeThickness, slopeOpacity], () => {
+             updateVariantStyle({
+                 thickness: segmentThickness.value,
+                 opacity: segmentOpacity.value,
+                 colorNew: colorNew.value,
+                 colorCommon: colorCommon.value,
+                 colorAbandoned: colorAbandoned.value,
+                 colorTrace: colorTraceVariant.value,
+                 slopeThickness: slopeThickness.value,
+                 slopeOpacity: slopeOpacity.value
+             });
+             
+             // Refresh Slope Mode to ensure correct color is applied if mode didn't change but color did
+             updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+         });
+        }
+        
+        // Initial Overlap Check (to hide loops on start if any)
+        checkLayers(0); 
+        
+        // 12. Animation Sequence
+        const startPoint = trackingPointsWithDistanceRef.value[0];
+        const mapInstance = map.value;
+        
+        if (isDirectStart.value) {
+            // Mode Direct (Variante OU DirectStart pour trace principale)
+            animationState.value = 'Vol_Vers_Depart';
+            
+            // Afficher les widgets (ils seront filtrés par isIntroSequence pour Altitude/Ville/Distance)
+            showWidgets.value = true;
+            
+            // Appliquer le zoom minimum
+            mapInstance.setMinZoom(zoomMinimum.value);
+            
+            // Vol direct vers km 0
+            isFlytoActive.value = true;
+            
+            // Reveal map for direct start (km 0 is usually zoomed in, show it immediately)
+            isInitializing.value = false;
+
+            await flyToPromise({
+                center: startPoint.coordonnee,
+                zoom: startPoint.editedZoom ?? startPoint.zoom ?? 16,
+                pitch: startPoint.editedPitch ?? startPoint.pitch ?? 45,
+                bearing: startPoint.editedCap ?? startPoint.cap ?? 0,
+                duration: 3000
+            });
+            isFlytoActive.value = false;
+            
+        } else {
+            // Mode Standard (Trace Principale avec séquence complète)
+            animationState.value = 'Vol_Vers_Vue_Globale';
+            showWidgets.value = true; // Permettre l'affichage des Commandes dès maintenant
+            
+            // Calculer le zoom cible pour voir toute la trace
+            const traceBbox = turf.bbox(lineStringRef.value);
+            const globalView = mapInstance.cameraForBounds(traceBbox, { padding: margeLancement.value, bearing: 0, pitch: 0 });
+            
+            isFlytoActive.value = true;
+            
+        // Démarrer le flyTo (carte déjà révélée ou en cours d'apparition)
+            const flyToTask = flyToPromise({
+                zoom: globalView.zoom,
+                bearing: 0,
+                pitch: 0
+            }, { duration: durationEuropeToTrace.value });
+            
+            // Animation progressive des messages de départ (Km 0) à 50% du vol
+            const halfDuration = durationEuropeToTrace.value / 2;
+            setTimeout(() => {
+                 if (rangeEvents.value && map.value) {
+                    // Filtrer les messages présents au départ (Increment 0)
+                    const startMessages = rangeEvents.value.filter(m => m.startIncrement <= 0 && m.endIncrement >= 0);
+                    
+                    startMessages.forEach(m => {
+                        if (activePopups.has(m.eventId)) return;
+
+                        // Création manuelle avec transition d'opacité
+                        const content = createMessageSVG(m);
+                        const wrapperId = `popup-start-${m.eventId}`;
+                        // Opacité initiale 0, transition calée sur le reste du vol
+                        const wrappedContent = `<div id="${wrapperId}" style="opacity: 0; transition: opacity ${halfDuration}ms ease-out;">${content}</div>`;
+                        
+                        const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+                        const p = new mapboxgl.Popup({ 
+                            closeButton: false, 
+                            closeOnClick: false, 
+                            className: 'map-message-popup',
+                            anchor: anchor,
+                            maxWidth: 'none' 
+                        })
+                        .setLngLat(m.coord)
+                        .setHTML(wrappedContent)
+                        .addTo(map.value);
+                        
+                        activePopups.set(m.eventId, p);
+                        
+                        // Déclencher l'apparition
+                        requestAnimationFrame(() => {
+                            const el = document.getElementById(wrapperId);
+                            if (el) el.style.opacity = '1';
+                        });
+                    });
+                 }
+            }, halfDuration);
+
+            // Attendre 200ms pour s'assurer que le zoom a bien commencé (optionnel, pour fluidité)
+            await new Promise(r => setTimeout(r, 200));
+            isInitializing.value = false; // Sécurité si pas déjà fait
+            
+            // Attendre la fin du flyTo
+            await flyToTask;
+            isFlytoActive.value = false;
+            
+            // Appliquer le zoom minimum MAINTENANT que la séquence Europe est terminée
+            mapInstance.setMinZoom(zoomMinimum.value);
+            
+            animationState.value = 'Pause_Observation';
+            
+            // Pause d'observation
+            if (repriseAutoVueTrace.value) {
+                // Attendre que la map soit stable (idle) avant de compter la pause
+                // Cela évite de compter le temps pendant le chargement des tuiles
+                if (!mapInstance.loaded()) {
+                    await new Promise(resolve => {
+                       const onIdle = () => {
+                           mapInstance.off('idle', onIdle);
+                           resolve();
+                       };
+                       mapInstance.on('idle', onIdle);
+                       // Safety timeout 3s
+                       setTimeout(onIdle, 3000);
+                    });
+                }
+                
+                await new Promise(r => setTimeout(r, pauseBeforeStart.value));
+            } else {
+                // Pause manuelle
+                isPaused.value = true;
+                await new Promise(resolve => {
+                    const checkResume = () => {
+                        if (!isPaused.value) {
+                            resolve();
+                        } else {
+                            setTimeout(checkResume, 100);
+                        }
+                    };
+                    checkResume();
+                });
+            }
+            
+            animationState.value = 'Vol_Vers_Depart';
+            
+            // Changement de style si nécessaire
+            if (mapStyle.value !== styleLancement.value) {
+                mapInstance.setStyle(mapStyle.value);
+                await new Promise(resolve => mapInstance.once('style.load', resolve));
+                
+                // IMPORTANT: re-add active popups after style change
+                activePopups.forEach(p => {
+                    if (map.value) p.addTo(map.value);
+                });
+                
+                // Re-setup layers après changement de style
+                if (isMainTrace.value) {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: traceColor.value,
+                        lineStringData: lineStringRef.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+                    });
+                } else {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: colorTraceVariant.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+                        masterTraceData: masterTraceGeoJson.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        slopeExpression: slopeExpressionRef.value,
+                        segmentThickness: segmentThickness.value,
+                        segmentOpacity: segmentOpacity.value,
+                        slopeThickness: slopeThickness.value,
+                        slopeOpacityLogic: slopeOpacity.value,
+                        colorNew: colorNew.value,
+                        colorCommon: colorCommon.value,
+                        colorAbandoned: colorAbandoned.value
+                    });
+                    
+                    // Force re-apply visibility as style reset might have confused state or z-index
+                    updateLayerVisibility(true, showSegments.value);
+                    updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+                }
+            }
+            
+            // Vol vers le km 0
+            isFlytoActive.value = true;
+            await flyToPromise({
+                center: startPoint.coordonnee,
+                zoom: startPoint.editedZoom ?? startPoint.zoom,
+                pitch: startPoint.editedPitch ?? startPoint.pitch,
+                bearing: startPoint.editedCap ?? startPoint.cap,
+                duration: durationTraceToStart.value
+            });
+            isFlytoActive.value = false;
+        }
+
+
+
+        animationState.value = 'En_Pause_au_Depart';
+        isInitializing.value = false;
+        enableInteraction();
+        
+        // S'assurer que les widgets sont affichés (au cas où, bien qu'ils le soient déjà)
+        showWidgets.value = true;
+
+        // Ensure KM 0 messages are displayed during the initial pause
+        await checkEvents(0);
+
+        startAnimation(animateLoop); 
+        
+        if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
+             isPaused.value = true;
+             
+             // Attendre selon la configuration (NON-BLOQUANT)
+             if (repriseAutoKm0.value) {
+                 // Auto-resume after delay
+                 setTimeout(() => {
+                     // Check 'isInitSequenceRunning' to ensure we don't resume if user left view/reset
+                     if (isPaused.value && animationState.value === 'En_Pause_au_Depart') {
+                         isPaused.value = false;
+                     }
+                 }, pauseAuKm0.value);
+             }
+             // Si pas de reprise auto, on reste simplement en pause (isPaused=true).
+             // L'utilisateur devra cliquer sur Play (Espace ou Remote) pour débloquer.
+             // On ne bloque pas l'exécution ici, sinon setupRemoteControl n'est jamais appelé !
+        }
+
+    } catch (error) {
+        console.error("Init Visualization Variant Failed:", error);
+        showSnackbar("Erreur d'initialisation variante", "error");
+    } finally {
+        isInitSequenceRunning.value = false; // End protection
+    }
+};
+
+
+    
+/**
+ * Applies smoothing to tracking data received from backend.
+ * Essential for variant segments which have generated points with default cap=0.
+ * Also smooths the master tracking parts for consistency.
+ */
+function applySmoothingToTracking(tracking) {
+    // 1. First pass: Ensure Raw Bearings exist
+    for (let i = 0; i < tracking.length; i++) {
+        const pt = tracking[i];
+        
+        // If cap is 0 (likely generated), calculate it
+        if (!pt.cap || pt.cap === 0) {
+            let rawBearing = 0;
+            const coord = pt.coordonnee; // [lon, lat]
+            
+            if (i > 0) {
+                const prev = tracking[i-1].coordonnee;
+                // Avoid NaN from duplicate points
+                if (Math.abs(prev[0] - coord[0]) < 1e-9 && Math.abs(prev[1] - coord[1]) < 1e-9) {
+                     rawBearing = tracking[i-1].cap || 0;
+                } else {
+                     rawBearing = turf.bearing(turf.point(prev), turf.point(coord));
+                }
+            } else if (tracking.length > 1) {
+                const next = tracking[i+1].coordonnee;
+                rawBearing = turf.bearing(turf.point(coord), turf.point(next));
+            }
+             
+            if (isNaN(rawBearing)) rawBearing = 0;
+            pt.cap = rawBearing;
+        }
+        
+        // Ensure defaults if missing
+        if (!pt.zoom) pt.zoom = 17; // Closer zoom to see spline effect distinct from arc
+        if (!pt.pitch) pt.pitch = 50;
     }
 
-    if (!trackingDataRef.value[0]) {
-        console.error("Initial tracking data point is undefined.");
+    // 2. Second pass: Smooth Bearings (Vector Averaging)
+    const smoothingWindow = 10; 
+    
+    // We clone to avoid modifying while reading? 
+    // Actually we can compute average based on the raw caps we just set.
+    
+    // Create a temp array for smoothed caps to apply after calculation
+    const newCaps = new Array(tracking.length);
+
+    for (let i = 0; i < tracking.length; i++) {
+        let sinSum = 0;
+        let cosSum = 0;
+        let count = 0;
+
+        for (let j = Math.max(0, i - smoothingWindow); j <= Math.min(tracking.length - 1, i + smoothingWindow + 5); j++) {
+            const bearingRad = (tracking[j].cap * Math.PI) / 180;
+            sinSum += Math.sin(bearingRad);
+            cosSum += Math.cos(bearingRad);
+            count++;
+        }
+
+        if (count > 0) {
+            const avgBearingRad = Math.atan2(sinSum / count, cosSum / count);
+            let avgBearingDeg = (avgBearingRad * 180) / Math.PI;
+            if (avgBearingDeg < 0) avgBearingDeg += 360; 
+            
+            newCaps[i] = avgBearingDeg;
+        } else {
+            newCaps[i] = tracking[i].cap;
+        }
+    }
+    
+    // Apply new caps
+    for(let i=0; i<tracking.length; i++) {
+        tracking[i].editedCap = newCaps[i];
+        tracking[i].cap = newCaps[i];
+    }
+    
+    // Fix start
+    if(tracking.length > 5) {
+        const startBearing = tracking[5].editedCap; 
+         for(let k=0; k<5; k++) {
+             tracking[k].editedCap = startBearing;
+             tracking[k].cap = startBearing;
+         }
+    }
+
+    return tracking;
+}
+
+let lastTimestamp = 0;
+
+const animateLoop = (timestamp) => {
+    
+    // 0. FlyTo Exclusive Mode
+    if (isFlytoActive.value) {
+        if (map.value) map.value.triggerRepaint();
+        requestAnimationFrame(animateLoop);
+        return; 
+    }
+
+    // 1. Check Pause/State
+    if (isInitializing.value || (isPaused.value && !isRewinding.value && !isFlytoActive.value) || isAnimationFinished.value) {
+        if (map.value) map.value.triggerRepaint();
+        requestAnimationFrame(animateLoop);
+        lastTimestamp = timestamp; 
         return;
     }
 
-    // Initialize Weather
-    await initWeather(currentCircuit, trackingPointsWithDistanceRef.value);
+    // 2. Update Time
+    const deltaTime = Math.min(timestamp - lastTimestamp, 100);
+    lastTimestamp = timestamp;
+    
+    // Call controller to update time refs
+    // Call controller to update time refs (Controller expects KM)
+    const { phase, distanceTraveled } = updateTime(deltaTime, totalDurationAt1xRef.value, totalDistanceRef.value / 1000);
+    
+    // 3. Comet (use km directly)
+    updateComet(distanceTraveled);
 
-    // Helper pour convertir les couleurs (supporte Vuetify + noms CSS)
-    const toHexImproved = (value) => {
-        if (!value) return '#FF0000';
-        // Essayer d'abord la conversion Vuetify
-        const vuetifyHex = toHex(value);
-        if (vuetifyHex && vuetifyHex.startsWith('#')) return vuetifyHex;
+    // 4. Overlap Layers (Trace Retour/Aller switch)
+    checkLayers(distanceTraveled);
 
-        if (typeof value === 'string') {
-            if (value.startsWith('#') || value.startsWith('rgb')) return value;
-            const colors = {
-                'red': '#FF0000', 'blue': '#0000FF', 'green': '#008000',
-                'yellow': '#FFFF00', 'white': '#FFFFFF', 'black': '#000000',
-                'gray': '#808080', 'light-blue': '#ADD8E6', 'orange': '#FFA500'
-            };
-            return colors[value] || value;
-        }
-        return '#FF0000';
-    };
+    // 5. Camera Interpolation (Using New Composable) - Expects KM for tracking comparison
+    const { bearing: newBearing } = updateCameraPosition(distanceTraveled, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+        dynamicZoomIntensity: dynamicZoomIntensity.value,
+        currentSpeed: currentSpeed.value,
+        lineStringRef: lineStringRef,
+        isMultisegment: false, 
+        activeVariantSegments: []
+    });
+    if (newBearing !== null) {
+        currentTraceBearing.value = newBearing;
+    }
 
-    // --- Trace Color Logic avec 3 layers ---
-    // On charge maintenant une FeatureCollection de segments colorés (backend Refonte Phase 7)
-    let coloredSegmentsGeoJson = null;
-
-    if (colorTraceBySlope.value) {
-        try {
-            const slopeColors = {
-                TrancheNegative: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                Tranche2: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                Tranche3: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                Tranche4: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                Tranche5: toHexImproved(getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-            };
-
-            coloredSegmentsGeoJson = await invoke('get_colored_segments_geojson', {
-                circuitId: props.circuitId,
-                slopeColors: slopeColors,
-                segmentLength: segmentLength.value,
+    // 5b. Update Weather
+    if (simulationStartDate.value && currentViewWeather.value?.length > 0) {
+        const timeMs = accumulatedTime.value || 0;
+        const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
+        
+        if (isNaN(currentSimDate.getTime())) {
+            console.warn("Weather: Invalid date calculation", {
+                startDate: simulationStartDate.value,
+                accumulatedTime: accumulatedTime.value,
+                timeMs
             });
+            return;
+        }
+        
+        const newWeather = WeatherService.getCurrentWeather(distanceTraveled, currentSimDate, currentViewWeather.value);
+        if (newWeather) {
+            currentWeather.value = newWeather;
+            // Debug: console.log("Weather updated:", newWeather.temperature, "°C");
+        } else {
+            // No weather match
+        }
+    }
 
-            if (coloredSegmentsGeoJson) {
-                console.log('[Visualize] Segmented GeoJSON loaded');
-            } else {
-                console.warn("Failed to generate segmented GeoJSON.");
+    // 6. Check Events (Pause/Flyto)
+    // 6. Check Events (Pause/Flyto)
+    checkEvents(distanceTraveled);
+
+    // 7. Loop or End
+    if (phase < 1 || isRewinding.value) {
+        requestAnimationFrame(animateLoop);
+    } else {
+        isAnimationFinished.value = true;
+        isPaused.value = true;
+        handleEndSequence();
+    }
+};
+
+const handleJumpRequest = async (targetDistanceKm) => {
+    // 1. Suspension
+    const wasPlaying = !isPaused.value;
+    isPaused.value = true;
+    isFlytoActive.value = true;
+    
+    const targetDistanceM = targetDistanceKm * 1000;
+    
+    // 2. Mise à jour État (Instantanée)
+    // Attention: totalDistanceRef est en Mètres ici, mais setTimeFromDistance attend des KM pour les deux ?
+    // Check setTimeFromDistance: (targetDistanceInKm, totalDistanceKm, totalDurationMs)
+    // Ici totalDistanceRef est en Mètres.
+    setTimeFromDistance(targetDistanceKm, totalDistanceRef.value / 1000, totalDurationAt1xRef.value);
+
+    
+    // Comet Update
+    updateComet(targetDistanceKm); 
+    
+    // Layers Logic (Aller/Retour)
+    checkLayers(targetDistanceKm);
+    
+    // Weather
+    if (simulationStartDate.value && currentViewWeather.value?.length > 0) {
+         const timeMs = accumulatedTime.value || 0;
+         const currentSimDate = new Date(simulationStartDate.value.getTime() + timeMs);
+         const newWeather = WeatherService.getCurrentWeather(targetDistanceKm, currentSimDate, currentViewWeather.value);
+         if (newWeather) currentWeather.value = newWeather;
+    }
+    
+    // 3. Calcul Cible Caméra
+    // Interpolated Bearing
+    const { bearing: interpolatedBearing, target: targetCameraParams } = updateCameraPosition(targetDistanceKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+        dynamicZoomIntensity: dynamicZoomIntensity.value,
+        currentSpeed: currentSpeed.value,
+        lineStringRef: lineStringRef,
+        isMultisegment: false, 
+        activeVariantSegments: [],
+        apply: false // IMPORTANT: Do not move map yet
+    });
+    
+    if (interpolatedBearing !== null) currentTraceBearing.value = interpolatedBearing;
+    
+    let targetCamera = targetCameraParams;
+    
+    if (!targetCamera) {
+        const pts = trackingPointsWithDistanceRef.value;
+        let bestPoint = pts[0];
+        for (let i = pts.length - 1; i >= 0; i--) {
+            if (pts[i].distance <= targetDistanceKm) {
+                bestPoint = pts[i];
+                break;
             }
-        } catch (e) {
-            console.error("Error getting colored segments:", e);
         }
+        targetCamera = {
+            center: bestPoint.coordonnee, 
+            zoom: bestPoint.editedZoom ?? bestPoint.zoom,
+            pitch: bestPoint.editedPitch ?? bestPoint.pitch,
+            bearing: bestPoint.editedCap ?? bestPoint.cap
+        };
     }
 
 
-    map = new mapboxgl.Map({
-      container: mapContainer.value,
-      style: styleLancement.value,
-      center: centerEurope.value,
-      zoom: zoomEurope.value,
-      pitch: 0,
-      bearing: 0,
-      interactive: false, // Désactiver l'interaction au démarrage
+    // 4. FlyTo Transition
+    await flyToPromise({
+        ...targetCamera,
+        duration: jumpDuration.value * 1000 
     });
+    
+    // 5. Reprise
+    isFlytoActive.value = false;
+    
+    // Force remote update
+    await nextTick();
+    updateRemoteViewState();
+    
+    if (wasPlaying) {
+        isPaused.value = false;
+    } else {
+        if(map.value) map.value.triggerRepaint();
+    }
+};
 
-    const setupMapLayersAndSources = async () => {
-      if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', {
-          'type': 'raster-dem',
-          'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
-          'tileSize': 512,
-          'maxzoom': 14
-        });
-      }
-      map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
-      map.setFog({});
+// --- Helpers ---
 
-      if (!map.getSource('trace')) {
-        map.addSource('trace', { type: 'geojson', data: lineStringRef.value, lineMetrics: true });
-      }
-
-      const basePaintProps = {
-        'line-width': traceWidth.value,
-        'line-opacity': traceOpacity.value
-      };
-
-      // --- Refonte Phase 7 : Utilisation de Source 'colored-segments' avec Filtres ---
-      
-      // Source for the colored segments (Detailed FeatureCollection)
-      if (coloredSegmentsGeoJson && !map.getSource('colored-segments')) {
-        map.addSource('colored-segments', { type: 'geojson', data: coloredSegmentsGeoJson });
-
-        // Layer 1: Trace complète (SUPPRIME - Simplification Phase 8)
-        // On n'affiche plus de couche grise en dessous.
-        // Seules les couches Aller et Retour s'alternent.
-        
-        // Layer 2: Overlay Aller (Tout SAUF Retour)
-        if (!map.getLayer('trace-overlap-aller')) {
-            map.addLayer({
-                id: 'trace-overlap-aller',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' }, // Visible par défaut (Phase Aller)
-                paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['!=', ['get', 'segment_type'], 'retour_overlap']
-            });
-        }
-
-        // Layer 3: Overlay Retour (Tout SAUF Aller)
-        if (!map.getLayer('trace-overlap-retour')) {
-            map.addLayer({
-                id: 'trace-overlap-retour',
-                type: 'line',
-                source: 'colored-segments',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'none' }, // Caché par défaut
-                paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
-                    'line-color': ['get', 'color_raw']
-                },
-                filter: ['!=', ['get', 'segment_type'], 'aller_overlap']
-            });
-        }
-      }
-
-      // Fallback: Si pas de segments colorés (ex: tracking.json manquant ou erreur backend)
-      // On utilise 'trace-complete' avec le lineString simple et une couleur par défaut
-      if (!coloredSegmentsGeoJson && !map.getLayer('trace-complete')) {
-         if (!map.getSource('trace') && lineStringRef.value) {
-            map.addSource('trace', { type: 'geojson', data: lineStringRef.value });
-         }
+let lastDirection = 'aller';
+const checkLayers = (distanceTraveled) => {
+     if (segmentMetadata.value?.overlappingZones) {
+         const isRetour = segmentMetadata.value.overlappingZones.some(z => distanceTraveled >= z.retourStartKm && distanceTraveled <= z.retourEndKm); 
+         const currentDir = isRetour ? 'retour' : 'aller';
          
-         if (map.getSource('trace')) {
-            map.addLayer({
-                id: 'trace-complete',
-                type: 'line',
-                source: 'trace',
-                layout: { 'line-join': 'round', 'line-cap': 'round', 'visibility': 'visible' },
-                paint: {
-                    'line-width': 4,
-                    'line-opacity': 1,
-                    'line-color': traceColor.value || '#0000FF'
-                }
-            });
+         if (currentDir !== lastDirection) {
+             // console.log(`[VisualizeVariant] Switching Layer to: ${currentDir} at distance ${distanceTraveled.toFixed(2)} km`);
+             lastDirection = currentDir;
          }
-      }
 
-      // Layers overlays vides pour éviter erreurs si appelés
-      if (!map.getLayer('trace-overlap-aller') && !coloredSegmentsGeoJson) { /* No op fallback logic for overlap if no data */ }
-
-      // Affichage Comète
-      if (lineStringRef.value && !map.getSource('comet-source')) {
-        map.addSource('comet-source', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} } });
-      }
-      if (!map.getLayer('comet-layer')) {
-        map.addLayer({ id: 'comet-layer', type: 'line', source: 'comet-source', paint: { 'line-width': cometWidth.value, 'line-color': cometColor.value, 'line-opacity': cometOpacity.value } });
-      }
-    };
-
-    map.on('style.load', async () => {
-      await setupMapLayersAndSources();
-    });
-
-    map.on('load', async () => {
-      // map.on('load') sequence continues...
-      // Les sources et layers sont déjà gérés par style.load via setupMapLayersAndSources
-
-      // Update camera bearing on every move (covers rotate, flyTo, manual interaction)
-      map.on('move', () => {
-          currentCameraBearing.value = map.getBearing();
-      });
-
-      // --- Séquence d'animation d'initialisation ---
-      isInitializing.value = true;
-      map.interactive = false; // Désactiver l'interaction pendant l'animation
-
-      const traceBbox = turf.bbox(lineStringRef.value);
-      const startCameraOptions = {
-          center: trackingPointsWithDistanceRef.value[0].coordonnee,
-          zoom: trackingPointsWithDistanceRef.value[0].editedZoom ?? trackingPointsWithDistanceRef.value[0].zoom,
-          pitch: trackingPointsWithDistanceRef.value[0].editedPitch ?? trackingPointsWithDistanceRef.value[0].pitch,
-          bearing: trackingPointsWithDistanceRef.value[0].editedCap ?? trackingPointsWithDistanceRef.value[0].cap,
-      };
-
-      // Définir la vue initiale de l'Europe (sans animation)
-      map.setCenter(centerEurope.value);
-      map.setZoom(zoomEurope.value);
-      map.setPitch(0);
-      map.setBearing(0);
-
-      // Court délai pour s'assurer que la carte rend l'état initial
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Séquence 1: Vol vers l'aperçu de la trace
-      animationState.value = 'Vol_Vers_Vue_Globale';
-      
-      // Préparer l'affichage des messages avec anchorIncrement === 0
-      // Ils apparaîtront pendant les derniers 33% du flyTo (de 66% à 100%)
-      const { atKm0, nearKm0 } = getMessagesForKm0();
-      if (atKm0.length > 0) {
-        const delayBeforeStart = durationEuropeToTrace.value * 0.66; // Démarrer à 66%
-        const fadeDuration = durationEuropeToTrace.value * 0.34; // Durer 34% (jusqu'à 100%)
-        
-        setTimeout(() => {
-          displayMessagesWithFade(atKm0, fadeDuration);
-        }, delayBeforeStart);
-      }
-      
-      const globalView = map.cameraForBounds(traceBbox, { padding: 40, bearing: 0, pitch: 0 });
-      globalTraceCameraOptions.value = globalView;
-
-      await flyToPromise(map, {
-          pitch: 0,
-          bearing: 0,
-          duration: durationEuropeToTrace.value,
-          ...globalView
-      });
-
-      // Séquence 2: Pause sur la vue globale (messages atKm0 déjà visibles)
-      animationState.value = 'Pause_Observation';
-      
-      
-      await new Promise(resolve => setTimeout(resolve, pauseBeforeStart.value));
-
-      
-      // Séquence 3: Vol vers le début de la trace (km 0)
-      animationState.value = 'Vol_Vers_Depart';
-
-
-
-      // Changement de style avant le vol vers le départ
-      if (mapStyle.value !== styleLancement.value) {
-          map.setStyle(mapStyle.value);
-          await new Promise(resolve => map.once('style.load', resolve));
-      }
-      
-      // Afficher les messages avec anchorIncrement !== 0 pendant le flyTo
-      if (nearKm0.length > 0) {
-        displayMessagesWithFade(nearKm0, durationTraceToStart.value); // Pas de await, animation en parallèle
-      }
-      
-      await flyToPromise(map, {
-          ...startCameraOptions,
-          duration: durationTraceToStart.value,
-      });
-
-      // Séquence 4: Afficher l'interface utilisateur et démarrer l'animation après une pause
-      animationState.value = 'En_Pause_au_Depart';
-      isInitializing.value = false;
-      isPaused.value = true; // On reste en pause le temps du timer
-      map.interactive = true;
-      distanceDisplay.value = '0.00';
-
-      // Mettre à jour l'affichage de la commune pour le km0
-      if (shouldShowCommuneWidget.value && trackingPointsWithDistanceRef.value[0]?.commune) {
-          currentCommuneName.value = trackingPointsWithDistanceRef.value[0].commune;
-      }
-
-      // Stocker l'état initial de la caméra pour la reprise
-      pausedCameraOptions.value = {
-          center: map.getCenter(),
-          zoom: map.getZoom(),
-          pitch: map.getPitch(),
-          bearing: map.getBearing(),
-      };
-      // Commencer à écouter les interactions
-      map.on('move', onMapInteraction);
-      map.on('zoom', onMapInteraction);
-      map.on('pitch', onMapInteraction);
-      map.on('rotate', onMapInteraction);
-
-      animationFrameId = requestAnimationFrame(animate);
-
-      // Démarrage automatique après la pause définie
-      const pauseMs = pauseAuKm0.value;
-      if (pauseMs > 0) {
-          await new Promise(resolve => setTimeout(resolve, pauseMs));
-      }
-      isPaused.value = false; // Démarrage de l'animation
-    });
-
-  } catch (error) {
-    console.error("Error during visualization setup:", error);
-  }
-};
-
-const handleMouseMove = () => {
-    if (isCursorHidden.value) {
-        isCursorHidden.value = false;
-    }
-    clearTimeout(cursorTimer);
-    if (masquerCurseurDelai.value) {
-        cursorTimer = setTimeout(() => {
-            isCursorHidden.value = true;
-        }, masquerCurseurDelai.value);
+         updateTraceOverlapVisibility(null, currentDir, showSegments.value);
     }
 };
 
-onMounted(() => {
-  interruptUpdate(); // Interrupt commune update task
-  window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('keyup', handleKeyUp);
-
-  const setupRemoteListeners = async () => {
-    // Bloquer le scroll global du body
-    document.body.style.overflow = 'hidden';
-
-    unlistenFunctions.push(await listen('remote_command::toggle_play', () => {
-        if (isInitializing.value || isAnimationFinished.value) return;
-        isPaused.value = !isPaused.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_commands_widget', () => {
-        if (isInitializing.value) return;
-        isControlsCardVisible.value = !isControlsCardVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_altitude_profile', () => {
-        if (isInitializing.value) return;
-        isAltitudeVisible.value = !isAltitudeVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_communes_display', () => {
-        if (isInitializing.value) return;
-        isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_distance_display', () => {
-        if (isInitializing.value) return;
-        isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_weather_static', () => {
-        if (isInitializing.value) return;
-        isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_weather_dynamic', () => {
-        if (isInitializing.value) return;
-        isCompassVisible.value = !isCompassVisible.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::toggle_home', () => {
-        if (isInitializing.value) return;
-        toggleBackButtonVisibility();
-    }));
-    unlistenFunctions.push(await listen('remote_command::restart_animation', () => {
-        if (isAnimationFinished.value) {
-            resetAnimation();
-        }
-    }));
-    unlistenFunctions.push(await listen('remote_command::update_speed', (event) => {
-        console.log("Received remote_command::update_speed event:", event);
-        if (isInitializing.value || isAnimationFinished.value) return;
-        currentSpeed.value = Math.min(maxSpeedValue.value, Math.max(minSpeedValue.value, parseFloat(event.payload.speed)));
-    }));
-    unlistenFunctions.push(await listen('remote_command::set_speed_to_1x', () => {
-        if (isInitializing.value || isAnimationFinished.value) return;
-        currentSpeed.value = defaultSpeedValue.value;
-    }));
-    unlistenFunctions.push(await listen('remote_command::update_camera', (event) => {
-        if (!isPaused.value || !map) return;
-        const payload = event.payload;
-        const dx = payload.dx || 0;
-        const dy = payload.dy || 0;
-
-        switch (payload.type) {
-            case 'pan':
-                const panX = dx * (sensibilityPointDeVueX.value / 100) * -1;
-                const panY = dy * (sensibilityPointDeVueY.value / 100) * -1;
-                console.log('Pan - dx:', dx, 'dy:', dy, 'sensibilityPointDeVueX:', sensibilityPointDeVueX.value, 'sensibilityPointDeVueY:', sensibilityPointDeVueY.value, 'panX:', panX, 'panY:', panY);
-                map.panBy([panX, panY], { duration: 0 });
-                break;
-            case 'bearing':
-                const bearingDelta = dx * (sensibilityCap.value / 100) * -1;
-                console.log('Bearing - dx:', dx, 'sensibilityCap:', sensibilityCap.value, 'bearingDelta:', bearingDelta);
-                map.setBearing(map.getBearing() + bearingDelta);
-                break;
-            case 'zoom':
-                const zoomDelta = dy * (sensibilityZoom.value / 1000) * -1;
-                console.log('Zoom - dy:', dy, 'sensibilityZoom:', sensibilityZoom.value, 'zoomDelta:', zoomDelta);
-                let newZoom = map.getZoom() + zoomDelta;
-                if (isPaused.value) { // Only apply minimum zoom when paused
-                    newZoom = Math.max(newZoom, zoomMinimum.value);
+const updateComet = (distanceTraveled) => {
+     if(!map.value || !lineStringRef.value) return;
+     const totalLen = turf.length(lineStringRef.value, { units: 'kilometers' });
+     const currentDist = Math.max(0, Math.min(distanceTraveled, totalLen));
+     const cometLengthKm = cometLength.value / 1000;
+     const startDistance = Math.max(0, currentDist - cometLengthKm);
+     
+     if (currentDist > startDistance) {
+            try {
+                const cometSlice = turf.lineSliceAlong(lineStringRef.value, startDistance, currentDist, { units: 'kilometers' });
+                if (map.value.getSource('comet-source')) {
+                    map.value.getSource('comet-source').setData(cometSlice);
                 }
-                map.setZoom(newZoom);
-                break;
-            case 'tilt':
-                const tiltDelta = dy * (sensibilityTilt.value / 100) * -1;
-                console.log('Tilt - dy:', dy, 'sensibilityTilt:', sensibilityTilt.value, 'tiltDelta:', tiltDelta);
-                map.setPitch(map.getPitch() + tiltDelta);
-                break;
+            } catch(e) { /* ignore */ }
+     } else {
+          if (map.value.getSource('comet-source')) {
+              map.value.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+          }
+     }
+};
+
+
+const checkEvents = async (distanceTraveled) => {
+    // Logic from original VisualizeView:
+    // 1. Find Increment
+    // We assume robust find from index like in original view
+    // Simplified search for refactor:
+    // find index where point.distance > distanceTraveled
+    
+    if(!trackingPointsWithDistanceRef.value || trackingPointsWithDistanceRef.value.length < 2) return;
+    
+    // Locate current point logic
+    let currentPoint = null;
+    // Find point <= distanceTraveled
+    // Reverse search often faster if continuous
+    // But let's use a simple robust search
+    const pts = trackingPointsWithDistanceRef.value;
+    // Optimization: remember last index in controller? For now, linear search.
+    let idx = -1;
+    for(let i=pts.length-1; i>=0; i--) {
+        if(pts[i].distance <= distanceTraveled) {
+            idx = i;
+            break;
         }
-    }));
-    unlistenFunctions.push(await listen('remote_command::start_rewind', () => {
-        if (isInitializing.value || isAnimationFinished.value) return;
-        isRewinding.value = true;
-    }));
-    unlistenFunctions.push(await listen('remote_command::stop_rewind', () => {
-        if (isInitializing.value || isAnimationFinished.value) return;
-        isRewinding.value = false;
-    }));
-  };
-
-  setupRemoteListeners();
-
-  // Send initial state to the backend
-  sendVisualizeViewStateUpdate();
-
-  const unwatchSettings = watch(settings, (newSettings) => {
-    if (newSettings) {
-      // --- Update Widget Visibility from Settings ---
-      isDistanceDisplayVisible.value = getSettingValue('Visualisation/Widgets/distance') ?? true;
-      isControlsCardVisible.value = getSettingValue('Visualisation/Widgets/commandes') ?? true;
-      isCommuneWidgetVisible.value = getSettingValue('Visualisation/Widgets/communes') ?? true;
-      isAltitudeVisible.value = getSettingValue('Visualisation/Widgets/altitude') ?? true;
-      
-      const staticW = getSettingValue('Visualisation/Météo/Widgets/informationMeteo') ?? true;
-      isStaticWeatherVisible.value = staticW;
-      isWeatherInfoVisible.value = staticW;
-
-      const dynamicW = getSettingValue('Visualisation/Météo/Widgets/boussole') ?? true;
-      isDynamicWeatherVisible.value = dynamicW;
-      isCompassVisible.value = dynamicW;
-
-      // --- Cursor hide logic ---
-      if (masquerCurseurDelai.value != null) {
-        if (mapContainer.value) {
-          mapContainer.value.addEventListener('mousemove', handleMouseMove);
-          handleMouseMove(); // Initial call
-        }
-      }
-
-      // --- Map init logic ---
-      if (mapContainer.value && !isMapInitialized) {
-        isMapInitialized = true;
-        initializeMap();
-      }
-
-      // We've done all initial setup based on settings, so we can stop watching.
-      nextTick(() => {
-        if (unwatchSettings) {
-            unwatchSettings();
-        }
-      });
     }
-  }, { immediate: true });
-});
+    if(idx !== -1) currentPoint = pts[idx];
+
+    if(!currentPoint) return;
+    const currentIncrement = currentPoint.increment;
+
+    if (currentPoint.commune) currentCommuneName.value = currentPoint.commune;
+
+    // Logic Rewind Reset
+    if (isRewinding.value) {
+        if (triggeredPauseIncrement.value !== null && currentIncrement < triggeredPauseIncrement.value) triggeredPauseIncrement.value = null;
+        if (triggeredFlytoIncrement.value !== null && currentIncrement < triggeredFlytoIncrement.value) triggeredFlytoIncrement.value = null;
+    }
+
+    if (currentIncrement !== undefined) {
+        // Popups (Range Events)
+        if (rangeEvents.value.length > 0) {
+              const newVisibleIds = new Set();
+              rangeEvents.value.forEach(msg => {
+                  if (currentIncrement >= msg.startIncrement && currentIncrement <= msg.endIncrement) {
+                      newVisibleIds.add(msg.eventId);
+                  }
+              });
+              // ... update activePopups (standard logic)
+              // Simplify for Step 1: Just log or implement fully?
+              // Implementing basics:
+               const currentVisibleIds = new Set(activePopups.keys());
+               currentVisibleIds.forEach(id => {
+                   if (!newVisibleIds.has(id)) {
+                       activePopups.get(id)?.remove();
+                       activePopups.delete(id);
+                   }
+               });
+               newVisibleIds.forEach(id => {
+                   if (!currentVisibleIds.has(id)) {
+                       const m = rangeEvents.value.find(ev => ev.eventId === id);
+                       if(m && m.message && map.value) {
+                           const content = createMessageSVG(m);
+                           const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+                            const p = new mapboxgl.Popup({ 
+                                closeButton: false, 
+                                closeOnClick: false, 
+                                className: 'map-message-popup',
+                                anchor: anchor
+                            })
+                                .setLngLat(m.coord).setHTML(content).addTo(map.value);
+                           activePopups.set(id, p);
+                       }
+                   }
+               });
+        }
+
+        // Pause
+        if (pauseIncrements.value.includes(currentIncrement)) {
+            if (triggeredPauseIncrement.value !== currentIncrement) {
+                isPaused.value = true;
+                triggeredPauseIncrement.value = currentIncrement;
+            }
+        }
+        
+        // FlyTo
+        const flyData = flytoEvents.value[currentIncrement];
+        if (flyData && triggeredFlytoIncrement.value !== currentIncrement) {
+             if (isPaused.value) return; // Don't trigger if already paused
+             triggeredFlytoIncrement.value = currentIncrement;
+             executeFlytoSequence(flyData); 
+        }
+    }
+};
+
+const executeFlytoSequence = async (flytoData) => {
+    isFlytoActive.value = true;
+    isPaused.value = true;
+    animationState.value = 'Survol_Evenementiel';
+    // Save state
+    saveCameraState();
+    preFlytoCameraOptions.value = pausedCameraOptions.value;
+
+    const duration = (flytoData.duree > 100 ? flytoData.duree : flytoData.duree * 1000);
+    const durationTarget = Math.max(200, duration / currentSpeed.value);
+
+    await flyToPromise({
+        center: flytoData.coord, zoom: flytoData.zoom, pitch: flytoData.pitch, bearing: flytoData.cap, duration: durationTarget
+    });
+
+    animationState.value = 'En_Pause';
+    
+    // Allow interaction during pause
+    isFlytoActive.value = false;
+    updateRemoteViewState();
+    
+    // Wait for Play
+    await new Promise(resolve => {
+        const stop = watch(isPaused, (val) => {
+            if(!val) { stop(); resolve(); }
+        });
+    });
+
+    isFlytoActive.value = true; // Lock again for return flight
+    updateRemoteViewState();
+
+    animationState.value = 'Survol_Evenementiel';
+    const durationBack = Math.max(200, duration / currentSpeed.value);
+    const preOpts = preFlytoCameraOptions.value;
+    await flyToPromise({ 
+        center: preOpts.center, 
+        zoom: preOpts.zoom, 
+        pitch: preOpts.pitch, 
+        bearing: preOpts.bearing, 
+        duration: durationBack 
+    });
+
+    isFlytoActive.value = false;
+    isPaused.value = false;
+    animationState.value = 'En_Animation';
+    
+    // Force remote update to clear "Repositionnement..." overlay
+    await nextTick();
+    updateRemoteViewState();
+
+    lastTimestamp = 0; // Reset timer for smooth resume
+    requestAnimationFrame(animateLoop); // Restart loop explicitly
+};
+
+const handleEndSequence = async (skipDelay = false) => {
+    if(!map.value) return;
+
+    // Pause à l'arrivée
+    if (!skipDelay && delayAfterAnimationEnd.value > 0) {
+        await new Promise(r => setTimeout(r, delayAfterAnimationEnd.value));
+    }
+
+    // Explicitly set state to Finished (needed if triggered manually via button)
+    isAnimationFinished.value = true;
+    isPaused.value = true;
+    
+    animationState.value = 'Vol_Final';
+    // Hide UI elements contextually via animationState (is3DContext)
+    // We no longer overwrite the user preferences (refs) here to avoid losing them for the next loop.
+    
+    // Hide Comet
+     if (map.value.getSource('comet-source')) {
+          map.value.getSource('comet-source').setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} });
+     }
+    
+    // Force visibility of master trace layers for comparison
+    updateLayerVisibility('trace-main-abandoned', true);
+    
+    // Force remote update to clear segments
+    updateRemoteViewState();
+    
+    // Switch to launch style if needed
+    if (styleLancement.value !== mapStyle.value) {
+        map.value.setStyle(styleLancement.value);
+        await new Promise(r => map.value.once('style.load', r));
+        
+        // IMPORTANT: re-add active popups after style change (they might be removed by Mapbox)
+        activePopups.forEach(p => {
+             if (map.value) p.addTo(map.value);
+        });
+
+        setupTraceLayers({
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
+            lineStringData: lineStringRef.value, 
+            masterTraceData: masterTraceGeoJson.value,
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+            cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            segmentThickness: segmentThickness.value, segmentOpacity: segmentOpacity.value,
+            colorNew: colorNew.value, colorCommon: colorCommon.value, colorAbandoned: colorAbandoned.value
+        });
+    }
+
+    // Combined BBox for both traces
+    let combinedBbox = null;
+    try {
+        const variantFeature = { type: 'Feature', geometry: lineStringRef.value.geometry || lineStringRef.value, properties: {} };
+        const features = [variantFeature];
+        
+        if (masterTraceGeoJson.value) {
+            const masterFeature = { type: 'Feature', geometry: masterTraceGeoJson.value.geometry || masterTraceGeoJson.value, properties: {} };
+            features.push(masterFeature);
+        }
+        
+        combinedBbox = turf.bbox({
+            type: 'FeatureCollection',
+            features: features
+        });
+    } catch (e) {
+        console.warn("BBox calculation failed, fallback to variant only", e);
+        if (lineStringRef.value) {
+             combinedBbox = turf.bbox(lineStringRef.value);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // CLEANUP POPUPS: Show only messages relevant to the arrival
+    // ---------------------------------------------------------
+    activePopups.forEach(p => p.remove());
+    activePopups.clear();
+
+    if (rangeEvents.value && trackingPointsWithDistanceRef.value?.length > 0) {
+        const lastIncrement = trackingPointsWithDistanceRef.value.length - 1;
+        // Filter messages active at the very last point
+        const endMessages = rangeEvents.value.filter(m => 
+            m.startIncrement <= lastIncrement && m.endIncrement >= lastIncrement
+        );
+        
+        const flyDuration = flyToGlobalDuration.value || 3000;
+
+        endMessages.forEach(m => {
+             const content = createMessageSVG(m);
+             const wrapperId = `popup-end-${m.eventId}`;
+             // Wrapper avec opacité initiale 0 et transition configurée sur la durée du vol
+             const wrappedContent = `<div id="${wrapperId}" style="opacity: 0; transition: opacity ${flyDuration}ms ease-out;">${content}</div>`;
+
+             const anchor = m.orientation === 'Gauche' ? 'bottom-right' : 'bottom-left';
+             const p = new mapboxgl.Popup({ 
+                    closeButton: false, 
+                    closeOnClick: false, 
+                    className: 'map-message-popup',
+                    anchor: anchor,
+                    maxWidth: 'none'
+             })
+             .setLngLat(m.coord) 
+             .setHTML(wrappedContent)
+             .addTo(map.value);
+             
+             activePopups.set(m.eventId, p);
+
+             // Déclenche l'apparition progressive
+             requestAnimationFrame(() => {
+                 const el = document.getElementById(wrapperId);
+                 if (el) el.style.opacity = '1';
+             });
+        });
+    }
+
+    /* Safe implementation of Final FlyTo */
+    try {
+        const camParams = map.value.cameraForBounds(combinedBbox, { padding: margeFinalisation.value, bearing: 0, pitch: 0 });
+        if (camParams) {
+             isFlytoActive.value = true;
+             await flyToPromise({
+                center: camParams.center,
+                zoom: camParams.zoom,
+                pitch: 0, 
+                bearing: 0, 
+                duration: flyToGlobalDuration.value
+            });
+            isFlytoActive.value = false;
+        }
+    } catch (err) {
+        console.warn("End sequence flyTo failed", err);
+    }
+    
+    animationState.value = 'Termine';
+    
+    // Logic Reprise Auto
+    if (repriseAutomatique.value) {
+        // Optionnel : un petit délai supplémentaire avant de repartir ?
+        // Pour l'instant, on lance le reset et le start
+        setTimeout(async () => {
+            if (animationState.value === 'Termine') {
+                await resetAnimation();
+                isPaused.value = false; // Relancer l'animation
+            }
+        }, 1000); // 1s de pause sur la vue finale avant de repartir
+    }
+};
+
+const resetState = () => {
+    resetTime();
+    isPaused.value = true;
+    isAnimationFinished.value = false;
+    triggeredPauseIncrement.value = null;
+    triggeredFlytoIncrement.value = null;
+    isFlytoActive.value = false;
+    animationState.value = 'Initialisation';
+    
+    if (map.value) {
+        activePopups.forEach(p => p.remove());
+        activePopups.clear();
+    }
+};
+
+const resetAnimation = async () => {
+    // Reset Logic
+    resetState();
+    
+    // Restore UI (Note: we no longer reset visibility here to persist user toggles across session restarts)
+    // isDistanceDisplayVisible.value = getSettingValue('Variante/Visualisation/Widgets/distance') ?? true;
+    // ... logic moved to initialization and persisted during session
+    
+    // Restore Map Style for 3D View if changed
+    if (map.value && mapStyle.value && map.value.getStyle()?.name !== mapStyle.value) { 
+        // Or assume if we are in End State (standard map) we need to switch back
+         map.value.setStyle(mapStyle.value);
+         await new Promise(r => map.value.once('style.load', r));
+         
+         // Re-add Terrain
+         if (!map.value.getSource('mapbox-dem')) {
+             map.value.addSource('mapbox-dem', {
+                'type': 'raster-dem',
+                'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                'tileSize': 512,
+                'maxzoom': 14
+            });
+        }
+        map.value.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
+
+        // Re-setup layers
+        setupTraceLayers({
+            traceWidth: traceWidth.value, traceOpacity: traceOpacity.value, traceColor: traceColor.value,
+            lineStringData: lineStringRef.value, cometWidth: cometWidth.value, cometColor: cometColor.value, cometOpacity: cometOpacity.value,
+            coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+        });
+    }
+
+    if (map.value) {
+        activePopups.forEach(p => p.remove());
+        activePopups.clear();
+    }
+    
+    // Reset Camera
+    if(trackingPointsWithDistanceRef.value.length > 0) {
+        const start = trackingPointsWithDistanceRef.value[0];
+        isFlytoActive.value = true;
+        await flyToPromise({
+            center: start.coordonnee, zoom: start.editedZoom??start.zoom, pitch: start.editedPitch??start.pitch, bearing: start.editedCap??start.cap, duration: 2000
+        });
+        isFlytoActive.value = false;
+    }
+    
+    animationState.value = 'En_Pause_au_Depart';
+    
+    // Force Pause state before checking auto-resume logic
+    // (This fixes the issue where isPaused might have flipped to false during the async flyTo)
+    isPaused.value = true;
+
+    // Handle Auto-Resume Logic (Same as initialization)
+    if (pauseAuKm0.value > 0 || !repriseAutoKm0.value) {
+         // Keep paused (isPaused is already true)
+         if (repriseAutoKm0.value) {
+             // Auto-resume after delay
+             setTimeout(() => {
+                 if (isPaused.value && animationState.value === 'En_Pause_au_Depart') {
+                     isPaused.value = false;
+                 }
+             }, pauseAuKm0.value);
+         }
+    } else {
+        // No pause required, start immediately
+        isPaused.value = false;
+    }
+
+    requestAnimationFrame(animateLoop);
+};
+
+// --- Remote Control Logic ---
+const setupRemoteControl = async () => {
+    // Notify starting view based on current mode
+    await invoke('update_current_view', { newView: remoteViewName.value });
+    
+    // Send initial state including segments
+    await updateRemoteViewState();
+
+    // 1. Listeners for Remote Commands
+    const listeners = [
+        // Play/Pause
+        await listen('remote_command::toggle_play', () => togglePlayPauseOrReset()),
+        
+        // Restart
+        await listen('remote_command::restart_animation', () => resetAnimation()),
+        
+        // Final View
+        await listen('remote_command::trigger_final_view', () => handleEndSequence(true)),
+
+        // Return to Main Trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Home
+        await listen('remote_command::go_home', () => goBack()),
+
+        // Rewind
+        await listen('remote_command::start_rewind', () => { isRewinding.value = true; }),
+        await listen('remote_command::stop_rewind', () => { isRewinding.value = false; }),
+        
+        // Speed
+        await listen('remote_command::increase_speed', () => {
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+        }),
+        
+        // Segment Navigation
+        await listen('remote_command::jump_to_segment', (event) => {
+            const index = event.payload?.index;
+            if (typeof index === 'number') {
+                const segments = buildFullSegmentList();
+                if (segments[index]) {
+                    // Use computed start for jump
+                    handleJumpRequest(segments[index].computedStart);
+                }
+            }
+        }),
+        await listen('remote_command::decrease_speed', () => {
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+        }),
+        await listen('remote_command::update_speed', (event) => {
+             if (event.payload !== undefined) {
+                 let newSpeed;
+                 if (typeof event.payload === 'object' && event.payload !== null) {
+                     newSpeed = parseFloat(event.payload.speed);
+                 } else {
+                     newSpeed = parseFloat(event.payload);
+                 }
+                 
+                 if (!isNaN(newSpeed)) {
+                     sliderPosition.value = mapSpeedToSlider(newSpeed);
+                 }
+             }
+        }),
+        
+        // Camera Updates
+        await listen('remote_command::update_camera', (event) => {
+            const { type, dx, dy } = event.payload;
+
+            if (isPaused.value) cameraMoved.value = true;
+
+            // Map common events to local logic
+            switch(type) {
+                case 'pan':
+                    if (map.value) map.value.panBy([-parseFloat(dx) * remoteSensX.value, -parseFloat(dy) * remoteSensY.value], { duration: 0 });
+                    break;
+                case 'tilt':
+                    if (map.value) map.value.setPitch(map.value.getPitch() - (parseFloat(dy) * remoteSensTilt.value));
+                    break;
+                case 'zoom':
+                    // Sensitivity: base 0.03 * user factor
+                    if (map.value) map.value.setZoom(map.value.getZoom() - (parseFloat(dy) * 0.03 * remoteSensZoom.value));
+                    break;
+                case 'bearing':
+                    if (map.value) map.value.setBearing(map.value.getBearing() + (parseFloat(dx) * remoteSensCap.value));
+                    break;
+            }
+        }),
+
+        // Widget Toggles
+        await listen('remote_command::toggle_altitude_profile', () => { isAltitudeVisible.value = !isAltitudeVisible.value; }),
+        await listen('remote_command::toggle_commands_widget', () => { isControlsCardVisible.value = !isControlsCardVisible.value; }),
+        await listen('remote_command::toggle_distance_display', () => { isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value; }),
+        await listen('remote_command::toggle_weather_dynamic', () => { isCompassVisible.value = !isCompassVisible.value; }),
+        await listen('remote_command::toggle_weather_static', () => { isWeatherInfoVisible.value = !isWeatherInfoVisible.value; }),
+        await listen('remote_command::toggle_communes_display', () => { isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value; }),
+        
+        
+        // Final View jump
+        await listen('remote_command::trigger_final_view', () => handleEndSequence()),
+        
+        // Return to main trace
+        await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Select another variant
+        await listen('remote_command::trigger_variant_selection', () => { showVariantSelection.value = true; }),
+        await listen('remote_command::select_variant', (event) => {
+            if (event.payload && event.payload.variantId) {
+                selectVariant(event.payload.variantId);
+            }
+        }),
+    ];
+
+    unlistenFunctions.push(...listeners);
+};
+
+
+// --- Weather ---
+// --- Weather ---
+const weatherAbortController = ref(null);
+
+async function initWeather(circuit, trackingPoints) {
+    if (weatherAbortController.value) {
+        weatherAbortController.value.abort();
+    }
+    weatherAbortController.value = new AbortController();
+    const signal = weatherAbortController.value.signal;
+
+    let startDate = null;
+    const configuredDate = circuit?.meteoConfig?.dateDepart || circuit?.dateDepart;
+
+    if (!configuredDate) {
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() + 1); 
+        startDate.setHours(9, 0, 0, 0); 
+    } else {
+        startDate = new Date(configuredDate);
+        const now = new Date();
+        const diffTime = now - startDate; 
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        if (diffDays > 30 || diffDays < -14) {
+             console.warn("Date trop ancienne/lointaine, utilisation date du lendemain:", startDate);
+             startDate = new Date();
+             startDate.setDate(startDate.getDate() + 1);
+             startDate.setHours(9, 0, 0, 0); 
+        } else {
+             // Set time based on "Start of Day" setting (default 6:00)
+             // We ignore circuit.meteoConfig.heureDepart as requested by user.
+             const startOfDay = getSettingValue('Visualisation/Météo/heureDebutJournee') || 6;
+             startDate.setHours(startOfDay, 0, 0, 0);
+        }
+    }
+    simulationStartDate.value = startDate;
+    const dateStr = startDate.toISOString().split('T')[0];
+    const dateCompact = dateStr.replace(/-/g, '');
+
+    try {
+        const scenarios = await invoke('get_circuit_scenarios', { circuitId: props.circuitId });
+        if (signal.aborted) return;
+        circuitScenarios.value = scenarios || [];
+
+        // Identify variants to load
+        const variantsToLoad = new Set();
+        if (scenarios) {
+            scenarios.forEach(s => {
+                if (s.variantId) variantsToLoad.add(s.variantId);
+                else variantsToLoad.add(null);
+            });
+        }
+        // Always include current view context
+        if (selectedVariantId.value) variantsToLoad.add(selectedVariantId.value);
+        else variantsToLoad.add(null);
+
+        const loadedData = {};
+
+        for (const vid of variantsToLoad) {
+            if (signal.aborted) break;
+            
+            let filename;
+            if (vid) {
+                 filename = `weather_variant_${vid}_${dateStr}.json`;
+            } else {
+                 // Main Trace (Legacy/Default format from WeatherService)
+                 // Note: Ideally this should respect settings, but WeatherService writes -06-to-20.json
+                 filename = `${dateCompact}-06-to-20.json`;
+            }
+
+            try {
+                const content = await invoke('check_weather_cache', { 
+                    circuitId: props.circuitId, 
+                    filename 
+                });
+                
+                if (content) {
+                    const data = JSON.parse(content);
+                    loadedData[vid || 'main'] = data;
+                    // console.log(`[VisualizeView] Loaded weather for ${vid || 'main'}`);
+                }
+            } catch (e) {
+                // Silent fail for missing files
+            }
+        }
+        
+        allWeatherForecasts.value = loadedData;
+
+    } catch (e) { 
+        if (e.name !== 'AbortError' && !signal.aborted) {
+            console.warn("Weather init error", e); 
+        }
+    } finally {
+        if (weatherAbortController.value?.signal === signal) {
+            weatherAbortController.value = null;
+        }
+    }
+}
 
 onUnmounted(() => {
-  // Restaurer le scroll global du body
-  document.body.style.overflow = '';
-
-  unlistenFunctions.forEach(unlisten => unlisten());
-  window.removeEventListener('keydown', handleKeyDown);
-  window.removeEventListener('keyup', handleKeyUp);
-  if (mapContainer.value) {
-      mapContainer.value.removeEventListener('mousemove', handleMouseMove);
-  }
-  clearTimeout(cursorTimer);
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  activePopups.forEach(popup => popup.remove());
-  activePopups.clear();
-  if (map) map.remove();
-  map = null;
-  isMapInitialized = false;
+    if (weatherAbortController.value) {
+        weatherAbortController.value.abort();
+    }
 });
+
+const wasPausedBeforeArrowRight = ref(false);
+
+
+const handleKeydown = (e) => {
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+
+    switch(e.key) {
+        case ' ': // Espace
+            e.preventDefault();
+            togglePlayPauseOrReset();
+            break;
+        case 'h':
+        case 'H':
+            if (isBackButtonVisibleFinal.value) goBack();
+            break;
+        case 'ArrowLeft':
+            if (!isRewinding.value) isRewinding.value = true;
+            break;
+        case 'ArrowRight':
+            if (isPaused.value) {
+                wasPausedBeforeArrowRight.value = true;
+                isPaused.value = false;
+            }
+            break;
+        case 'ArrowUp':
+             e.preventDefault();
+             sliderPosition.value = Math.min(100, sliderPosition.value + 5);
+             break;
+        case 'ArrowDown':
+             e.preventDefault();
+             sliderPosition.value = Math.max(0, sliderPosition.value - 5);
+             break;
+        case '1':
+        case '&': // Support AZERTY '1'
+             sliderPosition.value = mapSpeedToSlider(1.0);
+             break;
+        case 'w':
+        case 'W':
+             // Toggle ALL widgets (replacing V)
+             const allState = !isControlsCardVisible.value;
+             isControlsCardVisible.value = allState;
+             isDistanceDisplayVisible.value = allState;
+             isCommuneWidgetVisible.value = allState;
+             isAltitudeVisible.value = allState;
+             isWeatherInfoVisible.value = allState;
+             isCompassVisible.value = allState;
+             break;
+        case 'c':
+        case 'C':
+             isControlsCardVisible.value = !isControlsCardVisible.value;
+             break;
+        case 'v': // Villes / Communes
+        case 'V':
+             isCommuneWidgetVisible.value = !isCommuneWidgetVisible.value;
+             break;
+        case 'd':
+        case 'D':
+             isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+             break;
+        case 'a':
+        case 'A':
+             isAltitudeVisible.value = !isAltitudeVisible.value;
+             break;
+        case 'm':
+        case 'M':
+             isWeatherInfoVisible.value = !isWeatherInfoVisible.value;
+             break;
+        case 'b':
+        case 'B':
+             isCompassVisible.value = !isCompassVisible.value;
+             break;
+    }
+};
+
+const handleKeyup = (e) => {
+    switch(e.key) {
+        case 'ArrowLeft':
+            isRewinding.value = false;
+            break;
+        case 'ArrowRight':
+            if (wasPausedBeforeArrowRight.value) {
+                isPaused.value = true;
+                wasPausedBeforeArrowRight.value = false;
+            }
+            break;
+    }
+};
+
+// --- Lifecycle ---
+onMounted(async () => {
+    window.addEventListener('keydown', handleInteraction);
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
+    window.addEventListener('mousemove', handleInteraction);
+    
+    // Initial cursor hide timer
+    handleInteraction();
+
+    // Ensure DOM is ready
+    await nextTick();
+
+    if (mapboxToken.value) {
+        setupRemoteControl();
+        await initializeVisualization();
+        
+        // Initial check: if remote is already connected, hide controls
+        if (isRemoteConnected.value) {
+            isControlsCardVisible.value = false;
+        }
+    } else {
+        const unwatch = watch(mapboxToken, async (token) => {
+            if (token) {
+                setupRemoteControl();
+                await initializeVisualization();
+                
+                // Initial check: if remote is already connected, hide controls
+                if (isRemoteConnected.value) {
+                    isControlsCardVisible.value = false;
+                }
+
+                unwatch();
+            }
+        });
+    }
+});
+
+// Sync isPaused with animationState for UI visibility
+watch(isPaused, async (newVal, oldVal) => {
+    // Protection: do not interfere if initialization sequence is running
+    if (isInitSequenceRunning.value) return;
+
+    if (newVal) {
+        cameraMoved.value = false;
+        if (animationState.value === 'En_Animation') {
+            animationState.value = 'En_Pause';
+        }
+    } else {
+        if (oldVal === true && (animationState.value === 'En_Pause' || animationState.value === 'En_Pause_au_Depart')) {
+             // Fix: Smooth Resume if user moved the camera during pause
+            if (cameraMoved.value && map.value && trackingPointsWithDistanceRef.value.length > 0) {
+                const currentDistKm = (currentDistanceInMeters.value || 0) / 1000;
+                
+                // Find the theoretical camera position on track
+                const { target } = updateCameraPosition(currentDistKm, trackingPointsWithDistanceRef.value, controlPointIndicesRef.value, {
+                    dynamicZoomIntensity: dynamicZoomIntensity.value,
+                    currentSpeed: currentSpeed.value,
+                    lineStringRef: lineStringRef,
+                    isMultisegment: false, 
+                    activeVariantSegments: [],
+                    apply: false
+                });
+
+                if (target) {
+                    isFlytoActive.value = true;
+                    await flyToPromise({
+                        center: target.center, 
+                        zoom: target.zoom, 
+                        pitch: target.pitch, 
+                        bearing: target.bearing,
+                        duration: 1200 // Smooth transition
+                    });
+                    isFlytoActive.value = false;
+                }
+            }
+            animationState.value = 'En_Animation';
+        }
+    }
+});
+
+// Watch Visualization Layers Toggles
+watch([showSegments, showSlope, map], () => {
+     updateLayerVisibility('trace-variant-common', showSegments.value);
+     updateLayerVisibility('trace-variant-new', showSegments.value);
+     updateLayerVisibility('trace-variant-abandoned', showSegments.value);
+     updateLayerVisibility('trace-slope', showSlope.value);
+});
+
+// --- Remote Sync ---
+watch([
+    isControlsCardVisible,
+    isAltitudeVisible,
+    isCommuneWidgetVisible,
+    isDistanceDisplayVisible,
+    isWeatherInfoVisible,
+    isCompassVisible,
+    hasVariants,
+    accessibleVariants,
+    animationState,
+    isFlytoActive
+], () => {
+    invoke('update_animation_state', { newState: animationState.value });
+    updateRemoteViewState();
+});
+
+// --- Remote Connection Watcher ---
+watch(isRemoteConnected, (newValue) => {
+    if (newValue) {
+        // Only hide if we are in a relevant state (not during Intro)
+        // If Intro is running, the widget is already hidden by v-if="showWidgets"
+        if (is3DWidgetsReady.value) {
+             isControlsCardVisible.value = false;
+        }
+    }
+});
+
+// Also watch for when widgets become ready to apply the rule if remote is already connected
+watch(is3DWidgetsReady, (ready) => {
+    if (ready && isRemoteConnected.value) {
+        // Force hide again to override default behavior where everything shows up
+        isControlsCardVisible.value = false;
+    }
+});
+
+function generateSlopeSegments(trackingPoints) {
+    // Deprecated in favor of Backend expression
+    return { type: 'FeatureCollection', features: [] };
+}
+
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleInteraction);
+    window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('keyup', handleKeyup);
+    window.removeEventListener('mousemove', handleInteraction);
+    if (cursorTimeout) clearTimeout(cursorTimeout);
+
+    cleanupMap();
+    if (mapContainer.value) mapContainer.value.remove();
+    activePopups.forEach(p => p.remove());
+    activePopups.clear();
+     unlistenFunctions.forEach(fn => fn());
+});
+
+// --- Remote Control Sync ---
+const lastSentSegmentIndex = ref(-1);
+
+function buildFullSegmentList() {
+    const rawSegments = [...variantBlueSegmentsRef.value].sort((a,b) => a.points[0].distance - b.points[0].distance);
+    const fullList = [];
+    const totalDistKm = totalDistanceRef.value / 1000;
+
+    // 1. Add COMMON at start if needed
+    if (rawSegments.length > 0 && rawSegments[0].points[0].distance > 0.01) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: rawSegments[0].points[0].distance,
+            isGap: true,
+            id: `gap_start`
+        });
+    }
+    
+    for (let i = 0; i < rawSegments.length; i++) {
+        const seg = rawSegments[i];
+        const segStart = seg.points[0].distance;
+        
+        let segEnd = seg.lengthM ? (segStart + seg.lengthM/1000) : null;
+        if (seg.points.length > 1) {
+             const lastPtDist = seg.points[seg.points.length - 1].distance;
+             if (!segEnd || lastPtDist > segEnd) {
+                 segEnd = lastPtDist;
+             }
+        }
+        if (!segEnd) segEnd = segStart + 0.1;
+
+        fullList.push({
+            ...seg,
+            id: `seg_${i}`,
+            computedStart: segStart,
+            computedEnd: segEnd,
+            isGap: false,
+            originalIndex: i
+        });
+        
+        if (i < rawSegments.length - 1) {
+            const nextSeg = rawSegments[i+1];
+            const nextStart = nextSeg.points[0].distance;
+            
+            if (segEnd && nextStart > segEnd + 0.01) { 
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    computedStart: segEnd,
+                    computedEnd: nextStart,
+                    isGap: true,
+                    id: `gap_${i}`
+                });
+            } else if (segEnd && nextStart > segEnd) {
+                fullList[fullList.length - 1].computedEnd = nextStart;
+            }
+        } else {
+            // 2. Add COMMON at end if needed
+            if (segEnd && totalDistKm > segEnd + 0.01) {
+                fullList.push({
+                    name: "Tronçon Commun",
+                    type: "COMMON",
+                    computedStart: segEnd,
+                    computedEnd: totalDistKm,
+                    isGap: true,
+                    id: `gap_end`
+                });
+            }
+        }
+    }
+
+    // Special case: empty rawSegments (unlikely in this view but for safety)
+    if (rawSegments.length === 0 && totalDistKm > 0) {
+        fullList.push({
+            name: "Tronçon Commun",
+            type: "COMMON",
+            computedStart: 0,
+            computedEnd: totalDistKm,
+            isGap: true,
+            id: `gap_full`
+        });
+    }
+
+    return fullList;
+};
+
+// Compute current segment index based on distance (using FULL list)
+const currentSegmentIndex = computed(() => {
+    const segments = buildFullSegmentList();
+    if (segments.length === 0) return -1;
+    
+    const curDistKm = currentDistanceInMeters.value / 1000;
+    
+    // Check each segment
+    for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        const end = seg.computedEnd !== null ? seg.computedEnd : Infinity;
+        
+        if (curDistKm >= seg.computedStart && curDistKm <= end) {
+            return i;
+        }
+    }
+    
+    // If before first segment
+    if (curDistKm < segments[0].computedStart) return 0;
+    // If after last segment
+    if (curDistKm > segments[segments.length - 1].computedEnd) return segments.length - 1;
+    
+    return -1;
+});
+
+const lastNotifiedDistance = ref(-1);
+
+// Watch for widget visibility changes to update remote
+watch([isControlsCardVisible, isAltitudeVisible, isCommuneWidgetVisible, isDistanceDisplayVisible, isWeatherInfoVisible, isCompassVisible], () => {
+    updateRemoteViewState();
+});
+
+// Watch for distance changes to update remote progress (every 100m)
+watch(currentDistanceInMeters, (newDist) => {
+    // Only notify if distance change >= 100m
+    if (Math.abs(newDist - lastNotifiedDistance.value) >= 100) {
+        invoke('notify_animation_progress', { 
+            currentDistance: newDist / 1000, 
+            currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+        }).catch(err => console.error("Failed to notify progress:", err));
+        lastNotifiedDistance.value = newDist;
+    }
+});
+
+// Watch for index change to update remote (Full state remains useful for metadata)
+watch(currentSegmentIndex, (newIndex) => {
+    if (newIndex !== lastSentSegmentIndex.value) {
+        lastSentSegmentIndex.value = newIndex;
+        // Trigger update to send new index to remote (and potentially updated metadata)
+        updateRemoteViewState(); 
+        
+        // Also send immediate progress update for the new index
+        invoke('notify_animation_progress', { 
+            currentDistance: currentDistanceInMeters.value / 1000, 
+            currentSegmentIndex: newIndex !== -1 ? newIndex : null
+        }).catch(err => console.error("Failed to notify index change:", err));
+    }
+});
+
+async function updateRemoteViewState() {
+    // Transform segments for remote (using FULL list)
+    // IMPORTANT: Clear segments if in Final View OR not in Variant mode (prevent fallback "Tronçon Commun")
+    const segmentsSource = (animationState.value === 'Vol_Final' || animationState.value === 'Termine' || !isVariantTrace.value) ? [] : buildFullSegmentList();
+    
+    const segments = segmentsSource.map((seg, idx) => ({
+        id: String(idx), // Ensure ID is a String for Rust compatibility
+        name: seg.type === 'DEPART' ? 'Départ' : (seg.type === 'ARRIVEE' ? 'Arrivée' : (seg.name || seg.filename || `Segment ${idx + 1}`)),
+        segmentType: seg.type,
+        startDistance: seg.computedStart,
+        endDistance: seg.computedEnd
+    }));
+
+    const viewState = {
+        isControlsCardVisible: isControlsCardVisible.value,
+        isAltitudeVisible: isAltitudeVisible.value,
+        isCommuneWidgetVisible: isCommuneWidgetVisible.value,
+        isDistanceDisplayVisible: isDistanceDisplayVisible.value,
+        isStaticWeatherVisible: isWeatherInfoVisible.value,
+        isDynamicWeatherVisible: isCompassVisible.value,
+        currentSpeed: currentSpeed.value,
+        animationState: animationState.value,
+        isFlytoActive: isFlytoActive.value,
+        hasVariants: hasVariants.value,
+        isVariantTrace: isVariantTrace.value,
+        variantCount: accessibleVariants.value.length,
+        variants: accessibleVariants.value.map(v => ({ id: v.id, name: v.name })),
+        segments: segments,
+        currentSegmentIndex: currentSegmentIndex.value !== -1 ? currentSegmentIndex.value : null
+    };
+
+    invoke('update_visualize_view_state', { state: viewState })
+        .catch(err => console.error("[Remote] Failed to update view state:", err));
+};
+
+// --- Remote Initial Sync ---
+const remoteViewName = computed(() => isVariantTrace.value ? 'VisualizeVariant' : 'Visualize');
+
+watch(remoteViewName, (newName) => {
+    invoke('update_current_view', { newView: newName })
+        .catch(err => console.error("[Remote] Failed to update current view:", err));
+    updateRemoteViewState();
+}, { immediate: true });
+
+watch(selectedVariantId, () => {
+    // Force immediate remote update when changing variant
+    updateRemoteViewState();
+});
+
+
+
+watch(isFlytoActive, () => {
+    // Safety net for any other flyto triggers
+    updateRemoteViewState();
+});
+
+watch(variantBlueSegmentsRef, () => {
+    // Ensure remote gets updated when segments data is loaded/calculated
+    updateRemoteViewState();
+}, { deep: true });
+
 </script>
 
+<style scoped>
+#map-container { position: absolute; top: 0; bottom: 0; width: 100%; }
+.hide-cursor { cursor: none; }
+.back-button { position: absolute !important; top: 20px; left: 20px; z-index: 1; pointer-events: auto; }
+.distance-display { pointer-events: auto; width: fit-content; height: 48px; max-height: 60px; overflow: hidden; }
+.top-center-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 1; pointer-events: none; }
+.bottom-center-container { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1; display: flex; flex-direction: column-reverse; align-items: center; pointer-events: none; }
+.bottom-controls, .altitude-svg-container, .commune-display, .controls-card { pointer-events: auto; }
+.altitude-svg-container { justify-content: center; background-color: rgba(0, 0, 0, 0.7); border-radius: 5px; margin-top: 8px; max-height: 500px; overflow: hidden; }
+.commune-display { position: absolute; top: 20px; left: 80px; width: 250px; height: 48px; max-height: 60px; overflow: hidden; background-color: white; border-width: 4px; border-style: solid; border-radius: 5px; color: black; padding: 4px; z-index: 1; display: flex; align-items: center; justify-content: center; }
+.speed-slider { width: 200px; }
+.speed-value-display { font-family: monospace; font-size: 0.9em; padding: 0 8px; min-width: 45px; text-align: center; }
+#map-visualization-container-inner { 
+    transition: opacity 1s ease-in-out;
+}
+.initializing { opacity: 0; }
+</style>
 <style>
-#map-container {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-}
-
-.hide-cursor {
-  cursor: none;
-}
-
-.back-button {
-  position: absolute !important;
-  top: 20px;
-  left: 20px;
-  z-index: 1;
-  pointer-events: auto;
-}
-
-.distance-display {
-  pointer-events: auto;
-  width: fit-content;
-  height: 48px; /* Force height to match button */
-  max-height: 60px;
-  overflow: hidden;
-}
-
-.top-center-container {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1; /* Ensure it's above map */
-  display: flex;
-  align-items: flex-start;
-  gap: 20px; /* Space between widgets */
-  pointer-events: none; /* Let clicks pass through gaps */
-}
-
-.bottom-center-container {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
-  display: flex;
-  flex-direction: column-reverse;
-  align-items: center;
-  /* gap: 8px; Removed to fix animation jump */
-  pointer-events: none;
-}
-
-.bottom-controls {
-  pointer-events: auto;
-  margin-top: 8px;
-}
-
-.altitude-svg-container {
-    justify-content: center; /* Center the child if it's smaller */
-    pointer-events: auto;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 5px;
-    margin-top: 8px; /* Replaces flex gap */
-    max-height: 500px;
-    overflow: hidden; /* Ensure animation clipping */
-}
-
-.altitude-profile-container {
-    position: absolute;
-    bottom: 80px; /* Position above the bottom controls */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%; /* Or as desired */
-    z-index: 1;
-    pointer-events: auto;
-    background-color: rgba(0, 0, 0, 0.7);
-    border-radius: 5px;
-}
-
-.controls-card {
-    pointer-events: auto;
-}
-
-.speed-display-text {
-    font-family: monospace;
-    font-size: 0.9em;
-    padding: 0 8px;
-    min-width: 45px; /* Ensure space doesn't jump around */
-    text-align: center;
-}
-
-.speed-slider {
-    width: 200px; /* Ajustez cette valeur selon vos besoins */
-}
-
-/* Remove the default white box and pointer/tip from our custom popups */
-.map-message-popup .mapboxgl-popup-content {
-  background: none;
-  padding: 0;
-  box-shadow: none;
-}
-
-.map-message-popup .mapboxgl-popup-tip {
-  display: none;
-}
-
-/* Hide mapbox logo/attribution for cleaner view, but ensure it's compliant with Mapbox terms */
-.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right {
-  display: none;
-}
-
-.commune-display {
-  position: absolute;
-  top: 20px;
-  left: 80px; /* Position next to the back button (20px + ~48px button + gap) */
-  width: 250px;
-  height: 48px; /* Match standard button height for visual alignment */
-  max-height: 60px;
-  overflow: hidden;
-  background-color: white;
-  border-width: 4px;
-  border-style: solid;
-  border-radius: 5px;
-  color: black;
-  padding: 4px;
-  z-index: 1;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.75s ease, max-height 0.75s ease, margin 0.75s ease, padding 0.75s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  max-height: 0 !important;
-  margin-top: 0 !important;
-  margin-bottom: 0 !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-}
-
-.fade-opacity-enter-active,
-.fade-opacity-leave-active {
-  transition: opacity 0.75s ease;
-}
-
-.fade-opacity-enter-from,
-.fade-opacity-leave-to {
-  opacity: 0;
-}
-
-/* Fade-in animation for messages during initialization */
-.fade-in-message {
-  opacity: 0;
-}
+/* Global style strictly for popups to avoid scoped issues if any - or keep standard */
+.map-message-popup .mapboxgl-popup-content { background: none; padding: 0; box-shadow: none; }
+.map-message-popup .mapboxgl-popup-tip { display: none; }
+.mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right { display: none; }
 </style>

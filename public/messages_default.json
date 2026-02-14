@@ -142,5 +142,37 @@
       "backgroundColor": "blue",
       "textColor": "white"
     }
+  },
+  {
+    "id": "_Retour_sur_trace_blue",
+    "text": "🧭 Retour sur trace",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Variante_blue",
+    "text": "🧭 Variante",
+    "style": {
+      "backgroundColor": "blue",
+      "textColor": "white"
+    }
+  },
+  {
+    "id": "_Départ_annexe_green",
+    "text": "⏱️ Départ annexe",
+    "style": {
+      "backgroundColor": "green",
+      "textColor": "black"
+    }
+  },
+  {
+    "id": "_Arrivée_annexe_red",
+    "text": "🏁 Arrivée annexe",
+    "style": {
+      "backgroundColor": "red",
+      "textColor": "white"
+    }
   }
 ]

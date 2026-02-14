@@ -12,6 +12,13 @@
     "shell:allow-open",
     "process:allow-restart",
     {
+      "identifier": "fs:allow-read",
+      "scope": [
+        "../docs/**",
+        "$RESOURCE/docs/**"
+      ]
+    },
+    {
       "identifier": "core:event:allow-listen",
       "scope": {
         "event": [
@@ -34,7 +41,10 @@
   ],
   "ipc": {
     "allow": [
-      "reply_to_pairing_request"
+      "reply_to_pairing_request",
+      "get_network_interfaces",
+      "generate_qrcode_base64",
+      "get_remote_control_status"
     ]
   }
 }

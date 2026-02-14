@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
+use tauri::Manager;
 use geo::{
     Point,
     prelude::*,
@@ -17,18 +18,41 @@ struct TrackingPoint {
     coordonnee: [f64; 2],
     altitude: f64,
     commune: Option<String>,
-    cap: u32,
-    zoom: u32,
-    pitch: u32,
+    cap: f64,
+    zoom: f64,
+    pitch: f64,
     coordonnee_camera: Vec<f64>,
-    altitude_camera: u32,
+    altitude_camera: f64,
+    edited_zoom: Option<f64>,
+    edited_pitch: Option<f64>,
+    edited_cap: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_anchor_point: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    type_troncon: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actual_segment_length: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_regular_segment: Option<bool>,
+    distance: f64,
 }
+
+#[derive(Clone, Debug)]
+pub struct PointContext {
+    pub coords: Vec<f64>, // [lon, lat, alt]
+    pub is_anchor: bool,
+    pub type_troncon: Option<String>,
+}
+    
 
 pub fn generate_tracking_file(
     app_env_path: &Path,
     circuit_id: &str,
-    track_points: &Vec<Vec<f64>>,
+    points_context: &Vec<PointContext>,
     settings: &serde_json::Value,
+    output_filename: Option<&str>,
+    override_first: Option<serde_json::Value>,
+    override_last: Option<serde_json::Value>,
 ) -> Result<usize, String> {
     let segment_length = super::get_setting_value(settings, "data.groupes.Importation.groupes.Tracking.parametres.LongueurSegment")
         .and_then(|v| v.as_f64())
@@ -43,20 +67,21 @@ pub fn generate_tracking_file(
         .and_then(|v| v.as_u64().map(|i| i as u32))
         .unwrap_or(60);
 
-    let geo_points: Vec<Point<f64>> = track_points
+    let geo_points: Vec<Point<f64>> = points_context
         .iter()
-        .map(|p| Point::new(p[0], p[1]))
+        .map(|p| Point::new(p.coords[0], p.coords[1]))
         .collect();
 
-    // Store (Point, Altitude)
-    let mut calculated_points: Vec<(Point<f64>, f64)> = Vec::new();
+    // Store (Point, Altitude, is_anchor, type_troncon)
+    let mut calculated_points: Vec<(Point<f64>, f64, bool, Option<String>)> = Vec::new();
     
     let mut distance_needed = 0.0;
     let mut distance_traversed = 0.0;
 
     // Add first point
-    if let (Some(first_pt), Some(first_orig)) = (geo_points.first(), track_points.first()) {
-        calculated_points.push((*first_pt, first_orig[2]));
+    if let (Some(_first_ctx), Some(first_orig)) = (points_context.first(), points_context.first()) {
+        let first_pt = Point::new(first_orig.coords[0], first_orig.coords[1]);
+        calculated_points.push((first_pt, first_orig.coords[2], first_orig.is_anchor, first_orig.type_troncon.clone()));
         distance_needed += segment_length;
     }
 
@@ -64,9 +89,11 @@ pub fn generate_tracking_file(
     for i in 0..geo_points.len() - 1 {
         let p1 = geo_points[i];
         let p2 = geo_points[i+1];
-        let alt1 = track_points[i][2];
-        let alt2 = track_points[i+1][2];
-
+        let alt1 = points_context[i].coords[2];
+        let alt2 = points_context[i+1].coords[2];
+        
+        let type_troncon = points_context[i].type_troncon.clone();
+        
         let segment_len = p1.haversine_distance(&p2);
 
         while distance_traversed + segment_len >= distance_needed {
@@ -77,54 +104,157 @@ pub fn generate_tracking_file(
             let new_point = geo::Line::new(p1, p2).line_interpolate_point(fraction).unwrap();
             
             // Interpolate Altitude directly from the current segment
-            // This guarantees we don't jump to a nearby overlapping segment
             let new_alt = alt1 + (alt2 - alt1) * fraction;
             
-            calculated_points.push((new_point, new_alt));
+            // Un point interpolé est considéré comme ancre si l'un des points du segment d'origine l'est et qu'on est au début/fin
+            // Mais plus simplement, on ne marque comme ancre que les points "réels" si possible.
+            // Pour l'instant on ne marque pas les points interpolés comme ancre, sauf s'ils tombent pile dessus (rare).
+            let is_anchor = false; 
+
+            calculated_points.push((new_point, new_alt, is_anchor, type_troncon.clone()));
             distance_needed += segment_length;
         }
         distance_traversed += segment_len;
     }
 
-    // Add the very last point if needed
-    if let (Some(last_pt), Some(last_orig)) = (geo_points.last(), track_points.last()) {
-        if let Some((last_calc_pt, _)) = calculated_points.last() {
-            if last_calc_pt.haversine_distance(last_pt) > 1.0 {
-                 calculated_points.push((*last_pt, last_orig[2]));
+    // 🔴 NOUVEAU: Récupérer les coordonnées et le type de tous les points d'ancrage "réels"
+    let anchors: Vec<(Point<f64>, Option<String>)> = points_context.iter()
+        .filter(|ctx| ctx.is_anchor)
+        .map(|ctx| (Point::new(ctx.coords[0], ctx.coords[1]), ctx.type_troncon.clone()))
+        .collect();
+
+    // Associer chaque ancre réelle au point de tracking le plus proche
+    for (anchor_pt, anchor_type) in anchors {
+        let mut best_dist = f64::MAX;
+        let mut best_idx = None;
+        
+        for (i, (calc_pt, _, _, _)) in calculated_points.iter().enumerate() {
+            let dist = calc_pt.haversine_distance(&anchor_pt);
+            if dist < best_dist {
+                best_dist = dist;
+                best_idx = Some(i);
+            }
+        }
+        
+        // Si on a trouvé un point à moins de 60m (pour un pas de 100m c'est raisonnable)
+        if let Some(idx) = best_idx {
+            if best_dist < (segment_length * 0.6) {
+                calculated_points[idx].2 = true;
+                // On force le type de tronçon de l'ancre sur ce point de tracking
+                if anchor_type.is_some() {
+                    calculated_points[idx].3 = anchor_type;
+                }
             }
         }
     }
 
-    let points_only: Vec<Point<f64>> = calculated_points.iter().map(|(p, _)| *p).collect();
+    let points_only: Vec<Point<f64>> = calculated_points.iter().map(|(p, _, _, _)| *p).collect();
     let mut tracking_points: Vec<TrackingPoint> = Vec::new();
 
-    for (i, (point, altitude)) in calculated_points.iter().enumerate() {
+    for (i, (point, altitude, is_anchor, type_troncon)) in calculated_points.iter().enumerate() {
         let cap = calculate_smoothed_bearing(i, &points_only, bearing_smoothing);
 
-        let tracking_point = TrackingPoint {
+        let actual_seg_length: Option<f64> = if i < calculated_points.len() - 1 {
+            if i == calculated_points.len() - 2 {
+                let next_point = &calculated_points[i + 1].0;
+                Some(point.haversine_distance(next_point))
+            } else {
+                // Tous les autres segments : longueur nominale
+                Some(segment_length)
+            }
+        } else {
+            None // Dernier point, pas de segment suivant
+        };
+
+        // 🔴 CORRECTION: Segment régulier = longueur proche de segment_length (±5%)
+        let is_regular = actual_seg_length.map(|len| {
+            let tolerance = segment_length * 0.05;
+            (len - segment_length).abs() <= tolerance
+        });
+
+        // 🔴 NOTE: isAnchorPoint et typeTroncon viennent de la reconstruction
+        let is_anchor_val = if *is_anchor { Some(true) } else { None };
+        let type_troncon_val = type_troncon.clone();
+
+        // Calculer la distance cumulée en km
+        let cumulative_distance_km = (i as f64 * segment_length) / 1000.0;
+        
+        let mut tp = TrackingPoint {
             increment: i as u32,
-            point_de_control: i == 0,
+            point_de_control: i == 0 || i == calculated_points.len() - 1,
             nbr_segment: 0,
             coordonnee: [(point.x() * 100000.0).round() / 100000.0, (point.y() * 100000.0).round() / 100000.0],
             altitude: (altitude * 10.0).round() / 10.0,
             commune: None,
-            cap: cap.round() as u32,
-            zoom: default_zoom,
-            pitch: default_pitch,
+            cap: (cap * 10.0).round() / 10.0,
+            zoom: default_zoom as f64,
+            pitch: default_pitch as f64,
             coordonnee_camera: vec![],
-            altitude_camera: 0,
+            altitude_camera: 0.0,
+            edited_zoom: None,
+            edited_pitch: None,
+            edited_cap: None,
+            
+            // 🔴 Distance cumulée
+            distance: cumulative_distance_km,
+            
+            // 🔴 NOUVEAU: Métadonnées
+            actual_segment_length: actual_seg_length,
+            is_regular_segment: is_regular,
+            is_anchor_point: is_anchor_val,
+            type_troncon: type_troncon_val,
         };
-        tracking_points.push(tracking_point);
+
+        if i == 0 {
+            if let Some(ref ovr) = override_first {
+                apply_override_to_tp(&mut tp, ovr);
+            }
+        }
+        if i == calculated_points.len() - 1 {
+            if let Some(ref ovr) = override_last {
+                apply_override_to_tp(&mut tp, ovr);
+            }
+        }
+
+        tracking_points.push(tp);
     }
 
     let data_dir = app_env_path.join("data");
     let circuit_data_dir = data_dir.join(circuit_id);
-    let tracking_path = circuit_data_dir.join("tracking.json");
+    let tracking_filename = output_filename.unwrap_or("tracking.json");
+    let tracking_path = circuit_data_dir.join(tracking_filename);
 
     let tracking_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
     fs::write(&tracking_path, tracking_content).map_err(|e| e.to_string())?; 
 
     Ok(tracking_points.len())
+}
+
+
+#[tauri::command]
+pub fn read_tracking_file(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    filename: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<super::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let data_dir = app_env_path.join("data");
+    let circuit_data_dir = data_dir.join(circuit_id);
+    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
+    let tracking_path = circuit_data_dir.join(target_filename);
+
+    if !tracking_path.exists() {
+        return Err("Tracking file not found".to_string());
+    }
+
+    let file_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
+    let json_content: serde_json::Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
+    Ok(json_content)
 }
 
 fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, window_size: usize) -> f64 {
@@ -180,4 +310,43 @@ fn calculate_smoothed_bearing(current_index: usize, points: &Vec<Point<f64>>, wi
     }
     
     avg_bearing
+}
+
+fn apply_override_to_tp(tp: &mut TrackingPoint, ovr: &serde_json::Value) {
+    if let Some(alt) = ovr.get("altitude").and_then(|v| v.as_f64()) {
+        tp.altitude = alt;
+    }
+    if let Some(pdc) = ovr.get("pointDeControl").and_then(|v| v.as_bool()) {
+        tp.point_de_control = pdc;
+    }
+    if let Some(nbr) = ovr.get("nbrSegment").and_then(|v| v.as_u64()) {
+        tp.nbr_segment = nbr as u32;
+    }
+    if let Some(commune) = ovr.get("commune").and_then(|v| v.as_str()) {
+        tp.commune = Some(commune.to_string());
+    }
+    if let Some(cap) = ovr.get("cap").and_then(|v| v.as_f64()) {
+        tp.cap = cap;
+    }
+    if let Some(zoom) = ovr.get("zoom").and_then(|v| v.as_f64()) {
+        tp.zoom = zoom;
+    }
+    if let Some(pitch) = ovr.get("pitch").and_then(|v| v.as_f64()) {
+        tp.pitch = pitch;
+    }
+    if let Some(coords_cam) = ovr.get("coordonneeCamera").and_then(|v| v.as_array()) {
+        tp.coordonnee_camera = coords_cam.iter().filter_map(|v| v.as_f64()).collect();
+    }
+    if let Some(alt_cam) = ovr.get("altitudeCamera").and_then(|v| v.as_f64()) {
+        tp.altitude_camera = alt_cam;
+    }
+    if let Some(zoom) = ovr.get("editedZoom").and_then(|v| v.as_f64()) {
+        tp.edited_zoom = Some(zoom);
+    }
+    if let Some(pitch) = ovr.get("editedPitch").and_then(|v| v.as_f64()) {
+        tp.edited_pitch = Some(pitch);
+    }
+    if let Some(cap) = ovr.get("editedCap").and_then(|v| v.as_f64()) {
+        tp.edited_cap = Some(cap);
+    }
 }

@@ -31,6 +31,7 @@ Voir la documentation sur **[Les Circuits](./circuit_details.md)**.
 Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvrir les fonctionnalités de l'application :
 
 *   Importation de nouvelles traces.
+*   Gestion des Variantes (Création de parcours).
 *   Édition et mise en scène (Caméras, Évènements).
 *   Visualisation et Animation.
 *   Contrôle à distance.
@@ -52,10 +53,10 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 <small>
 
 
-*   **Version de l'application** : 1.0.0
-*   **Version d'export des circuits** : 1.0.0
-*   **Version d'export des contextes** : 1.0.0
+*   **Version de l'application** : 1.1.0   
+*   **Version d'export des circuits** : 1.1.0
+*   **Version d'export des contextes** : 1.1.0
 
 </small>
 
-<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 07/02/2026 à 18:50 (Commit fe184446c0ca376b08107f2990609a6700a0aadf)</em></div>
+<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 12/02/2026 à 23:09 (Commit 9cb273ff19fbf66df13f4c8fafc1339bedc8254f)</em></div>

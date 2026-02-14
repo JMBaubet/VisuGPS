@@ -11,5 +11,13 @@ Vous la trouverez en cliquant sur l'icône <i class="mdi mdi-book-open-page-vari
 
 Pour commencer, vous devez placer vos fichiers GPX dans votre dossier de **téléchargement**.
 
-> [!TIP]
+> [TIP]
 > Si vos fichiers GPX n'apparaissent pas à partir du dossier de téléchargement, vous pouvez modifier le nom du dossier par défaut. (voir la documention sur l'importation des fichiers..)
+
+## Affichage de la cartographie 
+Pour l'affichage des cartes, vous avez besoin d'avoir un token MapBox. Vous pouvez l'obtenir gratuitement sur le site de MapBox. 
+> [ATTENTION]
+> Une empreinte Carte Bancaire est nécessaire pour l'obtention du token, mais il n'y aura pas de frais..
+
+## Version du logiciel
+La version du logiciel est disponible en bas de la page d'accueil de la documentation

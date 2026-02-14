@@ -1,14 +1,11 @@
-use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Utc};
 use geo::{prelude::*, LineString as GeoLineString, Point};
-use image::ImageFormat;
 use qrcode::QrCode;
 use quick_xml::events::Event;
 use quick_xml::reader::Reader;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
@@ -19,47 +16,7 @@ use crate::distance_markers;
 use crate::event;
 use crate::tracking_processor;
 
-#[tauri::command]
-pub fn generate_qrcode_base64(url: String) -> Result<String, String> {
-    let code = QrCode::new(url.as_bytes())
-        .map_err(|e| format!("Erreur lors de la création du QR code: {}", e))?;
-    let image = code.render::<image::Luma<u8>>().build();
-
-    let mut buf = Cursor::new(Vec::new());
-    image
-        .write_to(&mut buf, ImageFormat::Png)
-        .map_err(|e| format!("Erreur lors de l'écriture du PNG: {}", e))?;
-    let png_data = buf.into_inner();
-
-    let base64_string = general_purpose::STANDARD.encode(&png_data);
-    Ok(format!("data:image/png;base64,{}", base64_string))
-}
-
-#[tauri::command]
-pub async fn get_remote_control_url(app_handle: AppHandle) -> Result<String, String> {
-    let my_local_ip = crate::network_utils::get_best_ip().await;
-
-    let app_env_path = {
-        let app_state = app_handle.state::<Mutex<AppState>>();
-        let app_state_lock = app_state.lock().unwrap();
-        app_state_lock.app_env_path.clone()
-    };
-
-    let settings_path = app_env_path.join("settings.json");
-    let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
-    let settings: serde_json::Value =
-        serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
-
-    let remote_port = get_setting_value(
-        &settings,
-        "data.groupes.Système.groupes.Télécommande.parametres.Port",
-    )
-    .and_then(|v| v.as_i64())
-    .map(|p| p as u16)
-    .unwrap_or(9001);
-
-    Ok(format!("http://{}:{}/remote", my_local_ip, remote_port))
-}
+// Les commandes generate_qrcode_base64 et get_remote_control_url ont été déplacées dans remote_setup.rs
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -78,11 +35,12 @@ pub struct DraftCircuit {
 }
 
 // Struct to hold calculation results
-struct TrackStats {
-    total_distance_km: f64,
-    positive_elevation_m: i32,
-    summit_altitude_m: i32,
-    summit_distance_km: f64,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrackStats {
+    pub total_distance_km: f64,
+    pub positive_elevation_m: i32,
+    pub summit_altitude_m: i32,
+    pub summit_distance_km: f64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -173,6 +131,8 @@ pub struct MeteoScenario {
     pub vitesse_moyenne: f64,
     #[serde(rename = "isReference", default)]
     pub is_reference: bool,
+    #[serde(rename = "variantId", default, skip_serializing_if = "Option::is_none")]
+    pub variant_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -227,6 +187,8 @@ pub struct Circuit {
         skip_serializing_if = "Option::is_none"
     )]
     pub meteo_config: Option<CircuitMeteoConfig>,
+    #[serde(default)]
+    pub favorite: bool,
 }
 
 struct GpxMetadata {
@@ -250,6 +212,14 @@ struct GpxMetadata {
 
     let mut elevations: Vec<f64> = points.iter().map(|p| p[2]).collect();
     let len = elevations.len();
+
+    // 🔴 NOUVEAU: Vérifier si toutes les altitudes sont à 0 (API n'a pas retourné d'altitudes)
+    // Si c'est le cas, ne pas lisser pour éviter d'introduire des artéfacts
+    let all_zero = elevations.iter().all(|&alt| alt == 0.0);
+    if all_zero {
+        // Retourner les points inchangés si toutes les altitudes sont à 0
+        return points.clone();
+    }
 
     // 0. Gradient Clamping (Pre-pass)
     if max_gradient > 0.0 {
@@ -466,6 +436,13 @@ pub async fn analyze_gpx_file(
         }
     }
 
+    // Nettoyage du nom pour OpenRunner (suppression de l'ID à la fin)
+    let mut circuit_name = metadata.name.clone().unwrap_or_else(|| filename.to_string());
+    if editor_name == "OpenRunner" {
+        let re = Regex::new(r"[\s-]+\d+$").unwrap();
+        circuit_name = re.replace(&circuit_name, "").to_string();
+    }
+
     let lon_depart = metadata.first_point_lon.unwrap_or_default();
     let lat_depart = metadata.first_point_lat.unwrap_or_default();
 
@@ -484,7 +461,7 @@ pub async fn analyze_gpx_file(
 
     Ok(DraftCircuit {
         gpx_filename: filename.to_string(),
-        nom: metadata.name.unwrap_or_else(|| filename.to_string()),
+        nom: circuit_name,
         depart: CircuitDepart {
             lon: (lon_depart * 100_000.0).round() / 100_000.0,
             lat: (lat_depart * 100_000.0).round() / 100_000.0,
@@ -604,6 +581,7 @@ pub fn commit_new_circuit(
         },
         distance_markers_config: None,
         meteo_config: None,
+        favorite: false,
     };
 
     circuits_file.circuits.push(new_circuit.clone()); // Clone new_circuit here
@@ -654,11 +632,22 @@ pub fn commit_new_circuit(
     let settings: serde_json::Value =
         serde_json::from_str(&settings_content).map_err(|e| e.to_string())?;
 
+    let points_context: Vec<tracking_processor::PointContext> = draft.track_points.iter().map(|p| {
+        tracking_processor::PointContext {
+            coords: p.clone(),
+            is_anchor: false,
+            type_troncon: Some("Commun".to_string()),
+        }
+    }).collect();
+
     let total_tracking_points = tracking_processor::generate_tracking_file(
         &app_env_path,
         &new_circuit_id,
-        &draft.track_points,
+        &points_context,
         &settings,
+        None,
+        None,
+        None,
     )?;
 
     // Auto-add distance markers if setting is true
@@ -718,9 +707,9 @@ pub fn commit_new_circuit(
         super::write_circuits_file(&app_env_path, &circuits_file)?;
 
         // Read current events file, extend with generated events, and write back
-        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+        let mut events_file = event::read_events(app_handle, &new_circuit_id, None)?;
         events_file.range_events.extend(generated_dm_events);
-        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+        event::write_events(app_handle, &new_circuit_id, None, &events_file)?;
     }
 
     // --- Start of new code for auto-add Start/Arrival messages ---
@@ -739,7 +728,7 @@ pub fn commit_new_circuit(
     .unwrap_or(true);
 
     if afficher_depart || afficher_arrivee {
-        let mut events_file = event::read_events(app_handle, &new_circuit_id)?;
+        let mut events_file = event::read_events(app_handle, &new_circuit_id, None)?;
 
         if afficher_depart {
              let message_depart = super::get_setting_value(
@@ -822,7 +811,7 @@ pub fn commit_new_circuit(
             }
         }
 
-        event::write_events(app_handle, &new_circuit_id, &events_file)?;
+        event::write_events(app_handle, &new_circuit_id, None, &events_file)?;
     }
     // --- End of new code for auto-add Start/Arrival messages ---
 
@@ -1215,7 +1204,8 @@ fn create_line_string_file(
     fs::write(&linestring_path, linestring_content).map_err(|e| e.to_string())
 }
 
-fn calculate_track_stats(track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64) -> TrackStats {
+pub fn calculate_track_stats(
+track_points: &Vec<Vec<f64>>, smoothing_distance_m: f64) -> TrackStats {
     if track_points.len() < 2 {
         return TrackStats {
             total_distance_km: 0.0,

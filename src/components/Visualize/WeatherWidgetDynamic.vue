@@ -1,0 +1,495 @@
+<template>
+<div class="weather-widget-container d-flex flex-column align-end">
+    
+
+    <!-- Card 1: Weather Info (Time + Data) -->
+    <transition name="fade">
+        <v-card v-if="showInfo" class="weather-info-card d-flex flex-column align-center justify-center px-4 py-1 mb-2" elevation="4">
+            
+            <div class="text-caption font-weight-bold mb-1 align-self-start">{{ forecastDateFormatted }}</div>
+
+            <!-- Multi-Scenario Mode -->
+            <template v-if="processedScenarios.length > 0">
+                <div v-for="(scen, idx) in processedScenarios" :key="idx" class="w-100 py-1" 
+                     :class="{'border-b': idx < processedScenarios.length - 1}">
+                    <div class="d-flex align-center justify-space-between w-100">
+                        <!-- Group Name & Time -->
+                        <div class="d-flex flex-column mr-3" style="min-width: 80px;">
+                            <div class="d-flex align-center">
+                                <span class="text-caption text-truncate font-weight-bold" style="max-width: 100px;">
+                                    {{ scen.nom || `Groupe ${idx+1}` }}
+                                </span>
+                                <!-- Original Reference Star (Yellow/Primary) - Only on Main Trace -->
+                                <v-icon v-if="!viewedVariantId && (scen.isReference || (!hasExplicitRef && idx === 0))" size="10" color="primary" class="ml-1">mdi-star</v-icon>
+                                <!-- Wind Source Indicator (Blue Star) - Only on Variant Trace -->
+                                <v-icon v-if="viewedVariantId && windSourceGroup && scen.id === windSourceGroup.id" size="10" color="blue" class="ml-1" title="Source vent">mdi-star-four-points</v-icon>
+                            </div>
+                            <span class="text-grey-darken-1" style="font-size: 0.7rem; margin-top: -4px;">{{ formatRowTime(scen.arrivalTime) }}</span>
+                        </div>
+                        
+                        <!-- Weather Data -->
+                        <div v-if="scen.isOffTrack" class="d-flex align-center flex-grow-1 justify-end">
+                             <span class="text-caption text-grey-darken-1 font-italic">(Hors trace)</span>
+                        </div>
+                        <div v-else-if="scen.weather" class="d-flex align-center flex-grow-1 justify-end">
+                            <!-- Icon -->
+                            <v-icon v-if="scen.weatherInfo" size="small" :color="resolveIconColor(scen.weatherInfo.color)" class="mr-2">{{ scen.weatherInfo.icon }}</v-icon>
+                            
+                            <!-- Temp -->
+                            <div class="d-flex align-center mr-2">
+                                <span class="font-weight-bold text-body-2" :class="getTempColor(scen.weather.temperature) ? 'text-' + getTempColor(scen.weather.temperature) : ''">{{ Math.round(scen.weather.temperature) }}°</span>
+                            </div>
+
+                            <!-- Rain -->
+                            <div v-if="scen.weather.precip > 0" class="d-flex align-center mr-2">
+                                <v-icon size="x-small" :color="precipIconColor" class="mr-1">mdi-water-percent</v-icon>
+                                <span class="text-caption font-weight-bold" :class="precipColorClass">
+                                    {{ scen.weather.precipProb }}% ({{ scen.weather.precip }}mm)
+                                </span>
+                            </div>
+
+                            <!-- Wind -->
+                            <div class="d-flex align-center" style="min-width: 40px;">
+                                <v-icon size="x-small" color="grey" class="mr-1" :style="{ transform: `rotate(${scen.weather.windDir + 180}deg)` }">mdi-navigation</v-icon>
+                                <span class="text-caption font-weight-bold">
+                                    {{ Math.round(scen.weather.windSpeed) }}
+                                    <span v-if="scen.weather.windGusts && scen.weather.windGusts > scen.weather.windSpeed" class="text-grey-darken-1" style="font-size: 0.85em;">
+                                        ({{ Math.round(scen.weather.windGusts) }})
+                                    </span>
+                                </span>
+                            </div>
+                        </div>
+                        <div v-else class="text-caption text-disabled text-end flex-grow-1">N/A</div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Single Scenario Mode (Legacy) -->
+            <template v-else-if="weatherToDisplay">
+                <!-- Time Range Label -->
+                <span class="text-caption font-weight-bold mb-0 text-grey-darken-1">{{ timeLabel }}</span>
+        
+                <!-- Weather Data Row -->
+                <div class="d-flex align-center justify-space-between w-100">
+                    <!-- Icon -->
+                    <v-icon v-if="weatherInfo" size="default" :color="resolveIconColor(weatherInfo.color)" :title="weatherInfo.desc" class="mr-3">{{ weatherInfo.icon }}</v-icon>
+                    
+                    <!-- Temp -->
+                    <div class="d-flex align-center mr-3">
+                        <v-icon size="small" class="mr-1" :color="getTempColor(weatherToDisplay.temperature)">mdi-thermometer</v-icon>
+                        <div class="d-flex align-baseline">
+                            <span class="font-weight-bold" :class="getTempColor(weatherToDisplay.temperature) ? 'text-' + getTempColor(weatherToDisplay.temperature) : ''">{{ Math.round(weatherToDisplay.temperature) }}°C</span>
+                            <span v-if="weatherToDisplay.apparentTemperature" class="text-caption text-grey ml-1" style="font-size: 0.7rem !important;">(Ress. {{ Math.round(weatherToDisplay.apparentTemperature) }}°)</span>
+                        </div>
+                    </div>
+        
+                    <!-- Precip -->
+                    <div v-if="weatherToDisplay.precip > 0" class="d-flex align-center mr-3">
+                        <v-icon size="small" class="mr-1" :color="precipIconColor" :icon="weatherToDisplay.precipProb > 50 ? 'mdi-water-percent' : 'mdi-water-outline'"></v-icon>
+                        <span class="font-weight-bold" :class="precipColorClass">
+                            {{ weatherToDisplay.precipProb }}% ({{ weatherToDisplay.precip }}mm)
+                        </span>
+                    </div>
+
+                    <!-- Wind -->
+                    <div class="d-flex align-center">
+                        <v-icon size="small" class="mr-1" color="grey" :style="{ transform: `rotate(${weatherToDisplay.windDir + 180}deg)` }">mdi-navigation</v-icon>
+                        <span class="font-weight-bold">
+                            {{ Math.round(weatherToDisplay.windSpeed) }}
+                            <span v-if="weatherToDisplay.windGusts && weatherToDisplay.windGusts > weatherToDisplay.windSpeed" class="text-grey-darken-1" style="font-size: 0.85em;">
+                                ({{ Math.round(weatherToDisplay.windGusts) }})
+                            </span>
+                            <span class="text-caption">km/h</span>
+                        </span>
+                    </div>
+                </div>
+            </template>
+        </v-card>
+    </transition>
+
+    <!-- Card 2: Compass -->
+    <transition name="fade-opacity">
+        <v-card v-if="showCompass && weatherToDisplay" class="compass-card d-flex align-center justify-center pa-1" elevation="4">
+                <CompassWidget 
+                    :size="80"
+                    :camera-bearing="bearing"
+                    :track-bearing="traceBearing"
+                    :wind-direction="weatherToDisplay.windDir"
+                    :wind-speed="weatherToDisplay.windSpeed"
+                    :wind-gusts="weatherToDisplay.windGusts || 0"
+                    :orientation-mode="orientationMode"
+                />
+        </v-card>
+    </transition>
+
+</div>
+</template>
+
+<script setup>
+import { computed } from 'vue';
+import { useTheme } from 'vuetify';
+import { getWeatherInfo } from '@/services/WeatherIcons';
+import CompassWidget from './CompassWidget.vue';
+import TraceMappingService from '@/services/TraceMappingService';
+import WeatherService from '@/services/WeatherService';
+
+const props = defineProps({
+  weather: {
+    type: Object,
+    default: null
+  },
+  bearing: {
+    type: Number,
+    required: true
+  },
+  traceBearing: {
+    type: Number,
+    default: 0,
+  },
+  orientationMode: {
+    type: String,
+    default: 'Trace',
+  },
+  showInfo: {
+    type: Boolean,
+    default: true
+  },
+  showCompass: {
+    type: Boolean,
+    default: true
+  },
+  
+  // Multi-Scenario Props
+  scenarios: {
+    type: Array,
+    default: () => []
+  },
+  
+  // NEW: Variant Support
+  variantMappings: { 
+    type: Object, 
+    default: () => ({}) 
+  }, // { variantId: mappingObject }
+  activeGroups: { type: Array, default: () => [] }, // Groups with full context (id, speed, startTime, variantId)
+
+  weatherMatrix: {
+    type: [Array, Object],
+    default: () => []
+  },
+  currentDistance: {
+    type: Number,
+    default: 0
+  },
+  simulationStartDate: {
+    type: [Date, String, Object],
+    default: null
+  },
+  viewedVariantId: {
+    type: String,
+    default: null
+  }
+});
+
+const theme = useTheme();
+const isDark = computed(() => theme.global.current.value.dark);
+
+const myHeading = computed(() => {
+    // The compass rose should always rotate opposite to the camera to keep "N" pointing North relative to the view.
+    return props.bearing;
+});
+
+
+
+const weatherInfo = computed(() => weatherToDisplay.value ? getWeatherInfo(weatherToDisplay.value.code) : null);
+
+const timeLabel = computed(() => {
+    if (!props.weather || !props.weather.time) return "Météo Actuelle";
+    const date = new Date(props.weather.time);
+    const end = new Date(date.getTime() + 3600000); // Assuming weather data is hourly
+    return `De ${date.getHours()}h à ${end.getHours()}h`;
+});
+
+const processedScenarios = computed(() => {
+    // If we have "activeGroups" (rich objects), use them preferentially over "scenarios" (legacy/flat objects)
+    const sourceGroups = props.activeGroups.length > 0 ? props.activeGroups : props.scenarios;
+
+    // DEBUG LOGS
+    // console.log("WeatherWidgetDynamic: sourceGroups", sourceGroups.length);
+    // console.log("WeatherWidgetDynamic: weatherMatrix type", typeof props.weatherMatrix, Array.isArray(props.weatherMatrix));
+    // console.log("WeatherWidgetDynamic: viewedVariantId", props.viewedVariantId);
+
+    const hasWeather = Array.isArray(props.weatherMatrix) 
+        ? props.weatherMatrix.length > 0 
+        : (props.weatherMatrix && Object.keys(props.weatherMatrix).length > 0);
+
+    if (!sourceGroups.length || !hasWeather || !props.simulationStartDate) return [];
+    
+    if (!props.simulationStartDate) return [];
+    
+    // Ensure simulationStartDate is a Date object
+    const baseDate = new Date(props.simulationStartDate);
+    if (isNaN(baseDate.getTime())) return [];
+
+    // Filter by variant if viewed
+    let groupsToProcess = sourceGroups;
+    if (props.viewedVariantId) {
+        // Show ONLY groups on this variant
+        // Modified per user request: "je ne veux voir que les groupes du variant"
+        groupsToProcess = sourceGroups.filter(g => g.variantId === props.viewedVariantId);
+    }
+
+    return groupsToProcess.map((group, index) => {
+        // Normalize properties
+        const groupId = group.id || `generated-group-${index}`; 
+        const startTimeStr = group.heureDepart || group.start || "09:00";
+        const speed = group.vitesseMoyenne || group.speed || 20;
+        const variantId = group.variantId || null;
+
+        let realDistance = props.currentDistance;
+        let isOffTrack = false;
+
+        // --- VARIANT LOGIC ---
+        
+        // 1. Viewing Main Trace (viewedVariantId == null) BUT the group is on a variant:
+        if (!props.viewedVariantId && variantId && props.variantMappings[variantId]) {
+            const mapping = props.variantMappings[variantId];
+            const calculatedDist = TraceMappingService.getRealDistanceFromMain(props.currentDistance, mapping);
+            
+            // console.log(`[WWD] Group ${group.nom} (Var ${variantId}) at MainKm ${props.currentDistance}: Mapped=${calculatedDist}`);
+            
+            if (calculatedDist === null) {
+                 // Fallback: If we are viewing Main Trace, and mapping fails, maybe we are still on common trace?
+                 // Or rather, if mapping fails on Main Trace View, it means the current main location is NOT on the variant.
+                 // So "Off Track" is technically correct.
+                 // BUT, if the user says "Trace Commune", it means they expect it to work.
+                 // If the mapping tolerance was the issue, the fix in TraceMappingService might help.
+                 // If it is truly off track (e.g. shortcut), we should show nothing.
+                 
+                 // However, to be safe against data glitches:
+                 // If we are on Main Trace View, we are looking at `props.currentDistance` of Main Trace.
+                 // If the group is assigned to a variant, we want to know what weather is at this point.
+                 // If the variant PASSES here (Common), we use Variant Weather.
+                 // If the variant DOES NOT pass here, we should say "Hors Parcours".
+                 
+                 // The user complaint "je ne vois plus les données ... quand ils sont sur la trace commune".
+                 // This implies validity.
+                 
+                 isOffTrack = true; 
+            } else {
+                realDistance = calculatedDist;
+            }
+        }
+        // 2. Viewing Variant (viewedVariantId != null) AND the group is on Main Trace (variantId == null):
+        else if (props.viewedVariantId && !variantId && props.variantMappings[props.viewedVariantId]) {
+             const mapping = props.variantMappings[props.viewedVariantId];
+             // Map Variant Distance -> Main Distance
+             const mainDist = TraceMappingService.getMainDistanceFromVariant(props.currentDistance, mapping);
+             if (mainDist === null) {
+                 isOffTrack = true; // We are on a NEW segment where Main Trace doesn't exist
+             } else {
+                 realDistance = mainDist;
+             }
+        }
+        // ------------------------------
+
+        if (isOffTrack) {
+            return {
+                ...group,
+                nom: group.nom || group.name,
+                isReference: group.isReference,
+                isOffTrack: true,
+                arrivalTime: null,
+                weather: null,
+                weatherInfo: null
+            };
+        }
+
+        // Calculate time
+        const [h, m] = startTimeStr.split(':').map(Number);
+        const startDateTime = new Date(baseDate);
+        startDateTime.setHours(isNaN(h) ? 9 : h, isNaN(m) ? 0 : m, 0, 0);
+
+        const timeFromStartHours = realDistance / speed;
+        const arrivalTime = new Date(startDateTime.getTime() + timeFromStartHours * 3600000); // ms
+        
+        // Find weather at this time/location
+        // Resolve correct weather source
+        let targetWeatherMatrix = [];
+        if (Array.isArray(props.weatherMatrix)) {
+            // Legacy/Single mode
+            targetWeatherMatrix = props.weatherMatrix;
+        } else if (typeof props.weatherMatrix === 'object') {
+            // Map mode: { 'main': [], 'varId': [] }
+            // Use variantId if present, else 'main'
+            const key = variantId || 'main';
+            targetWeatherMatrix = props.weatherMatrix[key] || [];
+        }
+
+        const weather = WeatherService.getCurrentWeather(realDistance, arrivalTime, targetWeatherMatrix);
+        
+        return {
+            ...group,
+            id: groupId,
+            nom: group.nom || group.name,
+            isReference: group.isReference,
+            isOffTrack: false,
+            arrivalTime: arrivalTime,
+            weather: weather,
+            weatherInfo: weather ? getWeatherInfo(weather.code) : null,
+            startMinutes: (isNaN(h) ? 9 : h) * 60 + (isNaN(m) ? 0 : m)
+        };
+    });
+});
+
+const windSourceGroup = computed(() => {
+    if (processedScenarios.value.length === 0) return null;
+    
+    // DEBUG: Only compute Wind Source if we are in Variant Mode (viewedVariantId is set)
+    // If we are in Main Trace mode, we might want to stick to standard behavior (no blue star, or just first group?)
+    // The requirement was: "Dans cette visualisation [alternative] on affichera... Une start bleu".
+    // So for Main Trace, we should probably NOT show the blue star.
+    if (!props.viewedVariantId) return null;
+
+    // Find the group with the LATEST start time
+    return processedScenarios.value.reduce((latest, current) => {
+        return (current.startMinutes > latest.startMinutes) ? current : latest;
+    }, processedScenarios.value[0]); 
+});
+
+const weatherToDisplay = computed(() => {
+    // Priority: 
+    // 1. Wind Source Group (Blue Star - Variant Mode)
+    // 2. Reference Group (Yellow Star)
+    // 3. First Group (if connected/valid)
+    // 4. Global weather props (Camera/Comet)
+    
+    if (windSourceGroup.value && windSourceGroup.value.weather) {
+        return windSourceGroup.value.weather;
+    }
+    
+    // Find reference group (Yellow)
+    const refGroup = processedScenarios.value.find(s => s.isReference);
+    if (refGroup && refGroup.weather) {
+        return refGroup.weather;
+    }
+    
+    // Fallback to first group if valid weather
+    if (processedScenarios.value.length > 0 && processedScenarios.value[0].weather) {
+        return processedScenarios.value[0].weather;
+    }
+    
+    return props.weather;
+});
+
+// REMOVED old weatherToDisplay logic to rely on windSourceGroup
+// REMOVED old computed properties that might conflict
+
+
+const formatRowTime = (date) => {
+    if (!date) return '--:--';
+    return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+};
+
+const hasExplicitRef = computed(() => processedScenarios.value.some(s => s.isReference));
+
+const forecastDateFormatted = computed(() => {
+    let d = null;
+    if (processedScenarios.value.length > 0) {
+        d = new Date(props.simulationStartDate);
+    } else if (weatherToDisplay.value && weatherToDisplay.value.time) {
+        d = new Date(weatherToDisplay.value.time);
+    }
+
+    if (!d || isNaN(d.getTime())) return "";
+
+    let str = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(d);
+    return str.charAt(0).toUpperCase() + str.slice(1);
+});
+
+const precipColorClass = computed(() => {
+    return isDark.value ? 'text-white' : 'text-blue-grey-darken-3';
+});
+
+const precipIconColor = computed(() => {
+    return isDark.value ? 'white' : 'blue-grey-darken-3';
+});
+
+const resolveIconColor = (color) => {
+    if (!color) return undefined;
+
+    if (isDark.value) {
+        // Dark Mode: bright colors
+        if (color.includes('darken')) return color.replace('darken', 'lighten');
+        if (color === 'grey') return 'grey-lighten-1';
+    } else {
+        // Light Mode: dark colors
+        if (color === 'white') return 'grey-darken-3';
+        if (color.includes('lighten')) return color.replace('lighten', 'darken');
+        if (color === 'grey') return 'grey-darken-1';
+    }
+    return color;
+};
+
+const getTempColor = (temp) => {
+    const suffix = isDark.value ? 'lighten-2' : 'darken-3';
+    const suffixYellow = isDark.value ? 'lighten-2' : 'darken-4'; // Yellow needs more contrast in light mode
+    
+    if (temp <= 0) return `blue-${suffix}`;
+    if (temp <= 7) return undefined; // Will create no class -> inherit default color
+    if (temp <= 14) return `grey-${isDark.value ? 'lighten-1' : 'darken-2'}`;
+    if (temp <= 20) return `green-${suffix}`;
+    if (temp <= 26) return `yellow-${suffixYellow}`;
+    if (temp <= 30) return `orange-${suffix}`;
+    return `red-${suffix}`;
+};
+</script>
+
+<style scoped>
+.weather-widget-container {
+  position: relative;
+  z-index: 1000;
+  pointer-events: none; /* Let clicks pass through container gaps */
+}
+
+/* Match Distance Widget Style (Standard v-card) */
+.weather-info-card {
+  pointer-events: auto;
+  /* Use default v-card background/radius, no custom override */
+}
+
+.compass-card {
+  pointer-events: auto; /* Re-enable clicks on cards */
+}
+
+/* Animation Styles */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.75s ease, max-height 0.75s ease, margin 0.75s ease, padding 0.75s ease;
+  overflow: hidden;
+  max-height: 400px; /* Sufficient for info/compass */
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.fade-opacity-enter-active,
+.fade-opacity-leave-active {
+  transition: opacity 0.75s ease;
+}
+
+.fade-opacity-enter-from,
+.fade-opacity-leave-to {
+  opacity: 0;
+}
+
+.border-b {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+</style>

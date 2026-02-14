@@ -1,0 +1,173 @@
+<template>
+  <v-container class="fill-height d-flex flex-column" style="max-width: 600px; position: relative;">
+    
+    <PlaybackControls ref="playbackControls">
+        <template #third-button>
+             <v-btn 
+                size="80" 
+                rounded="circle"
+                :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
+                variant="text" 
+                class="text-h4 font-weight-bold"
+                @click="resetSpeed()"
+                :disabled="isFlytoActive"
+            >
+                x1
+            </v-btn>
+        </template>
+    </PlaybackControls>
+    <!-- Row 1: Top 3 (Altitude, Commandes, Boussole) -->
+    <v-row class="w-100 flex-grow-0 mb-0" justify="space-between" align="center">
+        <v-col cols="4" class="text-center pa-1" v-for="toggle in toggles.slice(0, 3)" :key="toggle.id">
+            <v-btn 
+                :icon="toggle.icon"
+                size="x-large"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'grey-lighten-1' : 'grey-darken-1')"
+                variant="text"
+                class="ma-1 pa-0"
+                style="width: 80px; height: 80px;"
+                @click="sendToggle(toggle.command)"
+            >
+                <v-icon :icon="toggle.icon" size="64"></v-icon>
+            </v-btn>
+        </v-col>
+    </v-row>
+
+    <!-- Row 2: Bottom 3 (Villes, Distance, Météo) -->
+    <v-row class="w-100 flex-grow-0 mt-0" justify="space-between" align="center">
+        <v-col cols="4" class="text-center pa-1" v-for="toggle in toggles.slice(3, 6)" :key="toggle.id">
+            <v-btn 
+                :icon="toggle.icon"
+                size="x-large"
+                :color="toggle.isActive ? (isDark ? 'green-accent-3' : 'green-darken-1') : (isDark ? 'grey-lighten-1' : 'grey-darken-1')"
+                variant="text"
+                class="ma-1 pa-0"
+                style="width: 80px; height: 80px;"
+                @click="sendToggle(toggle.command)"
+                :disabled="isFlytoActive"
+            >
+                <v-icon :icon="toggle.icon" size="64"></v-icon>
+            </v-btn>
+        </v-col>
+    </v-row>
+
+    <!-- NEW: Segment Bar (Bottom) -->
+    <div v-if="isVariantMode" class="w-100 mt-auto">
+        <v-divider class="w-75 mx-auto my-4"></v-divider>
+        <SegmentBar 
+            :segments="variantSegments"
+            :current-index="currentSegmentIndex"
+            @jump="onSegmentJump"
+            :disabled="isFlytoActive"
+        />
+    </div>
+
+    <!-- Fly-to Overlay -->
+    <v-fade-transition>
+      <div v-if="isFlytoActive" class="flyto-overlay">
+        <v-card class="pa-4 d-flex align-center bg-black-opacity-70 text-white" rounded="lg">
+          <v-progress-circular indeterminate color="primary" class="mr-4" size="24"></v-progress-circular>
+          <span class="text-h6">Repositionnement...</span>
+        </v-card>
+      </div>
+    </v-fade-transition>
+  </v-container>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useRemoteStore } from '@/stores/remoteStore'
+import PlaybackControls from '@/components/PlaybackControls.vue'
+import SegmentBar from '@/components/SegmentBar.vue' // Added import
+import { useTheme } from 'vuetify'
+
+const store = useRemoteStore()
+const theme = useTheme()
+
+const isDark = computed(() => theme.global.current.value.dark)
+
+const isVariantMode = computed(() => store.visualizeViewState?.isVariantTrace ?? false);
+// Mock or real data from store
+const variantSegments = computed(() => store.visualizeViewState?.segments || []); 
+// Get current index from SSE update
+const currentSegmentIndex = computed(() => store.visualizeViewState?.currentSegmentIndex ?? null);
+const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
+
+
+function onSegmentJump(index) {
+    store.sendCommand('jump_to_segment', { index });
+}
+
+const playbackControls = ref(null)
+
+function resetSpeed() {
+    playbackControls.value?.resetSpeed()
+}
+
+// --- Toggles ---
+const toggles = computed(() => [
+    { 
+        id: 'communes', 
+        label: 'Villes', 
+        icon: 'mdi-city', 
+        command: 'toggle_communes_display', 
+        isActive: store.visualizeViewState?.isCommuneWidgetVisible 
+    },
+    { 
+        id: 'distance', 
+        label: 'Distance', 
+        icon: 'mdi-counter', 
+        command: 'toggle_distance_display', 
+        isActive: store.visualizeViewState?.isDistanceDisplayVisible 
+    },
+    { 
+        id: 'weather', 
+        label: 'Météo', 
+        icon: 'mdi-sun-clock-outline', 
+        command: 'toggle_weather_static', 
+        isActive: store.visualizeViewState?.isStaticWeatherVisible 
+    },
+    { 
+        id: 'altitude', 
+        label: 'Altitude', 
+        icon: 'mdi-chart-areaspline-variant', 
+        command: 'toggle_altitude_profile', 
+        isActive: store.visualizeViewState?.isAltitudeVisible 
+    },
+    { 
+        id: 'commands', 
+        label: 'Commandes', 
+        icon: 'mdi-movie-play-outline', 
+        command: 'toggle_commands_widget', 
+        isActive: store.visualizeViewState?.isControlsCardVisible 
+    },
+    { 
+        id: 'compass', 
+        label: 'Boussole', 
+        icon: 'mdi-compass-outline', 
+        command: 'toggle_weather_dynamic', 
+        isActive: store.visualizeViewState?.isDynamicWeatherVisible 
+    }
+])
+
+function sendToggle(cmd) {
+    store.sendCommand(cmd);
+}
+
+</script>
+
+<style scoped>
+.flyto-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5000;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+.bg-black-opacity-70 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+</style>

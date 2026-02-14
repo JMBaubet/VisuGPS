@@ -11,9 +11,10 @@ Le paramètre `default_value` spécifie le multiplicateur de vitesse qui sera ap
 -   **Libellé**: Vitesse par défaut (x)
 -   **Type**: Réel (Float)
 -   **Valeur par défaut**: 1.0
--   **Minimum**: 0.1
+-   **Minimum**: 0.2
 -   **Maximum**: 20.0
--   **Décimales**: 2
+-   **Pas (step)**: 0.2
+-   **Décimales**: 1
 
 ## ⚖️ Justification : Pourquoi définir une vitesse par défaut ?
 

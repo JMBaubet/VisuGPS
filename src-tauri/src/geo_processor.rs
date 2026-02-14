@@ -20,6 +20,10 @@ pub struct TrackingPointJs {
     pub edited_zoom: Option<f64>,
     pub edited_pitch: Option<f64>,
     pub edited_cap: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_anchor_point: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub type_troncon: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -11,10 +11,11 @@ L'animation repose sur la synchronisation de trois concepts fondamentaux :
    * **Ce que c'est** : Une simple liste de coordonnées `[lon, lat, elevation]` qui représente le parcours physique. )`elevation` ne semble pas utile)
    * **Son Unité de Mesure** : La **distance** (en kilomètres ou mètres). C'est la "vérité terrain". Chaque point du tracé est situé à une distance `d` du point de départ.
 
-2. **Le Chemin de la Caméra (`tracking.json`)** :
+2. **Le Chemin de la Caméra (`tracking.json` / `tracking_var`)** :
    
-   * **Ce que c'est** : Une liste de "points de contrôle" ou "keyframes" quand `pointDeControl = true`pour la caméra. Ce n'est PAS un simple tracé. Chaque point de contrôle définit un état complet de la caméra (`position`, `point regardé`, `altitude`) (`coordonneeCamera`, `coordonnee`, `altitudeCamera`) à un moment précis.
-   * **Son Lien au Tracé** : Chaque point de contrôle de la caméra est **mappé à une distance spécifique sur le tracé au sol**. Par exemple, "quand le coureur est à 2.5km, la caméra doit être à telle position et regarder tel point".
+   * **Ce que c'est** : Une liste de "points de contrôle" ou "keyframes" (quand `pointDeControl = true`). Chaque point de contrôle définit un état complet de la caméra (`positionCamera`, `lookAt`, `zoom`, `pitch`, `cap`) à un moment précis.
+   * **Son Lien au Tracé** : Chaque point de contrôle est **mappé à une distance spécifique sur le tracé au sol**.
+   * **Spécificité Variantes** : Pour les variantes, le fichier de tracking est reconstruit ou récupéré spécifiquement (`tracking_var`) pour correspondre au nouveau parcours hybride.
 
 3. **Le Temps (`time`)** :
    
@@ -66,7 +67,25 @@ Voici comment la `phase` est utilisée pour synchroniser le tracé et la caméra
 
 > **Flux** : `Temps -> phase -> Pourcentage de Distance -> Index dans 'tracking' -> Interpolation entre les keyframes -> Position & Orientation de la Caméra`
 
-## 4. Schéma Récapitulatif
+#### 4. Le Traitement Spécifique des Variantes
+
+Le mode `VisualizeView.vue` introduit des étapes cruciales de synchronisation pour garantir la fluidité malgré la nature "dynamique" du tracé :
+
+1.  **Reconstruction du Tracé (Frontend)** : La trace `fullLineString` est reconstruite en "snappant" les points de départ et d'arrivée de la variante sur la trace maîtresse haute résolution.
+2.  **Lissage des Caps (`applySmoothingToTracking`)** : Les points générés pour les variantes peuvent avoir des caps brusques. Un lissage par moyenne vectorielle (fenêtre glissante) est appliqué sur le frontend pour éviter les saccades de rotation de la caméra.
+3.  **Continuité des Splines (`nbrSegment`)** : Les valeurs de `nbrSegment` (utilisées pour l'interpolation spline) sont recalculées entre les points de contrôle lors de la suture des segments, assurant une transition douce entre la trace originale et la variante.
+4.  **Correction de Distance** : Les distances du tracking backend sont recalibrées pour correspondre parfaitement à la géométrie JS calculée par Turf.js.
+
+## 5. Comparaison des Écarts de Synchronisation
+
+| Élément | VisualizeView (Standard) | VisualizeView (Variante) |
+| :--- | :--- | :--- |
+| **Origine Trace** | Fichier `LineString.json` statique | Reconstruction dynamique (JS) |
+| **Tracking** | `tracking.json` brut | Tracking lissé et recalculé (Frontend) |
+| **Événements** | Chargés de `evt.json` | Désactivés (liste vide par défaut) |
+| **Vitesse** | Basée sur les paramètres globaux | Ajustée selon la longueur réelle calculée |
+
+## 6. Schéma Récapitulatif
 
 ```
   Temps (fourni par le navigateur)

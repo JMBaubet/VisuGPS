@@ -12,6 +12,13 @@ R : VisuGPS est une application open-source sous licence Apache 2.0.
 **Q : Sur quels systèmes fonctionne-t-elle ?**
 R : VisuGPS est compatible avec Windows, macOS et Linux.
 
+---
+
+## Synchronisation multi-plateforme
+
+**Q : Je travaille sur macOS et Windows, comment garder mes versions synchronisées ?**
+R : Pour éviter les erreurs de compilation (Tauri mismatch), assurez-vous de toujours synchroniser vos fichiers "Lock". Consultez notre **[Guide de Synchronisation Multi-plateforme](../DocAnnexe/synchronisation_multiplateforme.md)** pour la procédure complète.
+
 ## Carte 3D et Mapbox
 
 **Q : La carte ne s'affiche pas ou reste noire.**
@@ -34,6 +41,6 @@ R : Cela arrive si les données d'altitude du GPX sont imprécises. L'applicatio
 R : L'application n'arrive peut-être pas à déterminer votre adresse IP locale. Vérifiez votre connexion réseau.
 
 **Q : "Impossible de se connecter" sur le mobile.**
-R : C'est souvent un blocage pare-feu. Autorisez VisuGPS dans le pare-feu de votre ordinateur pour le port 9001 (TCP).
+R : C'est souvent un blocage pare-feu ou une configuration réseau (Public/Privé). Consultez notre **[Guide de Configuration Réseau](./Reseau.md)** pour résoudre ce problème.
 
 [< Retour à l'accueil](./index.md)

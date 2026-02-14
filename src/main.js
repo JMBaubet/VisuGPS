@@ -22,30 +22,36 @@ const vuetify = createVuetify({
 });
 
 async function startApp() {
-  // Attendre que les paramètres soient initialisés
-  const { initSettings } = useSettings();
-  await initSettings();
+  try {
+    // Attendre que les paramètres soient initialisés
+    const { initSettings } = useSettings();
+    await initSettings();
 
-  const app = createApp(App);
+    const app = createApp(App);
 
-  app.use(router);
-  app.use(vuetify);
-  app.component('v-chart', ECharts);
+    app.use(router);
+    app.use(vuetify);
+    app.component('v-chart', ECharts);
 
-  // Intercepter les clics sur les liens externes
-  document.addEventListener('click', (ev) => {
-    const a = ev.target.closest && ev.target.closest('a');
-    if (!a) return;
+    // Intercepter les clics sur les liens externes
+    document.addEventListener('click', (ev) => {
+      const a = ev.target.closest && ev.target.closest('a');
+      if (!a) return;
 
-    const href = a.getAttribute('href') || '';
-    // filtre liens externes (https/http)
-    if (href.startsWith('http://') || href.startsWith('https://')) {
-      ev.preventDefault();       // empêche la navigation dans la webview
-      open(href);               // ouvre dans le navigateur système
-    }
-  });
+      const href = a.getAttribute('href') || '';
+      // filtre liens externes (https/http)
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        ev.preventDefault();       // empêche la navigation dans la webview
+        open(href);               // ouvre dans le navigateur système
+      }
+    });
 
-  app.mount('#app');
+    app.mount('#app');
+    console.log('App mounted successfully');
+  } catch (e) {
+    console.error('CRITICAL ERROR IN STARTAPP:', e);
+    alert('Failed to start application: ' + e.message);
+  }
 }
 
 startApp();

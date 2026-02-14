@@ -8,9 +8,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
+use tokio::sync::broadcast;
+use crate::remote_sse::SseMessage;
 
 pub mod colors;
 pub mod communes_updater;
+pub mod elevation_provider;
 pub mod distance_markers;
 pub mod error_logger;
 pub mod event;
@@ -21,12 +25,15 @@ pub mod network_utils;
 pub mod remote_blacklist;
 pub mod remote_clients;
 pub mod remote_control;
+pub mod remote_sse;
+pub mod remote_server;
 pub mod remote_setup;
 pub mod segment_analyzer;
 pub mod settings_migration;
 pub mod thumbnail_generator;
 pub mod trace_style;
 pub mod tracking_processor;
+pub mod variant_processor;
 pub mod weather_cache;
 
 use chrono::prelude::*;
@@ -36,11 +43,10 @@ use geo_processor::{
 };
 use gpx_processor::{Circuit, CircuitSommet, DraftCircuit};
 
-use std::sync::Mutex;
-
 const EMBEDDED_DEFAULT_SETTINGS: &str = include_str!("../settingsDefault.json");
 const EMBEDDED_DEFAULT_CIRCUITS: &str = include_str!("../circuitsDefault.json");
 const EMBEDDED_DEFAULT_ENV: &str = include_str!("../envDefault");
+// Forcing recompilation to include new settings group
 
 #[derive(serde::Serialize, Clone)]
 pub struct MapboxStatusResult {
@@ -121,13 +127,8 @@ async fn check_mapbox_status(token: String) -> MapboxStatusResult {
 }
 
 #[tauri::command]
-async fn check_open_meteo_status() -> bool {
-    let client = reqwest::Client::new();
-    let url = "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current_weather=true";
-    match client.get(url).send().await {
-        Ok(response) => response.status().is_success(),
-        Err(_) => false,
-    }
+async fn check_open_meteo_status() -> String {
+    crate::elevation_provider::check_open_meteo_status().await
 }
 
 #[tauri::command]
@@ -301,6 +302,41 @@ fn select_execution_mode(app: AppHandle, mode_name: String) -> Result<(), String
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+struct PurgeResponse {
+    message: String,
+    success: bool,
+    already_empty: bool,
+}
+
+#[tauri::command]
+fn is_blacklist_empty(state: State<Mutex<AppState>>) -> Result<bool, String> {
+    let state = state.lock().unwrap();
+    let blacklist = crate::remote_blacklist::read_blacklist_file(&state.app_env_path)?;
+    Ok(blacklist.blacklisted_clients.is_empty())
+}
+
+#[tauri::command]
+fn purge_remote_blacklist(state: State<Mutex<AppState>>) -> Result<PurgeResponse, String> {
+    let state = state.lock().unwrap();
+    let blacklist = crate::remote_blacklist::read_blacklist_file(&state.app_env_path)?;
+    
+    if blacklist.blacklisted_clients.is_empty() {
+        return Ok(PurgeResponse {
+            message: "La liste noire est déjà vide.".to_string(),
+            success: true,
+            already_empty: true,
+        });
+    }
+
+    crate::remote_blacklist::clear_blacklist(&state.app_env_path)?;
+    Ok(PurgeResponse {
+        message: "La liste noire a été purgée avec succès.".to_string(),
+        success: true,
+        already_empty: false,
+    })
+}
+
 #[tauri::command]
 fn delete_execution_mode(
     app: AppHandle,
@@ -366,6 +402,13 @@ pub struct AppState {
     pub visualize_view_state: Mutex<Option<remote_control::VisualizeViewState>>,
     pub migration_report: Mutex<Option<String>>,
     pub migration_version_changed: Mutex<bool>,
+    pub pending_clients: Mutex<std::collections::HashMap<String, String>>, // clientId -> code
+    #[serde(skip)]
+    pub sse_sender: Option<broadcast::Sender<SseMessage>>,
+}
+
+pub struct HeartbeatState {
+    pub active_clients: Mutex<std::collections::HashMap<String, i64>>,
 }
 
 impl Clone for AppState {
@@ -383,6 +426,8 @@ impl Clone for AppState {
             visualize_view_state: Mutex::new(self.visualize_view_state.lock().unwrap().clone()),
             migration_report: Mutex::new(self.migration_report.lock().unwrap().clone()),
             migration_version_changed: Mutex::new(*self.migration_version_changed.lock().unwrap()),
+            pending_clients: Mutex::new(self.pending_clients.lock().unwrap().clone()),
+            sse_sender: self.sse_sender.clone(),
         }
     }
 }
@@ -448,19 +493,34 @@ pub struct CircuitsFile {
 struct DebugData {
     line_string: Value,
     tracking_points: Value,
+    segment_metadata: Value,
 }
 
 #[tauri::command]
-fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<DebugData, String> {
+fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String, variant_id: Option<String>) -> Result<DebugData, String> {
     let state = state.lock().unwrap();
-    let data_dir = state.app_env_path.join("data").join(circuit_id);
+    let data_dir = state.app_env_path.join("data").join(&circuit_id);
 
-    let line_string_path = data_dir.join("lineString.json");
-    let tracking_points_path = data_dir.join("tracking.json");
+    let (line_string_file, tracking_file, meta_file) = if let Some(ref vid) = variant_id {
+        (format!("lineString_{}_FULL.json", vid), format!("tracking_{}_FULL.json", vid), format!("segments_metadata_{}.json", vid))
+    } else {
+        ("lineString.json".to_string(), "tracking.json".to_string(), "segments_metadata.json".to_string())
+    };
+
+    let line_string_path = data_dir.join(line_string_file);
+    let tracking_points_path = data_dir.join(tracking_file);
+    let meta_path = data_dir.join(meta_file);
 
     let line_string_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
     let tracking_points_content =
         fs::read_to_string(tracking_points_path).map_err(|e| e.to_string())?;
+    
+    let segment_metadata: Value = if meta_path.exists() {
+        let content = fs::read_to_string(meta_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| e.to_string())?
+    } else {
+        serde_json::json!({"overlappingZones": []})
+    };
 
     let line_string: Value =
         serde_json::from_str(&line_string_content).map_err(|e| e.to_string())?;
@@ -470,6 +530,7 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
     Ok(DebugData {
         line_string,
         tracking_points,
+        segment_metadata,
     })
 }
 
@@ -477,24 +538,18 @@ fn get_debug_data(state: State<Mutex<AppState>>, circuit_id: String) -> Result<D
 fn read_line_string_file(
     state: State<Mutex<AppState>>,
     circuit_id: String,
+    filename: Option<String>,
 ) -> Result<Value, String> {
     let state = state.lock().unwrap();
     let data_dir = state.app_env_path.join("data").join(circuit_id);
-    let line_string_path = data_dir.join("lineString.json");
+    let target_filename = filename.unwrap_or_else(|| "lineString.json".to_string());
+    let line_string_path = data_dir.join(target_filename);
     let file_content = fs::read_to_string(line_string_path).map_err(|e| e.to_string())?;
     let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
     Ok(json_content)
 }
 
-#[tauri::command]
-fn read_tracking_file(state: State<Mutex<AppState>>, circuit_id: String) -> Result<Value, String> {
-    let state = state.lock().unwrap();
-    let data_dir = state.app_env_path.join("data").join(circuit_id);
-    let tracking_path = data_dir.join("tracking.json");
-    let file_content = fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
-    let json_content: Value = serde_json::from_str(&file_content).map_err(|e| e.to_string())?;
-    Ok(json_content)
-}
+
 
 #[tauri::command]
 fn read_errors_file(
@@ -587,6 +642,8 @@ pub struct CircuitForDisplay {
     has_errors: bool,
     #[serde(rename = "meteoConfig")]
     meteo_config: Option<gpx_processor::CircuitMeteoConfig>,
+    pub variant_count: usize,
+    pub favorite: bool,
 }
 
 #[tauri::command]
@@ -648,11 +705,69 @@ fn get_circuits_for_display(
                 avancement_communes: circuit.avancement_communes,
                 has_errors,
                 meteo_config: circuit.meteo_config.clone(),
+                variant_count: {
+                    let circuit_data_dir = state.app_env_path.join("data").join(&circuit.circuit_id);
+                    if circuit_data_dir.exists() {
+                        fs::read_dir(circuit_data_dir)
+                            .map(|entries| {
+                                entries.filter_map(|e| e.ok())
+                                    .filter(|e| {
+                                        let filename = e.file_name().to_string_lossy().into_owned();
+                                        filename.starts_with("archive_") && filename.ends_with(".json")
+                                    })
+                                    .count()
+                            })
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    }
+                },
+                favorite: circuit.favorite,
             }
         })
         .collect();
 
     Ok(circuits_for_display)
+}
+
+pub fn get_favorites_for_remote(app_handle: &AppHandle) -> Vec<remote_control::RemoteFavorite> {
+    let state = app_handle.state::<Mutex<AppState>>();
+    let Ok(state_lock) = state.lock() else { return vec![]; };
+    let app_env_path = state_lock.app_env_path.clone();
+    drop(state_lock); // Release lock before calling other helpers
+
+    let Ok(circuits_file) = read_circuits_file(&app_env_path) else { return vec![]; };
+    
+    circuits_file.circuits.into_iter()
+        .filter(|c| c.favorite)
+        .map(|c| {
+            let variant_count = {
+                let circuit_data_dir = app_env_path.join("data").join(&c.circuit_id);
+                if circuit_data_dir.exists() {
+                    fs::read_dir(circuit_data_dir)
+                        .map(|entries| {
+                            entries.filter_map(|e| e.ok())
+                                .filter(|e| {
+                                    let filename = e.file_name().to_string_lossy().into_owned();
+                                    filename.starts_with("archive_") && filename.ends_with(".json")
+                                })
+                                .count()
+                        })
+                        .unwrap_or(0)
+                } else {
+                    0
+                }
+            };
+
+            remote_control::RemoteFavorite {
+                circuit_id: c.circuit_id,
+                nom: c.nom,
+                distance_km: c.distance_km,
+                denivele_m: c.denivele_m,
+                variant_count,
+            }
+        })
+        .collect()
 }
 
 // Fonction pour lire le fichier circuits.json
@@ -777,6 +892,60 @@ fn update_circuit_traceur(
     write_circuits_file(app_env_path, &circuits_file)?;
 
     Ok(final_traceur_id)
+}
+
+#[tauri::command]
+fn toggle_circuit_favorite(
+    app_handle: AppHandle,
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+    favorite: bool,
+) -> Result<(), String> {
+    let should_update_remote = {
+        let state_guard = state.lock().unwrap();
+        let app_env_path = &state_guard.app_env_path;
+
+        let mut circuits_file = read_circuits_file(app_env_path)?;
+
+        if let Some(circuit) = circuits_file
+            .circuits
+            .iter_mut()
+            .find(|c| c.circuit_id == circuit_id)
+        {
+            circuit.favorite = favorite;
+        } else {
+            return Err(format!("Circuit with ID {} not found.", circuit_id));
+        }
+
+        write_circuits_file(app_env_path, &circuits_file)?;
+        
+        state_guard.current_view == "Main"
+    }; // Lock released here
+
+    if should_update_remote {
+        remote_control::send_app_state_update(&app_handle, "Main");
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_circuit_scenarios(
+    state: State<Mutex<AppState>>,
+    circuit_id: String,
+) -> Result<Vec<gpx_processor::MeteoScenario>, String> {
+    let state = state.lock().unwrap();
+    let circuits_file = read_circuits_file(&state.app_env_path)?;
+    
+    let scenarios = circuits_file
+        .circuits
+        .into_iter()
+        .find(|c| c.circuit_id == circuit_id)
+        .and_then(|c| c.meteo_config)
+        .and_then(|mc| mc.scenarios)
+        .unwrap_or_default();
+
+    Ok(scenarios)
 }
 
 #[tauri::command]
@@ -1346,7 +1515,7 @@ fn get_orphans(app_handle: AppHandle, state: State<Mutex<AppState>>) -> Result<O
 
     let mut used_message_ids = std::collections::HashSet::new();
     for circuit in &circuits_file.circuits {
-        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id, None) {
             for re in events.range_events {
                 if let Some(msg_id) = re.message_id {
                     used_message_ids.insert(msg_id);
@@ -1424,7 +1593,7 @@ fn check_message_usage(
     let mut using_circuits = Vec::new();
 
     for circuit in circuits_file.circuits {
-        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id) {
+        if let Ok(events) = event::read_events(&app_handle, &circuit.circuit_id, None) {
             for re in events.range_events {
                 if let Some(mid) = re.message_id {
                     if mid == message_id {
@@ -1495,13 +1664,15 @@ fn save_tracking_file(
     state: State<Mutex<AppState>>,
     circuit_id: String,
     tracking_data: Value,
+    filename: Option<String>,
 ) -> Result<(), String> {
     let state = state.lock().unwrap();
+    let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
     let tracking_path = state
         .app_env_path
         .join("data")
         .join(circuit_id)
-        .join("tracking.json");
+        .join(target_filename);
 
     let new_content = serde_json::to_string_pretty(&tracking_data)
         .map_err(|e| format!("Failed to serialize tracking data: {}", e))?;
@@ -1625,7 +1796,10 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
     .unwrap_or_else(|| "".to_string());
 
     // Initialize remote control server
-    remote_setup::init_remote_control(app, &app_env_path, &settings)?;
+    // Create SSE channel
+    let (sse_sender, _) = broadcast::channel(100);
+
+    // Initialisation du serveur déplacée dans run() pour garantir que AppState est géré
 
     Ok(AppState {
         app_env,
@@ -1634,12 +1808,14 @@ fn setup_environment(app: &mut App) -> Result<AppState, Box<dyn std::error::Erro
         mapbox_token,
         updating_circuit_id: None, // Initialize to None
         updating_circuit_name: None,
-        current_view: "MainView".to_string(), // Initialize current_view
+        current_view: "Main".to_string(), // Initialize current_view
         animation_state: Mutex::new("".to_string()),
         animation_speed: Mutex::new(1.0),
         visualize_view_state: Mutex::new(None),
         migration_report: Mutex::new(migration_report_content),
         migration_version_changed: Mutex::new(migration_version_changed),
+        pending_clients: Mutex::new(std::collections::HashMap::new()),
+        sse_sender: Some(sse_sender),
     })
 }
 
@@ -1721,7 +1897,12 @@ fn update_tracking_km(
         .iter_mut()
         .find(|c| c.circuit_id == circuit_id)
     {
-        circuit.tracking_km = (tracking_km * 10.0).round() / 10.0;
+        let new_tracking_km = (tracking_km * 10.0).round() / 10.0;
+        if new_tracking_km > circuit.distance_km {
+             circuit.tracking_km = circuit.distance_km;
+        } else {
+             circuit.tracking_km = new_tracking_km;
+        }
     } else {
         return Err(format!("Circuit with ID '{}' not found.", circuit_id));
     }
@@ -1737,8 +1918,10 @@ fn update_current_view(
     state: State<Mutex<AppState>>,
     new_view: String,
 ) -> Result<(), String> {
-    let mut app_state = state.lock().unwrap();
-    app_state.current_view = new_view.clone();
+    {
+        let mut app_state = state.lock().unwrap();
+        app_state.current_view = new_view.clone();
+    } // Le verrou est relâché ici
 
     // Notifier toutes les télécommandes connectées du changement de vue
     use crate::remote_control::send_app_state_update;
@@ -1753,11 +1936,13 @@ fn update_animation_state(
     state: State<Mutex<AppState>>,
     new_state: String,
 ) -> Result<(), String> {
-    let app_state = state.lock().unwrap();
-    *app_state.animation_state.lock().unwrap() = new_state.clone();
+    {
+        let app_state = state.lock().unwrap();
+        *app_state.animation_state.lock().unwrap() = new_state.clone();
+    }
 
     // Notifier la télécommande
-    remote_control::send_animation_state_update(&app_handle, &new_state);
+    remote_control::send_animation_state_update(&app_handle, &new_state, None);
 
     Ok(())
 }
@@ -2234,6 +2419,9 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_fs::init())
+        // .plugin(remote_setup::init()) // Converted to global commands
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
@@ -2322,6 +2510,9 @@ pub fn run() {
             match setup_environment(app) {
                 Ok(state) => {
                     app.manage(Mutex::new(state.clone()));
+                    app.manage(HeartbeatState {
+                        active_clients: Mutex::new(std::collections::HashMap::new()),
+                    });
 
                     // Apply window size and position from settings
                     let settings_path = state.app_env_path.join("settings.json");
@@ -2340,6 +2531,24 @@ pub fn run() {
                                     communes_updater::start_communes_update(app_handle, circuit_id)
                                         .await;
                             });
+                        }
+                    }
+
+                    // Start Remote Control (Now that AppState is managed)
+                    let settings_path = state.app_env_path.join("settings.json");
+                    if let Ok(content) = std::fs::read_to_string(&settings_path) {
+                        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
+                             if let Some(sender) = state.sse_sender.clone() {
+                                // We need a mutable app reference? No, init_remote_control takes &mut App.
+                                // But here we are in a closure setup(|app|). 'app' is accessible!
+                                // But app.manage was called on 'app'.
+                                
+                                // remote_setup::init_remote_control takes &mut App.
+                                // Calling it here is fine.
+                                if let Err(e) = remote_setup::init_remote_control(app, &state.app_env_path, &settings, sender) {
+                                    eprintln!("Failed to init remote control: {}", e);
+                                }
+                             }
                         }
                     }
                 }
@@ -2374,6 +2583,8 @@ pub fn run() {
             create_execution_mode,
             delete_execution_mode,
             select_execution_mode,
+            purge_remote_blacklist,
+            is_blacklist_empty,
             update_setting, // This now takes app_handle
             analyze_gpx_file,
             commit_new_circuit,
@@ -2386,7 +2597,6 @@ pub fn run() {
             get_thumbnail_as_base64,
             get_qrcode_as_base64,
             read_line_string_file,
-            read_tracking_file,
             read_errors_file,
             save_tracking_file,
             convert_vuetify_color,
@@ -2427,9 +2637,13 @@ pub fn run() {
             trace_style::get_retour_segments_expression,
             trace_style::get_neutral_overlap_expression,
             trace_style::get_colored_segments_geojson,
+            trace_style::get_debug_full_aller_expression,
+            trace_style::get_debug_full_retour_expression,
             get_circuit_data,
             update_circuit_zoom_settings,
             update_circuit_traceur,
+            toggle_circuit_favorite,
+            get_circuit_scenarios,
             update_circuit_meteo,
             get_available_monitors,
             update_current_view,
@@ -2439,11 +2653,17 @@ pub fn run() {
             remote_control::update_animation_speed,
             remote_control::update_speed_from_remote,
             remote_control::set_speed_to_1x_from_remote,
+            remote_control::notify_animation_progress,
             remote_setup::reply_to_pairing_request,
             remote_setup::get_remote_control_status,
+            remote_setup::get_network_interfaces,
+            remote_setup::generate_qrcode_base64,
             remote_control::disconnect_active_remote_client,
-            gpx_processor::generate_qrcode_base64,
-            gpx_processor::get_remote_control_url,
+            remote_control::approve_remote_client,
+            remote_control::refuse_remote_client,
+            remote_control::abandon_remote_client,
+            remote_control::notify_remote_user,
+            // Commandes déplacées dans le plugin remote_setup
             update_animation_state,
             error_logger::save_error_event,
             get_orphans,
@@ -2462,7 +2682,23 @@ pub fn run() {
             weather_cache::check_weather_cache_metadata,
             // Segment analyzer commands
             analyze_segment_overlaps,
-            get_segment_metadata
+            get_segment_metadata,
+            variant_processor::create_variant_files,
+            variant_processor::calculate_route,
+            variant_processor::get_variants,
+            variant_processor::get_variant_details,
+            variant_processor::delete_variant,
+            variant_processor::rename_variant,
+            variant_processor::get_variant_geojson,
+            variant_processor::get_variant_comparison_geojson,
+            variant_processor::get_variant_tracking,
+            variant_processor::get_variant_slope_expression,
+            variant_processor::get_variant_full_linestring,
+            variant_processor::get_variant_full_tracking,
+            variant_processor::get_variant_overlap_metadata,
+            variant_processor::get_altitudes,
+            variant_processor::check_routing_services,
+            tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

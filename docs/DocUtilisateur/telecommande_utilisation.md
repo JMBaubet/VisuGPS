@@ -1,161 +1,132 @@
-# Utilisation de la Télécommande
+# Guide d'Utilisation de l'Interface Télécommande
 
-La télécommande adapte automatiquement son interface selon que votre animation est en cours de lecture ou en pause.
-
-[< Retour au sommaire](./exploitation.md)
-
----
-
-## 💡 Maintien de l'éveil (Anti-veille)
-
-Pour éviter que votre téléphone ne se mette en veille pendant que vous contrôlez l'animation, utilisez le bouton situé tout en haut de l'interface :
-
-*   <span style="display: inline-block; background-color: #6c757d; color: white; border: 2px solid white; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; margin: 2px;">🌙 Maintenir l'écran : OFF</span> (Bouton gris) : Votre téléphone suivra ses réglages habituels de mise en veille.
-*   <span style="display: inline-block; background-color: #198754; color: white; border: 2px solid white; border-radius: 4px; padding: 4px 10px; font-weight: bold; font-family: sans-serif; font-size: 0.9em; margin: 2px;">💡 Maintenir l'écran : ON</span> (Bouton vert) : **L'écran restera allumé en permanence** tant que la page de la télécommande est ouverte. 
-
-> [!TIP]
->
->
-> Il est recommandé d'activer cette option dès la connexion pour une expérience de contrôle fluide sans interruption.
+L'interface de la télécommande s'adapte automatiquement à ce qui est affiché sur l'écran principal de VisuGPS.
+Voici une présentation graphique complète de chaque mode avec le détail des composants.
 
 ---
 
-## 1. Mode Lecture (Animation en cours)
+## 1. Vue Accueil (Mode Connexion)
+Cette vue s'affiche au lancement de l'application ou lorsqu'aucune visualisation n'est active sur le PC.
 
-<div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; font-family: sans-serif; max-width: 400px; margin: 10px auto; color: #212529;">
-  <!-- Switches -->
-  <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-    <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Commandes</span>
-  </div>
-  
-  <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Profil Altitude</span>
-  </div>
+### Vue Globale de l'IHM
+<p align="center">
+  <img src="../images/remote_accueil.svg" alt="Mockup Accueil">
+</p>
 
-   <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Communes</span>
-  </div>
+### Composants détaillés
 
-   <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Distance</span>
-  </div>
+#### Barre d'entête
+*   **Logo & Titre** : Rappel visuel de l'application VisuGPS.
+*   **Sélecteur de Thème** : Icons Lune <img src="https://api.iconify.design/mdi/weather-night.svg?color=grey&width=20" style="vertical-align: middle;"> et Soleil <img src="https://api.iconify.design/mdi/white-balance-sunny.svg?color=orange&width=20" style="vertical-align: middle;"> pour basculer instantanément entre le mode sombre et le mode clair.
 
-   <div style="display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Information Météo</span>
-  </div>
+#### Traces Favorites
+*   **Liste Dynamique** : Affiche uniquement les circuits favoris pour pouvoir les visualiser depuis la télécommande.
+*   **Action Rapide** : Appuyez sur une trace pour déclencher son chargement et passer en mode Visualisation sur l'ordinateur.
 
-   <div style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 8px;">
-     <div style="position: relative; width: 38px; height: 20px; margin-right: 15px;">
-      <div style="position: absolute; top: 3px; left: 0; width: 34px; height: 14px; background-color: #90caf9; border-radius: 7px;"></div>
-      <div style="position: absolute; top: 0; left: 18px; width: 20px; height: 20px; background-color: #2196f3; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
-    </div>
-    <span>Boussole</span>
-  </div>
-
-  <!-- Buttons -->
-  <div style="display: flex; gap: 5px; margin-bottom: 15px;">
-    <div style="background-color: #0d6efd; color: white; padding: 8px; border-radius: 4px; width: 25%; text-align: center; font-size: 0.9em;">x1</div>
-    <div style="background-color: #0d6efd; color: white; padding: 8px; border-radius: 4px; width: 25%; text-align: center; font-size: 0.9em;">⏪</div>
-    <div style="background-color: #0d6efd; color: white; padding: 8px; border-radius: 4px; width: 50%; text-align: center; font-weight: bold;">Pause</div>
-  </div>
-
-  <!-- Slider -->
-  <div style="text-align: center;">
-    <div style="margin-bottom: 5px; font-size: 0.9em;">Vitesse: <strong>1.0 X</strong></div>
-    <div style="height: 6px; background: #dee2e6; border-radius: 3px; position: relative; margin: 10px 0;">
-      <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 20%; background: #0d6efd; border-radius: 3px;"></div>
-      <div style="position: absolute; left: 20%; top: -6px; width: 18px; height: 18px; background: #0d6efd; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div>
-    </div>
-  </div>
-</div>
-
-Lorsque le marqueur se déplace, vous accédez aux contrôles globaux de la présentation.
-
-### Contrôle de Lecture
-*   **Pause** : Interrompt l'animation et bascule la télécommande en **Mode Pause**.
-*   **Rembobinage** : Revient en arrière dans la trace.
-*   **Vitesse** : Ajuste la vitesse de lecture via le curseur (1x = vitesse réelle).
-*   **Reset** : Relance l'animation depuis le début.
-
-### Gestion de l'Affichage (Widgets)
-Activez ou désactivez les éléments superposés à la carte pour épurer la présentation :
-*   **Commandes** : Affiche/Masque le panneau de contrôle principal.
-*   **Profil Altitude** : Affiche/Masque le graphique de dénivelé.
-*   **Communes** : Affiche/Masque les infos sur la commune survolée.
-*   **Distance** : Affiche/Masque le compteur kilométrique.
-*   **Information Météo** : Affiche/Masque le widget météo.
-*   **Boussole** : Affiche/Masque la boussole.
+#### Actions (Bas d'écran)
+*   **Bouton Déconnexion** : Permet de couper proprement la liaison avec le PC.
 
 ---
 
-## 2. Mode Pause (Joystick Caméra)
+## 2. Vue Animation (Lecture en cours)
+Cette vue s'active dès que l'animation "Play" est lancée. Elle est optimisée pour le pilotage en direct.
 
-Lorsque l'animation est en pause, l'interface se transforme pour vous laisser explorer la scène en 3D.
+### Vue Globale de l'IHM
+<p align="center">
+  <img src="../images/remote_animation.svg" alt="Mockup Animation">
+</p>
 
-<div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 15px; font-family: sans-serif; max-width: 400px; margin: 10px auto; color: #212529;">
-<table style="width: 100%; text-align: center; border-collapse: separate; border-spacing: 5px;">
-  <tr>
-    <td colspan="3" style="background-color: #444; color: white; padding: 40px 10px; border-radius: 8px;">
-      <strong>Point de Vue</strong>
-    </td>
-  </tr>
-  <tr style="vertical-align: middle;">
-    <td style="width: 20%; padding: 0;">
-      <div style="background-color: #666; color: white; padding: 30px 5px; border-radius: 8px;">
-        <strong>Zoom</strong>
-      </div>
-    </td>
-    <td style="width: 60%; padding: 0;">
-      <div style="background-color: #555; color: white; padding: 15px 5px; border-radius: 8px;">
-        <strong>Cap</strong>
-      </div>
-    </td>
-    <td style="width: 20%; padding: 0;">
-      <div style="background-color: #666; color: white; padding: 30px 5px; border-radius: 8px;">
-        <strong>Incl.</strong>
-      </div>
-    </td>
-  </tr>
-  <tr>
-    <td colspan="3" style="padding: 0;">
-      <div style="background-color: #0d6efd; color: white; padding: 15px 10px; border-radius: 8px; font-weight: bold; margin-top: 5px;">
-        ▶️ Play
-      </div>
-    </td>
-  </tr>
-</table>
-</div>
+### Composants détaillés
 
-*   **Point de Vue** : Glissez le doigt sur la grande zone centrale pour déplacer la caméra (Nord/Sud/Est/Ouest).
-*   **Zoom** : Utilisez les zones verticales pour vous rapprocher ou vous eloigner du point de vue.
-*   **Cap** : Glissez horizontalement sur la zone centrale pour tourner la caméra autour du point de réference représenté par la croix.
-*   **Incl.** : Utilisez les zones verticales pour modifier l'inclinaison verticale de la caméra.
-*   **▶️ Play** : Relance l'animation et repasse la télécommande en **Mode Lecture**.
+#### Barre de Lecture (Haut)
+| Composant | Icône | Description |
+| :--- | :---: | :--- |
+| **Bouton Recul** | <img src="https://api.iconify.design/mdi/rewind.svg?color=black&width=24"> | Maintenez pour remonter le temps sur la trace. |
+| **Bouton Pause** | <img src="https://api.iconify.design/mdi/pause.svg?color=black&width=24" style="border-radius:50%; padding:5px;"> | Arrête l'animation et bascule vers la **Vue Pause**. |
+| **Reset x1** | **x1** | Réinitialise la vitesse de lecture à la valeur normale (1.0x). |
+
+#### Réglette de Vitesse
+*   **Fonction** : Ajuste la vitesse de déplacement sur une échelle logarithmique (de 0.1x à 10x).
+
+
+#### Grille des Widgets
+Chaque bouton active ou désactive un widget sur la visualisation 3D.
+*   <img src="https://api.iconify.design/mdi/city.svg?color=green&width=20"> **Villes** : Nom des communes traversées.
+*   <img src="https://api.iconify.design/mdi/counter.svg?color=green&width=20"> **Distance** : Compteur kilométrique.
+*   <img src="https://api.iconify.design/mdi/sun-clock-outline.svg?color=green&width=20"> **Météo** : Conditions météorologiques le long du parcours.
+*   <img src="https://api.iconify.design/mdi/chart-areaspline-variant.svg?color=green&width=20"> **Altitude** : Graphique de dénivelé.
+*   <img src="https://api.iconify.design/mdi/movie-play-outline.svg?color=green&width=20"> **Commandes** : Aide visuelle des touches.
+*   <img src="https://api.iconify.design/mdi/compass-outline.svg?color=green&width=20"> **Boussole** : Orientation et force du vent.
 
 ---
 
-### 🛠️ Paramètres Liés
-Retrouvez les réglages détaillés associés à cette fonctionnalité dans la section :
-* [5.3. Télécommande](./parametres.md#53-télécommande)
+## 3. Vue Pause (Mode Exploration)
+Cette vue s'active lors d'une pause. Elle permet :
+*   de manipuler librement la caméra 3D.
+*   de sélectionner les circuits alternatifs (Variante).
+
+### Vue Globale de l'IHM
+<p align="center">
+  <img src="../images/remote_pause.svg" alt="Mockup Pause">
+</p>
+
+### Composants détaillés
+
+#### Navigation (Haut)
+| Composant | Icône | Description |
+| :--- | :---: | :--- |
+| **Bouton Recul** | <img src="https://api.iconify.design/mdi/rewind.svg?color=black&width=24"> | Permet de remonter le temps manuellement pendant la pause. |
+| **Bouton Lecture** | <img src="https://api.iconify.design/mdi/play.svg?color=black&width=24"> | Reprend l'animation et revient à la **Vue Animation**. |
+| **Vue Finale** | <img src="https://api.iconify.design/mdi/clock-end.svg?color=black&width=24"> | Déplace la caméra directement vers le point de vue final. |
+
+#### Contrôles de Précision
+*   <img src="https://api.iconify.design/mdi/cursor-move.svg?color=black&width=24"> **Déplacement (Trackpad central)** : Glissez votre doigt dans le grand rectangle central pour déplacer la caméra horizontalement (Nord, Sud, Est, Ouest).
+*   <img src="https://api.iconify.design/mdi/magnify-plus-outline.svg?color=black&width=24"> **Zoom (Gauche)** : Glissez de haut en bas pour changer l'altitude de caméra.
+*   <img src="https://api.iconify.design/mdi/compass-outline.svg?color=black&width=24"> **Rotation (Centre)** : Glissez horizontalement pour faire pivoter la vue (Cap).
+*   <img src="https://api.iconify.design/mdi/angle-acute.svg?color=black&width=24"> **Inclinaison (Droite)** : Glissez verticalement pour changer l'angle de plongée (Tilt).
+
+#### Actions Fondamentales
+*   <img src="https://api.iconify.design/mdi/home.svg?color=black&width=24"> **Maison** : Quitte la trace en cours pour revenir au menu principal de l'application.
+*   <img src="https://api.iconify.design/mdi/map-marker-distance.svg?color=black&width=24"> **Variante** : Ouvre le menu de sélection des parcours alternatifs ou revient à la trace principale.
 
 ---
+
+## 4. Navigation par Segments (Mode Variante)
+Ce bandeau s'affiche en bas de l'écran (sur les vues Animation et Pause) uniquement lors de la visualisation d'une **Variante**. Il permet de visualiser le découpage du parcours et de naviguer instantanément entre les sections.
+
+### Les Icônes de Segments
+| Composant | Icône | Signification |
+| :--- | :---: | :--- |
+| **Départ** | <img src="https://api.iconify.design/mdi/ray-start-arrow.svg?color=green&width=24"> | Point de départ du circuit. |
+| **Commun** | <img src="https://api.iconify.design/mdi/link-variant.svg?color=black&width=24"> | Tronçon commun partagé entre plusieurs tracés. |
+| **Segment** | <img src="https://api.iconify.design/mdi/map-marker-path.svg?color=blue&width=24"> | Portion de tracé spécifique à la variante sélectionnée. |
+| **Arrivée** | <img src="https://api.iconify.design/mdi/ray-end-arrow.svg?color=red&width=24"> | Point d'arrivée final du circuit. |
+
+### Fonctionnement
+*   **Indication visuelle** : L'étape actuelle est mise en avant (icône en surbrillance).
+*   **Saut Rapide** : Appuyez sur n'importe quelle icône du bandeau pour déplacer instantanément la caméra au début du segment sélectionné (déclenche un repositionnement automatique sur la vue 3D). Les segments communs ne sont pas sélectionnables.
+*   **Progression** : Le bandeau se met à jour en temps réel au fur et à mesure que l'animation avance.
+
+---
+
+## 5. Paramètres associés
+
+Le comportement de la télécommande et l'affichage des circuits peuvent être personnalisés dans les réglages de l'application VisuGPS (sur le PC).
+
+### Configuration de la Télécommande
+Ces paramètres se trouvent dans **Système > Télécommande** :
+
+| Paramètre | Description | Défaut |
+| :--- | :--- | :---: |
+| **Port du serveur** | Port réseau utilisé pour la communication (WebSocket/SSE). | 9001 |
+| **Sensibilité (X / Y)** | Ajuste la vitesse de déplacement sur le trackpad central. | 200 |
+| **Sensibilité du Zoom** | Influence la vitesse de changement d'altitude. | 150 |
+| **Sensibilité du Cap** | Ajuste la vitesse de rotation (pivotement). | 50 |
+| **Sensibilité Tilt** | Ajuste la vitesse d'inclinaison de la vue. | 25 |
+
+### Affichage de l'Accueil
+Puisque la télécommande affiche uniquement les favoris, vous pouvez ajuster leur nombre dans **Accueil** :
+
+| Paramètre | Description | Défaut |
+| :--- | :--- | :---: |
+| **Nombre de favoris** | Définit la quantité maximale de circuits affichés sur la télécommande. | 6 |

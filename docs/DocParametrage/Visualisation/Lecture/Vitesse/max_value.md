@@ -9,11 +9,11 @@ Ce document détaille le paramètre `max_value`, qui définit le multiplicateur 
 Le paramètre `max_value` établit la limite supérieure de la plage de vitesse que l'utilisateur peut sélectionner pour l'animation. Il s'agit d'un multiplicateur appliqué à la vitesse de base définie par le paramètre `vitesse` (ms/km).
 
 -   **Libellé**: Vitesse maximale (x)
--   **Type**: Réel (Float)
--   **Valeur par défaut**: 20.0
--   **Minimum**: 1.0
--   **Maximum**: 100.0
--   **Décimales**: 2
+-   **Type**: Entier
+-   **Valeur par défaut**: 20
+-   **Minimum**: 1
+-   **Maximum**: 25
+-   **Pas (step)**: 1
 
 ## ⚖️ Justification : Pourquoi définir une vitesse maximale ?
 
@@ -34,4 +34,3 @@ La définition d'une vitesse maximale est importante pour permettre à l'utilisa
 
 -   **Valeur par défaut (20.0)** : Cette valeur offre une accélération significative, permettant de survoler la plupart des traces en un temps raisonnable.
 -   **Ne pas monter trop haut** : Une valeur excessive pourrait rendre l'animation saccadée ou impossible à suivre.
--   **Cohérence avec `slider_step`** : Assurez-vous que le pas du slider (`slider_step`) est cohérent avec la plage définie par `min_value` et `max_value`.

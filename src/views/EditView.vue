@@ -3,17 +3,92 @@
     <div id="map-container" ref="mapContainer" class="fill-height"></div>
 
     <!-- Top UI Container -->
-    <div style="position: absolute; top: 10px; left: 10px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 16px;">
+    <div style="position: absolute; top: 10px; left: 10px; right: 16px; z-index: 1000; display: flex; align-items: center; gap: 8px;">
       <v-btn v-if="isBackButtonVisible" icon="mdi-arrow-left" @click="goBack"></v-btn>
-      <TrackProgressWidget 
-        v-model="trackProgress" 
-        :max="trackingPoints.length - 1" 
-        :tracking-data="trackingPoints"
-        :total-length="totalLineLength"
-        :current-distance="currentProgressDistance"
-        :key="circuitId" 
-        style="flex-grow: 1;"
-      />
+      
+      <div class="variant-widget">
+          <!-- Trace Name -->
+          <div class="d-flex flex-column align-center mx-2" v-if="circuitName">
+              <span class="widget-text">{{ circuitName }}</span>
+              <span class="widget-label">Trace</span>
+          </div>
+          <v-divider vertical class="mx-2" v-if="circuitName"></v-divider>
+
+          <!-- Global Progress (Main or Variant) -->
+          <div class="d-flex flex-column align-center mx-2">
+             <span class="widget-text">
+                 {{ globalCurrent.toFixed(2) }} <span style="font-size: 0.8em; opacity: 0.7;">/ {{ globalTotal.toFixed(2) }} km</span>
+             </span>
+             <span class="widget-label">Progression TOTALE</span>
+          </div>
+          <v-divider vertical class="mx-2"></v-divider>
+
+          <!-- Variant Selection / Back to Main Trace -->
+          <template v-if="!currentVariantId">
+              <!-- Single Variant Case: Direct Click -->
+              <v-btn 
+                v-if="variants.length === 1" 
+                icon="mdi-source-branch" 
+                variant="text" 
+                density="compact" 
+                title="Charger la variante"
+                @click="handleSelectVariant(variants[0])"
+              ></v-btn>
+
+              <!-- Multiple Variants Case: Menu -->
+              <template v-else-if="variants.length > 1">
+                  <!-- Static Branch Icon (Toggle) -->
+                  <v-btn 
+                    icon="mdi-source-branch" 
+                    variant="text" 
+                    density="compact" 
+                    title="Variantes disponibles"
+                    @click="isVariantSelectionOpen = !isVariantSelectionOpen"
+                  ></v-btn>
+                  
+                  <div v-if="isVariantSelectionOpen" class="d-flex align-center">
+                      <v-divider vertical class="mx-2"></v-divider>
+
+                      <!-- Variant Selection Prompt -->
+                      <v-menu>
+                        <template v-slot:activator="{ props }">
+                           <div v-bind="props" class="d-flex flex-column align-center cursor-pointer mx-1">
+                             <div class="d-flex align-center">
+                                <v-icon size="small" class="mr-1">mdi-menu</v-icon>
+                                <span class="widget-label">Sélectionnez une</span>
+                             </div>
+                             <span class="widget-label">Variante</span>
+                           </div>
+                        </template>
+                        <v-list density="compact">
+                          <v-list-item 
+                            v-for="variant in variants" 
+                            :key="variant.id" 
+                            :title="variant.name"
+                            prepend-icon="mdi-source-branch"
+                            @click="handleSelectVariant(variant)"
+                          ></v-list-item>
+                        </v-list>
+                      </v-menu>
+                  </div>
+              </template>
+          </template>
+          <template v-else>
+               <v-btn icon="mdi-location-exit" variant="text" density="compact" title="Retour à la trace maîtresse" @click="loadMainTrace" style="transform: rotate(180deg);"></v-btn>
+          </template>
+    
+          <!-- Divider -->
+          <v-divider vertical class="mx-2" v-if="currentVariantId"></v-divider>
+    
+          <!-- Selected Variant Name (Static) -->
+          <template v-if="currentVariantId && selectedVariant">
+              <div class="d-flex flex-column align-center mx-1">
+                 <span class="widget-text">{{ selectedVariant.name }}</span>
+                 <span class="widget-label">Variante</span>
+              </div>
+          </template>
+    
+      </div>
     </div>
 
     <CameraInfoWidget
@@ -26,11 +101,11 @@
 
     <div class="bottom-ui-container">
       <CameraGraph 
-        v-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'camera'"
+        v-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'camera' && shouldShowGraphs"
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
-
+        :variant-zones="variantZones"
         :show-bearing-delta="showCalculeeBearingDelta"
         :show-bearing-total-delta="showCalculeeBearingTotalDelta"
         :show-edited-zoom="showEditeeZoom"
@@ -46,20 +121,22 @@
         @seek-distance="handleSeekDistance"
       />
       <MessageGraph
-        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'message'"
+        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'message' && shouldShowGraphs"
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
+        :variant-zones="variantZones"
         :range-events="eventsFile.rangeEvents"
         @seek-distance="handleSeekDistance"
         :message-graph-height="messageGraphHeight"
         :message-library="messageLibrary"
       />
       <PauseFlytoGraph
-        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'stop'"
+        v-else-if="trackingPoints.length > 0 && showGraph && activeControlTab === 'stop' && shouldShowGraphs"
         :trackingPoints="trackingPoints"
         :totalLength="totalLineLength"
         :currentDistance="currentProgressDistance"
+        :variant-zones="variantZones"
         :pointEventsData="eventsFile.pointEvents"
         @seek-distance="handleSeekDistance"
         @verify-flyto="handleVerifyFlyto"
@@ -163,23 +240,23 @@ import { invoke } from '@tauri-apps/api/core';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useSettings } from '@/composables/useSettings';
 import { useVuetifyColors } from '@/composables/useVuetifyColors';
+import { buildSlopeColorsMap } from '@/composables/useSlopeColors';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as turf from '@turf/turf';
-import CameraInfoWidget from '@/components/CameraInfoWidget.vue';
+import CameraInfoWidget from '@/components/Edit/CameraInfoWidget.vue';
 import CenterMarker from '@/components/CenterMarker.vue';
-import TrackProgressWidget from '@/components/TrackProgressWidget.vue';
-import ControlTabsWidget from '@/components/ControlTabsWidget.vue';
-import CameraGraph from '@/components/CameraGraph.vue';
+import TrackProgressWidget from '@/components/Edit/TrackProgressWidget.vue';
+import ControlTabsWidget from '@/components/Edit/ControlTabsWidget.vue';
+import CameraGraph from '@/components/Edit/CameraGraph.vue';
 import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
-import MessageLibraryModal from '@/components/MessageLibraryModal.vue';
-import MessageGraph from '@/components/MessageGraph.vue';
-import PauseFlytoGraph from '@/components/PauseFlytoGraph.vue';
-import DistanceMarkersDialog from '@/components/DistanceMarkersDialog.vue';
+import MessageLibraryModal from '@/components/Edit/MessageLibraryModal.vue';
+import MessageGraph from '@/components/Edit/MessageGraph.vue';
+import PauseFlytoGraph from '@/components/Edit/PauseFlytoGraph.vue';
+import DistanceMarkersDialog from '@/components/Edit/DistanceMarkersDialog.vue';
 
 import { useSharedUiState } from '@/composables/useSharedUiState';
 import { useMessageDisplay } from '@/composables/useMessageDisplay.js';
-
 const showMissingMessageErrorModal = ref(false);
 const missingMessageErrorDetails = ref({ messageId: '', messageName: '', circuitId: '', increment: 0, eventId: '' });
 const resolveMissingMessageError = ref(null);
@@ -222,6 +299,7 @@ const zoomDepartDistance = ref(20);
 const zoomDepartIsActive = ref(false);
 
 // Zoom Arrivee Refs
+// Zoom Arrivee Refs
 const zoomArrivee = ref(true);
 const zoomArriveeValeur = ref(18);
 const distanceZoomArrivee = ref(20);
@@ -230,6 +308,286 @@ const zoomArriveeIsActive = ref(false);
 // New: State to track previous distances for cleanup
 const lastAppliedZoomDepartDistance = ref(0);
 const lastAppliedZoomArriveeDistance = ref(0);
+
+// Variants
+const variants = ref([]);
+const currentVariantId = ref(null);
+const isVariantSelectionOpen = ref(false);
+const mapboxBackgroundTraceColorHex = ref('#000000');
+const backgroundTraceWidth = ref(4);
+const backgroundTraceOpacity = ref(0.3);
+
+const fetchVariants = async () => {
+  try {
+    const result = await invoke('get_variants', { circuitId });
+    // Fetch details for each to build the menu
+    const detailsPromises = result.map(v => invoke('get_variant_details', { circuitId, variantId: v.id }));
+    const detailsResults = await Promise.all(detailsPromises);
+    
+    variants.value = result.map((v, index) => ({
+      ...v,
+      details: detailsResults[index] // Contains modifications
+    }));
+  } catch (e) {
+    console.error("Failed to fetch variants", e);
+  }
+};
+
+
+const segmentLengthRef = ref(0.1); // Default 100m, updated from settings
+
+const globalCurrent = computed(() => currentProgressDistance.value);
+const globalTotal = computed(() => totalLineLength.value);
+
+const shouldShowGraphs = computed(() => {
+    return true;
+});
+
+const selectedVariant = computed(() => variants.value.find(v => v.id === currentVariantId.value));
+
+const variantZones = computed(() => {
+    if (!trackingPoints.value.length || !currentVariantId.value) return [];
+    const zones = [];
+    let currentZone = null;
+    
+    for (const p of trackingPoints.value) {
+        const isVariant = p.typeTroncon && p.typeTroncon !== 'Commun';
+        if (isVariant) {
+            if (!currentZone) {
+                currentZone = { start: p.distance, end: p.distance };
+            } else {
+                currentZone.end = p.distance;
+            }
+        } else {
+            if (currentZone) {
+                zones.push(currentZone);
+                currentZone = null;
+            }
+        }
+    }
+    if (currentZone) {
+        zones.push(currentZone);
+    }
+    return zones;
+});
+
+const handleSelectVariant = (variant) => {
+    loadFullVariant(variant.id);
+};
+
+const loadFullVariant = async (variantId) => {
+    currentVariantId.value = variantId;
+    isVariantSelectionOpen.value = false;
+    
+    const trackingFilename = `tracking_${variantId}_FULL.json`;
+    const lineStringFilename = `lineString_${variantId}_FULL.json`;
+    const variantIdForEvents = `${variantId}_FULL`;
+    currentVariantIdForEvents.value = variantIdForEvents;
+    currentTrackingFilename.value = trackingFilename;
+
+    try {
+        // 1. Load LineString
+        const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId, filename: lineStringFilename });
+        lineStringCoordinates.value = rawLineStringData.coordinates || [];
+        
+        if (map && map.getSource('circuit-line')) {
+            map.getSource('circuit-line').setData({
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
+            });
+            if (map.getSource('variant-pin')) {
+                map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
+            }
+        }
+        
+        // 2. Load Tracking Data
+        const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId, filename: trackingFilename });
+        
+        if (lineStringCoordinates.value.length >= 2) {
+             try {
+                totalLineLength.value = turf.length(turf.lineString(lineStringCoordinates.value), { units: 'kilometers' });
+             } catch (turfErr) {
+                 console.warn("Turf length calculation failed:", turfErr);
+                 totalLineLength.value = 0;
+             }
+        } else {
+            totalLineLength.value = 0;
+        }
+        
+        const processedTrackingPoints = rawTrackingData.map((point) => {
+          return {
+            ...point,
+            editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
+            editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
+            editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
+          };
+        });
+
+        // 2.5 Clear events before updating trackingPoints
+        eventsFile.value.pointEvents = {};
+        eventsFile.value.rangeEvents = [];
+
+        trackingPoints.value = processedTrackingPoints;
+        
+        // 3. Load Events
+        const events = await invoke('get_events', { circuitId: circuitId, variantId: variantIdForEvents });
+        eventsFile.value.pointEvents = events.pointEvents;
+        eventsFile.value.rangeEvents = events.rangeEvents;
+        
+        // 4. Update UI State
+        trackProgress.value = 0;
+        currentPointIndex.value = 0;
+        updateCameraPosition(0);
+        
+        // 5. Apply Variant Styling
+        try {
+            const variantColor = await getSettingValue('Variante/Edition/Trace/couleur') || 'light-blue';
+            const variantWidth = await getSettingValue('Variante/Edition/Trace/largeur') || 4;
+            const variantSlopeColoring = await getSettingValue('Variante/Edition/Trace/colorerSelonPente');
+            
+            if (map && map.getLayer('circuit-line')) {
+                map.setPaintProperty('circuit-line', 'line-width', variantWidth);
+                
+                if (variantSlopeColoring) {
+                     const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
+                    const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
+                    
+                    const colorExpression = await invoke('get_slope_color_expression', {
+                        circuitId: circuitId,
+                        slopeColors: slopeColors,
+                        segmentLength: segmentLength,
+                        trackingData: trackingPoints.value
+                    });
+                    
+                    map.setPaintProperty('circuit-line', 'line-gradient', colorExpression);
+                } 
+                
+                if (!variantSlopeColoring) {
+                    const hexColor = await invoke('convert_vuetify_color', { colorName: variantColor });
+                    map.setPaintProperty('circuit-line', 'line-color', hexColor);
+                    map.setPaintProperty('circuit-line', 'line-gradient', null);
+                }
+            }
+        } catch (styleErr) {
+            console.error("Failed to apply variant styling:", styleErr);
+        }
+
+        forceUpdateCamera();
+        
+        if (processedTrackingPoints && processedTrackingPoints.length > 0) {
+             const startPoint = processedTrackingPoints[0];
+             if (startPoint && startPoint.coordonnee) {
+                 map.flyTo({
+                     center: startPoint.coordonnee,
+                     zoom: 17,
+                     pitch: 60,
+                     bearing: startPoint.editedCap || startPoint.cap || 0,
+                     speed: 1.2,
+                     curve: 1
+                 });
+             }
+        }
+        
+        showSnackbar(`Variante ${variantId} chargée`, 'success');
+
+    } catch (e) {
+        console.error("Failed to load full variant", e);
+        showSnackbar(`Erreur de chargement: ${e}`, 'error');
+    }
+};
+
+const loadMainTrace = async () => {
+    console.log("Loading Main Trace");
+    currentVariantId.value = null;
+    currentVariantIdForEvents.value = null; // Reset for main trace
+    currentTrackingFilename.value = null; // Reset tracking filename
+    isVariantSelectionOpen.value = false;
+    
+    try {
+        const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
+        // 1. Initial Load of Master Trace
+        const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
+        lineStringCoordinates.value = rawLineStringData.coordinates;
+        // backgroundLineStringCoordinates is already set on initial load, no need to update if not changed
+
+        if (map && map.getSource('circuit-line')) {
+             map.getSource('circuit-line').setData({
+                type: 'Feature',
+                properties: {}, // Explicitly empty to avoid property pollution
+                geometry: { type: 'LineString', coordinates: lineStringCoordinates.value }
+            });
+            // Clear variant pin when returning to main trace
+            if (map.getSource('variant-pin')) {
+                map.getSource('variant-pin').setData({ type: 'FeatureCollection', features: [] });
+            }
+        }
+    
+        const line = turf.lineString(lineStringCoordinates.value);
+        totalLineLength.value = turf.length(line, { units: 'kilometers' });
+    
+        if (!rawTrackingData || rawTrackingData.length === 0) {
+          showSnackbar('Données de tracking introuvables ou vides.', 'error');
+          return;
+        }
+    
+        const segmentLengthKm = 0.1;
+        const processedTrackingPoints = rawTrackingData.map((point, index) => {
+          let distance = parseFloat((index * segmentLengthKm).toFixed(2));
+          // Fix: Ensure the last point matches the total line length
+          // This handles cases where the last segment is shorter than segmentLengthKm
+          if (index === rawTrackingData.length - 1 && totalLineLength.value > 0) {
+              // Use the calculated total length for the last point to avoid exceeding 100%
+              distance = parseFloat(totalLineLength.value.toFixed(2));
+          }
+    
+          return {
+            ...point,
+            distance,
+            editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
+            editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
+            editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
+          };
+        });
+        // CLEAR EVENTS BEFORE UPDATING TRACKINGPOINTS
+        eventsFile.value.pointEvents = {};
+        eventsFile.value.rangeEvents = [];
+        
+        trackingPoints.value = processedTrackingPoints;
+    
+        const events = await invoke('get_events', { circuitId: circuitId });
+        eventsFile.value.pointEvents = events.pointEvents;
+        eventsFile.value.rangeEvents = events.rangeEvents;
+
+        // Reset UI
+        // Reset UI
+        trackProgress.value = 0;
+        currentPointIndex.value = 0;
+        updateCameraPosition(0); // Force update to reset distance and camera
+
+        // Reset Styling to Main Trace Defaults
+        // Assuming default width of 4 and slope coloring active as per typical main trace defaults
+        if (map && map.getLayer('circuit-line')) {
+            map.setPaintProperty('circuit-line', 'line-width', 4);
+            // Re-apply slope coloring for main trace if needed, or default color
+             const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
+            const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
+            const expression = await invoke('get_slope_color_expression', {
+                circuitId: circuitId,
+                slopeColors: slopeColors,
+                segmentLength: segmentLength,
+                trackingData: trackingPoints.value
+            });
+            map.setPaintProperty('circuit-line', 'line-gradient', expression);
+        }
+
+        return events;
+
+    } catch (e) {
+        console.error("Error loading main trace:", e);
+        showSnackbar(`Erreur lors du chargement de la trace principale: ${e}`, 'error');
+    }
+};
 
 // Commandes Clavier
 const incrementAvancement = ref(1);
@@ -249,11 +607,13 @@ const incrementZoomShift = ref(1.0);
 const incrementBearing = ref(1); // New: Bearing increment for mouse wheel
 const incrementBearingShift = ref(5); // New: Bearing shift increment for mouse wheel
 
+// New: Background trace reference
+const backgroundLineStringCoordinates = ref([]);
+
 // New: Central cross color for Edition mode (reactive)
 const couleurCroixCentraleEdition = computed(() => {
   const colorName = getSettingValue('Edition/Pause et Survol/couleurCroixCentraleEdition') || 'white';
   const resolvedColor = toHex(colorName);
-  console.log('[EditView] couleurCroixCentraleEdition:', colorName, '->', resolvedColor);
   return resolvedColor;
 });
 
@@ -297,6 +657,7 @@ const handleAddPauseEvent = async (override = false) => {
             circuitId: circuitId,
             increment: trackProgress.value,
             overrideExisting: override,
+            variantId: currentVariantIdForEvents.value,
         });
         eventsFile.value = updatedEventsFile;
         // showSnackbar('Pause ajoutée avec succès', 'success');
@@ -323,6 +684,7 @@ const handleDeletePauseEvent = async () => {
         const updatedEventsFile = await invoke('delete_pause_event', {
             circuitId: circuitId,
             increment: trackProgress.value,
+            variantId: currentVariantIdForEvents.value,
         });
         eventsFile.value = updatedEventsFile;
         // showSnackbar('Pause supprimée avec succès', 'success');
@@ -353,6 +715,7 @@ const handleAddFlytoEvent = async (duration, override = false) => {
       increment: trackProgress.value,
       flytoContent: flytoContent,
       overrideExisting: override,
+      variantId: currentVariantIdForEvents.value,
     });
     eventsFile.value = updatedEventsFile;
     // showSnackbar('Événement Survol ajouté avec succès', 'success');
@@ -379,6 +742,7 @@ const handleDeleteFlytoEvent = async () => {
     const updatedEventsFile = await invoke('delete_flyto_event', {
       circuitId: circuitId,
       increment: trackProgress.value,
+      variantId: currentVariantIdForEvents.value,
     });
     eventsFile.value = updatedEventsFile;
     // showSnackbar('Événement Survol supprimé avec succès', 'success');
@@ -461,6 +825,7 @@ const handleMissingMessageErrorResolution = async (confirmDelete) => {
 };
 
 const circuitId = route.params.circuitId;
+const circuitName = ref('');
 const mapContainer = ref(null);
 let map = null;
 const currentPointIndex = ref(0);
@@ -471,6 +836,8 @@ const progressPercentage = ref(0);
 const currentProgressDistance = ref(0);
 const cameraSyncMode = ref('edited'); // 'off', 'edited'
 const showCenterMarker = ref(false);
+const currentVariantIdForEvents = ref(null); // New ref for event variant ID
+const currentTrackingFilename = ref(null); // New ref for tracking filename
 const trackProgress = ref(0);
 const eventsFile = ref({ pointEvents: {}, rangeEvents: [] });
 const messageLibrary = ref([]); // New ref for message library
@@ -572,6 +939,7 @@ const handleAddMessageEvent = async (messageData) => {
         await invoke('delete_message_event', {
           circuitId: circuitId,
           eventId: eventIdToDelete,
+          variantId: currentVariantIdForEvents.value,
         });
       } catch (error) {
         console.error("Failed to delete old message during update:", error);
@@ -594,6 +962,7 @@ const handleAddMessageEvent = async (messageData) => {
       const updatedEventsFile = await invoke('add_message_event', {
         circuitId: circuitId,
         payload: payload,
+        variantId: currentVariantIdForEvents.value,
       });
       eventsFile.value = updatedEventsFile;
       selectedMessageForNewEvent.value = null; // Clear selection after adding
@@ -619,6 +988,7 @@ const handleDeleteMessageEvent = async () => {
     const updatedEventsFile = await invoke('delete_message_event', {
       circuitId: circuitId,
       eventId: eventToDelete.eventId,
+      variantId: currentVariantIdForEvents.value,
     });
     eventsFile.value = updatedEventsFile;
     // showSnackbar('Message supprimé avec succès', 'success');
@@ -759,6 +1129,7 @@ const applyZoomDepart = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom de départ appliqué.', 'success');
   } catch (error) {
@@ -793,6 +1164,7 @@ const removeZoomDepart = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom de départ supprimé.', 'info');
   } catch (error) {
@@ -857,6 +1229,7 @@ const applyZoomArrivee = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom d\'arrivée appliqué.', 'success');
   } catch (error) {
@@ -890,6 +1263,7 @@ const removeZoomArrivee = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Zoom d\'arrivée supprimé.', 'info');
   } catch (error) {
@@ -1035,7 +1409,7 @@ const saveControlPoint = async () => {
 
   point.pointDeControl = true;
 
-  if (zoomDepartIsActive.value && currentPointIndex.value <= zoomDepartDistance.value) {
+  if (zoomDepartIsActive.value && currentPointIndex.value <= zoomDepartDistance.value && trackingPoints.value[zoomDepartDistance.value]) {
     const endIndex = zoomDepartDistance.value;
     const startZoom = zoomDepartValeur.value;
     const endZoom = trackingPoints.value[endIndex].zoom;
@@ -1044,11 +1418,16 @@ const saveControlPoint = async () => {
   } else if (zoomArriveeIsActive.value && currentPointIndex.value >= (trackingPoints.value.length - 1 - distanceZoomArrivee.value)) {
     const lastIndex = trackingPoints.value.length - 1;
     const startIndex = lastIndex - distanceZoomArrivee.value;
-    const startZoom = trackingPoints.value[startIndex].zoom;
-    const endZoom = zoomArriveeValeur.value;
-    const numSegments = lastIndex - startIndex;
-    const zoomStep = (endZoom - startZoom) / numSegments;
-    point.editedZoom = parseFloat((startZoom + (currentPointIndex.value - startIndex) * zoomStep).toFixed(1));
+    
+    if (startIndex >= 0 && trackingPoints.value[startIndex]) {
+      const startZoom = trackingPoints.value[startIndex].zoom;
+      const endZoom = zoomArriveeValeur.value;
+      const numSegments = lastIndex - startIndex;
+      const zoomStep = (endZoom - startZoom) / numSegments;
+      point.editedZoom = parseFloat((startZoom + (currentPointIndex.value - startIndex) * zoomStep).toFixed(1));
+    } else {
+        point.editedZoom = parseFloat(currentZoom.value.toFixed(1));
+    }
   } else {
     point.editedZoom = parseFloat(currentZoom.value.toFixed(1));
   }
@@ -1070,6 +1449,7 @@ const saveControlPoint = async () => {
     await invoke('save_tracking_file', {
       circuitId: circuitId,
       trackingData: trackingPoints.value,
+      filename: currentTrackingFilename.value // Use ref
     });
     // showSnackbar('Point de contrôle enregistré et tracking mis à jour.', 'success');
 
@@ -1147,6 +1527,7 @@ const deleteControlPoint = async () => {
       invoke('save_tracking_file', {
         circuitId: circuitId,
         trackingData: trackingPoints.value,
+        filename: currentTrackingFilename.value // Use ref
       }),
       invoke('update_tracking_km', {
         circuitId: circuitId,
@@ -1397,6 +1778,17 @@ const handleKeydown = (event) => {
 const distanceMarkersConfig = ref(null);
 
 onMounted(async () => {
+  // Fetch variants early
+  await fetchVariants();
+
+  // Fetch circuit name
+  try {
+      const circuitData = await invoke('get_circuit_data', { circuitId });
+      circuitName.value = circuitData.nom;
+  } catch (e) {
+      console.error("Failed to fetch circuit data", e);
+  }
+
   if (!circuitId) {
     showSnackbar('ID du circuit manquant pour l\'édition.', 'error');
     router.push({ name: 'Main' });
@@ -1412,6 +1804,12 @@ onMounted(async () => {
     }
     mapboxgl.accessToken = mapboxToken;
 
+    const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
+    // 1. Initial Load of Master Trace
+    const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
+    // Initialize background coordinates for variants
+    backgroundLineStringCoordinates.value = rawLineStringData.coordinates;
+
     const styleVisualisation = await getSettingValue('Edition/Vue 3D/Carte/styleVisualisation');
     const colorTraceBySlope = await getSettingValue('Edition/Vue 3D/Trace/colorerSelonPente');
     const traceWidth = await getSettingValue('Edition/Vue 3D/Trace/epaisseur');
@@ -1420,20 +1818,15 @@ onMounted(async () => {
 
     if (colorTraceBySlope) {
         try {
-            const slopeColors = {
-                TrancheNegative: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/TrancheNegative')),
-                Tranche1: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche1')),
-                Tranche2: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche2')),
-                Tranche3: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche3')),
-                Tranche4: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche4')),
-                Tranche5: toHex(await getSettingValue('Visualisation/Profil Altitude/Couleurs/Tranche5')),
-            };
-            const segmentLength = await getSettingValue('Importation/Tracking/LongueurSegment');
+            const slopeColors = await buildSlopeColorsMap(getSettingValue, toHex);
+            const segmentLength = Number(await getSettingValue('Importation/Tracking/LongueurSegment')) || 100;
+            segmentLengthRef.value = segmentLength / 1000.0; // Convert Main Trace segment length to km for calculations
 
             const colorExpression = await invoke('get_slope_color_expression', {
                 circuitId: circuitId,
                 slopeColors: slopeColors,
                 segmentLength: segmentLength,
+                trackingData: rawTrackingData,
             });
 
             if (colorExpression && Array.isArray(colorExpression)) {
@@ -1468,6 +1861,12 @@ onMounted(async () => {
       mapboxAvancementColorHex.value = toHex('primary');
     }
     const epaisseurAvancement = await getSettingValue('Edition/Vue 3D/Trace/epaisseurAvancement');
+    
+    // Master Trace Settings for Variant Editing
+    const rawBackgroundTraceColor = await getSettingValue('Variante/Edition/Trace Maîtresse/couleur') || 'grey-darken-3';
+    mapboxBackgroundTraceColorHex.value = await invoke('convert_vuetify_color', { colorName: rawBackgroundTraceColor });
+    backgroundTraceWidth.value = await getSettingValue('Variante/Edition/Trace Maîtresse/largeur') || 4;
+    backgroundTraceOpacity.value = await getSettingValue('Variante/Edition/Trace Maîtresse/opacite') || 0.3;
 
     const rawGraphZoomColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurZoom');
     const rawGraphPitchColor = await getSettingValue('Edition/Camera/Graphe caméra/Couleur courbes/couleurPitch');
@@ -1507,38 +1906,29 @@ onMounted(async () => {
     colorOriginePitch.value = toHex(rawGraphPitchColor);
     colorEditedPitch.value = toHex(rawGraphEditedPitchColor);
 
-    const rawTrackingData = await invoke('read_tracking_file', { circuitId: circuitId });
-    const rawLineStringData = await invoke('read_line_string_file', { circuitId: circuitId });
-    lineStringCoordinates.value = rawLineStringData.coordinates;
+    // The second rawTrackingData and rawLineStringData fetch is removed as it's redundant.
+    // The first one is now correctly placed before the slope color check.
 
-    const line = turf.lineString(lineStringCoordinates.value);
-    totalLineLength.value = turf.length(line, { units: 'kilometers' });
-
-    if (!rawTrackingData || rawTrackingData.length === 0) {
-      showSnackbar('Données de tracking introuvables ou vides.', 'error');
-      router.push({ name: 'Main' });
-      return;
+    // Update background trace source if map is already initialized
+    if (map && map.getSource('background-trace')) {
+        map.getSource('background-trace').setData({
+            type: 'Feature',
+            properties: {}, // Strict whitelist: none
+            geometry: {
+                type: 'LineString',
+                coordinates: backgroundLineStringCoordinates.value,
+            },
+        });
     }
 
-    const segmentLengthKm = 0.1;
-    const processedTrackingPoints = rawTrackingData.map((point, index) => ({
-      ...point,
-      distance: parseFloat((index * segmentLengthKm).toFixed(2)),
-      editedZoom: typeof point.editedZoom === 'number' ? point.editedZoom : point.zoom,
-      editedPitch: typeof point.editedPitch === 'number' ? point.editedPitch : point.pitch,
-      editedCap: typeof point.editedCap === 'number' ? point.editedCap : point.cap,
-    }));
-    trackingPoints.value = processedTrackingPoints;
-
-    const events = await invoke('get_events', { circuitId: circuitId });
-    eventsFile.value.pointEvents = events.pointEvents; // Correction du camelCase
-    eventsFile.value.rangeEvents = events.rangeEvents; // Correction du camelCase
+    // Load Main Trace Data
+    const events = await loadMainTrace();
 
     // Fetch the message library
     messageLibrary.value = await invoke('get_message_library');
 
     // --- Message Error Handling ---
-    if (events.missingMessageErrors.length > 0) { // Accès direct à missingMessageErrors
+    if (events && events.missingMessageErrors.length > 0) { // Accès direct à missingMessageErrors
       for (const errorDetail of events.missingMessageErrors) {
           missingMessageErrorDetails.value = {
               messageId: errorDetail.messageId, // Correction du camelCase
@@ -1731,6 +2121,34 @@ onMounted(async () => {
       });
       map.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': exaggeration });
 
+      // Background Trace Layer (Main Trace)
+      map.addSource('background-trace', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {}, // Strict whitelist: none
+          geometry: {
+            type: 'LineString',
+            coordinates: backgroundLineStringCoordinates.value,
+          },
+        },
+      });
+
+      map.addLayer({
+        id: 'background-trace',
+        type: 'line',
+        source: 'background-trace',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+            'line-color': mapboxBackgroundTraceColorHex.value,
+            'line-width': backgroundTraceWidth.value,
+            'line-opacity': backgroundTraceOpacity.value
+        },
+      });
+
       map.addSource('circuit-line', {
         type: 'geojson',
         data: {
@@ -1779,6 +2197,28 @@ onMounted(async () => {
           'line-color': mapboxAvancementColorHex.value,
           'line-width': epaisseurAvancement,
         },
+      });
+
+      // Localisation Pin for 0-length variants
+      map.addSource('variant-pin', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      });
+
+      map.addLayer({
+        id: 'variant-pin-layer',
+        type: 'circle',
+        source: 'variant-pin',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#FFFFFF',
+          'circle-opacity': 0.9
+        }
       });
 
       // Function to update message popups based on current increment
@@ -1874,5 +2314,31 @@ onMounted(async () => {
 
 .map-message-popup .mapboxgl-popup-tip {
   display: none;
+}
+
+.variant-widget {
+  background-color: rgba(var(--v-theme-surface), 0.8);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px; /* Match typical widget height */
+}
+
+.widget-text {
+  font-family: monospace;
+  font-size: 1.0rem;
+  font-weight: bold;
+  color: white;
+}
+
+.widget-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-right: 4px;
+    color: rgba(var(--v-theme-on-surface), 0.8);
 }
 </style>

@@ -24,6 +24,7 @@
         @circuit-deleted="handleCircuitDeleted"
         @circuit-updated="handleCircuitUpdated"
         @open-meteo="openMeteoDialog"
+        @open-info="openInfoDialog"
       />
     </v-list>
 
@@ -57,26 +58,40 @@
       @saved="handleMeteoSaved"
       @downloaded="handleMeteoDownloaded"
     />
+    <v-dialog v-model="showInfoDialog" max-width="800">
+      <InformationCircuit
+        v-if="selectedCircuitForInfo"
+        :circuit="selectedCircuitForInfo"
+        :all-communes="allCommunes"
+        :all-traceurs="allTraceurs"
+        :favorite-count="favoriteCount"
+        @close="showInfoDialog = false"
+        @update-circuit="handleCircuitUpdated"
+      />
+    </v-dialog>
   </v-container>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
+import { ref, onMounted, onUnmounted, computed, reactive, watch, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import AppMainBar from '../components/AppMainBar.vue';
-import ImportDialog from '../components/ImportDialog.vue';
-import TraceurSelectionDialog from '../components/TraceurSelectionDialog.vue';
-import MeteoManager from '@/components/MeteoManager.vue';
-import CircuitListItem from '@/components/CircuitListItem.vue';
-import CircuitFilter from '@/components/CircuitFilter.vue';
-import OrphanCleanupDialog from '@/components/OrphanCleanupDialog.vue';
+import AppMainBar from '@/components/Main/AppMainBar.vue';
+import ImportDialog from '@/components/Main/ImportDialog.vue';
+import TraceurSelectionDialog from '@/components/Main/TraceurSelectionDialog.vue';
+import MeteoManager from '@/components/Main/MeteoManager.vue';
+import InformationCircuit from '@/components/Main/InformationCircuit.vue';
+import CircuitListItem from '@/components/Main/CircuitListItem.vue';
+import CircuitFilter from '@/components/Main/CircuitFilter.vue';
+import OrphanCleanupDialog from '@/components/Main/OrphanCleanupDialog.vue';
 import { useSettings } from '@/composables/useSettings';
 import { showRemoteDialog } from '@/composables/useRemoteControlDialog';
 import { useSnackbar } from '@/composables/useSnackbar';
 
 
 const { showSnackbar } = useSnackbar();
+const router = useRouter();
 
 const showImportDialog = ref(false);
 const importConfig = reactive({
@@ -88,10 +103,13 @@ const traceurDialog = ref(null);
 const allCircuits = ref([]);
 const allCommunes = ref([]);
 const allTraceurs = ref([]);
+const unlistenLaunch = ref(null);
 const filterData = ref(null);
 
 const showMeteoDialog = ref(false);
 const selectedCircuitForMeteo = ref(null);
+const showInfoDialog = ref(false);
+const selectedCircuitForInfo = ref(null);
 
 const showOrphanDialog = ref(false);
 const currentOrphans = ref({ villes: [], traceurs: [], messages: [] });
@@ -101,6 +119,8 @@ const { getSettingValue } = useSettings();
 
 const activeFilters = ref(null);
 const sortOptions = ref({ by: 'circuitId', order: 'asc' });
+
+const favoriteCount = computed(() => allCircuits.value.filter(c => c.favorite).length);
 
 const currentPage = ref(1);
 const itemsPerPage = computed(() => getSettingValue('Accueil/circuitsPerPage') || 10);
@@ -141,8 +161,8 @@ const filteredAndSortedCircuits = computed(() => {
     result = result.filter(c => c.deniveleM >= min && c.deniveleM <= max);
   }
 
-  // 2. Sort
-  result.sort((a, b) => {
+  // 2. Sort Logic
+  const sortFn = (a, b) => {
     const field = sortOptions.value.by;
     let valA = a[field];
     let valB = b[field];
@@ -155,9 +175,17 @@ const filteredAndSortedCircuits = computed(() => {
     if (valA < valB) return sortOptions.value.order === 'asc' ? -1 : 1;
     if (valA > valB) return sortOptions.value.order === 'asc' ? 1 : -1;
     return 0;
-  });
+  };
 
-  return result;
+  // 3. Separate favorites and others, sort each
+  const favorites = result.filter(c => c.favorite);
+  const others = result.filter(c => !c.favorite);
+
+  favorites.sort(sortFn);
+  others.sort(sortFn);
+
+  // 4. Return combined list
+  return [...favorites, ...others];
 });
 
 const pageCount = computed(() => {
@@ -330,10 +358,36 @@ const handleMeteoDownloaded = () => {
   refreshCircuits();
 };
 
+const openInfoDialog = (circuit) => {
+  selectedCircuitForInfo.value = circuit;
+  showInfoDialog.value = true;
+};
+
+const view3D = (circuitId) => {
+  // Prevent launch if any dialog is open
+  if (showMeteoDialog.value || showInfoDialog.value || showImportDialog.value || showOrphanDialog.value) {
+      console.log("Blocking remote launch: Dialog open");
+      invoke('notify_remote_user', { 
+          message: "Visualisation impossible :\nUne fenêtre de dialogue est ouverte\nsur l'ordinateur.", 
+          level: "warning" 
+      });
+      return;
+  }
+  router.push({ name: 'Visualize', params: { circuitId } });
+};
+
 onMounted(async () => {
   await useSettings().initSettings(); // Ensure settings are loaded
   await refreshCircuits();
   await loadFilterData();
+
+  invoke('update_current_view', { newView: 'Main' });
+
+  unlistenLaunch.value = await listen('remote_command::launch_circuit', (event) => {
+    if (event.payload && event.payload.circuitId) {
+      view3D(event.payload.circuitId);
+    }
+  });
 
   listen('ask_pairing_approval', () => {
     if (showRemoteDialog.value) {
@@ -341,6 +395,12 @@ onMounted(async () => {
       showRemoteDialog.value = false;
     }
   });
+});
+
+onUnmounted(() => {
+  if (unlistenLaunch.value) {
+    unlistenLaunch.value();
+  }
 });
 </script>
 

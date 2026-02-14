@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisuGPS Télécommande</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+    <div id="nosleep-control" class="nosleep-sticky-header">
+        <button id="toggle-nosleep" class="btn btn-secondary w-100">
+            Veuillez patienter...
+        </button>
+    </div>
+    <h1 id="main-title">VisuGPS Télécommande</h1>
+    <div id="status" style="display:none;">Connexion en attente...</div>
+
+
+    <div id="pairing-code" class="alert alert-info text-center fw-bold fs-1" style="display:none;"></div>
+
+    <!-- Page VisualizeView - Contrôles complets -->
+    <div id="page-visualize" class="page" style="display:none;">
+        <div id="visualize-view-title" class="view-title" style="display:none;"></div>
+        <div class="controls">
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-commands" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-commands">Commandes</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-profile" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-profile">Profil Altitude</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-communes" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-communes">Communes</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-distance" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-distance">Distance</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-weather-static" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-weather-static">Météo</label>
+            </div>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="toggle-weather-dynamic" checked>
+                <label class="form-check-label fw-bold fs-6" for="toggle-weather-dynamic">Boussole</label>
+            </div>
+
+            <div class="d-flex mb-3">
+                <button id="speed-reset" class="btn btn-secondary w-25 fs-4 me-2">x1</button>
+                <button id="rewind" class="btn btn-info w-25 fs-4 me-2">⏪</button>
+                <button id="play-pause" class="btn btn-primary w-50 fs-4">Pause</button>
+            </div>
+
+            <div class="speed-control-container d-flex flex-column align-items-center mt-3">
+                <label for="speed-slider" class="form-label fs-5 mb-0">Vitesse: <span id="speed-display"
+                        class="fw-bold">1.0x</span></label>
+                <input type="range" class="form-range w-100" id="speed-slider" min="0" max="100" step="1" value="20">
+            </div>
+        </div>
+    </div>
+
+    <!-- Page EditView - Contrôles d'édition -->
+    <div id="page-edit" class="page" style="display:none;">
+        <h2>Mode Édition</h2>
+        <div class="controls">
+            <button id="go-home">🏠 Accueil</button>
+            <button id="save-circuit">💾 Sauvegarder</button>
+            <button id="preview-circuit">👁️ Aperçu</button>
+        </div>
+    </div>
+
+    <!-- Page MainView - Vue principale -->
+    <div id="page-main" class="page" style="display:none;">
+        <h2>Vue Principale</h2>
+        <p>Vous êtes sur la page d'accueil de l'application.</p>
+    </div>
+
+    <!-- Page SettingsView - Paramètres -->
+    <div id="page-settings" class="page" style="display:none;">
+        <h2>Paramètres</h2>
+        <p>Vous êtes dans les paramètres de l'application.</p>
+    </div>
+
+    <!-- Page par défaut - Vue non reconnue -->
+    <div id="page-default" class="page" style="display:none;">
+        <h2 id="default-view-title">Vue Inconnue</h2>
+        <p>Vue non reconnue par la télécommande.</p>
+    </div>
+
+    <!-- Page Camera Edit -->
+    <div id="page-camera-edit" class="page" style="display:none;">
+        <div class="row g-2 align-items-stretch">
+            <div class="col-12">
+                <div id="pan-area" class="touch-area square">Point de Vue</div>
+            </div>
+        </div>
+        <div class="row g-2 mt-2 align-items-center">
+            <div class="col-2">
+                <div id="zoom-area" class="touch-area zoom-tilt-area">Zoom</div>
+            </div>
+            <div class="col-8">
+                <div id="bearing-area" class="touch-area">Cap</div>
+            </div>
+            <div class="col-2">
+                <div id="tilt-area" class="touch-area zoom-tilt-area">Incl.</div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <button id="play-and-back-btn" class="btn btn-primary btn-lg w-100">▶️ Play</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/nosleep.js@0.12.0/dist/NoSleep.min.js"></script>
+    <script src="/remote-utils.js?v=18"></script>
+    <script src="/remote-speed.js?v=18"></script>
+    <script src="/remote-camera.js?v=18"></script>
+    <script src="/remote-ui.js?v=18"></script>
+    <!-- REMLACÉ PAR REDEMOTE-CLIENT-V2 -->
+    <script src="/remote-client-v2.js?v=18"></script>
+    <script src="/main.js?v=18"></script>
+</body>
+
+</html>
