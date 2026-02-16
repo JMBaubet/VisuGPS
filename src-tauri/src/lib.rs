@@ -338,6 +338,73 @@ fn purge_remote_blacklist(state: State<Mutex<AppState>>) -> Result<PurgeResponse
 }
 
 #[tauri::command]
+fn update_execution_mode(
+    app: AppHandle,
+    state: State<Mutex<AppState>>,
+    old_name: String,
+    new_name: String,
+    description: String,
+) -> Result<(), String> {
+    if old_name == "OPE" {
+        return Err("Cannot rename OPE mode.".to_string());
+    }
+
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let visugps_dir = app_data_dir.join("VisuGPS");
+    let old_path = visugps_dir.join(&old_name);
+    let new_path = visugps_dir.join(&new_name);
+
+    if !old_path.exists() {
+        return Err(format!("Mode '{}' does not exist.", old_name));
+    }
+
+    if old_name != new_name && new_path.exists() {
+        return Err(format!("Mode '{}' already exists.", new_name));
+    }
+
+    // 1. Rename directory if name changed
+    if old_name != new_name {
+        fs::rename(&old_path, &new_path).map_err(|e| e.to_string())?;
+        
+        // Update .env if it was the active mode
+        let main_env_path = visugps_dir.join(".env");
+        if main_env_path.exists() {
+            let mut env_content = fs::read_to_string(&main_env_path).map_err(|e| e.to_string())?;
+            let env_var = if cfg!(debug_assertions) { "APP_ENV_DEV" } else { "APP_ENV_PROD" };
+            let pattern = format!(r"(?m)^{}=(.*)$", env_var);
+            let re = regex::Regex::new(&pattern).unwrap();
+            
+            if let Some(caps) = re.captures(&env_content) {
+                if caps.get(1).map(|m| m.as_str()) == Some(&old_name) {
+                    let new_line = format!("{}={}", env_var, new_name);
+                    env_content = re.replace(&env_content, new_line).to_string();
+                    fs::write(&main_env_path, env_content).map_err(|e| e.to_string())?;
+                }
+            }
+        }
+    }
+
+    // 2. Update settings.json in the new/current path
+    let settings_path = new_path.join("settings.json");
+    if settings_path.exists() {
+        let content = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
+        let mut settings: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+
+        if let Some(reference) = settings.get_mut("référence") {
+            if let Some(obj) = reference.as_object_mut() {
+                obj.insert("context".to_string(), Value::String(new_name));
+                obj.insert("description".to_string(), Value::String(description));
+            }
+        }
+
+        let new_content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+        fs::write(settings_path, new_content).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn delete_execution_mode(
     app: AppHandle,
     state: State<Mutex<AppState>>,
@@ -2583,6 +2650,7 @@ pub fn run() {
             create_execution_mode,
             delete_execution_mode,
             select_execution_mode,
+            update_execution_mode,
             purge_remote_blacklist,
             is_blacklist_empty,
             update_setting, // This now takes app_handle

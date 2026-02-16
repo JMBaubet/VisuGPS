@@ -3,7 +3,10 @@
     <v-card>
       <v-card-title class="headline d-flex justify-space-between align-center">
         Gestion des modes d'exécution
-        <v-btn icon="mdi-book-open-page-variant-outline" variant="text" color="info" @click="showDocDialog = true" title="Aide"></v-btn>
+        <div>
+          <v-btn icon="mdi-database-import-outline" variant="text" color="warning" @click="handleImportNewMode" title="Restaurer un environnement (Depuis archive)"></v-btn>
+          <v-btn icon="mdi-book-open-page-variant-outline" variant="text" color="info" @click="showDocDialog = true" title="Aide"></v-btn>
+        </div>
       </v-card-title>
       <v-card-text>
         <v-list class="mb-4">
@@ -27,16 +30,16 @@
                         class="ml-2"
                         title="Supprimer ce mode"
                     ></v-btn>
-
-                    <!-- Import Button -->
+ 
+                    <!-- Edit Button -->
                     <v-btn
-                        v-if="mode.name !== appEnv"
-                        icon="mdi-database-import-outline"
+                        v-if="mode.name !== 'OPE'"
+                        icon="mdi-pencil"
                         variant="text"
-                        color="warning"
-                        @click="handleImportClick(mode.name)"
+                        color="primary"
+                        @click="editMode(mode)"
                         class="ml-2"
-                        title="Importer un contexte (Ecrasement)"
+                        title="Modifier ce mode"
                     ></v-btn>
 
                     <!-- Export Button -->
@@ -111,29 +114,34 @@
     @confirm="confirmDeleteMode"
   />
 
-  <!-- Import Warnings -->
-  <ConfirmationDialog
-    v-model="showImportWarningDialog"
-    title="Attention Importation"
-    :message="importWarningMessage"
-    confirmText="Continuer"
-    cancelText="Annuler"
-    color="warning"
-    @confirm="proceedToImportOrSecondWarning"
-  />
-  
-  <ConfirmationDialog
-    v-model="showOpeDoubleCheckDialog"
-    title="CONFIRMATION CRITIQUE (OPE)"
-    message="<strong style='color:red'>VOUS ÊTES SUR LE POINT D'ÉCRASER LE CONTEXTE DE PRODUCTION (OPE).</strong><br><br>JE CONFIRME QUE J'AI UNE SAUVEGARDE ET QUE JE VEUX ÉCRASER TOUTES LES DONNÉES DE PRODUCTION."
-    confirmText="OUI, ÉCRASER OPE"
-    cancelText="Annuler"
-    color="error"
-    @confirm="executeImport"
-  />
 
   <v-dialog v-model="showDocDialog" max-width="800px">
       <DocDisplay doc-path="/docs/DocUtilisateur/modes_fonctionnement.md" @close="showDocDialog = false" />
+  </v-dialog>
+
+  <!-- Edit Mode Dialog -->
+  <v-dialog v-model="showEditDialog" max-width="600px">
+    <v-card>
+      <v-card-title class="headline">Modifier le mode d'exécution</v-card-title>
+      <v-card-text>
+        <v-text-field
+          label="Nom du mode"
+          v-model="editModeName"
+          :rules="[rules.required, rules.modeNameFormat]"
+          :disabled="originalModeName === 'OPE'"
+        ></v-text-field>
+        <v-textarea
+          label="Description"
+          v-model="editModeDescription"
+          rows="2"
+        ></v-textarea>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn color="grey" text @click="showEditDialog = false">Annuler</v-btn>
+        <v-btn color="primary" @click="confirmUpdateMode">Enregistrer</v-btn>
+      </v-card-actions>
+    </v-card>
   </v-dialog>
 </template>
 
@@ -180,12 +188,11 @@ const showDeleteConfirmDialog = ref(false);
 const modeToDelete = ref('');
 const showDocDialog = ref(false);
 
-// Import/Export state
-const showImportWarningDialog = ref(false);
-const showOpeDoubleCheckDialog = ref(false);
-const importTargetMode = ref('');
-const importFilePath = ref('');
-const importWarningMessage = ref('');
+const showEditDialog = ref(false);
+const editModeName = ref('');
+const editModeDescription = ref('');
+const originalModeName = ref('');
+
 
 const rules = {
   required: value => !!value || 'Requis.',
@@ -351,6 +358,59 @@ const selectMode = async (modeName) => {
   }
 };
 
+const editMode = (mode) => {
+    originalModeName.value = mode.name;
+    editModeName.value = mode.name;
+    editModeDescription.value = mode.description || '';
+    showEditDialog.value = true;
+};
+
+const confirmUpdateMode = async () => {
+    if (!rules.required(editModeName.value) || !rules.modeNameFormat(editModeName.value)) {
+        showSnackbar('Veuillez corriger les erreurs dans le nom du mode.', 'error');
+        return;
+    }
+
+    try {
+        await invoke('update_execution_mode', {
+            oldName: originalModeName.value,
+            newName: editModeName.value,
+            description: editModeDescription.value
+        });
+
+        showSnackbar(`Le mode '${editModeName.value}' a été mis à jour avec succès.`, 'success');
+        showEditDialog.value = false;
+        
+        const wasActiveModeRenamed = originalModeName.value === appEnv.value && originalModeName.value !== editModeName.value;
+        
+        await fetchExecutionModes();
+
+        if (wasActiveModeRenamed) {
+            restartDialogTitle.value = 'Redémarrage requis';
+            restartDialogMessage.value = 'Le mode d\'exécution actif a été renommé. Vous devez redémarrer l\'application pour que ce changement soit pris en compte. Voulez-vous redémarrer maintenant ?';
+            showRestartDialog.value = true;
+
+            const shouldRestart = await new Promise(resolve => {
+                restartPromiseResolve = resolve;
+            });
+
+            if (shouldRestart) {
+                if (import.meta.env.DEV) {
+                    showSnackbar('Redémarrage requis. En mode DEV, veuillez relancer la commande "npm run tauri dev".', 'error', 30000);
+                    setTimeout(async () => {
+                         await exit(0);
+                    }, 30000);
+                } else {
+                    await relaunch();
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error updating execution mode:", error);
+        showSnackbar(`Erreur lors de la mise à jour du mode : ${error.message || error}`, 'error');
+    }
+};
+
 const handleExportClick = async (modeName) => {
   try {
      const message = await invoke('export_context', { modeName });
@@ -360,51 +420,56 @@ const handleExportClick = async (modeName) => {
   }
 };
 
-const handleImportClick = async function importContext(modeName) {
-  // Setup dialog
-  importingModeName.value = modeName;
-  importExtensions.value = ['vctx'];
-  importTitle.value = `Importer dans ${modeName}`;
-  showImportDialog.value = true;
-}
+
+const handleImportNewMode = () => {
+    importingModeName.value = null; // null means new mode
+    importExtensions.value = ['vctx', 'vgps'];
+    importTitle.value = "Restaurer un environnement";
+    showImportDialog.value = true;
+};
 
 async function handleImportSelection(filePath) {
-    if (!filePath || !importingModeName.value) return;
+    if (!filePath) return;
 
-    // Set temporary values used by the legacy confirmation flow
-    importFilePath.value = filePath;
-    importTargetMode.value = importingModeName.value;
-    // Reset specific states
-    importingModeName.value = null; 
-
-    // Trigger First Warning Dialog
-    importWarningMessage.value = `ATTENTION : Vous êtes sur le point d'importer des données dans le contexte <strong>${importTargetMode.value}</strong>.<br><br><strong>TOUTES les données actuelles de ce contexte seront ÉCRASÉES et PERDUES.</strong><br><br>Voulez-vous continuer ?`;
-    showImportWarningDialog.value = true;
-}
-
-
-const proceedToImportOrSecondWarning = () => {
-    // If OPE, Double Check
-    if (importTargetMode.value === 'OPE') {
-        showOpeDoubleCheckDialog.value = true;
-    } else {
-        executeImport();
-    }
-};
-
-const executeImport = async () => {
+    // Restoration logic for a new mode
     try {
-        const message = await invoke('import_context', {
-            modeName: importTargetMode.value,
-            filePath: importFilePath.value
+        // Extract suggested mode name from filename
+        let filename = filePath.split(/[/\\]/).pop();
+        let suggestedModeName = filename.replace(/\.(vctx|vgps)$/i, '').replace(/[^a-zA-Z0-9_]/g, '_');
+        
+        // Ensure valid prefix
+        if (!suggestedModeName.startsWith('EVAL_') && !suggestedModeName.startsWith('TEST_')) {
+            suggestedModeName = 'EVAL_' + suggestedModeName;
+        }
+
+        // Verify if already exists to avoid unexpected overwrite errors
+        const existingModes = await invoke('list_execution_modes');
+        if (existingModes.some(m => m.name === suggestedModeName)) {
+            showSnackbar(`Le mode ${suggestedModeName} existe déjà. Impossible de créer un doublon par restauration.`, 'error');
+            return;
+        }
+
+        // 1. Create the mode
+        await invoke('create_execution_mode', { 
+            modeName: suggestedModeName, 
+            description: `Restauré depuis ${filename}` 
         });
-        showSnackbar(message, 'success');
-        // Refresh modes
-        executionModes.value = await invoke('list_execution_modes');
+
+        // 2. Import context into it
+        const message = await invoke('import_context', {
+            modeName: suggestedModeName,
+            filePath: filePath
+        });
+        
+        showSnackbar(`Mode '${suggestedModeName}' créé et environnement restauré avec succès.`, 'success');
+        
+        // Refresh the list of modes
+        await fetchExecutionModes();
     } catch (error) {
-        showSnackbar(`Erreur lors de l'import: ${error}`, 'error');
+        console.error("Error during restoration:", error);
+        showSnackbar(`Erreur lors de la restauration : ${error.message || error}`, 'error');
     }
-};
+}
 
 const handleRestartConfirmed = () => {
   if (restartPromiseResolve) {
