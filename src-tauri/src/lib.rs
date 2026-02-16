@@ -340,7 +340,7 @@ fn purge_remote_blacklist(state: State<Mutex<AppState>>) -> Result<PurgeResponse
 #[tauri::command]
 fn update_execution_mode(
     app: AppHandle,
-    state: State<Mutex<AppState>>,
+    _state: State<Mutex<AppState>>,
     old_name: String,
     new_name: String,
     description: String,

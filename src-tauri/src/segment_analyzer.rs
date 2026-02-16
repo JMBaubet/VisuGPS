@@ -156,9 +156,9 @@ fn group_overlaps_into_zones(
             continue;
         }
 
-        let mut zone_aller_start = start_idx;
+        let zone_aller_start = start_idx;
         let mut zone_aller_end = start_idx;
-        let mut zone_retour_start = end_idx;
+        let zone_retour_start = end_idx;
         let mut zone_retour_end = end_idx;
 
         used[idx] = true;
