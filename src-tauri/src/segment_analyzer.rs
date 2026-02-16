@@ -170,29 +170,34 @@ fn group_overlaps_into_zones(
             }
 
             // Vérifier si cet overlap est proche de la zone actuelle
-            let start_diff = (other_start as i32 - zone_aller_start as i32).abs() as usize;
-            let end_diff = (other_end as i32 - zone_retour_start as i32).abs() as usize;
+            // On exige une continuité sur les DEUX index (aller ET retour) pour éviter
+            // de fusionner des zones géographiquement proches mais chronologiquement très éloignées
+            // (ex: le début de la trace et la fin d'une boucle)
+            let start_diff = (other_start as i32 - zone_aller_end as i32).abs() as usize;
+            let end_diff = (other_end as i32 - zone_retour_end as i32).abs() as usize;
 
-            if start_diff < proximity_threshold || end_diff < proximity_threshold {
-                zone_aller_start = zone_aller_start.min(other_start);
-                zone_aller_end = zone_aller_end.max(other_start);
-                zone_retour_start = zone_retour_start.min(other_end);
-                zone_retour_end = zone_retour_end.max(other_end);
+            if start_diff < proximity_threshold && end_diff < proximity_threshold {
+                zone_aller_end = other_start;
+                zone_retour_end = other_end;
                 used[other_idx] = true;
             }
         }
 
-        // Créer la zone
+        // Créer la zone en normalisant les index (start doit être < end)
+        // C'est important pour que les tests de présence dans une plage fonctionnent
+        let (s_a, e_a) = (zone_aller_start.min(zone_aller_end), zone_aller_start.max(zone_aller_end));
+        let (s_r, e_r) = (zone_retour_start.min(zone_retour_end), zone_retour_start.max(zone_retour_end));
+
         zones.push(SegmentOverlap {
             zone_id: zones.len() + 1,
-            aller_start_index: zone_aller_start,
-            aller_end_index: zone_aller_end,
-            retour_start_index: zone_retour_start,
-            retour_end_index: zone_retour_end,
-            aller_start_km: points[zone_aller_start].distance_km,
-            aller_end_km: points[zone_aller_end].distance_km,
-            retour_start_km: points[zone_retour_start].distance_km,
-            retour_end_km: points[zone_retour_end].distance_km,
+            aller_start_index: s_a,
+            aller_end_index: e_a,
+            retour_start_index: s_r,
+            retour_end_index: e_r,
+            aller_start_km: points[s_a].distance_km,
+            aller_end_km: points[e_a].distance_km,
+            retour_start_km: points[s_r].distance_km,
+            retour_end_km: points[e_r].distance_km,
         });
     }
 
@@ -236,5 +241,48 @@ mod tests {
 
         let distance = haversine_distance(lat1, lon1, lat2, lon2);
         assert!((distance - 22.0).abs() < 5.0, "Distance should be around 22 meters");
+    }
+
+    #[test]
+    fn test_group_overlaps_separation() {
+        let points = vec![
+            TrackingPoint { lat: 45.0, lon: 5.0, distance_km: 0.0 },
+            TrackingPoint { lat: 45.0, lon: 5.0, distance_km: 0.1 },
+            TrackingPoint { lat: 45.0, lon: 5.0, distance_km: 0.2 },
+            TrackingPoint { lat: 46.0, lon: 6.0, distance_km: 1.0 }, // Loin
+            TrackingPoint { lat: 45.0, lon: 5.0, distance_km: 2.0 }, // Retour 1
+            TrackingPoint { lat: 45.0, lon: 5.0, distance_km: 3.0 }, // Retour 2 (Loin du Retour 1)
+        ];
+
+        // On simule deux superpositions : 
+        // 1. (0, 4) - Le tout début avec le retour 1
+        // 2. (1, 5) - Un peu après le début avec le retour 2
+        let overlaps = vec![
+            (0, 4, 1.0),
+            (1, 5, 1.0),
+        ];
+
+        // Seuil de proximité = 5 points
+        let zones = group_overlaps_into_zones(&overlaps, &points, 3);
+        
+        // start_diff = |1 - 0| = 1 (< 3)
+        // end_diff = |5 - 4| = 1 (< 3)
+        // ==> Celles-ci doivent fusionner (c'est un AR continu)
+        assert_eq!(zones.len(), 1, "Un AR continu doit fusionner");
+
+        // Simulons maintenant le cas problématique du début vs fin de boucle
+        let overlaps_mixed = vec![
+            (0, 4, 1.0), // Début avec retour proche
+            (0, 50, 1.0), // Début avec fin de boucle (beaucoup plus loin)
+        ];
+        
+        // On rajoute un point fictif à l'index 50
+        let mut many_points = points.clone();
+        for _ in 0..100 {
+            many_points.push(TrackingPoint { lat: 47.0, lon: 7.0, distance_km: 10.0 });
+        }
+
+        let zones_mixed = group_overlaps_into_zones(&overlaps_mixed, &many_points, 10);
+        assert_eq!(zones_mixed.len(), 2, "Les zones chronologiquement distantes ne doivent pas fusionner");
     }
 }
