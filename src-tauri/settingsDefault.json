@@ -2361,6 +2361,14 @@
             "type": "monitor",
             "defaut": 1,
             "doc": "docs/DocParametrage/Systeme/ecran.md"
+          },
+          {
+            "identifiant": "Debug",
+            "libelle": "Mode Debug",
+            "description": "Active les fonctionnalités de debug même en mode production.",
+            "type": "booleen",
+            "defaut": false,
+            "doc": "docs/DocParametrage/Systeme/Debug.md"
           }
         ],
         "groupes": [

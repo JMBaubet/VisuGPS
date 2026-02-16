@@ -389,6 +389,7 @@ Ce document répertorie l'ensemble des paramètres de configuration de l'applica
 **Description** : Paramètres internes, gestion du matériel et services de communication.
 *   [Taille fenêtre](../DocParametrage/Systeme/tailleFenetre.md)
 *   [Ecran](../DocParametrage/Systeme/ecran.md)
+*   [Mode Debug](../DocParametrage/Systeme/Debug.md)
 
 ### 6.1. Timers
 **Description** : Réglages réseau (Vérification connexion).

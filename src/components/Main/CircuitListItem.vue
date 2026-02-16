@@ -64,7 +64,7 @@
 
       <!-- Colonne 4: Actions -->
       <v-col cols="12" md="2" class="d-flex justify-end align-center">
-        <v-btn icon="mdi-bug" variant="text" v-if="isDev" @click.stop="debugCircuit" color="warning"></v-btn>
+        <v-btn icon="mdi-bug" variant="text" v-if="isDebugMode" @click.stop="debugCircuit" color="warning"></v-btn>
         
         <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
 
@@ -153,6 +153,7 @@ import { join } from '@tauri-apps/api/path';
 import { useSnackbar } from '@/composables/useSnackbar';
 import { useEnvironment } from '@/composables/useEnvironment';
 import { useSettings } from '@/composables/useSettings';
+import { useDebug } from '@/composables/useDebug';
 import { useCommunesUpdate } from '@/composables/useCommunesUpdate';
 import { useCommuneColor } from '@/composables/useCommuneColor';
 import { useServiceStatus } from '@/composables/useServiceStatus';
@@ -179,7 +180,7 @@ const props = defineProps({
 
 const emit = defineEmits(['circuit-deleted', 'circuit-updated', 'open-meteo', 'open-info']);
 
-const isDev = ref(import.meta.env.DEV);
+const { isDebugMode } = useDebug();
 const router = useRouter();
 const { showSnackbar } = useSnackbar();
 const { appEnvPath } = useEnvironment();

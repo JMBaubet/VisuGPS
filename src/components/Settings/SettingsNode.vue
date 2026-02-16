@@ -5,7 +5,7 @@
       <template v-slot:activator="{ props, isOpen }">
         <v-list-item v-bind="props" :prepend-icon="isOpen ? 'mdi-folder-open' : 'mdi-folder'" append-icon="">
           <v-list-item-title>{{ node.libelle }}</v-list-item-title>
-          <v-tooltip v-if="isDev" activator="parent" location="end">/{{ fullPath }}</v-tooltip>
+          <v-tooltip v-if="isDebugMode" activator="parent" location="end">/{{ fullPath }}</v-tooltip>
         </v-list-item>
       </template>
 
@@ -185,6 +185,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useSettings } from '@/composables/useSettings';
+import { useDebug } from '@/composables/useDebug';
 import EditStringDialog from './EditStringDialog.vue';
 import EditIntDialog from './EditIntDialog.vue';
 import EditBoolDialog from './EditBoolDialog.vue';
@@ -201,6 +202,7 @@ import DocDisplay from '@/components/DocDisplay.vue';
 import { useMessages } from '@/composables/useMessages'; // Import useMessages
 
 const { updateSetting } = useSettings();
+const { isDebugMode } = useDebug();
 const { getMessage, toHex, getContrastColor, fetchMessages } = useMessages();
 
 // Fetch messages on mount so they are available for display
@@ -274,9 +276,7 @@ const fullPath = computed(() => {
   return props.node.libelle;
 });
 
-const isDev = computed(() => {
-  return process.env.NODE_ENV === 'development';
-});
+// isDev compute removed in favor of useDebug
 
 </script>
 
