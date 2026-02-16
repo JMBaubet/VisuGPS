@@ -5,6 +5,7 @@
     </v-btn>
     <v-toolbar-title>Paramètres</v-toolbar-title>
     <v-spacer></v-spacer>
+    <slot name="append"></slot>
     <v-btn icon @click="$emit('purge-blacklist')" title="Purger la liste noire des télécommandes" color="error">
       <v-icon>mdi-remote-off</v-icon>
     </v-btn>

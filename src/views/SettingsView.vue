@@ -4,14 +4,14 @@
       @open-exe-mode="showExeModeDialog = true" 
       @open-doc="isDocDialogVisible = true" 
       @purge-blacklist="handlePurgeClick"
-    />
-    <v-row>
-      <v-col cols="12" md="8" lg="6">
-        <SettingsTree />
-      </v-col>
-      <v-spacer></v-spacer>
-      <v-col cols="auto" class="mr-4">
+    >
+      <template v-slot:append>
         <LightDarkSwitch />
+      </template>
+    </SettingsToolbar>
+    <v-row class="px-4">
+      <v-col cols="12">
+        <SettingsTree />
       </v-col>
     </v-row>
     <ExeMode v-model="showExeModeDialog" />
