@@ -31,7 +31,9 @@ Contient les fonctionnalités suivantes :
 Contient les fonctionnalités suivantes :
 - Refonte complète de la vue Paramètres avec onglets verticaux imbriqués
 - Ajout de l'accès à la vue DebugTracking en mode production
+
 Corrections :
+
 - Ajout de la restauration d'environnement et de l'édition des modes d'exécution
 - Amélioration de la détection des segments aller-retour
 - Résolution des accès concurrents sur tracking.json

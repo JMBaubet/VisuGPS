@@ -12,23 +12,23 @@ Avant de créer un tag, assurez-vous que les numéros de version sont identiques
 
 1.  **`package.json`** (racine) :
     ```json
-    "version": "1.0.0-beta.1",
+    "version": "1.1.0",
     ```
 
 2.  **`src-tauri/Cargo.toml`** :
     ```toml
     [package]
-    version = "1.0.0-beta.1",
+    version = "1.1.0",
     ```
 
 3.  **`src-tauri/tauri.conf.json`** :
     ```json
-    "version": "1.0.0-beta.1",
+    "version": "1.1.0",
     ```
 
 4.  **`src-tauri/settingsDefault.json`** :
     ```json
-    "version": "1.0.0-beta.1",
+    "version": "1.1.0",
     ```
 
 ## 2. Version des interfaces 
@@ -53,7 +53,7 @@ Si vous êtes satisfait de l'état actuel de votre code :
 
 ```bash
 # Syntaxe : git tag -a [NOM_DU_TAG] -m "[MESSAGE]"
-git tag -a v1.0.0-beta.1 -m "Version Beta 1.0.0 - Test fonctionnalités 3D"
+git tag -a v1.1.0 -m "Version 1.1.0 - Test fonctionnalités 3D"
 ```
 
 ### Cas B : Taguer un commit passé
@@ -61,7 +61,7 @@ Si vous voulez référencer un commit antérieur (retrouvez son hash via `git lo
 
 ```bash
 # Syntaxe : git tag -a [NOM_DU_TAG] [HASH_COMMIT] -m "[MESSAGE]"
-git tag -a v1.0.0-beta.1 9fceb02 -m "Version Beta sur ce commit spécifique"
+git tag -a v1.1.0 9fceb02 -m "Version 1.1.0 sur ce commit spécifique"
 ```
 
 ---
