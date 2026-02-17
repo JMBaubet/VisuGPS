@@ -276,36 +276,43 @@ fn update_task_status(app_env_path: &std::path::Path, is_running: bool, circuit_
 }
 
 async fn process_pass_async(_app_env_path: &std::path::Path, mapbox_token: &str, _circuit_id: &str, tracking_path: &std::path::PathBuf, step: usize, start_offset: usize, token: &Arc<AtomicBool>, _app_handle: &AppHandle, timer_ign: u64, timer_mapbox: u64, timer_osm: u64) -> Result<(), String> {
+    // On ne lit plus tout le fichier ici car il peut devenir stale pendant la boucle.
+    // On va lire les points nécessaires pour la boucle, mais on re-lira sous verrou pour l'écriture.
     let tracking_content = std::fs::read_to_string(tracking_path).map_err(|e| e.to_string())?;
-    let mut tracking_points: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
+    let tracking_points_initial: Vec<serde_json::Value> = serde_json::from_str(&tracking_content).map_err(|e| e.to_string())?;
 
-    let total_points = tracking_points.len();
+    let total_points = tracking_points_initial.len();
 
     for i in (start_offset..total_points).step_by(step) {
         if token.load(Ordering::SeqCst) {
             break;
         }
 
-        if let Some(point) = tracking_points.get_mut(i) {
-            if point["commune"].is_null() {
-                if let Some(coords) = point["coordonnee"].as_array() {
-                    if coords.len() == 2 {
-                        let lon = coords[0].as_f64().unwrap_or(0.0);
-                        let lat = coords[1].as_f64().unwrap_or(0.0);
+        // Vérification rapide sur la version initiale (sans verrou pour ne pas bloquer tout le temps)
+        if tracking_points_initial.get(i).map(|p| p["commune"].is_null()).unwrap_or(false) {
+            if let Some(coords) = tracking_points_initial[i]["coordonnee"].as_array() {
+                if coords.len() == 2 {
+                    let lon = coords[0].as_f64().unwrap_or(0.0);
+                    let lat = coords[1].as_f64().unwrap_or(0.0);
 
-                        let commune_name = fetch_commune_name(lon, lat, mapbox_token, i, timer_ign, timer_mapbox, timer_osm).await;
+                    // 1. Récupération de la commune (long, asynchrone, hors verrou)
+                    let commune_name = fetch_commune_name(lon, lat, mapbox_token, i, timer_ign, timer_mapbox, timer_osm).await;
 
-                        if let Ok(name) = commune_name {
-                            point["commune"] = serde_json::Value::String(name.clone());
+                    if let Ok(name) = commune_name {
+                        // 2. ÉCRITURE SÉCURISÉE (cycle Verrou -> Lire -> Modifier -> Écrire)
+                        let lock = crate::file_lock::get_lock(tracking_path.clone());
+                        let _guard = lock.lock().unwrap();
 
-                            // Save periodically or at the end? Saving every point is safe but slow IO.
-                            // Given the sleep timers, IO is negligible.
-                            let new_content = serde_json::to_string_pretty(&tracking_points).map_err(|e| e.to_string())?;
-                            std::fs::write(tracking_path, new_content).map_err(|e| e.to_string())?;
-
-                            // Note: Progress update is now done in the main loop to aggregate all files
-                        } else {
-                            // Error already logged in fetch_commune_name
+                        if let Ok(current_content) = std::fs::read_to_string(tracking_path) {
+                            if let Ok(mut current_points) = serde_json::from_str::<Vec<serde_json::Value>>(&current_content) {
+                                if let Some(point) = current_points.get_mut(i) {
+                                    if point["commune"].is_null() {
+                                        point["commune"] = serde_json::Value::String(name);
+                                        let new_content = serde_json::to_string_pretty(&current_points).map_err(|e| e.to_string())?;
+                                        std::fs::write(tracking_path, new_content).map_err(|e| e.to_string())?;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

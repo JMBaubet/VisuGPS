@@ -12,6 +12,7 @@ use std::sync::Mutex;
 use tokio::sync::broadcast;
 use crate::remote_sse::SseMessage;
 
+pub mod file_lock;
 pub mod colors;
 pub mod communes_updater;
 pub mod elevation_provider;
@@ -659,9 +660,16 @@ fn update_camera_position(
     pitch: f64,
     bearing: f64,
 ) -> Result<(), String> {
-    let state = state.lock().unwrap();
-    let data_dir = state.app_env_path.join("data").join(&circuit_id);
+    let app_env_path = {
+        let state_lock = state.lock().unwrap();
+        state_lock.app_env_path.clone()
+    };
+    let data_dir = app_env_path.join("data").join(&circuit_id);
     let tracking_path = data_dir.join("tracking.json");
+
+    // 1. Obtenir le verrou
+    let lock = file_lock::get_lock(tracking_path.clone());
+    let _guard = lock.lock().unwrap();
 
     let file_content = fs::read_to_string(&tracking_path).map_err(|e| e.to_string())?;
     let mut tracking_data: Value =
@@ -1730,17 +1738,41 @@ fn get_qrcode_as_base64(
 fn save_tracking_file(
     state: State<Mutex<AppState>>,
     circuit_id: String,
-    tracking_data: Value,
+    mut tracking_data: Value,
     filename: Option<String>,
 ) -> Result<(), String> {
-    let state = state.lock().unwrap();
+    let app_env_path = {
+        let state_lock = state.lock().unwrap();
+        state_lock.app_env_path.clone()
+    };
+    
     let target_filename = filename.unwrap_or_else(|| "tracking.json".to_string());
-    let tracking_path = state
-        .app_env_path
+    let tracking_path = app_env_path
         .join("data")
-        .join(circuit_id)
-        .join(target_filename);
+        .join(&circuit_id)
+        .join(&target_filename);
 
+    // 1. Obtenir le verrou pour ce fichier
+    let lock = file_lock::get_lock(tracking_path.clone());
+    let _guard = lock.lock().unwrap();
+
+    // 2. Fusionner avec les données existantes sur le disque (pour ne pas perdre les communes)
+    if tracking_path.exists() {
+        if let Ok(on_disk_content) = fs::read_to_string(&tracking_path) {
+            if let Ok(on_disk_json) = serde_json::from_str::<Value>(&on_disk_content) {
+                if let (Some(new_points), Some(disk_points)) = (tracking_data.as_array_mut(), on_disk_json.as_array()) {
+                    for i in 0..new_points.len().min(disk_points.len()) {
+                        // Si le point de l'UI n'a pas de commune, mais que celui du disque en a une, on la garde
+                        if new_points[i]["commune"].is_null() && !disk_points[i]["commune"].is_null() {
+                            new_points[i]["commune"] = disk_points[i]["commune"].clone();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Écrire le fichier final
     let new_content = serde_json::to_string_pretty(&tracking_data)
         .map_err(|e| format!("Failed to serialize tracking data: {}", e))?;
 
