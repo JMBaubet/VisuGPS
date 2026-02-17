@@ -26,9 +26,25 @@ Avant de créer un tag, assurez-vous que les numéros de version sont identiques
     "version": "1.0.0-beta.1",
     ```
 
+4.  **`src-tauri/settingsDefault.json`** :
+    ```json
+    "version": "1.0.0-beta.1",
+    ```
+
+## 2. Version des interfaces 
+
+La version des interfaces d'export/import des circuits et des contextes peut nécessiter une mise à jour. 
+
+1.  **`src-tauri/settingsDefault.json`** :
+    ```json
+    "version_export_circuit": "1.1.0",
+    "version_export_context": "1.1.0",
+    ```
+
+
 ---
 
-## 2. Créer un Tag Git
+## 3. Créer un Tag Git
 
 Un tag ("étiquette") sert à figer un commit précis dans l'historique pour dire "Ceci est la version X".
 
@@ -50,7 +66,7 @@ git tag -a v1.0.0-beta.1 9fceb02 -m "Version Beta sur ce commit spécifique"
 
 ---
 
-## 3. Pousser le Tag vers GitHub
+## 4. Pousser le Tag vers GitHub
 
 Par défaut, `git push` n'envoie pas les tags. Il faut le faire explicitement :
 
@@ -60,7 +76,7 @@ git push origin v1.0.0-beta.1
 
 ---
 
-## 4. Créer la Release sur GitHub
+## 5. Créer la Release sur GitHub
 
 Cette étape permet de rendre la version téléchargeable pour les utilisateurs (avec les installateurs `.msi` ou `.exe` générés).
 
@@ -71,11 +87,11 @@ Cette étape permet de rendre la version téléchargeable pour les utilisateurs 
     *   **Choose a tag** : Sélectionnez `v1.0.0-beta.1` (le tag que vous venez de pousser).
     *   **Release title** : Donnez un titre clair (ex: "v1.0.0-beta.1 : Amélioration Vue 3D").
     *   **Describe this release** : Listez les changements majeurs.
-5.  **Important pour une Beta** : Cochez la case **"Set as a pre-release"**. Cela indique clairement aux utilisateurs que c'est une version de test.
+    *   **Important pour une Beta** : Cochez la case **"Set as a pre-release"**. Cela indique clairement aux utilisateurs que c'est une version de test.
 6.  Cliquez sur **Publish release**.
 
 ---
 
-## 5. Automatisation (Optionnel)
+## 6. Automatisation (Optionnel)
 
 Si une "Action GitHub" est configurée pour la CI/CD, la création d'une Release peut déclencher automatiquement la compilation et l'ajout des fichiers d'installation (`.msi`, `.exe`) à la release.
