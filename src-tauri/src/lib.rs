@@ -2531,7 +2531,7 @@ pub fn run() {
                     name: Some(name.to_string()),
                     version: Some(app_handle.package_info().version.to_string()),
                     copyright: Some(format!(
-                        "© 2025 JMBaubet\nWebsite: https://github.com/JMBaubet/VisuGPS"
+                        "© 2025-2026 JMBaubet\nWebsite: https://github.com/JMBaubet/VisuGPS"
                     )),
                     authors: Some(vec!["JMBaubet".to_string()]),
                     comments: Some("Visualisation 3D de fichiers GPX".to_string()),
