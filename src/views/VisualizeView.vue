@@ -403,7 +403,7 @@ const { map, isMapLoaded, initializeMap: initMapEngine, flyToPromise, cleanupMap
 // 2. Camera Manager
 const { pausedCameraOptions, currentCameraBearing: camBearing, saveCameraState, restoreCameraState, enableInteraction, disableInteraction, startBearingTracking } = useCameraManager(map);
 const currentCameraBearing = computed(() => camBearing.value);
-const currentOrientationMode = ref('Trace');
+const currentOrientationMode = computed(() => getSettingValue('Visualisation/Météo/Widgets/orientationBoussole') || 'Trace');
 
 // 3. Circuit Data
 const { loadCircuitData, processTrackingData, lineStringRef, trackingPointsWithDistanceRef, eventsRef, segmentMetadata } = useCircuitData();

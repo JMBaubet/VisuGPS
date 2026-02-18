@@ -65,11 +65,18 @@
 
         </g>
 
-        <!-- Trace Marker (Blue Triangle) - OUTER -->
-        <!-- Only shown in Trace Mode (Fixed Top, Outside Circle) -->
+        <!-- Compass Indicators -->
+        
+        <!-- Track Marker (Blue Triangle) - OUTER -->
+        <!-- Shown in Trace Mode (Fixed Top, Outside Circle) -->
         <g v-if="orientationMode === 'Trace'">
-            <!-- Drawn at Top Center, using the -12 negative space in ViewBox -->
              <path d="M50 -12 L44 -2 L56 -2 Z" fill="#2196F3" stroke="none" /> 
+        </g>
+
+        <!-- Camera Marker (White Triangle) - OUTER -->
+        <!-- Shown in Camera Mode (Fixed Top, Outside Circle) -->
+        <g v-if="orientationMode === 'Camera'">
+             <path d="M50 -12 L44 -2 L56 -2 Z" fill="white" stroke="none" /> 
         </g>
         </svg>
     </div>

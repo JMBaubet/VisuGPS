@@ -1424,7 +1424,7 @@
                 "libelle": "Couleur Tronçon abandonné",
                 "description": "Couleur des segments abandonnés.",
                 "type": "couleur",
-                "defaut": "black",
+                "defaut": "red-lighten-2",
                 "materialDesign": true,
                 "doc": "docs/DocParametrage/Variante/Visualisation/couleurAbandonne.md"
               },
@@ -2313,7 +2313,7 @@
                     "libelle": "Orientation de la boussole",
                     "description": "Référence pour le Nord de la boussole : aligné avec la trace ou avec la caméra.",
                     "type": "list",
-                    "defaut": "Trace",
+                    "defaut": "Camera",
                     "valeurs": [
                       "Trace",
                       "Camera"
@@ -2514,7 +2514,7 @@
     "date_revision": null,
     "date_revison": null,
     "description": "Mode d'écécution par défaut de l'application VisuGPS",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "version_export_circuit": "1.1.0",
     "version_export_context": "1.1.0",
     "Status": "Start"

@@ -44,7 +44,11 @@ La version des interfaces d'export/import des circuits et des contextes peut né
 
 ---
 
-## 3. Créer un Tag Git
+## 3. mettre à jour le fichier update.md
+
+Décrire les amélioration(s) et correction(s) apportées par la version.
+
+## 4. Créer un Tag Git
 
 Un tag ("étiquette") sert à figer un commit précis dans l'historique pour dire "Ceci est la version X".
 
@@ -66,7 +70,7 @@ git tag -a v1.1.0 9fceb02 -m "Version 1.1.0 sur ce commit spécifique"
 
 ---
 
-## 4. Pousser le Tag vers GitHub
+## 5. Pousser le Tag vers GitHub
 
 Par défaut, `git push` n'envoie pas les tags. Il faut le faire explicitement :
 
@@ -76,7 +80,7 @@ git push origin v1.0.0-beta.1
 
 ---
 
-## 5. Créer la Release sur GitHub
+## 6. Créer la Release sur GitHub
 
 Cette étape permet de rendre la version téléchargeable pour les utilisateurs (avec les installateurs `.msi` ou `.exe` générés).
 
@@ -92,6 +96,6 @@ Cette étape permet de rendre la version téléchargeable pour les utilisateurs 
 
 ---
 
-## 6. Automatisation (Optionnel)
+## 7. Automatisation (Optionnel)
 
 Si une "Action GitHub" est configurée pour la CI/CD, la création d'une Release peut déclencher automatiquement la compilation et l'ajout des fichiers d'installation (`.msi`, `.exe`) à la release.
