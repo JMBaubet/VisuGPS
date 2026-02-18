@@ -1175,6 +1175,60 @@ const initializeVisualization = async () => {
             // Reveal map for direct start (km 0 is usually zoomed in, show it immediately)
             isInitializing.value = false;
 
+            // --- FIX: Restore 3D Map Style if we were in Global View (Standard Map) ---
+            if (mapInstance && mapStyle.value && mapInstance.getStyle()?.name !== mapStyle.value) {
+                mapInstance.setStyle(mapStyle.value);
+                await new Promise(resolve => mapInstance.once('style.load', resolve));
+                
+                // Restore Terrain & Layers (Required after style change)
+                if (!mapInstance.getSource('mapbox-dem')) {
+                    mapInstance.addSource('mapbox-dem', {
+                        'type': 'raster-dem',
+                        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+                        'tileSize': 512,
+                        'maxzoom': 14
+                    });
+                }
+                mapInstance.setTerrain({ 'source': 'mapbox-dem', 'exaggeration': terrainExaggeration.value });
+
+                // Re-setup layers (bifurcated logic for main vs variant)
+                if (isMainTrace.value) {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: traceColor.value,
+                        lineStringData: lineStringRef.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value
+                    });
+                } else {
+                    setupTraceLayers({
+                        traceWidth: traceWidth.value,
+                        traceOpacity: traceOpacity.value,
+                        traceColor: colorTraceVariant.value,
+                        coloredSegmentsData: coloredSegmentsGeoJsonRef.value,
+                        masterTraceData: masterTraceGeoJson.value,
+                        cometWidth: cometWidth.value,
+                        cometColor: cometColor.value,
+                        cometOpacity: cometOpacity.value,
+                        slopeExpression: slopeExpressionRef.value,
+                        segmentThickness: segmentThickness.value,
+                        segmentOpacity: segmentOpacity.value,
+                        slopeThickness: slopeThickness.value,
+                        slopeOpacityLogic: slopeOpacity.value,
+                        colorNew: colorNew.value,
+                        colorCommon: colorCommon.value,
+                        colorAbandoned: colorAbandoned.value
+                    });
+                    // Restore Visibility
+                    updateLayerVisibility(true, showSegments.value);
+                    updateLayerVisibility('trace-main-abandoned', showAbandoned.value);
+                    updateVariantSlopeMode(showSlope.value, { trace: colorTraceVariant.value });
+                }
+            }
+
             await flyToPromise({
                 center: startPoint.coordonnee,
                 zoom: startPoint.editedZoom ?? startPoint.zoom ?? 16,

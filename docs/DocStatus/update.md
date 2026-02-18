@@ -42,3 +42,4 @@ Corrections :
 
 Corrections :
 - Orientation de la boussole par rapport à la caméra
+- Restauration du style de carte 3D lors du changement de trace en fin de parcours
