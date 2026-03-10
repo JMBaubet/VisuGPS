@@ -2093,90 +2093,79 @@ fn apply_window_settings(app_handle: tauri::AppHandle, settings: &serde_json::Va
         // ---------------------------------------------------------
         #[cfg(target_os = "windows")]
         {
-            // 1. Handle Monitor Selection (Move & Center Manually)
-            if let Some(monitor_index) = monitor_setting {
+            // 1. Get Target Monitor
+            let monitors = window.available_monitors().unwrap_or_default();
+            let target_monitor = if let Some(monitor_index) = monitor_setting {
                 let index = monitor_index as usize;
-                if let Ok(monitors) = window.available_monitors() {
-                    if index < monitors.len() {
-                        let monitor = &monitors[index];
-                        let m_scale = monitor.scale_factor();
+                monitors.get(index).cloned()
+            } else {
+                window.current_monitor().unwrap_or_default()
+            };
 
-                        // Coordinates of the monitor in the global physical space
-                        let m_pos = monitor.position(); // Physical
-                        let m_size = monitor.size(); // Physical
+            if let Some(monitor) = target_monitor {
+                let m_scale = monitor.scale_factor();
+                let m_pos = monitor.position(); // Physical
+                let m_size = monitor.size(); // Physical
 
-                        // 1. Get requested Logical size from settings (or default)
-                        let (req_log_w, req_log_h) = target_size.unwrap_or((1024.0, 768.0));
+                // 2. Get requested PHYSICAL size from settings (or default to something sensible in logical)
+                // We treat the "1920x1080" settings as physical pixels.
+                let (req_phy_w, req_phy_h) = match target_size {
+                    Some((w, h)) => (w as u32, h as u32),
+                    None => ((1024.0 * m_scale) as u32, (768.0 * m_scale) as u32),
+                };
 
-                        // 2. Convert requested Logical size to Physical size for THIS monitor
-                        let req_phy_w = (req_log_w * m_scale) as u32;
-                        let req_phy_h = (req_log_h * m_scale) as u32;
 
-                        // 3. Check for Maximization Condition
-                        // If requested size covers the full screen (or more), we maximize.
-                        if req_phy_w >= m_size.width && req_phy_h >= m_size.height {
-                            // Move to the target monitor first (Top-Left) so maximize happens there
-                            if let Err(e) = window.set_position(tauri::Position::Physical(
-                                tauri::PhysicalPosition {
-                                    x: m_pos.x,
-                                    y: m_pos.y,
-                                },
-                            )) {
-                                eprintln!("Set Window Position for Maximize Error: {}", e);
-                            }
+                // Clamp Physical size to Monitor Physical size (avoid overflow)
+                // If it's as big as the monitor, we'll maximize later anyway, 
+                // but let's clamp it for the "Windowed" case as well.
+                let final_phy_w = std::cmp::min(req_phy_w, m_size.width);
+                let final_phy_h = std::cmp::min(req_phy_h, m_size.height);
 
-                            if let Err(e) = window.maximize() {
-                                eprintln!("Maximize Window Error: {}", e);
-                            }
-
-                            let _ = window.set_focus();
-                            return;
-                        }
-
-                        // 4. Standard Case: Windowed Mode (Clamped)
-                        let _ = window.unmaximize();
-
-                        // Clamp Physical size to Monitor Physical size (avoid overflow)
-                        let final_phy_w = std::cmp::min(req_phy_w, m_size.width);
-                        let final_phy_h = std::cmp::min(req_phy_h, m_size.height);
-
-                        // Calculate Physical Center
-                        // Note: coordinates can be negative in multi-monitor setups
-                        let final_phy_x = m_pos.x + (m_size.width as i32 - final_phy_w as i32) / 2;
-                        let final_phy_y = m_pos.y + (m_size.height as i32 - final_phy_h as i32) / 2;
-
-                        // Apply Size (Physical)
-                        if let Err(e) =
-                            window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-                                width: final_phy_w,
-                                height: final_phy_h,
-                            }))
-                        {
-                            eprintln!("Set Window Size Error: {}", e);
-                        }
-
-                        // Apply Position (Physical)
-                        if let Err(e) = window.set_position(tauri::Position::Physical(
-                            tauri::PhysicalPosition {
-                                x: final_phy_x,
-                                y: final_phy_y,
-                            },
-                        )) {
-                            eprintln!("Set Window Position Error: {}", e);
-                        }
-
-                        // Force focus
-                        let _ = window.set_focus();
-                        return;
-                    }
+                // 4. Check for Maximization Condition
+                // Note: If requested physical size is >= monitor size, we maximize.
+                if final_phy_w >= m_size.width && final_phy_h >= m_size.height {
+                    // Move to the target monitor first (Top-Left) so maximize happens there
+                    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                        x: m_pos.x,
+                        y: m_pos.y,
+                    }));
+                    let _ = window.maximize();
+                    let _ = window.set_focus();
+                    return;
                 }
+
+                // 5. Standard Case: Windowed Mode with Clamping
+                let _ = window.unmaximize();
+
+                // For windowed mode, we leave a margin for the taskbar (approx 80px logical -> physical)
+                let taskbar_margin_phy = (80.0 * m_scale) as u32; 
+                let clamped_h = std::cmp::min(final_phy_h, m_size.height.saturating_sub(taskbar_margin_phy));
+
+                // Calculate Physical Center
+                let final_phy_x = m_pos.x + (m_size.width as i32 - final_phy_w as i32) / 2;
+                let final_phy_y = m_pos.y + (m_size.height as i32 - clamped_h as i32) / 2;
+
+                // Apply Size (Physical)
+                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: final_phy_w,
+                    height: clamped_h,
+                }));
+
+                // Apply Position (Physical)
+                let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+                    x: final_phy_x,
+                    y: final_phy_y,
+                }));
+
+                let _ = window.set_focus();
+                return;
             }
 
-            // 2. Fallback if no monitor selected or monitor not found
+            // 6. Last resort fallback (should rarely happen if monitors are available)
             if let Some((w, h)) = target_size {
-                let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
-                    width: w,
-                    height: h,
+                let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+                    width: w as u32,
+                    height: h as u32,
                 }));
                 let _ = window.center();
             }
