@@ -1,6 +1,6 @@
 {
   "name": "visugps",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "VisuGPS - Gestion des variants et amélioration de la télécommande",
   "main": "index.js",
   "scripts": {

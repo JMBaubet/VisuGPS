@@ -39,8 +39,13 @@
         </v-btn>
 
         <!-- Help Button -->
-        <v-btn icon @click="showHelpDialog = true">
+        <v-btn icon @click="showHelpDialog = true" title="Aide">
           <v-icon color="info">mdi-book-open-page-variant-outline</v-icon>
+        </v-btn>
+
+        <!-- Exit Button -->
+        <v-btn icon @click="showExitConfirmDialog = true" title="Quitter l'application">
+          <v-icon color="error">mdi-power</v-icon>
         </v-btn>
 
         <!-- Dark/Light Mode Switch -->
@@ -54,6 +59,18 @@
   <v-dialog v-model="showHelpDialog" max-width="800px">
     <DocDisplay doc-path="/docs/DocUtilisateur/index.md" @close="showHelpDialog = false" />
   </v-dialog>
+
+  <!-- Exit Confirmation Dialog -->
+  <ConfirmationDialog
+    v-model="showExitConfirmDialog"
+    title="Quitter l'application"
+    message="Êtes-vous sûr de vouloir fermer l'application ?"
+    confirmText="Quitter"
+    cancelText="Annuler"
+    color="error"
+    icon="mdi-power"
+    @confirm="handleExitConfirmed"
+  />
 </template>
 
 <script setup>
@@ -68,7 +85,9 @@ import RemoteControlDialog from './RemoteControlDialog.vue';
 import DocDisplay from '@/components/DocDisplay.vue'; // Added this import
 import { invoke } from '@tauri-apps/api/core';
 import { confirm } from '@tauri-apps/plugin-dialog';
+import { exit } from '@tauri-apps/plugin-process';
 import { useSnackbar } from '@/composables/useSnackbar';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const emit = defineEmits(['open-import-dialog', 'circuit-imported']);
 const { showSnackbar } = useSnackbar();
@@ -78,6 +97,11 @@ function openImportDialog() {
 }
 
 const showHelpDialog = ref(false); // Added this line
+const showExitConfirmDialog = ref(false);
+
+async function handleExitConfirmed() {
+  await exit(0);
+}
 
 // Environment composable is only for display purposes now (chip)
 const { appEnv, executionMode } = useEnvironment();

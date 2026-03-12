@@ -43,3 +43,9 @@ Corrections :
 Corrections :
 - Orientation de la boussole par rapport à la caméra
 - Restauration du style de carte 3D lors du changement de trace en fin de parcours
+
+## Version 1.1.3
+
+Corrections :
+- Mise à l'échelle et du débordement de la fenêtre (Windows ex: 125%)
+- 
