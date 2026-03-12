@@ -289,7 +289,9 @@ fn process_parameter(
             }
 
             let is_secret = def_obj.get("type").and_then(|v| v.as_str()).unwrap_or("") == "secret";
-            report.all_overrides.push((path.clone(), format_value(Some(surcharge), is_secret), is_out_of_bounds));
+            if !is_secret {
+                report.all_overrides.push((path.clone(), format_value(Some(surcharge), is_secret), is_out_of_bounds));
+            }
             
             // Keep the surcharge in the new parameter
             new_param.insert("surcharge".to_string(), surcharge.clone());

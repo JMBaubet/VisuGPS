@@ -47,7 +47,7 @@
                   class="param-item"
                 >
                   <template v-slot:prepend>
-                    <v-icon :color="param.surcharge != null ? (param.critique ? 'red' : 'yellow') : undefined">mdi-file-cog-outline</v-icon>
+                    <v-icon :color="getParamIconColor(param)">mdi-file-cog-outline</v-icon>
                     <v-btn
                       v-if="param.doc"
                       icon="mdi-book-open-page-variant-outline"
@@ -116,7 +116,7 @@
           class="param-item"
         >
           <template v-slot:prepend>
-            <v-icon :color="param.surcharge != null ? (param.critique ? 'red' : 'yellow') : undefined">mdi-file-cog-outline</v-icon>
+            <v-icon :color="getParamIconColor(param)">mdi-file-cog-outline</v-icon>
             <v-btn
               v-if="param.doc"
               icon="mdi-book-open-page-variant-outline"
@@ -329,6 +329,16 @@ const openEditDialog = async (param) => {
 const openDocDialog = (param) => {
   selectedParameter.value = param;
   isDocDialogVisible.value = true;
+};
+
+const getParamIconColor = (param) => {
+  if (param.type === 'secret') {
+    // Si pas de surcharge pour un secret, c'est une anomalie -> Orange
+    // Si surcharge présente, c'est normal -> Pas de signalement spécial
+    return (param.surcharge == null) ? 'orange' : undefined;
+  }
+  // Logique standard pour les autres paramètres
+  return param.surcharge != null ? (param.critique ? 'red' : 'yellow') : undefined;
 };
 
 const fullPath = computed(() => {

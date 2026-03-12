@@ -46,6 +46,9 @@ Corrections :
 
 ## Version 1.1.3
 
+Contient les fonctionnalités suivantes :
+- Ajout d'un bouton de fermeture de l'application avec confirmation
+- Amélioration de la gestion des paramètres secrets
+
 Corrections :
 - Mise à l'échelle et du débordement de la fenêtre (Windows ex: 125%)
-- 

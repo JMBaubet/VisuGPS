@@ -1497,6 +1497,7 @@
             "libelle": "Parametres",
             "parametres": [
               {
+                "critique": true,
                 "identifiant": "apiKeyGraphHopper",
                 "libelle": "Clé API GraphHopper",
                 "description": "Clé API pour le service de routage GraphHopper.",
@@ -1505,6 +1506,7 @@
                 "doc": "docs/DocParametrage/Variante/Parametres/apiKeyGraphHopper.md"
               },
               {
+                "critique": true,
                 "identifiant": "apiKeyOpenRouteService",
                 "libelle": "Clé API OpenRouteService",
                 "description": "Clé API pour le service de routage OpenRouteService.",
@@ -2402,7 +2404,6 @@
                 "libelle": "Token Mapbox",
                 "max": 125,
                 "min": 85,
-                "surcharge": "",
                 "type": "secret"
               }
             ]
