@@ -8,8 +8,8 @@ export function useAnimationController() {
     const isInitializing = ref(true); // Géré par la vue pour le moment
 
     // État temporel
-    let accumulatedTime = 0;
-    let lastTimestamp = 0;
+    const accumulatedTime = ref(0);
+    const lastTimestamp = ref(0);
     let animationFrameId = null;
 
     // Vitesse
@@ -25,7 +25,8 @@ export function useAnimationController() {
     const startAnimation = (animateCallback) => {
         isPaused.value = false;
         isAnimationFinished.value = false;
-        lastTimestamp = 0;
+        lastTimestamp.value = 0;
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
         animationFrameId = requestAnimationFrame(animateCallback);
     };
 
@@ -38,19 +39,19 @@ export function useAnimationController() {
     };
 
     const resetTime = () => {
-        accumulatedTime = 0;
-        lastTimestamp = 0;
+        accumulatedTime.value = 0;
+        lastTimestamp.value = 0;
         currentDistanceInMeters.value = 0;
     };
 
     const updateTime = (deltaTime, totalDuration, totalDistance) => {
         if (isRewinding.value) {
-            accumulatedTime = Math.max(0, accumulatedTime - (deltaTime * 2 * currentSpeed.value));
+            accumulatedTime.value = Math.max(0, accumulatedTime.value - (deltaTime * 2 * currentSpeed.value));
         } else {
-            accumulatedTime += deltaTime * currentSpeed.value;
+            accumulatedTime.value += deltaTime * currentSpeed.value;
         }
 
-        const phase = totalDuration > 0 ? Math.min(accumulatedTime / totalDuration, 1) : 1;
+        const phase = totalDuration > 0 ? Math.min(accumulatedTime.value / totalDuration, 1) : 1;
         const distanceTraveled = totalDistance * phase;
 
         currentDistanceInMeters.value = distanceTraveled * 1000;
@@ -74,7 +75,7 @@ export function useAnimationController() {
         const ratio = clampedDist / totalDistanceKm;
 
         // Mise à jour du temps interne
-        accumulatedTime = ratio * totalDurationMs;
+        accumulatedTime.value = ratio * totalDurationMs;
 
         // Mise à jour immédiate des refs exposées
         currentDistanceInMeters.value = clampedDist * 1000;
@@ -103,7 +104,8 @@ export function useAnimationController() {
         currentDistanceInMeters,
         distanceDisplay,
         currentTraceBearing,
-        accumulatedTime, // Note: Exposed as let, might need wrapping if modified directly by view
+        accumulatedTime, 
+        lastTimestamp,
         startAnimation,
         pauseAnimation,
         resetTime,

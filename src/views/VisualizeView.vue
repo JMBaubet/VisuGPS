@@ -168,8 +168,12 @@
         </v-card>
     </v-dialog>
 
+    <!-- Modal des Horaires -->
+    <HoraireModal v-model="showHoraireModal" />
+
 </template>
 
+<!-- Force reload for HoraireModal integration -->
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, shallowRef } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -189,6 +193,7 @@ import AltitudeSVG from '@/components/Visualize/AltitudeSVG.vue';
 import AltitudeVariantSVG from '@/components/Visualize/AltitudeVariantSVG.vue';
 import WeatherWidgetDynamic from '@/components/Visualize/WeatherWidgetDynamic.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
+import HoraireModal from '@/components/Visualize/HoraireModal.vue';
 import WeatherService from '@/services/WeatherService';
 // Shared Components
 import VisualizeMapArea from '@/components/Visualize/Shared/VisualizeMapArea.vue';
@@ -218,6 +223,7 @@ const router = useRouter();
 const route = useRoute();
 
 const showVariantSelection = ref(false);
+const showHoraireModal = ref(false);
 const availableVariants = ref([]);
 const selectedVariantId = ref(props.variantId || route.query.variantId);
 
@@ -426,7 +432,7 @@ const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, u
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
 const cameraMoved = ref(false);
 
-const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, setTimeFromDistance } = useAnimationController();
+const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, lastTimestamp, setTimeFromDistance } = useAnimationController();
 
 // --- Speed Control Logic (Restore Logarithmic) ---
 const sliderPosition = ref(25); 
@@ -625,7 +631,7 @@ const initializeVisualization = async () => {
 
     isInitializing.value = true;
     isInitSequenceRunning.value = true; // Start protection
-    showWidgets.value = false;
+    if (!isDirectStart.value) showWidgets.value = false;
     
     // Reset Data & Animation State
     trackingPointsWithDistanceRef.value = [];
@@ -1531,7 +1537,7 @@ function applySmoothingToTracking(tracking) {
     return tracking;
 }
 
-let lastTimestamp = 0;
+
 
 const animateLoop = (timestamp) => {
     
@@ -1546,13 +1552,13 @@ const animateLoop = (timestamp) => {
     if (isInitializing.value || (isPaused.value && !isRewinding.value && !isFlytoActive.value) || isAnimationFinished.value) {
         if (map.value) map.value.triggerRepaint();
         requestAnimationFrame(animateLoop);
-        lastTimestamp = timestamp; 
+        lastTimestamp.value = timestamp; 
         return;
     }
 
     // 2. Update Time
-    const deltaTime = Math.min(timestamp - lastTimestamp, 100);
-    lastTimestamp = timestamp;
+    const deltaTime = Math.min(timestamp - lastTimestamp.value, 100);
+    lastTimestamp.value = timestamp;
     
     // Call controller to update time refs
     // Call controller to update time refs (Controller expects KM)
@@ -1876,7 +1882,7 @@ const executeFlytoSequence = async (flytoData) => {
     await nextTick();
     updateRemoteViewState();
 
-    lastTimestamp = 0; // Reset timer for smooth resume
+    lastTimestamp.value = 0; // Reset timer for smooth resume
     requestAnimationFrame(animateLoop); // Restart loop explicitly
 };
 
@@ -2391,7 +2397,11 @@ const handleKeydown = (e) => {
              break;
         case 'd':
         case 'D':
-             isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+             if (animationState.value === 'Termine') {
+                 showHoraireModal.value = true;
+             } else {
+                 isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
+             }
              break;
         case 'a':
         case 'A':
@@ -2774,7 +2784,6 @@ watch(variantBlueSegmentsRef, () => {
     // Ensure remote gets updated when segments data is loaded/calculated
     updateRemoteViewState();
 }, { deep: true });
-
 </script>
 
 <style scoped>
