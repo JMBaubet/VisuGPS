@@ -223,7 +223,8 @@
     </v-dialog>
 
     <!-- Modal des Horaires -->
-    <HoraireModal v-model="showHoraireModal" />
+    <!-- Modal des Horaires -->
+    <HoraireModal v-model="showHoraireModal" :scenarios="activeGroups" />
 
 </template>
 
@@ -961,6 +962,10 @@ const initializeVisualization = async () => {
         // Use the scenarios we just fetched (circuitScenarios is now populated)
         if (circuitScenarios.value && circuitScenarios.value.length > 0) {
             activeGroups.value = circuitScenarios.value.map(scen => {
+                const variantName = scen.variantId 
+                    ? availableVariants.value.find(v => v.id === scen.variantId)?.name 
+                    : null;
+                
                 return {
                     ...scen,
                     // Ensure core properties exist
@@ -969,7 +974,8 @@ const initializeVisualization = async () => {
                     heureDepart: scen.heureDepart || scen.start || "09:00",
                     isReference: scen.isReference || false,
                     // TraceType context for WeatherWidget
-                    variantId: scen.variantId || null
+                    variantId: scen.variantId || null,
+                    variantName: variantName
                 };
             });
         }

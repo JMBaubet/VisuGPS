@@ -39,12 +39,27 @@
 
             <div class="schedule-list">
               <div
-                v-for="(group, index) in schedules"
+                v-for="(group, index) in sortedSchedules"
                 :key="index"
                 class="schedule-item d-flex justify-space-between align-center px-6 py-4 mb-3"
               >
-                <span class="group-name text-h6 font-weight-bold">{{ group.name }}</span>
-                <span class="group-time text-h5 font-weight-black">{{ group.time }}</span>
+                <div class="d-flex flex-column">
+                  <span 
+                    class="group-name text-h6 font-weight-bold"
+                    :class="{ 'variant-orange': group.isVariant }"
+                  >
+                    {{ group.name }}
+                  </span>
+                  <span v-if="group.isVariant" class="variant-subtitle text-caption">
+                    {{ group.variantName }}
+                  </span>
+                </div>
+                <span 
+                  class="group-time text-h5 font-weight-black"
+                  :class="{ 'variant-orange': group.isVariant }"
+                >
+                  {{ group.time }}
+                </span>
               </div>
             </div>
           </div>
@@ -61,6 +76,10 @@ const props = defineProps({
   modelValue: {
     type: Boolean,
     required: true
+  },
+  scenarios: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -71,15 +90,51 @@ const model = computed({
   set: (value) => emit('update:modelValue', value)
 });
 
-const schedules = [
-  { name: 'Groupe 1', time: '09h30' },
-  { name: 'Groupe 2', time: '09h30' },
-  { name: 'Groupe 3', time: '09h10' },
-  { name: 'Groupe 1', time: '09h30' },
-  { name: 'Groupe 2', time: '09h30' },
-  { name: 'Groupe 3', time: '09h10' }, 
-  { name: 'Groupe 3', time: '09h10' }
-];
+// Helper pour parser l'heure "HHhMM" ou "HH:MM" en minutes pour le tri
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return 0;
+  // Gère 09h30, 9h30, 09:30, 9:30
+  const match = timeStr.match(/(\d{1,2})[h:](\d{2})/i);
+  if (match) {
+    return parseInt(match[1]) * 60 + parseInt(match[2]);
+  }
+  return 0;
+};
+
+// Helper pour parser "Groupe X" et extraire le X pour le tri
+const parseGroupNumber = (groupName) => {
+  if (!groupName) return 0;
+  const match = groupName.replace(/-/g, ' ').match(/(?:groupe|gr|g)\s*(\d+)/i);
+  if (match) return parseInt(match[1]);
+  // Si juste un nombre comme nom
+  const justNum = groupName.match(/^(\d+)$/);
+  if (justNum) return parseInt(justNum[1]);
+  return 999; // Fallback pour les groupes non standards
+};
+
+const sortedSchedules = computed(() => {
+  if (!props.scenarios || props.scenarios.length === 0) return [];
+  
+  // Transforme les scenarios en liste d'horaires
+  const schedulesList = props.scenarios.map(s => {
+    return {
+      name: s.nom || 'Groupe',
+      time: s.heureDepart || '00h00',
+      timeMinutes: parseTimeToMinutes(s.heureDepart),
+      groupNum: parseGroupNumber(s.nom),
+      isVariant: !!s.variantId,
+      variantName: s.variantName
+    };
+  });
+
+  // Tri chronologique, puis par numéro de groupe
+  return schedulesList.sort((a, b) => {
+    if (a.timeMinutes !== b.timeMinutes) {
+      return a.timeMinutes - b.timeMinutes; // Plus tôt en premier
+    }
+    return a.groupNum - b.groupNum; // Plus petit groupe en premier
+  });
+});
 </script>
 
 <style scoped>
@@ -154,10 +209,15 @@ const schedules = [
   opacity: 0.9;
 }
 
-.group-time {
-  font-family: "Tauri", sans-serif;
+.variant-orange {
+  color: #f97316 !important;
+}
+
+.variant-subtitle {
   color: rgb(var(--v-theme-on-surface));
-  letter-spacing: 1px;
+  opacity: 0.8;
+  font-size: 0.75rem !important;
+  margin-top: -4px;
 }
 
 /* Typographie spécifique si disponible dans le projet */
