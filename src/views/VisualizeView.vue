@@ -2520,9 +2520,9 @@ const handleKeydown = (e) => {
              break;
         case 'd':
         case 'D':
-             if (animationState.value === 'Termine') {
+             if (animationState.value === 'Termine' && activeGroups.value.length > 0) {
                  showHoraireModal.value = !showHoraireModal.value;
-             } else {
+             } else if (animationState.value !== 'Termine') {
                  isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
              }
              break;
@@ -2875,6 +2875,7 @@ async function updateRemoteViewState() {
         hasVariants: hasVariants.value,
         isVariantTrace: isVariantTrace.value,
         isAnimationFinished: isAnimationFinished.value,
+        hasScenarios: circuitScenarios.value.length > 0,
         variantCount: accessibleVariants.value.length,
         variants: accessibleVariants.value.map(v => ({ id: v.id, name: v.name })),
         segments: segments,
@@ -2908,6 +2909,11 @@ watch(isFlytoActive, () => {
 
 watch(variantBlueSegmentsRef, () => {
     // Ensure remote gets updated when segments data is loaded/calculated
+    updateRemoteViewState();
+}, { deep: true });
+
+watch(activeGroups, () => {
+    // Ensure remote gets updated when groups data is loaded (for schedules button)
     updateRemoteViewState();
 }, { deep: true });
 

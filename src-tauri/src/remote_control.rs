@@ -52,6 +52,7 @@ pub struct VisualizeViewState {
     pub has_variants: bool,
     pub is_variant_trace: bool,
     pub is_animation_finished: bool,
+    pub has_scenarios: bool,
     pub variant_count: usize,
     pub variants: Vec<RemoteVariant>,
     pub segments: Vec<RemoteSegment>,

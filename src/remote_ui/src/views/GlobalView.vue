@@ -17,7 +17,7 @@
         </v-btn>
       </v-col>
       <!-- Horaires -->
-      <v-col cols="4" class="text-center">
+      <v-col cols="4" class="text-center" v-if="hasScenarios">
         <v-btn 
             size="80" 
             rounded="circle"
@@ -144,6 +144,7 @@ const isDark = computed(() => theme.global.current.value.dark)
 // View State Bindings
 const isVariantMode = computed(() => store.visualizeViewState?.isVariantTrace ?? false);
 const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
+const hasScenarios = computed(() => store.visualizeViewState?.hasScenarios ?? false);
 const variants = computed(() => store.visualizeViewState?.variants || []);
 const showVariantDialog = ref(false);
 

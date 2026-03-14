@@ -47,6 +47,7 @@ Corrections :
 ## Version 1.1.3
 
 Contient les fonctionnalités suivantes :
+- Ajout des horaires de départ des groupes depuis la vue globale en fin de visualisation
 - Ajout d'un bouton de fermeture de l'application avec confirmation
 - Amélioration de la gestion des paramètres secrets
 
