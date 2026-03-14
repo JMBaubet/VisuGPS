@@ -6,11 +6,12 @@
       <transition name="fade">
         <div v-if="showBackButton" class="back-button">
           <v-btn
-            icon="mdi-arrow-left"
-            variant="elevated"
-            density="comfortable"
+            icon="mdi-home"
+            color="black"
+            size="large"
+            elevation="8"
             @click="$emit('go-back')"
-            title="Revenir"
+            title="Revenir à l'accueil"
           ></v-btn>
         </div>
       </transition>

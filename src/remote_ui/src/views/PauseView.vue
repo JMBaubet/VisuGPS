@@ -81,7 +81,7 @@
 
                     <!-- Variant Button -->
                     <v-btn 
-                        v-if="variantCount > 0 || isVariantMode"
+                        v-if="(variantCount > 0 || isVariantMode) && isAnimationFinished"
                         size="60" 
                         rounded="circle"
                         :color="isDark ? 'grey-lighten-1' : 'grey-darken-1'" 
@@ -161,6 +161,7 @@ const hasVariants = computed(() => store.visualizeViewState?.hasVariants ?? fals
 const variantCount = computed(() => store.visualizeViewState?.variantCount || 0);
 const variants = computed(() => store.visualizeViewState?.variants || []);
 const isFlytoActive = computed(() => store.visualizeViewState?.isFlytoActive ?? false);
+const isAnimationFinished = computed(() => store.visualizeViewState?.isAnimationFinished ?? false);
 const showVariantDialog = ref(false);
 
 // Close dialogs when view changes (e.g. selection made on desktop)

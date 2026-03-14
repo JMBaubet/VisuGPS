@@ -54,6 +54,80 @@
     </transition>
   </div>
 
+  <!-- Boutons de contrôle (En bas à gauche, visibles en fin d'animation) -->
+  <transition name="fade">
+      <div v-if="isAnimationFinished && showWidgets" class="bottom-left-container d-flex flex-column align-start" style="position: absolute; bottom: 20px; left: 20px; z-index: 1000; pointer-events: none; gap: 8px;">
+          
+          <!-- Ligne 1 : Bouton Horaires (au-dessus du reload) -->
+          <v-btn v-if="circuitScenarios && circuitScenarios.length > 0"
+              icon="mdi-routes-clock"
+              color="deep-purple"
+              class="d-flex"
+              style="pointer-events: auto;"
+              size="large"
+              elevation="8"
+              title="Horaires de départ"
+              @click="showHoraireModal = !showHoraireModal">
+          </v-btn>
+
+          <!-- Ligne 2 : Reload + Boutons Variante(s) -->
+          <div class="d-flex flex-row align-center" style="gap: 8px;">
+              <!-- 1. Bouton Reload -->
+              <v-btn
+                  icon="mdi-reload"
+                  color="grey"
+                  class="d-flex bg-white"
+                  style="pointer-events: auto;"
+                  size="large"
+                  elevation="8"
+                  title="Relancer l'animation"
+                  @click="replayAnimation">
+              </v-btn>
+
+              <!-- 2. Trace Principale (!isVariantTrace) -->
+              <template v-if="!isVariantTrace && accessibleVariants.length > 0">
+                  <v-btn
+                      icon="mdi-map-marker-path"
+                      color="blue"
+                      class="d-flex"
+                      style="pointer-events: auto;"
+                      size="large"
+                      elevation="8"
+                      title="Accéder aux variantes"
+                      @click="goToVariantView">
+                  </v-btn>
+              </template>
+
+              <!-- 3. Trace Variante (isVariantTrace) -->
+              <template v-if="isVariantTrace">
+                  <!-- Toujours le bouton vert pour revenir à la Main Trace -->
+                  <v-btn
+                      icon="mdi-map-marker-distance"
+                      color="green"
+                      class="d-flex"
+                      style="pointer-events: auto;"
+                      size="large"
+                      elevation="8"
+                      title="Retour Trace Principale"
+                      @click="returnToMainTrace">
+                  </v-btn>
+
+                  <!-- S'il y a PLUSIEURS variants, on ajoute le bouton bleu à droite -->
+                  <v-btn v-if="accessibleVariants.length > 1"
+                      icon="mdi-map-marker-path"
+                      color="blue"
+                      class="d-flex"
+                      style="pointer-events: auto;"
+                      size="large"
+                      elevation="8"
+                      title="Changer de variante"
+                      @click="goToVariantView">
+                  </v-btn>
+              </template>
+          </div>
+      </div>
+  </transition>
+
   <VisualizeControls
     v-if="showWidgets"
     :is-visible="showWidgets"
@@ -118,27 +192,7 @@
 
 
     <template #extra-controls>
-        <!-- Variant Switching & Return -->
-        <v-divider vertical class="mx-2"></v-divider>
-        
-        <!-- Sélection de Variante -->
-        <v-btn v-if="accessibleVariants.length > 0 && isPaused"
-            icon="mdi-map-marker-path" 
-            variant="text" 
-            color="primary"
-            title="Choisir une variante" 
-            @click="goToVariantView">
-        </v-btn>
-
-        <!-- Return to Main Trace -->
-        <v-btn v-if="isVariantTrace && is3DContext"
-            icon="mdi-map-marker-distance" 
-            variant="text" 
-            color="secondary"
-            title="Retour Trace Principale" 
-            :disabled="!isPaused"
-            @click="returnToMainTrace">
-        </v-btn>
+        <!-- Les boutons Variante et Retour ont été déplacés en bas à gauche -->
     </template>
     
     <template #extra-overlay-actions>
@@ -272,9 +326,12 @@ const animationState = ref('Initialisation'); // Initialisation, Vol_Vers_Vue_Gl
 const is3DContext = computed(() => {
     // Les widgets "3D" ne s'affichent que lors de la visualisation active (départ, animation, pause)
     // Ils sont masqués pendant l'intro (Standard) et la sortie (FlyTo Global)
-    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart', 'Survol_Evenementiel'].includes(animationState.value);
+    return ['En_Animation', 'En_Pause', 'En_Pause_au_Depart', 'Survol_Evenementiel', 'Vol_Vers_Depart'].includes(animationState.value);
 });
 const is3DWidgetsReady = computed(() => {
+    // Keep widgets visible during variant reloading to avoid blinking
+    if (isInitSequenceRunning.value && isDirectStart.value) return true;
+    
     // Return true as long as we are in 3D context. 
     // Individual widgets handle their own "no data" state.
     return is3DContext.value; 
@@ -432,7 +489,7 @@ const { setupTraceLayers, updateLayerVisibility, updateTraceOverlapVisibility, u
 // Note: accumulatedTime can be manipulated directly via composable exposed ref if needed
 const cameraMoved = ref(false);
 
-const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, resetTime, updateTime, accumulatedTime, lastTimestamp, setTimeFromDistance } = useAnimationController();
+const { isPaused, isRewinding, isAnimationFinished, currentSpeed, currentDistanceInMeters, distanceDisplay, currentTraceBearing, startAnimation, pauseAnimation, stopAnimation, continueAnimation, resetTime, updateTime, accumulatedTime, lastTimestamp, setTimeFromDistance } = useAnimationController();
 
 // --- Speed Control Logic (Restore Logarithmic) ---
 const sliderPosition = ref(25); 
@@ -629,6 +686,8 @@ const initializeVisualization = async () => {
     // Ensure settings are loaded before anything else
     await useSettings().initSettings();
 
+    stopAnimation(); // Important: Stops any ghost loops from previous loads
+    
     isInitializing.value = true;
     isInitSequenceRunning.value = true; // Start protection
     if (!isDirectStart.value) showWidgets.value = false;
@@ -1438,6 +1497,10 @@ const initializeVisualization = async () => {
              // Si pas de reprise auto, on reste simplement en pause (isPaused=true).
              // L'utilisateur devra cliquer sur Play (Espace ou Remote) pour débloquer.
              // On ne bloque pas l'exécution ici, sinon setupRemoteControl n'est jamais appelé !
+        } else {
+             // Reprise automatique immédiate (Km 0)
+             animationState.value = 'En_Animation';
+             remoteViewName.value = 'Animation';
         }
 
     } catch (error) {
@@ -1445,6 +1508,7 @@ const initializeVisualization = async () => {
         showSnackbar("Erreur d'initialisation variante", "error");
     } finally {
         isInitSequenceRunning.value = false; // End protection
+        updateRemoteViewState(); // S'assurer que la télécommande est au courant du nouveau contexte (variante)
     }
 };
 
@@ -1544,14 +1608,14 @@ const animateLoop = (timestamp) => {
     // 0. FlyTo Exclusive Mode
     if (isFlytoActive.value) {
         if (map.value) map.value.triggerRepaint();
-        requestAnimationFrame(animateLoop);
+        continueAnimation(animateLoop);
         return; 
     }
 
     // 1. Check Pause/State
     if (isInitializing.value || (isPaused.value && !isRewinding.value && !isFlytoActive.value) || isAnimationFinished.value) {
         if (map.value) map.value.triggerRepaint();
-        requestAnimationFrame(animateLoop);
+        continueAnimation(animateLoop);
         lastTimestamp.value = timestamp; 
         return;
     }
@@ -1611,7 +1675,7 @@ const animateLoop = (timestamp) => {
 
     // 7. Loop or End
     if (phase < 1 || isRewinding.value) {
-        requestAnimationFrame(animateLoop);
+        continueAnimation(animateLoop);
     } else {
         isAnimationFinished.value = true;
         isPaused.value = true;
@@ -1883,7 +1947,7 @@ const executeFlytoSequence = async (flytoData) => {
     updateRemoteViewState();
 
     lastTimestamp.value = 0; // Reset timer for smooth resume
-    requestAnimationFrame(animateLoop); // Restart loop explicitly
+    continueAnimation(animateLoop); // Restart loop explicitly
 };
 
 const handleEndSequence = async (skipDelay = false) => {
@@ -2117,7 +2181,13 @@ const resetAnimation = async () => {
         isPaused.value = false;
     }
 
-    requestAnimationFrame(animateLoop);
+    continueAnimation(animateLoop);
+};
+
+const replayAnimation = async () => {
+    isAnimationFinished.value = false;
+    await resetAnimation();
+    isPaused.value = false;
 };
 
 // --- Remote Control Logic ---
@@ -2398,7 +2468,7 @@ const handleKeydown = (e) => {
         case 'd':
         case 'D':
              if (animationState.value === 'Termine') {
-                 showHoraireModal.value = true;
+                 showHoraireModal.value = !showHoraireModal.value;
              } else {
                  isDistanceDisplayVisible.value = !isDistanceDisplayVisible.value;
              }
@@ -2569,6 +2639,8 @@ onUnmounted(() => {
     window.removeEventListener('keyup', handleKeyup);
     window.removeEventListener('mousemove', handleInteraction);
     if (cursorTimeout) clearTimeout(cursorTimeout);
+    
+    stopAnimation();
 
     cleanupMap();
     if (mapContainer.value) mapContainer.value.remove();
@@ -2749,6 +2821,7 @@ async function updateRemoteViewState() {
         isFlytoActive: isFlytoActive.value,
         hasVariants: hasVariants.value,
         isVariantTrace: isVariantTrace.value,
+        isAnimationFinished: isAnimationFinished.value,
         variantCount: accessibleVariants.value.length,
         variants: accessibleVariants.value.map(v => ({ id: v.id, name: v.name })),
         segments: segments,
@@ -2784,6 +2857,10 @@ watch(variantBlueSegmentsRef, () => {
     // Ensure remote gets updated when segments data is loaded/calculated
     updateRemoteViewState();
 }, { deep: true });
+
+watch(isAnimationFinished, () => {
+    updateRemoteViewState();
+});
 </script>
 
 <style scoped>

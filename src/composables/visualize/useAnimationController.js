@@ -38,6 +38,18 @@ export function useAnimationController() {
         }
     };
 
+    const stopAnimation = () => {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    };
+
+    const continueAnimation = (animateCallback) => {
+        animationFrameId = requestAnimationFrame(animateCallback);
+    };
+
+
     const resetTime = () => {
         accumulatedTime.value = 0;
         lastTimestamp.value = 0;
@@ -108,6 +120,8 @@ export function useAnimationController() {
         lastTimestamp,
         startAnimation,
         pauseAnimation,
+        stopAnimation,
+        continueAnimation,
         resetTime,
         updateTime,
         setTimeFromDistance,
