@@ -12,6 +12,7 @@ import { useRemoteStore } from '@/stores/remoteStore'
 import AccueilView from '@/views/AccueilView.vue'
 import AnimationView from '@/views/AnimationView.vue'
 import PauseView from '@/views/PauseView.vue'
+import GlobalView from '@/views/GlobalView.vue'
 import NoSleep from 'nosleep.js'
 
 const store = useRemoteStore()
@@ -114,8 +115,9 @@ const activeComponent = computed(() => {
 
     if (isVisualizing) {
         const animState = store.visualizeViewState?.animationState;
-        // AnimationView if playing, PauseView for everything else (Pause, Termine, etc.)
-        return (animState === 'En_Animation') ? AnimationView : PauseView;
+        if (animState === 'En_Animation') return AnimationView;
+        if (animState === 'Termine') return GlobalView;
+        return PauseView;
     }
     
     return AccueilView;

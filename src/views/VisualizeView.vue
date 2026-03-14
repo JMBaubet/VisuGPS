@@ -2190,6 +2190,41 @@ const replayAnimation = async () => {
     isPaused.value = false;
 };
 
+const recenterGlobalView = async () => {
+    if (!map.value || animationState.value !== 'Termine') return;
+    
+    let combinedBbox = null;
+    try {
+        const variantFeature = { type: 'Feature', geometry: lineStringRef.value.geometry || lineStringRef.value, properties: {} };
+        const features = [variantFeature];
+        
+        if (masterTraceGeoJson.value) {
+            const masterFeature = { type: 'Feature', geometry: masterTraceGeoJson.value.geometry || masterTraceGeoJson.value, properties: {} };
+            features.push(masterFeature);
+        }
+        
+        combinedBbox = turf.bbox({
+            type: 'FeatureCollection',
+            features: features
+        });
+        
+        const camParams = map.value.cameraForBounds(combinedBbox, { padding: margeFinalisation.value, bearing: 0, pitch: 0 });
+        if (camParams) {
+             isFlytoActive.value = true;
+             await flyToPromise({
+                center: camParams.center,
+                zoom: camParams.zoom,
+                pitch: 0, 
+                bearing: 0, 
+                duration: flyToGlobalDuration.value || 3000
+            });
+            isFlytoActive.value = false;
+        }
+    } catch (e) {
+        console.warn("Recenter failed", e);
+    }
+};
+
 // --- Remote Control Logic ---
 const setupRemoteControl = async () => {
     // Notify starting view based on current mode
@@ -2211,6 +2246,18 @@ const setupRemoteControl = async () => {
 
         // Return to Main Trace
         await listen('remote_command::return_to_main_trace', () => returnToMainTrace()),
+
+        // Return to Accueil
+        await listen('remote_command::go_home', () => goBack()),
+        
+        // Toggle Horaires
+        await listen('remote_command::toggle_horaires', () => { showHoraireModal.value = !showHoraireModal.value; }),
+
+        // Recenter Trace
+        await listen('remote_command::recenter_trace', () => recenterGlobalView()),
+        
+        // Return to Main Trace from Variant Selector (if requested)
+        await listen('remote_command::access_main_trace', () => returnToMainTrace()),
 
         // Home
         await listen('remote_command::go_home', () => goBack()),
