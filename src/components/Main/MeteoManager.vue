@@ -140,46 +140,63 @@
             <div class="text-subtitle-1 font-weight-bold mb-2">Configuration de la météo</div>
 
             <v-card variant="tonal" color="blue-grey" class="pa-2">
-                <!-- Row 1: Date -->
-                <v-row dense align="center" class="mb-2">
-                    <v-col cols="12">
-                        <v-select
-                            v-model="editedDateDepart"
-                            :items="availableDateOptions"
-                            item-title="title"
-                            item-value="value"
-                            label="Date de départ"
-                            density="compact"
-                            variant="underlined"
-                            hide-details
-                            prepend-icon="mdi-calendar"
+                <!-- Row 1: Date Calendar -->
+                <div class="calendar-container mb-4 mt-2">
+                  <!-- Header: Days of week -->
+                  <div class="d-flex text-caption text-grey text-center font-weight-bold mb-1">
+                    <div style="width: 70px;">Mois</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Lun</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Mar</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Mer</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Jeu</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Ven</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Sam</div>
+                    <div class="px-1" style="flex: 1 1 0%;">Dim</div>
+                  </div>
+                  
+                  <!-- Weeks -->
+                  <div v-for="(week, wIdx) in calendarWeeks" :key="wIdx" class="d-flex align-center text-center mb-1">
+                    <div class="text-caption font-weight-bold text-grey-darken-1" style="width: 70px; line-height: 1.2;">
+                      {{ week.monthLabel }}
+                    </div>
+                    <div v-for="(day, dIdx) in week.days" :key="dIdx" class="px-1" style="flex: 1 1 0%;">
+                      <template v-if="day.empty">
+                        <div style="height: 54px; padding: 2px; border: 1px solid transparent;"></div>
+                      </template>
+                      <template v-else>
+                        <v-card 
+                          :color="editedDateDepart === day.iso ? getStatusColorForDate(day.iso) : (day.isToday ? 'blue-grey-lighten-4' : undefined)"
+                          variant="flat"
+                          border
+                          class="d-flex flex-column align-center justify-center cursor-pointer rounded overflow-hidden"
+                          @click="editedDateDepart = day.iso"
+                          style="height: 54px; padding: 2px;"
                         >
-                            <template v-slot:selection="{ item }">
-                                <span :class="item.raw.color">{{ item.title }}</span>
-                            </template>
-                            <template v-slot:item="{ props, item }">
-                                <v-list-item v-bind="props" :class="item.raw.color"></v-list-item>
-                            </template>
-                        </v-select>
-                    </v-col>
-                </v-row>
+                            <span class="text-subtitle-2 font-weight-bold mb-1" :class="editedDateDepart === day.iso ? 'text-white' : ''" style="line-height:1;">{{ day.day }}</span>
+                            <v-icon 
+                                :color="editedDateDepart === day.iso ? 'white' : getStatusColorForDate(day.iso)" 
+                                size="x-large"
+                            >
+                                mdi-sun-thermometer
+                            </v-icon>
+                        </v-card>
+                      </template>
+                    </div>
+                  </div>
+                </div>
 
                 <!-- Row 2: File Management -->
                 <v-row dense align="center">
                     <v-col cols="12">
                         <div class="d-flex align-center justify-end">
                             
-                            <div v-if="weatherFilePresent" class="d-flex flex-column align-end mr-4">
+                            <div class="d-flex flex-column align-end mr-4">
                                 <div 
                                     class="text-caption font-weight-bold" 
-                                    :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
+                                    :class="weatherGlobalExplanation.class"
                                 >
-                                    Météo pour {{ formattedDateLong }} : à jour {{ oldestWeatherRelativeTime }}
+                                    {{ weatherGlobalExplanation.text }}
                                 </div>
-                            </div>
-
-                            <div v-else class="text-caption text-red mr-4 text-right font-weight-bold">
-                              Pas de météo pour {{ currentRouteTitle }} le {{ formattedDateLong }}
                             </div>
 
                             <!-- Case 1: Multiple Routes -> Menu -->
@@ -445,11 +462,14 @@ const weatherFileAgeHours = computed(() => currentRouteStatus.value.age);
 const weatherFileRelativeTime = computed(() => currentRouteStatus.value.relative);
 const weatherMissingCount = computed(() => 0); // Deprecated/Unused in new UI but kept for safety
 
-const oldestWeatherRelativeTime = computed(() => {
-    const routes = usedRoutes.value;
-    if (routes.length === 0) return '';
+const weatherGlobalExplanation = computed(() => {
+    const iso = editedDateDepart.value;
+    const color = getStatusColorForDate(iso);
     
-    // Find the status with the maximum age (oldest) that is present
+    // Re-calculer l'age relatif maximum
+    const routes = usedRoutes.value;
+    if (routes.length === 0) return { text: "Aucun parcours défini.", class: "text-grey" };
+    
     let maxAge = -1;
     let relativeStr = '';
     
@@ -460,8 +480,22 @@ const oldestWeatherRelativeTime = computed(() => {
             relativeStr = status.relative;
         }
     });
+
+    if (color === 'red-accent-4' || color === 'error') {
+        return { text: `Aucune donnée météo pour le ${formattedDateLong.value}.`, class: 'text-red-accent-4' };
+    }
+    if (color === 'deep-orange') {
+        return { text: `Données manquantes pour au moins un parcours pour le ${formattedDateLong.value}.`, class: 'text-deep-orange' };
+    }
+    if (color === 'orange-lighten-1' || color === 'orange') {
+        return { text: `Données obsolètes (> 12h) [${relativeStr}] pour le ${formattedDateLong.value}.`, class: 'text-orange-darken-1' };
+    }
+    if (color === 'info' || color === 'blue') {
+        return { text: `Données à rafraîchir (> 4h) [${relativeStr}] pour le ${formattedDateLong.value}.`, class: 'text-blue-darken-1' };
+    }
     
-    return relativeStr;
+    // Success / Green
+    return { text: `Météo mise à jour il y-a ${relativeStr}, pour le ${formattedDateLong.value}.`, class: 'text-success' };
 });
 
 const globalUpdateStatus = computed(() => {
@@ -516,52 +550,180 @@ const formattedDateLong = computed(() => {
     if (!editedDateDepart.value) return "";
     const [y, m, d] = editedDateDepart.value.split('-').map(Number);
     const date = new Date(y, m - 1, d);
-    let str = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(date);
-    // Capitalize first letter (e.g., "mer." -> "Mer.")
-    return str.charAt(0).toUpperCase() + str.slice(1);
+    return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'long' }).format(date);
 });
 
-const availableDateOptions = computed(() => {
-    const options = [];
+const monthNamesShort = ["Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin", "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc."];
+
+const calendarWeeks = computed(() => {
+    const days = [];
     const today = new Date();
-    // Reset time to avoid issues
     today.setHours(0, 0, 0, 0);
 
-    const formatter = new Intl.DateTimeFormat('fr-FR', { 
-        weekday: 'short', 
-        day: '2-digit', 
-        month: 'short',
-        year: 'numeric'
-    });
-
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 15; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
         
-        // Use local time for value to match title (avoid UTC offset issues with toISOString)
         const y = d.getFullYear();
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         const iso = `${y}-${m}-${day}`;
         
-        // title example: "mer. 07 janv. 2026"
-        // Capitalize first letter
-        let title = formatter.format(d);
-        title = title.charAt(0).toUpperCase() + title.slice(1);
-        
-        // Determine Color
-        // Difference in days
-        const diffTime = d - today;
-        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-        
-        let colorClass = 'text-white';
-        if (diffDays < 0) colorClass = 'text-orange'; 
-        else if (diffDays === 1) colorClass = 'text-green';
-        
-        options.push({ title, value: iso, color: colorClass });
+        days.push({
+            date: d,
+            iso: iso,
+            day: d.getDate(),
+            isToday: i === 0
+        });
     }
-    return options;
+
+    const weeks = [];
+    let currentWeek = [];
+    
+    let firstDayOfWeek = days[0].date.getDay(); 
+    if (firstDayOfWeek === 0) firstDayOfWeek = 7; // Dimanche = 7
+    
+    const emptyPrefixCount = firstDayOfWeek - 1; // Nb de cases vides avant lundi
+    
+    for (let i = 0; i < emptyPrefixCount; i++) {
+        currentWeek.push({ empty: true });
+    }
+
+    const formatWeek = (weekDays) => {
+        const activeDays = weekDays.filter(d => !d.empty);
+        const m1 = activeDays[0].date.getMonth();
+        const m2 = activeDays[activeDays.length - 1].date.getMonth();
+        
+        let monthLabel = monthNamesShort[m1];
+        if (m1 !== m2) {
+            monthLabel = `${monthNamesShort[m1]} - ${monthNamesShort[m2]}`;
+        }
+        return { monthLabel, days: weekDays };
+    };
+
+    days.forEach(d => {
+        currentWeek.push({ empty: false, ...d });
+        if (currentWeek.length === 7) {
+            weeks.push(formatWeek(currentWeek));
+            currentWeek = [];
+        }
+    });
+
+    if (currentWeek.length > 0) {
+        while (currentWeek.length < 7) {
+            currentWeek.push({ empty: true });
+        }
+        weeks.push(formatWeek(currentWeek));
+    }
+    
+    return weeks;
 });
+
+const calendarDatesList = computed(() => {
+    const list = [];
+    const today = new Date();
+    for (let i = 0; i < 15; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        list.push(`${y}-${m}-${day}`);
+    }
+    return list;
+});
+
+const allDaysWeatherStatus = ref({});
+
+const getStatusColorForDate = (iso) => {
+    return allDaysWeatherStatus.value[iso]?.color || 'red-accent-4';
+};
+
+const checkAllWeatherStatuses = async () => {
+    if (!props.circuit?.circuitId) return;
+    
+    const routesToScan = usedRoutes.value;
+    const datesToScan = calendarDatesList.value;
+    
+    const promises = [];
+    
+    for (const dIso of datesToScan) {
+        for (const route of routesToScan) {
+            const varId = route.value;
+            const fname = varId 
+                ? `weather_variant_${varId}_${dIso}.json` 
+                : getFilenameForDate(dIso);
+                
+            promises.push(
+                invoke('check_weather_cache_metadata', { 
+                    circuitId: props.circuit.circuitId, 
+                    filename: fname
+                }).then(metadata => {
+                    return { date: dIso, route: varId, metadata };
+                }).catch(e => {
+                    return { date: dIso, route: varId, metadata: null };
+                })
+            );
+        }
+    }
+    
+    const results = await Promise.all(promises);
+    
+    const datesMap = {}; 
+    
+    results.forEach(res => {
+        if (!datesMap[res.date]) datesMap[res.date] = { statuses: [] };
+        let present = false;
+        let age = 0;
+        if (res.metadata) {
+            const updatedTime = new Date(res.metadata);
+            const diffMs = new Date() - updatedTime;
+            const hours = diffMs / (1000 * 60 * 60);
+            present = true;
+            age = hours;
+        }
+        datesMap[res.date].statuses.push({ present, age });
+    });
+    
+    const newGlobalMap = {};
+    for (const dIso of datesToScan) {
+        const statuses = datesMap[dIso]?.statuses || [];
+        
+        if (statuses.length === 0) {
+            newGlobalMap[dIso] = { color: 'red-accent-4' };
+            continue;
+        }
+        
+        const allMissing = statuses.every(s => !s.present);
+        if (allMissing) {
+            newGlobalMap[dIso] = { color: 'red-accent-4' };
+            continue;
+        }
+        
+        const anyMissing = statuses.some(s => !s.present);
+        if (anyMissing) {
+            newGlobalMap[dIso] = { color: 'deep-orange' };
+            continue;
+        }
+        
+        const anyVeryOld = statuses.some(s => s.age > 12);
+        if (anyVeryOld) {
+            newGlobalMap[dIso] = { color: 'orange-lighten-1' };
+            continue;
+        }
+        
+        const anyOld = statuses.some(s => s.age > 4);
+        if (anyOld) {
+             newGlobalMap[dIso] = { color: 'info' };
+             continue;
+        }
+        
+        newGlobalMap[dIso] = { color: 'success' };
+    }
+    
+    allDaysWeatherStatus.value = newGlobalMap;
+    checkWeatherStatus();
+};
 
 // Initialize Data
 const initData = () => {
@@ -626,7 +788,7 @@ const initData = () => {
     
     // Check cache status
     nextTick(() => {
-        checkWeatherStatus();
+        checkAllWeatherStatuses();
         loadVariants();
     });
 };
@@ -825,7 +987,7 @@ const saveMeteo = async () => {
         
         showSnackbar('Configuration météo enregistrée', 'success');
         emit('saved');
-        checkWeatherStatus(); // Re-check (maybe filename changed due to date)
+        checkAllWeatherStatuses(); // Re-check all
     } catch (e) {
         console.error("Save error:", e);
         showSnackbar("Erreur sauvegarde: " + e, 'error');
@@ -945,7 +1107,7 @@ const downloadWeather = async (specificVariantId = undefined) => {
         if (successCount > 0) {
             showSnackbar(`${successCount} météo(s) mise(s) à jour`, 'success');
             emit('downloaded');
-            checkWeatherStatus();
+            checkAllWeatherStatuses();
         } else {
             showSnackbar("Aucune mise à jour effectuée check console.", "warning");
         }
@@ -1105,7 +1267,7 @@ const checkWeatherStatus = async () => {
 };
 
 watch(editedScenarios, () => {
-    checkWeatherStatus();
+    checkAllWeatherStatuses();
 }, { deep: true });
 </script>
 <style scoped>
