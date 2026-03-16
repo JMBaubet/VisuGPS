@@ -4,7 +4,7 @@
       <v-card-title class="bg-primary text-white px-4 py-2 d-flex justify-space-between align-center">
         <div class="d-flex align-center">
            <v-icon start icon="mdi-sun-thermometer"></v-icon>
-           <span>Gestion Météo : {{ circuit.nom }}</span>
+           <span>Groupes et météo : {{ circuit.nom }}</span>
         </div>
         <div class="d-flex align-center">
              <v-btn icon @click="openDoc('/docs/DocUtilisateur/meteo_manager.md')" color="white" variant="text" class="mr-2" title="Documentation">
@@ -16,316 +16,298 @@
         </div>
       </v-card-title>
 
-      <v-card-text>
-        <!-- Groups Management (Moved up) -->
-        <div class="d-flex justify-space-between align-center mb-2 mt-2">
-            <div class="text-subtitle-1 font-weight-bold">Groupes</div>
-            <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addGroup">
-                Ajouter Groupe
-            </v-btn>
-        </div>
+      <v-tabs v-model="activeTab" bg-color="grey-lighten-4" color="primary" density="compact">
+        <v-tab value="groups" prepend-icon="mdi-account-group">Groupes</v-tab>
+        <v-tab value="weather" prepend-icon="mdi-weather-partly-cloudy">Météo</v-tab>
+      </v-tabs>
 
-        <div v-if="editedScenarios.length > 0" class="scenarios-list mb-4">
-            <!-- Sorting Header -->
-            <v-row dense class="px-2 mb-1 text-grey-darken-1">
-                <v-col cols="1" class="d-flex justify-center"></v-col>
-                <v-col :cols="colsName" class="d-flex align-center">
-                    <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('nom')">
-                        NOM <v-icon size="x-small">{{ getSortIcon('nom') }}</v-icon>
-                    </span>
-                </v-col>
-                <v-col :cols="colsTime" class="d-flex align-center">
-                    <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('heure')">
-                        DÉPART <v-icon size="x-small">{{ getSortIcon('heure') }}</v-icon>
-                    </span>
-                </v-col>
-                <v-col :cols="colsSpeed" class="d-flex align-center">
-                     <span class="text-caption font-weight-bold">VITESSE</span>
-                </v-col>
-                <v-col v-if="hasVariants" cols="4" class="d-flex align-center">
-                     <span class="text-caption font-weight-bold">CIRCUIT</span>
-                </v-col>
-                <v-col cols="1"></v-col>
-            </v-row>
+      <v-divider></v-divider>
 
-            <v-row v-for="(scen, idx) in editedScenarios" :key="scen.id" dense align="center" class="mb-1 pa-2 rounded">
-                <!-- Reference Selection -->
-                <v-col cols="1" class="d-flex justify-center">
-                    <v-btn icon size="x-small" variant="text" @click="setReference(idx)" :color="scen.isReference ? 'primary' : 'grey'" title="Définir comme groupe de référence">
-                        <v-icon>{{ scen.isReference ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}</v-icon>
+      <v-window v-model="activeTab" style="min-height: 400px; max-height: 400px; overflow: hidden;">
+        <!-- Tab 1: Groups -->
+        <v-window-item value="groups">
+          <v-card-text class="pa-0 d-flex flex-column" style="height: 400px;">
+            <!-- Zone fixe en haut : Titre, bouton Ajouter et En-tête de tri -->
+            <div class="px-4 pt-4 pb-2 pb-0">
+                <div class="d-flex justify-space-between align-center mb-2">  
+                    <div class="text-subtitle-1 font-weight-bold">Configuration des groupes</div>
+                    <v-btn size="small" color="primary" variant="tonal" prepend-icon="mdi-plus" @click="addGroup">
+                        Ajouter Groupe
                     </v-btn>
-                </v-col>
+                </div>
 
-                <!-- Group Name (Read-only or strict) -->
-                <v-col :cols="colsName">
-                    <div class="font-weight-bold ml-2">{{ scen.nom }}</div>
-                </v-col>
-                
-                <!-- Departure Time -->
-                <v-col :cols="colsTime">
-                   <EditTime v-model="scen.heureDepart" label="Heure Départ" step="300" />
-                </v-col>
-                
-                <!-- Average Speed -->
-                <v-col :cols="colsSpeed">
-                    <v-text-field
-                        v-model.number="scen.vitesseMoyenne"
-                        label="Vitesse (km/h)"
-                        type="number"
-                        min="5"
-                        max="50"
-                        step="0.5"
-                        density="compact"
-                        hide-details
-                        variant="outlined"
-                    ></v-text-field>
-                </v-col>
+                <!-- Sorting Header (Fixe) -->
+                <v-row v-if="editedScenarios.length > 0" dense class="px-2 mb-1 text-grey-darken-1">
+                    <v-col cols="1" class="d-flex justify-center"></v-col>
+                    <v-col :cols="colsName" class="d-flex align-center">
+                        <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('nom')">
+                            NOM <v-icon size="x-small">{{ getSortIcon('nom') }}</v-icon>
+                        </span>
+                    </v-col>
+                    <v-col :cols="colsTime" class="d-flex align-center">
+                        <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('heure')">
+                            DÉPART <v-icon size="x-small">{{ getSortIcon('heure') }}</v-icon>
+                        </span>
+                    </v-col>
+                    <v-col :cols="colsSpeed" class="d-flex align-center">
+                        <span class="text-caption font-weight-bold">VITESSE</span>
+                    </v-col>
+                    <v-col v-if="hasVariants" cols="4" class="d-flex align-center">
+                        <span class="text-caption font-weight-bold">CIRCUIT</span>
+                    </v-col>
+                    <v-col cols="1"></v-col>
+                </v-row>
+            </div>
 
-                <!-- Variant Selection -->
-                <v-col v-if="hasVariants" cols="4">
-                    <v-select
-                        v-model="scen.variantId"
-                        :items="availableVariants"
-                        item-title="title"
-                        item-value="value"
-                        label="Circuit"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        :color="scen.variantId ? 'blue' : undefined"
-                        :class="scen.variantId ? 'text-blue' : ''"
-                    ></v-select>
-                </v-col>
-                
-                <!-- Delete Action (Only for the group with highest number) -->
-                <v-col cols="1" class="d-flex justify-end">
-                    <v-btn 
-                        v-if="isHighestGroup(scen) && editedScenarios.length > 1"
-                        icon 
-                        size="x-small" 
-                        color="error" 
-                        variant="text" 
-                        @click="removeGroup(idx)" 
-                        title="Supprimer ce groupe (dernier numéro)"
-                    >
-                        <v-icon>mdi-delete</v-icon>
-                    </v-btn>
-                </v-col>
-            </v-row>
-        </div>
-        <div v-else class="text-center py-4 text-grey">
-            Aucun groupe défini. Le Groupe 1 sera créé par défaut.
-        </div>
+            <!-- Liste Défilante des scénarios -->
+            <div class="flex-grow-1 overflow-y-auto px-4 mt-1">
+                <div v-if="editedScenarios.length > 0">
+                    <v-row v-for="(scen, idx) in editedScenarios" :key="scen.id" dense align="center" class="mb-1 pa-2 rounded">
+                        <!-- Reference Selection -->
+                        <v-col cols="1" class="d-flex justify-center">
+                            <v-btn icon size="x-small" variant="text" @click="setReference(idx)" :color="scen.isReference ? 'primary' : 'grey'" title="Définir comme groupe de référence">
+                                <v-icon>{{ scen.isReference ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}</v-icon>
+                            </v-btn>
+                        </v-col>
 
-        <v-divider class="mb-4"></v-divider>
-
-        <!-- Global Weather Configuration -->
-        <v-card variant="tonal" color="blue-grey" class="mb-4 pa-2">
-            <!-- Row 1: Date -->
-            <v-row dense align="center" class="mb-2">
-                <v-col cols="12">
-                    <v-select
-                        v-model="editedDateDepart"
-                        :items="availableDateOptions"
-                        item-title="title"
-                        item-value="value"
-                        label="Date de départ"
-                        density="compact"
-                        variant="underlined"
-                        hide-details
-                        prepend-icon="mdi-calendar"
-                    >
-                        <template v-slot:selection="{ item }">
-                            <span :class="item.raw.color">{{ item.title }}</span>
-                        </template>
-                        <template v-slot:item="{ props, item }">
-                            <v-list-item v-bind="props" :class="item.raw.color"></v-list-item>
-                        </template>
-                    </v-select>
-                </v-col>
-            </v-row>
-
-            <!-- Row 2: File Management -->
-            <v-row dense align="center">
-                <v-col cols="12">
-                     <div class="d-flex align-center justify-end">
+                        <!-- Group Name -->
+                        <v-col :cols="colsName">
+                            <div class="font-weight-bold ml-2">{{ scen.nom }}</div>
+                        </v-col>
                         
-                        <!-- Status & Action when file exists -->
-                        <div v-if="weatherFilePresent" class="d-flex flex-column align-end mr-4">
-                            <div 
-                                class="text-caption font-weight-bold" 
-                                :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
+                        <!-- Departure Time -->
+                        <v-col :cols="colsTime">
+                          <EditTime v-model="scen.heureDepart" label="Heure Départ" step="300" />
+                        </v-col>
+                        
+                        <!-- Average Speed -->
+                        <v-col :cols="colsSpeed">
+                            <v-text-field
+                                v-model.number="scen.vitesseMoyenne"
+                                label="Vitesse (km/h)"
+                                type="number"
+                                min="5"
+                                max="50"
+                                step="0.5"
+                                density="compact"
+                                hide-details
+                                variant="outlined"
+                            ></v-text-field>
+                        </v-col>
+
+                        <!-- Variant Selection -->
+                        <v-col v-if="hasVariants" cols="4">
+                            <v-select
+                                v-model="scen.variantId"
+                                :items="availableVariants"
+                                item-title="title"
+                                item-value="value"
+                                label="Circuit"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                :color="scen.variantId ? 'blue' : undefined"
+                                :class="scen.variantId ? 'text-blue' : ''"
+                            ></v-select>
+                        </v-col>
+                        
+                        <!-- Delete Action -->
+                        <v-col cols="1" class="d-flex justify-end">
+                            <v-btn 
+                                v-if="isHighestGroup(scen) && editedScenarios.length > 1"
+                                icon 
+                                size="x-small" 
+                                color="error" 
+                                variant="text" 
+                                @click="removeGroup(idx)" 
+                                title="Supprimer ce groupe (dernier numéro)"
                             >
-                                Météo pour {{ formattedDateLong }} : à jour {{ oldestWeatherRelativeTime }}
+                                <v-icon>mdi-delete</v-icon>
+                            </v-btn>
+                        </v-col>
+                    </v-row>
+                </div>
+                <div v-else class="text-center py-4 text-grey">
+                    Aucun groupe défini. Le Groupe 1 sera créé par défaut.
+                </div>
+            </div>
+          </v-card-text>
+        </v-window-item>
+
+        <!-- Tab 2: Weather -->
+        <v-window-item value="weather">
+          <v-card-text style="height: 400px; overflow-y: auto;">
+            <div class="text-subtitle-1 font-weight-bold mb-2">Configuration de la météo</div>
+
+            <v-card variant="tonal" color="blue-grey" class="pa-2">
+                <!-- Row 1: Date -->
+                <v-row dense align="center" class="mb-2">
+                    <v-col cols="12">
+                        <v-select
+                            v-model="editedDateDepart"
+                            :items="availableDateOptions"
+                            item-title="title"
+                            item-value="value"
+                            label="Date de départ"
+                            density="compact"
+                            variant="underlined"
+                            hide-details
+                            prepend-icon="mdi-calendar"
+                        >
+                            <template v-slot:selection="{ item }">
+                                <span :class="item.raw.color">{{ item.title }}</span>
+                            </template>
+                            <template v-slot:item="{ props, item }">
+                                <v-list-item v-bind="props" :class="item.raw.color"></v-list-item>
+                            </template>
+                        </v-select>
+                    </v-col>
+                </v-row>
+
+                <!-- Row 2: File Management -->
+                <v-row dense align="center">
+                    <v-col cols="12">
+                        <div class="d-flex align-center justify-end">
+                            
+                            <div v-if="weatherFilePresent" class="d-flex flex-column align-end mr-4">
+                                <div 
+                                    class="text-caption font-weight-bold" 
+                                    :class="weatherFileAgeHours < 3 ? 'text-green' : 'text-blue'"
+                                >
+                                    Météo pour {{ formattedDateLong }} : à jour {{ oldestWeatherRelativeTime }}
+                                </div>
                             </div>
+
+                            <div v-else class="text-caption text-red mr-4 text-right font-weight-bold">
+                              Pas de météo pour {{ currentRouteTitle }} le {{ formattedDateLong }}
+                            </div>
+
+                            <!-- Case 1: Multiple Routes -> Menu -->
+                            <div v-if="usedRoutes.length > 1" class="d-flex align-center mr-4">
+                                <v-menu location="bottom end">
+                                    <template v-slot:activator="{ props }">
+                                        <v-btn
+                                            :color="globalUpdateStatus.color"
+                                            variant="flat"
+                                            v-bind="props"
+                                            :prepend-icon="globalUpdateStatus.icon"
+                                            append-icon="mdi-menu-down"
+                                            size="small"
+                                            :loading="isDownloadingWeather"
+                                        >
+                                            {{ globalUpdateStatus.text }}
+                                        </v-btn>
+                                    </template>
+                                    <v-list density="compact" nav>
+                                        <v-list-item @click="() => downloadWeather()">
+                                            <template v-slot:prepend>
+                                                <v-icon :icon="globalUpdateStatus.icon" size="small"></v-icon>
+                                            </template>
+                                            <v-list-item-title class="font-weight-bold">
+                                                Tout mettre à jour
+                                            </v-list-item-title>
+                                        </v-list-item>
+                                        <v-divider class="my-1"></v-divider>
+                                        <v-list-item
+                                            v-for="(route, index) in usedRoutes"
+                                            :key="index"
+                                            :value="index"
+                                            @click="() => downloadWeather(route.value)"
+                                        >
+                                            <template v-slot:prepend>
+                                                <v-icon 
+                                                    v-if="weatherStatusMap[route.value || 'main']?.present"
+                                                    color="success"
+                                                    size="small"
+                                                >
+                                                    mdi-check-circle
+                                                </v-icon>
+                                                <v-icon v-else color="error" size="small">
+                                                    mdi-alert-circle
+                                                </v-icon>
+                                            </template>
+                                            <v-list-item-title>
+                                                {{ route.title }}
+                                                <span v-if="weatherStatusMap[route.value || 'main']?.present" class="text-caption text-grey ml-2">
+                                                    ({{ weatherStatusMap[route.value || 'main']?.relative }})
+                                                </span>
+                                            </v-list-item-title>
+                                        </v-list-item>
+                                    </v-list>
+                                </v-menu>
+                            </div>
+                            
+                            <!-- Case 2: Single Route -->
+                            <v-btn
+                                v-else
+                                size="small"
+                                :color="globalUpdateStatus.color"
+                                variant="flat"
+                                :loading="isDownloadingWeather"
+                                @click="downloadWeather()"
+                                :prepend-icon="globalUpdateStatus.icon"
+                                class="mr-4"
+                            >
+                                {{ globalUpdateStatus.text }}
+                            </v-btn>
+
+                            <!-- Viewing Action (Menu or Button) -->
+                            <div v-if="usedRoutes.length > 1" class="d-flex align-center ml-4">
+                                <v-menu location="bottom end">
+                                    <template v-slot:activator="{ props }">
+                                        <v-btn color="info" variant="flat" v-bind="props" prepend-icon="mdi-eye" append-icon="mdi-menu-down" size="small">
+                                            Voir...
+                                        </v-btn>
+                                    </template>
+                                    <v-list density="compact" nav>
+                                        <v-list-item
+                                            v-for="(route, index) in usedRoutes"
+                                            :key="index"
+                                            :value="index"
+                                            @click="() => { selectedRoute = route.value; loadAndShowWeather(); }"
+                                            :disabled="!weatherStatusMap[route.value || 'main']?.present"
+                                        >
+                                            <template v-slot:prepend>
+                                                <v-icon v-if="weatherStatusMap[route.value || 'main']?.present" color="success" size="small">
+                                                    mdi-check-circle
+                                                </v-icon>
+                                                <v-icon v-else color="error" size="small">
+                                                    mdi-alert-circle
+                                                </v-icon>
+                                            </template>
+                                            <v-list-item-title>
+                                                {{ route.title }}
+                                                <span v-if="weatherStatusMap[route.value || 'main']?.present" class="text-caption text-grey ml-2">
+                                                    ({{ weatherStatusMap[route.value || 'main']?.relative }})
+                                                </span>
+                                            </v-list-item-title>
+                                        </v-list-item>
+                                    </v-list>
+                                </v-menu>
+                            </div>
+                            
+                            <v-btn
+                                v-else
+                                size="small"
+                                color="info"
+                                variant="flat"
+                                @click="loadAndShowWeather"
+                                prepend-icon="mdi-eye"
+                                :disabled="!isValid || !weatherFilePresent"
+                            >
+                                Voir
+                            </v-btn>
                         </div>
+                    </v-col>
+                </v-row>
+            </v-card>
+          </v-card-text>
+        </v-window-item>
+      </v-window>
 
-                        <!-- Status & Action when missing -->
-                        <div v-else class="text-caption text-red mr-4 text-right font-weight-bold">
-                           Pas de météo pour {{ currentRouteTitle }} le {{ formattedDateLong }}
-                        </div>
-
-                        <!-- Update Action -->
-                        <!-- Case 1: Multiple Routes -> Menu -->
-                        <div v-if="usedRoutes.length > 1" class="d-flex align-center mr-4">
-                            <v-menu location="bottom end">
-                                <template v-slot:activator="{ props }">
-                                    <v-btn
-                                        :color="globalUpdateStatus.color"
-                                        variant="flat"
-                                        v-bind="props"
-                                        :prepend-icon="globalUpdateStatus.icon"
-                                        append-icon="mdi-menu-down"
-                                        size="small"
-                                        :loading="isDownloadingWeather"
-                                    >
-                                        {{ globalUpdateStatus.text }}
-                                    </v-btn>
-                                </template>
-                                <v-list density="compact" nav>
-                                    <!-- Global Update Action -->
-                                    <v-list-item @click="() => downloadWeather()">
-                                        <template v-slot:prepend>
-                                            <v-icon :icon="globalUpdateStatus.icon" size="small"></v-icon>
-                                        </template>
-                                        <v-list-item-title class="font-weight-bold">
-                                            Tout mettre à jour
-                                        </v-list-item-title>
-                                    </v-list-item>
-                                    
-                                    <v-divider class="my-1"></v-divider>
-
-                                    <!-- Per-Route Update Actions -->
-                                    <v-list-item
-                                        v-for="(route, index) in usedRoutes"
-                                        :key="index"
-                                        :value="index"
-                                        @click="() => downloadWeather(route.value)"
-                                    >
-                                        <template v-slot:prepend>
-                                            <v-icon 
-                                                v-if="weatherStatusMap[route.value || 'main']?.present"
-                                                color="success"
-                                                size="small"
-                                            >
-                                                mdi-check-circle
-                                            </v-icon>
-                                            <v-icon 
-                                                v-else
-                                                color="error"
-                                                size="small"
-                                            >
-                                                mdi-alert-circle
-                                            </v-icon>
-                                        </template>
-                                        <v-list-item-title>
-                                            {{ route.title }}
-                                            <span 
-                                                v-if="weatherStatusMap[route.value || 'main']?.present" 
-                                                class="text-caption text-grey ml-2"
-                                            >
-                                                ({{ weatherStatusMap[route.value || 'main']?.relative }})
-                                            </span>
-                                            <span v-else class="text-caption text-error font-italic ml-2">
-                                                (Manquant)
-                                            </span>
-                                        </v-list-item-title>
-                                    </v-list-item>
-                                </v-list>
-                            </v-menu>
-                        </div>
-                        
-                        <!-- Case 2: Single Route -> Simple Button -->
-                        <v-btn
-                            v-else
-                            size="small"
-                            :color="globalUpdateStatus.color"
-                            variant="flat"
-                            :loading="isDownloadingWeather"
-                            @click="downloadWeather()"
-                            :prepend-icon="globalUpdateStatus.icon"
-                            class="mr-4"
-                        >
-                            {{ globalUpdateStatus.text }}
-                        </v-btn>
-
-                        <!-- Viewing Action -->
-                         <!-- Case 1: Multiple Routes -> Menu -->
-                        <div v-if="usedRoutes.length > 1" class="d-flex align-center ml-4">
-                            <v-menu location="bottom end">
-                                <template v-slot:activator="{ props }">
-                                    <v-btn
-                                        color="info"
-                                        variant="flat"
-                                        v-bind="props"
-                                        prepend-icon="mdi-eye"
-                                        append-icon="mdi-menu-down"
-                                        size="small"
-                                    >
-                                        Voir...
-                                    </v-btn>
-                                </template>
-                                <v-list density="compact" nav>
-                                    <v-list-item
-                                        v-for="(route, index) in usedRoutes"
-                                        :key="index"
-                                        :value="index"
-                                        @click="() => { selectedRoute = route.value; loadAndShowWeather(); }"
-                                        :disabled="!weatherStatusMap[route.value || 'main']?.present"
-                                    >
-                                        <template v-slot:prepend>
-                                            <v-icon 
-                                                v-if="weatherStatusMap[route.value || 'main']?.present"
-                                                color="success"
-                                                size="small"
-                                            >
-                                                mdi-check-circle
-                                            </v-icon>
-                                            <v-icon 
-                                                v-else
-                                                color="error"
-                                                size="small"
-                                            >
-                                                mdi-alert-circle
-                                            </v-icon>
-                                        </template>
-                                        <v-list-item-title>
-                                            {{ route.title }}
-                                            <span 
-                                                v-if="weatherStatusMap[route.value || 'main']?.present" 
-                                                class="text-caption text-grey ml-2"
-                                            >
-                                                ({{ weatherStatusMap[route.value || 'main']?.relative }})
-                                            </span>
-                                        </v-list-item-title>
-                                    </v-list-item>
-                                </v-list>
-                            </v-menu>
-                        </div>
-                        
-                        <!-- Case 2: Single Route -> Simple Button -->
-                         <v-btn
-                            v-else
-                            size="small"
-                            color="info"
-                            variant="flat"
-                            @click="loadAndShowWeather"
-                            prepend-icon="mdi-eye"
-                            :disabled="!isValid || !weatherFilePresent"
-                        >
-                            Voir
-                        </v-btn>
-
-                     </div>
-                </v-col>
-            </v-row>
-        </v-card>
-
-      </v-card-text>
-
-      <v-card-actions class="pa-4 pt-0">
+      <v-divider></v-divider>
+      <v-card-actions class="px-4 py-3">
         <v-spacer></v-spacer>
-        <v-btn variant="text" @click="closeDialog">Fermer</v-btn>
         <v-btn color="primary" variant="flat" @click="saveMeteo" :disabled="!hasChanges">Enregistrer</v-btn>
       </v-card-actions>
     </v-card>
@@ -335,6 +317,17 @@
   <v-dialog v-model="showDocDialog" max-width="800px" height="80%">
       <DocDisplay :doc-path="currentDocPath" @close="showDocDialog = false" />
   </v-dialog>
+
+  <ConfirmationDialog
+    v-model="showConfirmClose"
+    title="Modifications non enregistrées"
+    message="Vous avez des modifications qui n'ont pas encore été enregistrées.<br>Voulez-vous vraiment quitter sans sauvegarder ?"
+    confirmText="Quitter sans sauvegarder"
+    cancelText="Rester"
+    color="warning"
+    icon="mdi-alert"
+    @confirm="forceClose"
+  />
 
   <Teleport to="body">
     <WeatherWidgetStatic 
@@ -357,6 +350,7 @@ import EditTime from '@/components/Settings/EditTime.vue';
 import WeatherService from '@/services/WeatherService';
 import DocDisplay from '@/components/DocDisplay.vue';
 import WeatherWidgetStatic from '@/components/Visualize/WeatherWidgetStatic.vue';
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue';
 
 const props = defineProps({
   modelValue: {
@@ -384,10 +378,16 @@ const weatherStatusMap = ref({}); // Stores status for each route
 const weatherStatus = ref('Inconnu'); // Legacy
 const isDownloadingWeather = ref(false);
 
+const activeTab = ref('groups');
+
 const showDocDialog = ref(false);
 const currentDocPath = ref('');
 const sortKey = ref(null);
 const sortAsc = ref(true);
+const showConfirmClose = ref(false);
+
+// reference state for "hasChanges" check
+const lastSavedState = ref({ date: "", scenarios: "" });
 
 const openDoc = (path) => {
   currentDocPath.value = path;
@@ -610,6 +610,20 @@ const initData = () => {
         createDefaultGroup();
     }
     
+    // Capture initial state for change detection
+    const normalize = (s) => ({
+        nom: s.nom,
+        heureDepart: s.heureDepart,
+        vitesseMoyenne: parseFloat(s.vitesseMoyenne),
+        isReference: !!s.isReference,
+        variantId: s.variantId || null
+    });
+    
+    lastSavedState.value = {
+        date: editedDateDepart.value,
+        scenarios: JSON.stringify(editedScenarios.value.map(normalize))
+    };
+    
     // Check cache status
     nextTick(() => {
         checkWeatherStatus();
@@ -659,7 +673,6 @@ watch(() => props.modelValue, (val) => {
 // Date Watcher
 watch(editedDateDepart, () => {
     checkWeatherStatus();
-    saveMeteo();
 });
 
 // Computed
@@ -687,13 +700,19 @@ const isHighestGroup = (scen) => {
 };
 
 const hasChanges = computed(() => {
-    const config = props.circuit.meteoConfig || {};
-    const oldDate = config.dateDepart || "";
-    const oldScenarios = JSON.stringify(config.scenarios || []);
-    const newScenarios = JSON.stringify(editedScenarios.value);
+    // Normalisation pour une comparaison fiable
+    const normalize = (s) => ({
+        nom: s.nom,
+        heureDepart: s.heureDepart,
+        vitesseMoyenne: parseFloat(s.vitesseMoyenne),
+        isReference: !!s.isReference,
+        variantId: s.variantId || null
+    });
+
+    const newScenarios = JSON.stringify(editedScenarios.value.map(normalize));
+    const newDate = editedDateDepart.value;
     
-    // Note: init logic might change date if invalid/past, so initially hasChanges might be true if data was stale
-    return editedDateDepart.value !== oldDate || newScenarios !== oldScenarios;
+    return newDate !== lastSavedState.value.date || newScenarios !== lastSavedState.value.scenarios;
 });
 
 // Actions
@@ -717,8 +736,6 @@ const addGroup = () => {
         isReference: false,
         variantId: null
     });
-    
-    saveMeteo();
 };
 
 const setReference = (idx) => {
@@ -734,8 +751,6 @@ const removeGroup = (idx) => {
     if (editedScenarios.value.length === 0) {
         createDefaultGroup();
     }
-    
-    saveMeteo();
 };
 
 const sortScenarios = (criteria) => {
@@ -757,7 +772,6 @@ const sortScenarios = (criteria) => {
             return sortAsc.value ? res : -res;
         });
     }
-    saveMeteo();
 };
 
 const getSortIcon = (criteria) => {
@@ -766,6 +780,14 @@ const getSortIcon = (criteria) => {
 };
 
 const closeDialog = () => {
+    if (hasChanges.value) {
+        showConfirmClose.value = true;
+    } else {
+        forceClose();
+    }
+};
+
+const forceClose = () => {
     emit('update:modelValue', false);
 };
 
@@ -786,6 +808,20 @@ const saveMeteo = async () => {
             dateDepart: editedDateDepart.value,
             scenarios: scenariosToSave
         });
+
+        // Update local reference state after success
+        const normalize = (s) => ({
+            nom: s.nom,
+            heureDepart: s.heureDepart,
+            vitesseMoyenne: parseFloat(s.vitesseMoyenne),
+            isReference: !!s.isReference,
+            variantId: s.variantId || null
+        });
+        
+        lastSavedState.value = {
+            date: editedDateDepart.value,
+            scenarios: JSON.stringify(editedScenarios.value.map(normalize))
+        };
         
         showSnackbar('Configuration météo enregistrée', 'success');
         emit('saved');
