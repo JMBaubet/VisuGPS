@@ -39,6 +39,7 @@
                 <!-- Sorting Header (Fixe) -->
                 <v-row v-if="editedScenarios.length > 0" dense class="px-2 mb-1 text-grey-darken-1">
                     <v-col cols="1" class="d-flex justify-center"></v-col>
+                    <v-col cols="1" class="d-flex justify-center"></v-col>
                     <v-col :cols="colsName" class="d-flex align-center">
                         <span class="text-caption font-weight-bold cursor-pointer hover-text-primary" @click="sortScenarios('nom')">
                             NOM <v-icon size="x-small">{{ getSortIcon('nom') }}</v-icon>
@@ -52,10 +53,9 @@
                     <v-col :cols="colsSpeed" class="d-flex align-center">
                         <span class="text-caption font-weight-bold">VITESSE</span>
                     </v-col>
-                    <v-col v-if="hasVariants" cols="4" class="d-flex align-center">
+                    <v-col v-if="hasVariants" cols="5" class="d-flex align-center">
                         <span class="text-caption font-weight-bold">CIRCUIT</span>
                     </v-col>
-                    <v-col cols="1"></v-col>
                 </v-row>
             </div>
 
@@ -67,6 +67,21 @@
                         <v-col cols="1" class="d-flex justify-center">
                             <v-btn icon size="x-small" variant="text" @click="setReference(idx)" :color="scen.isReference ? 'primary' : 'grey'" title="Définir comme groupe de référence">
                                 <v-icon>{{ scen.isReference ? 'mdi-radiobox-marked' : 'mdi-radiobox-blank' }}</v-icon>
+                            </v-btn>
+                        </v-col>
+
+                        <!-- Delete Action (Moved) -->
+                        <v-col cols="1" class="d-flex justify-center">
+                            <v-btn 
+                                v-if="isHighestGroup(scen) && editedScenarios.length > 1"
+                                icon 
+                                size="x-small" 
+                                color="error" 
+                                variant="text" 
+                                @click="removeGroup(idx)" 
+                                title="Supprimer ce groupe (dernier numéro)"
+                            >
+                                <v-icon>mdi-delete</v-icon>
                             </v-btn>
                         </v-col>
 
@@ -96,7 +111,7 @@
                         </v-col>
 
                         <!-- Variant Selection -->
-                        <v-col v-if="hasVariants" cols="4">
+                        <v-col v-if="hasVariants" cols="5" class="d-flex align-center">
                             <v-select
                                 v-model="scen.variantId"
                                 :items="availableVariants"
@@ -109,21 +124,16 @@
                                 :color="scen.variantId ? 'blue' : undefined"
                                 :class="scen.variantId ? 'text-blue' : ''"
                             ></v-select>
-                        </v-col>
-                        
-                        <!-- Delete Action -->
-                        <v-col cols="1" class="d-flex justify-end">
-                            <v-btn 
-                                v-if="isHighestGroup(scen) && editedScenarios.length > 1"
-                                icon 
-                                size="x-small" 
-                                color="error" 
-                                variant="text" 
-                                @click="removeGroup(idx)" 
-                                title="Supprimer ce groupe (dernier numéro)"
-                            >
-                                <v-icon>mdi-delete</v-icon>
-                            </v-btn>
+                            <v-btn
+                                v-if="scen.variantId"
+                                icon="mdi-download"
+                                size="x-small"
+                                variant="text"
+                                color="primary"
+                                class="ml-1"
+                                @click="exportVariantGpx(scen.variantId)"
+                                title="Exporter ce variant au format GPX"
+                            ></v-btn>
                         </v-col>
                     </v-row>
                 </div>
@@ -346,6 +356,40 @@
     @confirm="forceClose"
   />
 
+  <!-- GPX Export Confirmation Dialog -->
+  <v-dialog v-model="showExportGpxDialog" max-width="450px" persistent>
+    <v-card>
+      <v-card-title class="bg-blue-darken-3 text-white px-4 py-2 d-flex align-center">
+        <v-icon start icon="mdi-download"></v-icon>
+        Configuration de l'export GPX
+      </v-card-title>
+      <v-card-text class="pa-4">
+        <v-text-field
+          v-model="gpxExportName"
+          label="Nom interne de la trace (dans le GPX)"
+          variant="outlined"
+          density="compact"
+          class="mb-4"
+          hint="Format par défaut : Ville_Groupe_Jour"
+          persistent-hint
+        ></v-text-field>
+        <v-text-field
+          v-model="gpxExportFileName"
+          label="Nom de fichier suggéré"
+          variant="outlined"
+          density="compact"
+          hint="Format par défaut : Ville_Groupe_Jour.gpx"
+          persistent-hint
+        ></v-text-field>
+      </v-card-text>
+      <v-card-actions class="pa-4 pt-0">
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="showExportGpxDialog = false">Annuler</v-btn>
+        <v-btn color="primary" variant="flat" @click="handleConfirmExportGpx">Exporter</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <Teleport to="body">
     <WeatherWidgetStatic 
         v-if="showWeatherWidget"
@@ -402,6 +446,12 @@ const currentDocPath = ref('');
 const sortKey = ref(null);
 const sortAsc = ref(true);
 const showConfirmClose = ref(false);
+
+// GPX Export Dialog State
+const showExportGpxDialog = ref(false);
+const gpxExportName = ref('');
+const gpxExportFileName = ref('');
+const exportingVariantId = ref(null);
 
 // reference state for "hasChanges" check
 const lastSavedState = ref({ date: "", scenarios: "" });
@@ -840,7 +890,7 @@ watch(editedDateDepart, () => {
 // Computed
 const hasVariants = computed(() => availableVariants.value.length > 1);
 
-const colsName = computed(() => hasVariants.value ? 2 : 4);
+const colsName = computed(() => hasVariants.value ? 1 : 4);
 const colsTime = computed(() => hasVariants.value ? 2 : 3);
 const colsSpeed = computed(() => hasVariants.value ? 2 : 3);
 
@@ -991,6 +1041,47 @@ const saveMeteo = async () => {
     } catch (e) {
         console.error("Save error:", e);
         showSnackbar("Erreur sauvegarde: " + e, 'error');
+    }
+};
+
+const exportVariantGpx = async (variantId) => {
+    if (!variantId) return;
+
+    // Trouver le premier groupe (scénario) concerné par ce variant
+    const firstGroup = editedScenarios.value.find(s => s.variantId === variantId);
+    const groupName = firstGroup ? firstGroup.nom : "Variante";
+
+    try {
+        // Obtenir les noms par défaut via le backend (avec override du groupe)
+        const defaults = await invoke('get_gpx_export_defaults', { 
+            circuitId: props.circuit.circuitId,
+            groupOverride: groupName 
+        });
+        
+        gpxExportName.value = defaults.gpxName;
+        gpxExportFileName.value = defaults.fileName;
+        exportingVariantId.value = variantId;
+        showExportGpxDialog.value = true;
+    } catch (e) {
+        console.error("Erreur lors de l'export GPX depuis MeteoManager:", e);
+        showSnackbar("Erreur lors de l'export GPX : " + e, "error");
+    }
+};
+
+const handleConfirmExportGpx = async () => {
+    showExportGpxDialog.value = false;
+    try {
+        await invoke('export_variant_gpx', {
+            circuitId: props.circuit.circuitId,
+            variantId: exportingVariantId.value,
+            variantName: gpxExportName.value,
+            defaultFilename: gpxExportFileName.value
+        });
+    } catch (e) {
+        if (e !== "Export annulé par l'utilisateur.") {
+            console.error("Erreur lors de l'export GPX (confirmation):", e);
+            showSnackbar("Erreur lors de l'export GPX : " + e, "error");
+        }
     }
 };
 

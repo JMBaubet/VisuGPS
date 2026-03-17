@@ -186,7 +186,7 @@
                       @click.stop="$emit('load-variant', v.id)"
                       title="Charger cette variante pour édition"
                     ></v-btn>
-                     <v-btn
+                    <v-btn
                       icon="mdi-pencil"
                       size="x-small"
                       variant="text"

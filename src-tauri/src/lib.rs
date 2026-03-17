@@ -2787,6 +2787,8 @@ pub fn run() {
             variant_processor::get_variant_overlap_metadata,
             variant_processor::get_altitudes,
             variant_processor::check_routing_services,
+            variant_processor::get_gpx_export_defaults,
+            variant_processor::export_variant_gpx,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

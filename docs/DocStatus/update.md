@@ -47,7 +47,8 @@ Corrections :
 ## Version 1.1.3
 
 Contient les fonctionnalités suivantes :
-- Ajout des horaires de départ des groupes depuis la vue globale en fin de visualisation
+- Export des variantes au format GPX depuis la gestion des groupes
+- Affichage des horaires de départ des groupes depuis la vue globale en fin de visualisation
 - Ajout d'un bouton de fermeture de l'application avec confirmation
 - Amélioration de la gestion des paramètres secrets
 - Amélioration de la gestion des groupes et de la météo

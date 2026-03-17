@@ -59,4 +59,4 @@ Accédez au **[Guide d'Exploitation complet](./exploitation.md)** pour découvri
 
 </small>
 
-<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 16/03/2026 à 16:10 (Commit 3b9456c3db4c8cf25c6266ad3181d89f7aa45618)</em></div>
+<div style="text-align: right; font-size: 0.7em; opacity: 0.7; margin-top: 20px;"><em>Généré le 17/03/2026 à 09:45 (Commit df695b616e15b923943dbe21d51761ba0388dddc)</em></div>

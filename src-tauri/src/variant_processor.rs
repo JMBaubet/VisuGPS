@@ -2345,3 +2345,171 @@ pub async fn check_routing_services(
 
     Ok(status)
 }
+
+#[tauri::command]
+pub async fn get_gpx_export_defaults(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    group_override: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use chrono::{Duration, Datelike};
+    use regex::Regex;
+
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let circuits_file = crate::read_circuits_file(&app_env_path)?;
+    let circuit = circuits_file.circuits.iter().find(|c| c.circuit_id == circuit_id)
+        .ok_or_else(|| format!("Circuit {} non trouvé", circuit_id))?;
+
+    // 1. Ville de départ
+    let ville_depart = circuits_file.villes.iter().find(|v| v.id == circuit.ville_depart_id)
+        .map(|v| v.nom.clone())
+        .unwrap_or_else(|| "Circuit".to_string());
+
+    // 2. Jour J+1
+    let days_fr = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+    let (target_date, _) = if let Some(mc) = &circuit.meteo_config {
+        if let Some(ds) = &mc.date_depart {
+            if let Ok(dt) = chrono::NaiveDate::parse_from_str(ds, "%Y-%m-%d") {
+                (dt + Duration::days(1), true)
+            } else {
+                (chrono::Local::now().date_naive() + Duration::days(1), false)
+            }
+        } else {
+            (chrono::Local::now().date_naive() + Duration::days(1), false)
+        }
+    } else {
+        (chrono::Local::now().date_naive() + Duration::days(1), false)
+    };
+    
+    let day_name = days_fr[target_date.weekday().num_days_from_sunday() as usize];
+
+    // 3. Groupe le plus élevé (ou override)
+    let gr_suffix = if let Some(go) = group_override {
+        go.replace(" ", "")
+    } else {
+        let mut max_group_num = 0;
+        let mut max_group_name = String::new();
+        let re = Regex::new(r"(\d+)").unwrap();
+
+        if let Some(mc) = &circuit.meteo_config {
+            if let Some(scenarios) = &mc.scenarios {
+                for s in scenarios {
+                    if let Some(caps) = re.captures(&s.nom) {
+                        if let Ok(num) = caps[1].parse::<i32>() {
+                            if num > max_group_num {
+                                max_group_num = num;
+                                max_group_name = s.nom.clone();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if max_group_name.is_empty() { 
+            String::new() 
+        } else {
+            max_group_name.replace(" ", "")
+        }
+    };
+
+    // Format final : 
+    // Nom GPX : Ville_Groupe_Jour
+    // Nom Fichier : Ville_Groupe_Jour.gpx
+    let gpx_name = if gr_suffix.is_empty() {
+        format!("{}_{}", ville_depart, day_name)
+    } else {
+        format!("{}_{}_{}", ville_depart, gr_suffix, day_name)
+    };
+
+    let file_name = if gr_suffix.is_empty() {
+        format!("{}_{}.gpx", ville_depart, day_name)
+    } else {
+        format!("{}_{}_{}.gpx", ville_depart, gr_suffix, day_name)
+    };
+
+    Ok(serde_json::json!({
+        "gpxName": gpx_name,
+        "fileName": file_name
+    }))
+}
+
+#[tauri::command]
+pub async fn export_variant_gpx(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String,
+    variant_name: String,
+    default_filename: Option<String>,
+) -> Result<(), String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let full_linestring_path = circuit_data_dir.join(format!("lineString_{}_FULL.json", variant_id));
+
+    if !full_linestring_path.exists() {
+        return Err(format!("Le fichier de géométrie de la variante {} est introuvable.", variant_id));
+    }
+
+    let content = fs::read_to_string(&full_linestring_path).map_err(|e| e.to_string())?;
+    let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let coords = json["coordinates"].as_array().ok_or("Format de fichier invalide (pas de coordonnées).")?;
+
+    let mut gpx_content = String::new();
+    gpx_content.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    gpx_content.push_str("<gpx version=\"1.1\" creator=\"VisuGPS\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n");
+    gpx_content.push_str("  <trk>\n");
+    gpx_content.push_str(&format!("    <name>{}</name>\n", variant_name));
+    gpx_content.push_str("    <trkseg>\n");
+
+    for point in coords {
+        if let Some(p) = point.as_array() {
+            if p.len() >= 2 {
+                let lon = p[0].as_f64().unwrap_or(0.0);
+                let lat = p[1].as_f64().unwrap_or(0.0);
+                let ele = if p.len() >= 3 { p[2].as_f64().unwrap_or(0.0) } else { 0.0 };
+                gpx_content.push_str(&format!("      <trkpt lat=\"{}\" lon=\"{}\">\n", lat, lon));
+                gpx_content.push_str(&format!("        <ele>{}</ele>\n", ele));
+                gpx_content.push_str("      </trkpt>\n");
+            }
+        }
+    }
+
+    gpx_content.push_str("    </trkseg>\n");
+    gpx_content.push_str("  </trk>\n");
+    gpx_content.push_str("</gpx>");
+
+    // Utiliser le nom de fichier par défaut fourni ou le calculer
+    let final_default_path = if let Some(df) = default_filename {
+        df
+    } else {
+        let safe_name = variant_name.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == ' ' || *c == '.').collect::<String>();
+        format!("{}.gpx", if safe_name.is_empty() { "variante" } else { &safe_name })
+    };
+
+    let file_path = app_handle.dialog()
+        .file()
+        .add_filter("GPX", &["gpx"])
+        .set_file_name(&final_default_path)
+        .set_title("Sauvegarder la variante")
+        .blocking_save_file();
+
+    if let Some(path) = file_path {
+        fs::write(path.to_string(), gpx_content).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        // L'utilisateur a annulé, on ne renvoie pas d'erreur pour éviter un popup "Error" dans l'UI
+        Ok(())
+    }
+}

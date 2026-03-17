@@ -1374,7 +1374,7 @@ const generatePreviewForMod = async (modIndex) => {
 
         // Détection des erreurs de routage restantes (profil incompatible, etc.)
         const errMessage = e.toString();
-        if (variantConfig.routingProfile === 'racingbike' && !errMessage.includes("Clé API")) {
+        if (variantConfig.routingProfile === 'racingbike' && !errMessage.includes("Clé API") && !errMessage.includes("API key")) {
              msg += " Essayez le profil 'VTT' ou 'Route + Pistes'.";
              routingErrorProfile.value = 'racingbike';
         } else if (errMessage.includes("Clé API") || errMessage.includes("API key")) {
@@ -1594,6 +1594,7 @@ const confirmSaveVariant = async (silent = false) => {
                              // If last point is closer to anchor than first point, we need to reverse
                              // to have [Snapped -> Target]
                              if (lastDist < firstDist) {
+                                 console.log("[SaveVariant] Reversing slice coords for extension to maintain direction.");
                                  sliceCoords = sliceCoords.reverse();
                              }
                          }
