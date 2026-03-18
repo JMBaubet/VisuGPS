@@ -204,7 +204,31 @@ const { getSettingValue, initSettings } = useSettings();
 const { toHex } = useVuetifyColors();
 const { showSnackbar } = useSnackbar();
 
-const currentMode = ref('SEGMENT'); 
+// --- Waypoints ---
+const WAYPOINT_MODES = ['WAYPOINT_EAU', 'WAYPOINT_RAVITO', 'WAYPOINT_PAUSE', 'WAYPOINT_DANGER'];
+const WAYPOINT_COLORS = {
+  WAYPOINT_EAU:    '#2196F3', // bleu
+  WAYPOINT_RAVITO: '#4CAF50', // vert
+  WAYPOINT_PAUSE:  '#795548', // brun
+  WAYPOINT_DANGER: '#F44336', // rouge
+};
+const WAYPOINT_LABELS = {
+  WAYPOINT_EAU:    'Eau',
+  WAYPOINT_RAVITO: 'Ravito',
+  WAYPOINT_PAUSE:  'Pause',
+  WAYPOINT_DANGER: 'Danger',
+};
+const WAYPOINT_ICONS = {
+  WAYPOINT_EAU:    'mdi-water',
+  WAYPOINT_RAVITO: 'mdi-food-apple',
+  WAYPOINT_PAUSE:  'mdi-tent',
+  WAYPOINT_DANGER: 'mdi-alert-octagon',
+};
+const waitpoints = ref([]); // [{ id, waypointType, label, lon, lat }]
+const waitpointMarkers = []; // Instances de mapboxgl.Marker (pas besoin de ref car géré manuellement)
+// ---
+
+const currentMode = ref('SEGMENT');
 const showSidebar = ref(true);
 const isLoading = ref(true);
 const isDocDialogVisible = ref(false);
@@ -306,6 +330,12 @@ const resetPoints = () => {
     if (map.value && map.value.getSource('markers-source')) {
         map.value.getSource('markers-source').setData({type: 'FeatureCollection', features: []});
     }
+    // Nettoyer les markers existants
+    waitpointMarkers.forEach(m => m.remove());
+    waitpointMarkers.length = 0;
+    
+    // Recharger les waitpoints de la trace principale
+    loadWaitpoints('');
 };
 
 // Helper to ensure Mapbox gets a valid hex color
@@ -399,6 +429,9 @@ const initMap = async () => {
        await loadCircuitTrace();
        await loadSavedVariants();
        isLoading.value = false;
+
+       // Charger les waypoints de la trace principale au démarrage
+       loadWaitpoints('');
        
        map.value.on('click', handleMapClick);
        
@@ -542,6 +575,14 @@ const initMap = async () => {
                 'circle-stroke-color': '#000000'
             }
         });
+
+        // Curseur pointer au survol des markers de trace
+        map.value.on('mouseenter', 'markers-circle-layer', () => {
+             map.value.getCanvas().style.cursor = 'pointer';
+        });
+        map.value.on('mouseleave', 'markers-circle-layer', () => {
+             map.value.getCanvas().style.cursor = '';
+        });
     });
 
   } catch (e) {
@@ -618,8 +659,94 @@ const loadCircuitTrace = async () => {
   }
 };
 
+const loadWaitpoints = async (variantId = '') => {
+    try {
+        const loadedWaitpoints = await invoke('load_variant_waypoints', {
+            circuitId: props.circuitId,
+            variantId
+        });
+        waitpoints.value = loadedWaitpoints;
+        updateWaitpointsLayer();
+    } catch (wpErr) {
+        console.warn(`[Waitpoints] Load failed (id: ${variantId}):`, wpErr);
+    }
+};
+
+const updateWaitpointsLayer = () => {
+    if (!map.value) return;
+    
+    // Nettoyer les markers existants
+    waitpointMarkers.forEach(m => m.remove());
+    waitpointMarkers.length = 0;
+
+    waitpoints.value.forEach(wp => {
+        const color = WAYPOINT_COLORS[wp.waypointType] || '#9E9E9E';
+        const icon = WAYPOINT_ICONS[wp.waypointType] || 'mdi-map-marker';
+
+        // Création de l'élément HTML du marker
+        const el = document.createElement('div');
+        el.className = 'waitpoint-marker';
+        el.style.borderColor = color;
+        el.title = wp.label;
+
+        const iconEl = document.createElement('i');
+        iconEl.className = `mdi ${icon} waitpoint-icon`;
+        iconEl.style.color = color;
+        el.appendChild(iconEl);
+
+        // Ajout du label sous le marker
+        const labelEl = document.createElement('div');
+        labelEl.className = 'waitpoint-marker-label';
+        labelEl.innerText = wp.label;
+        el.appendChild(labelEl);
+
+        // Click pour supprimer
+        el.addEventListener('click', (ev) => {
+            ev.stopPropagation(); // Éviter de déclencher handleMapClick
+            waitpoints.value = waitpoints.value.filter(item => item.id !== wp.id);
+            updateWaitpointsLayer();
+            saveWaitpoints();
+        });
+
+        const marker = new mapboxgl.Marker({ element: el })
+            .setLngLat([wp.lon, wp.lat])
+            .addTo(map.value);
+        
+        waitpointMarkers.push(marker);
+    });
+};
+
+const saveWaitpoints = async () => {
+    try {
+        await invoke('save_variant_waypoints', {
+            circuitId: props.circuitId,
+            variantId: loadedVariantId.value || '',
+            waypoints: waitpoints.value
+        });
+    } catch (e) {
+        console.warn('[Waitpoints] Save failed:', e);
+    }
+};
+
 const handleMapClick = (e) => {
     if (!masterTraceGeojson.value) return;
+
+    // --- Mode Waypoint : ajout ou suppression ---
+    // (Note: La suppression est gérée directement par le click sur le Marker HTML ci-dessus)
+    if (WAYPOINT_MODES.includes(currentMode.value)) {
+        // Ajout du waitpoint (indépendant d'un variant ou lié au variant actif)
+        const newWp = {
+            id: crypto.randomUUID(),
+            waypointType: currentMode.value,
+            label: WAYPOINT_LABELS[currentMode.value] || currentMode.value,
+            lon: e.lngLat.lng,
+            lat: e.lngLat.lat
+        };
+        waitpoints.value.push(newWp);
+        updateWaitpointsLayer();
+        saveWaitpoints();
+        return;
+    }
 
     const clickPoint = turf.point([e.lngLat.lng, e.lngLat.lat]);
     
@@ -1046,8 +1173,11 @@ const triggerAutoSave = async () => {
         loadedVariantName.value = `Variante ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     }
 
-    // console.log("[AutoSave] Triggering for ID:", loadedVariantId.value);
-    await confirmSaveVariant(true); // true = silent
+    // Sauvegarder les waypoints en parallèle
+    await Promise.all([
+        confirmSaveVariant(true), // true = silent
+        saveWaitpoints()
+    ]);
 };
 
 const handleRenameMod = (modIndex) => {
@@ -1191,6 +1321,9 @@ const handleLoadVariant = async (variantId) => {
         loadedVariantId.value = variantId;
         loadedVariantName.value = archive.metadata.name;
         isModified.value = false;
+
+        // Charger les waypoints du variant sélectionné
+        loadWaitpoints(variantId);
         
         showSnackbar("Variant chargé pour édition.", "success");
         
@@ -1958,5 +2091,47 @@ onUnmounted(() => {
 #map-container {
   width: 100%;
   height: 100%;
+}
+
+:deep(.waitpoint-marker) {
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 2px solid #ccc;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 10;
+}
+
+:deep(.waitpoint-marker:hover) {
+    transform: scale(1.15);
+    z-index: 20;
+}
+
+:deep(.waitpoint-icon) {
+    font-size: 20px;
+    line-height: 1;
+}
+
+:deep(.waitpoint-marker-label) {
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #333;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #eee;
 }
 </style>

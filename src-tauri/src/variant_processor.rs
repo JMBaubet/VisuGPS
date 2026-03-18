@@ -99,6 +99,16 @@ pub struct VariantStats {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct VariantWaypoint {
+    pub id: String,
+    pub waypoint_type: String, // "WAYPOINT_EAU", "WAYPOINT_RAVITO", "WAYPOINT_PAUSE", "WAYPOINT_DANGER"
+    pub label: String,
+    pub lon: f64,
+    pub lat: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct VariantMetadata {
     pub id: String,
     pub name: String,
@@ -2440,6 +2450,78 @@ pub async fn get_gpx_export_defaults(
 }
 
 #[tauri::command]
+pub async fn load_variant_waypoints(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String, // vide = trace principale
+) -> Result<Vec<VariantWaypoint>, String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let file_name = if variant_id.is_empty() {
+        "waitpoint.json".to_string()
+    } else {
+        format!("waitpoint_{}.json", variant_id)
+    };
+    let waypoints_path = circuit_data_dir.join(&file_name);
+
+    if !waypoints_path.exists() {
+        return Ok(vec![]);
+    }
+
+    let content = fs::read_to_string(&waypoints_path).map_err(|e| e.to_string())?;
+    let waypoints: Vec<VariantWaypoint> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    Ok(waypoints)
+}
+
+#[tauri::command]
+pub async fn save_variant_waypoints(
+    app_handle: tauri::AppHandle,
+    circuit_id: String,
+    variant_id: String, // vide = trace principale
+    waypoints: Vec<VariantWaypoint>,
+) -> Result<(), String> {
+    let app_env_path = {
+        let state_mutex = app_handle.state::<std::sync::Mutex<crate::AppState>>();
+        let app_state = state_mutex.lock().unwrap();
+        app_state.app_env_path.clone()
+    };
+
+    let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
+    let file_name = if variant_id.is_empty() {
+        "waitpoint.json".to_string()
+    } else {
+        format!("waitpoint_{}.json", variant_id)
+    };
+    let waypoints_path = circuit_data_dir.join(&file_name);
+
+    if waypoints.is_empty() {
+        if waypoints_path.exists() {
+            fs::remove_file(&waypoints_path).map_err(|e| e.to_string())?;
+        }
+    } else {
+        let content = serde_json::to_string_pretty(&waypoints).map_err(|e| e.to_string())?;
+        fs::write(&waypoints_path, content).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Retourne le nom et le symbole GPX pour un type de waypoint
+fn waypoint_type_to_gpx(waypoint_type: &str) -> (&'static str, &'static str) {
+    match waypoint_type {
+        "WAYPOINT_EAU"    => ("Eau potable",     "Drinking Water"),
+        "WAYPOINT_RAVITO" => ("Ravitaillement",  "Food"),
+        "WAYPOINT_PAUSE"  => ("Pause",           "Campground"),
+        "WAYPOINT_DANGER" => ("Danger",          "Danger"),
+        _                 => ("Point de passage", "Waypoint"),
+    }
+}
+
+#[tauri::command]
 pub async fn export_variant_gpx(
     app_handle: tauri::AppHandle,
     circuit_id: String,
@@ -2464,11 +2546,41 @@ pub async fn export_variant_gpx(
 
     let content = fs::read_to_string(&full_linestring_path).map_err(|e| e.to_string())?;
     let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    let coords = json["coordinates"].as_array().ok_or("Format de fichier invalide (pas de coordonnées).")?;
+    let coords = json["coordinates"].as_array().ok_or("Format de fichier invalide (pas de coordonnées).")?
+;
+
+    // Charger les waypoints : d'abord waitpoint_{variant_id}.json, sinon waitpoint.json
+    let wp_variant_path = circuit_data_dir.join(format!("waitpoint_{}.json", variant_id));
+    let wp_main_path    = circuit_data_dir.join("waitpoint.json");
+    let waypoints: Vec<VariantWaypoint> = {
+        let path = if wp_variant_path.exists() {
+            &wp_variant_path
+        } else if wp_main_path.exists() {
+            &wp_main_path
+        } else {
+            &wp_variant_path // n'existe pas, la lecture sera vide
+        };
+        if path.exists() {
+            let wp_content = fs::read_to_string(path).unwrap_or_default();
+            serde_json::from_str(&wp_content).unwrap_or_default()
+        } else {
+            vec![]
+        }
+    };
 
     let mut gpx_content = String::new();
     gpx_content.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
     gpx_content.push_str("<gpx version=\"1.1\" creator=\"VisuGPS\" xmlns=\"http://www.topografix.com/GPX/1/1\">\n");
+
+    // Insérer les waypoints avant la trace
+    for wp in &waypoints {
+        let (name, sym) = waypoint_type_to_gpx(&wp.waypoint_type);
+        gpx_content.push_str(&format!("  <wpt lat=\"{}\" lon=\"{}\">\n", wp.lat, wp.lon));
+        gpx_content.push_str(&format!("    <name>{}</name>\n", name));
+        gpx_content.push_str(&format!("    <sym>{}</sym>\n", sym));
+        gpx_content.push_str("  </wpt>\n");
+    }
+
     gpx_content.push_str("  <trk>\n");
     gpx_content.push_str(&format!("    <name>{}</name>\n", variant_name));
     gpx_content.push_str("    <trkseg>\n");

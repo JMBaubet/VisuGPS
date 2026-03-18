@@ -2789,6 +2789,8 @@ pub fn run() {
             variant_processor::check_routing_services,
             variant_processor::get_gpx_export_defaults,
             variant_processor::export_variant_gpx,
+            variant_processor::load_variant_waypoints,
+            variant_processor::save_variant_waypoints,
             tracking_processor::read_tracking_file
         ])
         .run(tauri::generate_context!())

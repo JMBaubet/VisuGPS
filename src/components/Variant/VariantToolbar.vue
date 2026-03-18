@@ -10,11 +10,11 @@
 
     <v-spacer></v-spacer>
 
+    <!-- Mode Trace Toggle (DEPART / SEGMENT / ARRIVEE) -->
     <v-btn-toggle
-      v-model="internalMode"
-      mandatory
+      v-model="internalTraceMode"
       rounded="lg"
-      class="mr-4"
+      class="mr-2"
       variant="tonal"
       density="compact"
     >
@@ -33,6 +33,43 @@
         Arrivée
       </v-btn>
     </v-btn-toggle>
+
+    <!-- Waypoints Menu -->
+    <v-menu location="bottom center" :close-on-content-click="true">
+      <template v-slot:activator="{ props: menuProps }">
+        <v-btn
+          v-bind="menuProps"
+          :color="activeWaypointColor"
+          :variant="isWaypointMode ? 'flat' : 'tonal'"
+          rounded="lg"
+          class="mr-4"
+          density="compact"
+          append-icon="mdi-menu-down"
+          :title="isWaypointMode ? `Mode actif : ${activeWaypointLabel}` : 'Ajouter un point d\'intérêt (Waitpoint)'"
+        >
+          <v-icon start>{{ activeWaypointIcon }}</v-icon>
+          {{ isWaypointMode ? activeWaypointLabel : 'Waitpoint' }}
+        </v-btn>
+      </template>
+      <v-list density="compact" nav min-width="200">
+        <v-list-subheader>Points d'intérêt (Waitpoints)</v-list-subheader>
+        <v-list-item
+          v-for="wp in waypointTypes"
+          :key="wp.value"
+          :value="wp.value"
+          :active="internalMode === wp.value"
+          active-color="primary"
+          rounded="lg"
+          @click="selectWaypointMode(wp.value)"
+        >
+          <template v-slot:prepend>
+            <v-icon :color="wp.color" size="small">{{ wp.icon }}</v-icon>
+          </template>
+          <v-list-item-title>{{ wp.label }}</v-list-item-title>
+          <v-list-item-subtitle class="text-caption">{{ wp.sublabel }}</v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </v-menu>
 
     <v-spacer></v-spacer>
 
@@ -64,15 +101,31 @@
   </v-toolbar>
 </template>
 
+<script>
+const WAYPOINT_MODES = ['WAYPOINT_EAU', 'WAYPOINT_RAVITO', 'WAYPOINT_PAUSE', 'WAYPOINT_DANGER'];
+const TRACE_MODES = ['DEPART', 'SEGMENT', 'ARRIVEE'];
+
+export default {
+  inheritAttrs: false
+}
+</script>
+
 <script setup>
 import { computed } from 'vue';
 import { useTheme } from 'vuetify';
+
+const waypointTypes = [
+  { value: 'WAYPOINT_EAU',    label: 'Eau',     sublabel: 'Point d\'eau potable', icon: 'mdi-water',         color: 'blue' },
+  { value: 'WAYPOINT_RAVITO', label: 'Ravito',  sublabel: 'Ravitaillement',        icon: 'mdi-food-apple',    color: 'green' },
+  { value: 'WAYPOINT_PAUSE',  label: 'Pause',   sublabel: 'Camping / Pique-nique', icon: 'mdi-tent',          color: 'brown' },
+  { value: 'WAYPOINT_DANGER', label: 'Danger',  sublabel: 'Zone de danger',        icon: 'mdi-alert-octagon', color: 'red' },
+];
 
 const props = defineProps({
   mode: {
     type: String,
     required: true,
-    validator: v => ['DEPART', 'SEGMENT', 'ARRIVEE'].includes(v)
+    validator: v => [...TRACE_MODES, ...WAYPOINT_MODES].includes(v)
   },
   profile: {
     type: String,
@@ -91,6 +144,15 @@ const props = defineProps({
 const emit = defineEmits(['update:mode', 'update:profile', 'save', 'close', 'open-doc']);
 const theme = useTheme();
 
+// Computed: internal mode for trace toggle
+const internalTraceMode = computed({
+  get: () => TRACE_MODES.includes(props.mode) ? props.mode : null,
+  set: (val) => {
+    if (val) emit('update:mode', val);
+  }
+});
+
+// Full internal mode proxy
 const internalMode = computed({
   get: () => props.mode,
   set: (val) => emit('update:mode', val)
@@ -100,6 +162,22 @@ const internalProfile = computed({
   get: () => props.profile,
   set: (val) => emit('update:profile', val)
 });
+
+const isWaypointMode = computed(() => WAYPOINT_MODES.includes(props.mode));
+
+const activeWaypointDef = computed(() => waypointTypes.find(w => w.value === props.mode) || null);
+const activeWaypointLabel = computed(() => activeWaypointDef.value?.label || 'Waitpoint');
+const activeWaypointIcon = computed(() => activeWaypointDef.value?.icon || 'mdi-map-marker-plus');
+const activeWaypointColor = computed(() => isWaypointMode.value ? (activeWaypointDef.value?.color || 'secondary') : 'secondary');
+
+const selectWaypointMode = (val) => {
+  // Toggle: if same mode clicked again, return to SEGMENT
+  if (props.mode === val) {
+    emit('update:mode', 'SEGMENT');
+  } else {
+    emit('update:mode', val);
+  }
+};
 
 const toggleColor = computed(() => {
   return (props.errorProfile && props.errorProfile === internalProfile.value) ? 'error' : 'primary';
