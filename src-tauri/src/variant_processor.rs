@@ -2385,7 +2385,7 @@ pub async fn get_gpx_export_defaults(
     let (target_date, _) = if let Some(mc) = &circuit.meteo_config {
         if let Some(ds) = &mc.date_depart {
             if let Ok(dt) = chrono::NaiveDate::parse_from_str(ds, "%Y-%m-%d") {
-                (dt + Duration::days(1), true)
+                (dt, true)
             } else {
                 (chrono::Local::now().date_naive() + Duration::days(1), false)
             }
