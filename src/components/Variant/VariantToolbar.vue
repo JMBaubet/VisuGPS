@@ -102,7 +102,7 @@
 </template>
 
 <script>
-const WAYPOINT_MODES = ['WAYPOINT_EAU', 'WAYPOINT_RAVITO', 'WAYPOINT_PAUSE', 'WAYPOINT_DANGER'];
+const WAYPOINT_MODES = ['WATER', 'MEETING SPOT', 'DANGER', 'OVERLOOK', 'TOILET', 'INFO', 'SUMMIT', 'TUNNEL', 'FOOD'];
 const TRACE_MODES = ['DEPART', 'SEGMENT', 'ARRIVEE'];
 
 export default {
@@ -115,10 +115,15 @@ import { computed } from 'vue';
 import { useTheme } from 'vuetify';
 
 const waypointTypes = [
-  { value: 'WAYPOINT_EAU',    label: 'Eau',     sublabel: 'Point d\'eau potable', icon: 'mdi-water',         color: 'blue' },
-  { value: 'WAYPOINT_RAVITO', label: 'Ravito',  sublabel: 'Ravitaillement',        icon: 'mdi-food-apple',    color: 'green' },
-  { value: 'WAYPOINT_PAUSE',  label: 'Pause',   sublabel: 'Camping / Pique-nique', icon: 'mdi-tent',          color: 'brown' },
-  { value: 'WAYPOINT_DANGER', label: 'Danger',  sublabel: 'Zone de danger',        icon: 'mdi-alert-octagon', color: 'red' },
+  { value: 'WATER',         label: 'Eau',           sublabel: 'Point d\'eau potable', icon: 'mdi-water',              color: 'blue' },
+  { value: 'FOOD',          label: 'Ravito',        sublabel: 'Ravitaillement',        icon: 'mdi-food-fork-drink',         color: 'orange' },
+  { value: 'MEETING SPOT',  label: 'Rdv',           sublabel: 'Point de rendez-vous', icon: 'mdi-account-group',      color: 'purple' },
+  { value: 'DANGER',        label: 'Danger',        sublabel: 'Zone de danger',        icon: 'mdi-alert-octagon',      color: 'red' },
+  { value: 'OVERLOOK',      label: 'Vue',           sublabel: 'Point de vue',          icon: 'mdi-camera',   color: 'green' },
+  { value: 'TOILET',        label: 'WC',            sublabel: 'Toilettes',             icon: 'mdi-human-male-female',  color: 'brown' },
+  { value: 'INFO',          label: 'Info',          sublabel: 'Information',           icon: 'mdi-information',        color: 'cyan' },
+  { value: 'SUMMIT',        label: 'Sommet',        sublabel: 'Sommet / Col',           icon: 'mdi-image-filter-hdr',           color: 'blue-grey' },
+  { value: 'TUNNEL',        label: 'Tunnel',        sublabel: 'Passage en tunnel',     icon: 'mdi-tunnel',             color: 'black' },
 ];
 
 const props = defineProps({

@@ -53,8 +53,8 @@
                     <v-col :cols="colsSpeed" class="d-flex align-center">
                         <span class="text-caption font-weight-bold">VITESSE</span>
                     </v-col>
-                    <v-col v-if="hasVariants" cols="5" class="d-flex align-center">
-                        <span class="text-caption font-weight-bold">CIRCUIT</span>
+                    <v-col v-if="showExportCol" cols="5" class="d-flex align-center">
+                        <span class="text-caption font-weight-bold">{{ hasVariants ? 'CIRCUIT' : 'EXPORT' }}</span>
                     </v-col>
                 </v-row>
             </div>
@@ -110,9 +110,10 @@
                             ></v-text-field>
                         </v-col>
 
-                        <!-- Variant Selection -->
-                        <v-col v-if="hasVariants" cols="5" class="d-flex align-center">
+                        <!-- Variant Selection / Export -->
+                        <v-col v-if="showExportCol" cols="5" class="d-flex align-center">
                             <v-select
+                                v-if="hasVariants"
                                 v-model="scen.variantId"
                                 :items="availableVariants"
                                 item-title="title"
@@ -124,15 +125,18 @@
                                 :color="scen.variantId ? 'blue' : undefined"
                                 :class="scen.variantId ? 'text-blue' : ''"
                             ></v-select>
+                            <div v-else class="flex-grow-1 text-grey text-caption font-italic">
+                                Trace Principale
+                            </div>
                             <v-btn
-                                v-if="scen.variantId"
+                                v-if="scen.variantId || (scen.variantId === null && mainTraceHasWaitpoints)"
                                 icon="mdi-download"
                                 size="x-small"
                                 variant="text"
                                 color="primary"
                                 class="ml-1"
                                 @click="exportVariantGpx(scen.variantId)"
-                                title="Exporter ce variant au format GPX"
+                                title="Exporter ce parcours au format GPX"
                             ></v-btn>
                         </v-col>
                     </v-row>
@@ -452,6 +456,7 @@ const showExportGpxDialog = ref(false);
 const gpxExportName = ref('');
 const gpxExportFileName = ref('');
 const exportingVariantId = ref(null);
+const mainTraceHasWaitpoints = ref(false);
 
 // reference state for "hasChanges" check
 const lastSavedState = ref({ date: "", scenarios: "" });
@@ -853,10 +858,18 @@ const loadVariants = async () => {
             { title: 'Principale', value: null },
             ...variants.map(v => ({ title: v.name, value: v.id }))
         ];
+
+        // Check for main trace waypoints
+        const mainWps = await invoke('load_variant_waypoints', { 
+            circuitId: props.circuit.circuitId,
+            variantId: '' 
+        });
+        mainTraceHasWaitpoints.value = Array.isArray(mainWps) && mainWps.length > 0;
     } catch (e) {
-        console.error("Failed to load variants:", e);
+        console.error("Failed to load variants/waypoints:", e);
         // Fallback to just main trace
         availableVariants.value = [{ title: 'Principale', value: null }];
+        mainTraceHasWaitpoints.value = false;
     }
 };
 
@@ -889,10 +902,11 @@ watch(editedDateDepart, () => {
 
 // Computed
 const hasVariants = computed(() => availableVariants.value.length > 1);
+const showExportCol = computed(() => hasVariants.value || mainTraceHasWaitpoints.value);
 
-const colsName = computed(() => hasVariants.value ? 1 : 4);
-const colsTime = computed(() => hasVariants.value ? 2 : 3);
-const colsSpeed = computed(() => hasVariants.value ? 2 : 3);
+const colsName = computed(() => showExportCol.value ? 1 : 4);
+const colsTime = computed(() => showExportCol.value ? 2 : 3);
+const colsSpeed = computed(() => showExportCol.value ? 2 : 3);
 
 const isValid = computed(() => {
     return editedScenarios.value.length > 0 && editedDateDepart.value;
@@ -1045,7 +1059,7 @@ const saveMeteo = async () => {
 };
 
 const exportVariantGpx = async (variantId) => {
-    if (!variantId) return;
+    // variantId peut être null pour la trace principale
 
     // Trouver le premier groupe (scénario) concerné par ce variant
     const firstGroup = editedScenarios.value.find(s => s.variantId === variantId);

@@ -100,11 +100,11 @@ pub struct VariantStats {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantWaypoint {
-    pub id: String,
-    pub waypoint_type: String, // "WAYPOINT_EAU", "WAYPOINT_RAVITO", "WAYPOINT_PAUSE", "WAYPOINT_DANGER"
-    pub label: String,
-    pub lon: f64,
     pub lat: f64,
+    pub lon: f64,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub wp_type: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -2513,11 +2513,16 @@ pub async fn save_variant_waypoints(
 /// Retourne le nom et le symbole GPX pour un type de waypoint
 fn waypoint_type_to_gpx(waypoint_type: &str) -> (&'static str, &'static str) {
     match waypoint_type {
-        "WAYPOINT_EAU"    => ("Eau potable",     "Drinking Water"),
-        "WAYPOINT_RAVITO" => ("Ravitaillement",  "Food"),
-        "WAYPOINT_PAUSE"  => ("Pause",           "Campground"),
-        "WAYPOINT_DANGER" => ("Danger",          "Danger"),
-        _                 => ("Point de passage", "Waypoint"),
+        "WATER"         => ("Eau potable",     "Drinking Water"),
+        "FOOD"          => ("Ravitaillement",  "Food"),
+        "MEETING SPOT"  => ("Point de rendez-vous", "Meeting Point"),
+        "DANGER"        => ("Danger",          "Danger"),
+        "OVERLOOK"      => ("Point de vue",    "Scenic Area"),
+        "TOILET"        => ("Toilettes",       "Toilets"),
+        "INFO"          => ("Information",     "Information"),
+        "SUMMIT"        => ("Sommet",          "Summit"),
+        "TUNNEL"        => ("Tunnel",          "Tunnel"),
+        _               => ("Point de passage", "Waypoint"),
     }
 }
 
@@ -2538,28 +2543,39 @@ pub async fn export_variant_gpx(
     };
 
     let circuit_data_dir = app_env_path.join("data").join(&circuit_id);
-    let full_linestring_path = circuit_data_dir.join(format!("lineString_{}_FULL.json", variant_id));
+    let full_linestring_path = if variant_id.is_empty() {
+        circuit_data_dir.join("lineString.json")
+    } else {
+        circuit_data_dir.join(format!("lineString_{}_FULL.json", variant_id))
+    };
 
     if !full_linestring_path.exists() {
-        return Err(format!("Le fichier de géométrie de la variante {} est introuvable.", variant_id));
+        if variant_id.is_empty() {
+             return Err("Le fichier de géométrie de la trace principale est introuvable.".to_string());
+        } else {
+             return Err(format!("Le fichier de géométrie de la variante {} est introuvable.", variant_id));
+        }
     }
 
     let content = fs::read_to_string(&full_linestring_path).map_err(|e| e.to_string())?;
     let json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    let coords = json["coordinates"].as_array().ok_or("Format de fichier invalide (pas de coordonnées).")?
-;
+    let coords = json["coordinates"].as_array().ok_or("Format de fichier invalide (pas de coordonnées).")?;
 
-    // Charger les waypoints : d'abord waitpoint_{variant_id}.json, sinon waitpoint.json
-    let wp_variant_path = circuit_data_dir.join(format!("waitpoint_{}.json", variant_id));
-    let wp_main_path    = circuit_data_dir.join("waitpoint.json");
+    // Charger les waypoints :
+    // - Si variant_id est vide : waitpoint.json
+    // - Sinon : waitpoint_{variant_id}.json PRIORITAIRE, sinon waitpoint.json
     let waypoints: Vec<VariantWaypoint> = {
-        let path = if wp_variant_path.exists() {
-            &wp_variant_path
-        } else if wp_main_path.exists() {
-            &wp_main_path
+        let path = if variant_id.is_empty() {
+            circuit_data_dir.join("waitpoint.json")
         } else {
-            &wp_variant_path // n'existe pas, la lecture sera vide
+            let wp_variant_path = circuit_data_dir.join(format!("waitpoint_{}.json", variant_id));
+            if wp_variant_path.exists() {
+                wp_variant_path
+            } else {
+                circuit_data_dir.join("waitpoint.json")
+            }
         };
+        
         if path.exists() {
             let wp_content = fs::read_to_string(path).unwrap_or_default();
             serde_json::from_str(&wp_content).unwrap_or_default()
@@ -2574,9 +2590,9 @@ pub async fn export_variant_gpx(
 
     // Insérer les waypoints avant la trace
     for wp in &waypoints {
-        let (name, sym) = waypoint_type_to_gpx(&wp.waypoint_type);
+        let (name, sym) = waypoint_type_to_gpx(&wp.wp_type);
         gpx_content.push_str(&format!("  <wpt lat=\"{}\" lon=\"{}\">\n", wp.lat, wp.lon));
-        gpx_content.push_str(&format!("    <name>{}</name>\n", name));
+        gpx_content.push_str(&format!("    <name>{}</name>\n", wp.name));
         gpx_content.push_str(&format!("    <sym>{}</sym>\n", sym));
         gpx_content.push_str("  </wpt>\n");
     }

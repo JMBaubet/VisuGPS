@@ -247,6 +247,12 @@ async function handleImportSelection(filename) {
             // Phase 2: Traceur Selection
             if (!traceurDialog.value) return;
             const traceurId = await traceurDialog.value.open();
+
+            let warningMsg = null;
+            if (draftCircuit.unknownWaypointTypes && draftCircuit.unknownWaypointTypes.length > 0) {
+              const types = [...new Set(draftCircuit.unknownWaypointTypes)].join(', ');
+              warningMsg = `Certains points d'intérêt ont été ignorés : ${types}`;
+            }
             
             // Phase 3: Commit
             const circuitId = await invoke('commit_new_circuit', { 
@@ -292,7 +298,11 @@ async function handleImportSelection(filename) {
                 // Ne pas bloquer l'import si l'analyse échoue
             }
 
-            showSnackbar(`Circuit '${draftCircuit.nom}' importé avec succès.`, 'success');
+            if (warningMsg) {
+              showSnackbar(`Circuit '${draftCircuit.nom}' importé (Note: ${warningMsg})`, 'warning', 10000);
+            } else {
+              showSnackbar(`Circuit '${draftCircuit.nom}' importé avec succès.`, 'success');
+            }
 
         } else if (importConfig.type === 'vgps') {
              // VGPS Import Flow

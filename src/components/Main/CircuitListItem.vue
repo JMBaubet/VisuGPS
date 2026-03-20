@@ -64,7 +64,14 @@
 
       <!-- Colonne 4: Actions -->
       <v-col cols="12" md="2" class="d-flex justify-end align-center">
-        <v-btn icon="mdi-bug" variant="text" v-if="isDebugMode" @click.stop="debugCircuit" color="warning"></v-btn>
+        <v-btn 
+          icon="mdi-bug" 
+          variant="text" 
+          v-if="isDebugMode" 
+          @click.stop="debugCircuit" 
+          color="warning"
+          :title="`ID: ${circuit.circuitId}`"
+        ></v-btn>
         
         <v-btn v-if="communeProgress < 100" icon="mdi-city" variant="text" @click.stop="updateCommunes" :disabled="majCommuneIsRunning" :color="communeIconColor"></v-btn>
 

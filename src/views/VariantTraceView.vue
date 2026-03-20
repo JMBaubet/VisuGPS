@@ -174,6 +174,32 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!-- Waypoint Edit Dialog -->
+    <v-dialog v-model="showWpEditDialog" max-width="400px">
+      <v-card v-if="editingWp">
+        <v-card-title class="bg-primary text-white px-4 py-2 d-flex align-center">
+          <v-icon start :icon="WAYPOINT_ICONS[editingWp.type]"></v-icon>
+          Modifier le point d'intérêt
+        </v-card-title>
+        <v-card-text class="pa-4 pb-1">
+          <v-text-field
+            v-model="editingWp.name"
+            label="Libellé du point"
+            variant="outlined"
+            counter="15"
+            maxlength="15"
+            autofocus
+            @keyup.enter="saveWpEdit"
+          ></v-text-field>
+        </v-card-text>
+        <v-card-actions class="pa-4 pt-0">
+          <v-btn color="error" variant="text" @click="deleteWpFromDialog">Supprimer</v-btn>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showWpEditDialog = false">Annuler</v-btn>
+          <v-btn color="primary" variant="flat" @click="saveWpEdit">Enregistrer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -205,27 +231,48 @@ const { toHex } = useVuetifyColors();
 const { showSnackbar } = useSnackbar();
 
 // --- Waypoints ---
-const WAYPOINT_MODES = ['WAYPOINT_EAU', 'WAYPOINT_RAVITO', 'WAYPOINT_PAUSE', 'WAYPOINT_DANGER'];
+const WAYPOINT_MODES = ['WATER', 'MEETING SPOT', 'DANGER', 'OVERLOOK', 'TOILET', 'INFO', 'SUMMIT', 'TUNNEL', 'FOOD'];
+
 const WAYPOINT_COLORS = {
-  WAYPOINT_EAU:    '#2196F3', // bleu
-  WAYPOINT_RAVITO: '#4CAF50', // vert
-  WAYPOINT_PAUSE:  '#795548', // brun
-  WAYPOINT_DANGER: '#F44336', // rouge
+  WATER:        '#2196F3',
+  'MEETING SPOT': '#9C27B0',
+  DANGER:       '#F44336',
+  OVERLOOK:     '#4CAF50',
+  TOILET:       '#795548',
+  INFO:         '#00BCD4',
+  SUMMIT:       '#607D8B',
+  TUNNEL:       '#212121',
+  FOOD:         '#FF9800',
 };
+
 const WAYPOINT_LABELS = {
-  WAYPOINT_EAU:    'Eau',
-  WAYPOINT_RAVITO: 'Ravito',
-  WAYPOINT_PAUSE:  'Pause',
-  WAYPOINT_DANGER: 'Danger',
+  WATER:        'Eau',
+  'MEETING SPOT': 'Rdv',
+  DANGER:       'Danger',
+  OVERLOOK:     'Vue',
+  TOILET:       'WC',
+  INFO:         'Information',
+  SUMMIT:       'Sommet',
+  TUNNEL:       'Tunnel',
+  FOOD:         'Ravito',
 };
+
 const WAYPOINT_ICONS = {
-  WAYPOINT_EAU:    'mdi-water',
-  WAYPOINT_RAVITO: 'mdi-food-apple',
-  WAYPOINT_PAUSE:  'mdi-tent',
-  WAYPOINT_DANGER: 'mdi-alert-octagon',
+  WATER:        'mdi-water',
+  'MEETING SPOT': 'mdi-account-group',
+  DANGER:       'mdi-alert-octagon',
+  OVERLOOK:     'mdi-camera',
+  TOILET:       'mdi-human-male-female',
+  INFO:         'mdi-information',
+  SUMMIT:       'mdi-image-filter-hdr',
+  TUNNEL:       'mdi-tunnel',
+  FOOD:         'mdi-food-fork-drink',
 };
-const waitpoints = ref([]); // [{ id, waypointType, label, lon, lat }]
+
+const waitpoints = ref([]); // [{ id (temp UI only), type, name, lon, lat }]
 const waitpointMarkers = []; // Instances de mapboxgl.Marker (pas besoin de ref car géré manuellement)
+const showWpEditDialog = ref(false);
+const editingWp = ref(null);
 // ---
 
 const currentMode = ref('SEGMENT');
@@ -665,7 +712,11 @@ const loadWaitpoints = async (variantId = '') => {
             circuitId: props.circuitId,
             variantId
         });
-        waitpoints.value = loadedWaitpoints;
+        // Ajouter un ID temporaire pour la gestion UI (non sauvegardé)
+        waitpoints.value = loadedWaitpoints.map(wp => ({
+            ...wp,
+            id: crypto.randomUUID()
+        }));
         updateWaitpointsLayer();
     } catch (wpErr) {
         console.warn(`[Waitpoints] Load failed (id: ${variantId}):`, wpErr);
@@ -680,14 +731,14 @@ const updateWaitpointsLayer = () => {
     waitpointMarkers.length = 0;
 
     waitpoints.value.forEach(wp => {
-        const color = WAYPOINT_COLORS[wp.waypointType] || '#9E9E9E';
-        const icon = WAYPOINT_ICONS[wp.waypointType] || 'mdi-map-marker';
+        const color = WAYPOINT_COLORS[wp.type] || '#9E9E9E';
+        const icon = WAYPOINT_ICONS[wp.type] || 'mdi-map-marker';
 
         // Création de l'élément HTML du marker
         const el = document.createElement('div');
         el.className = 'waitpoint-marker';
         el.style.borderColor = color;
-        el.title = wp.label;
+        el.title = wp.name;
 
         const iconEl = document.createElement('i');
         iconEl.className = `mdi ${icon} waitpoint-icon`;
@@ -697,31 +748,72 @@ const updateWaitpointsLayer = () => {
         // Ajout du label sous le marker
         const labelEl = document.createElement('div');
         labelEl.className = 'waitpoint-marker-label';
-        labelEl.innerText = wp.label;
+        labelEl.innerText = wp.name;
         el.appendChild(labelEl);
 
-        // Click pour supprimer
+        // Click pour éditer
         el.addEventListener('click', (ev) => {
             ev.stopPropagation(); // Éviter de déclencher handleMapClick
-            waitpoints.value = waitpoints.value.filter(item => item.id !== wp.id);
-            updateWaitpointsLayer();
-            saveWaitpoints();
+            openWpEdit(wp);
         });
 
-        const marker = new mapboxgl.Marker({ element: el })
+        const marker = new mapboxgl.Marker({ 
+            element: el,
+            draggable: true
+        })
             .setLngLat([wp.lon, wp.lat])
             .addTo(map.value);
+            
+        marker.on('dragend', () => {
+            const lngLat = marker.getLngLat();
+            wp.lon = lngLat.lng;
+            wp.lat = lngLat.lat;
+            saveWaitpoints();
+        });
         
         waitpointMarkers.push(marker);
     });
 };
 
+const openWpEdit = (wp) => {
+    // On crée une copie pour pouvoir annuler
+    editingWp.value = { ...wp };
+    showWpEditDialog.value = true;
+};
+
+const saveWpEdit = () => {
+    if (!editingWp.value) return;
+    
+    const index = waitpoints.value.findIndex(wp => wp.id === editingWp.value.id);
+    if (index !== -1) {
+        waitpoints.value[index].name = editingWp.value.name;
+        showWpEditDialog.value = false;
+        updateWaitpointsLayer();
+        saveWaitpoints();
+    }
+};
+
+const deleteWpFromDialog = () => {
+    if (!editingWp.value) return;
+    
+    waitpoints.value = waitpoints.value.filter(wp => wp.id !== editingWp.value.id);
+    showWpEditDialog.value = false;
+    updateWaitpointsLayer();
+    saveWaitpoints();
+};
+
 const saveWaitpoints = async () => {
     try {
+        // Retirer l'ID temporaire avant sauvegarde
+        const toSave = waitpoints.value.map(wp => {
+            const { id, ...rest } = wp;
+            return rest;
+        });
+        
         await invoke('save_variant_waypoints', {
             circuitId: props.circuitId,
             variantId: loadedVariantId.value || '',
-            waypoints: waitpoints.value
+            waypoints: toSave
         });
     } catch (e) {
         console.warn('[Waitpoints] Save failed:', e);
@@ -735,10 +827,13 @@ const handleMapClick = (e) => {
     // (Note: La suppression est gérée directement par le click sur le Marker HTML ci-dessus)
     if (WAYPOINT_MODES.includes(currentMode.value)) {
         // Ajout du waitpoint (indépendant d'un variant ou lié au variant actif)
+        const defaultName = WAYPOINT_LABELS[currentMode.value] || currentMode.value;
+        const truncatedName = defaultName.length > 15 ? defaultName.substring(0, 15) : defaultName;
+        
         const newWp = {
-            id: crypto.randomUUID(),
-            waypointType: currentMode.value,
-            label: WAYPOINT_LABELS[currentMode.value] || currentMode.value,
+            id: crypto.randomUUID(), // Temp ID
+            type: currentMode.value,
+            name: truncatedName,
             lon: e.lngLat.lng,
             lat: e.lngLat.lat
         };

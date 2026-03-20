@@ -21,17 +21,19 @@ use crate::tracking_processor;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftCircuit {
-    gpx_filename: String,
-    nom: String,
-    depart: CircuitDepart,
-    distance_km: f64,
-    denivele_m: i32,
-    sommet: CircuitSommet,
-    iso_date_time: DateTime<Utc>,
-    url: String,
-    editor_name: String,
-    ville_nom: String,
-    track_points: Vec<Vec<f64>>,
+    pub gpx_filename: String,
+    pub nom: String,
+    pub depart: CircuitDepart,
+    pub distance_km: f64,
+    pub denivele_m: i32,
+    pub sommet: CircuitSommet,
+    pub iso_date_time: DateTime<Utc>,
+    pub url: String,
+    pub editor_name: String,
+    pub ville_nom: String,
+    pub track_points: Vec<Vec<f64>>,
+    pub waypoints: Vec<crate::variant_processor::VariantWaypoint>,
+    pub unknown_waypoint_types: Vec<String>,
 }
 
 // Struct to hold calculation results
@@ -192,12 +194,14 @@ pub struct Circuit {
 }
 
 struct GpxMetadata {
-    name: Option<String>,
-    creator: Option<String>,
-    time: Option<DateTime<Utc>>,
-    first_point_lat: Option<f64>,
-    first_point_lon: Option<f64>,
-    link: Option<String>,
+    pub name: Option<String>,
+    pub creator: Option<String>,
+    pub time: Option<DateTime<Utc>>,
+    pub first_point_lat: Option<f64>,
+    pub first_point_lon: Option<f64>,
+    pub link: Option<String>,
+    pub waypoints: Vec<crate::variant_processor::VariantWaypoint>,
+    pub unknown_waypoint_types: Vec<String>,
 }
 
     pub fn clean_altitude_data(
@@ -476,6 +480,8 @@ pub async fn analyze_gpx_file(
         url,
         editor_name,
         ville_nom,
+        waypoints: metadata.waypoints,
+        unknown_waypoint_types: metadata.unknown_waypoint_types,
         track_points: rounded_track_points,
     })
 }
@@ -626,6 +632,14 @@ pub fn commit_new_circuit(
     // --- End of new code for QR code generation ---
 
     create_line_string_file(&app_env_path, &new_circuit_id, &draft.track_points)?;
+
+    // Sauvegarder les waypoints importés
+    if !draft.waypoints.is_empty() {
+        let circuit_data_dir = app_env_path.join("data").join(&new_circuit_id);
+        let waitpoint_path = circuit_data_dir.join("waitpoint.json");
+        let content = serde_json::to_string_pretty(&draft.waypoints).map_err(|e| e.to_string())?;
+        fs::write(waitpoint_path, content).map_err(|e| e.to_string())?;
+    }
 
     let settings_path = app_env_path.join("settings.json");
     let settings_content = fs::read_to_string(settings_path).map_err(|e| e.to_string())?;
@@ -910,6 +924,25 @@ fn get_gpx_directory(settings: &serde_json::Value) -> Result<PathBuf, String> {
     }
 }
 
+fn map_gpx_symbol_to_type(sym: &str) -> Option<&'static str> {
+    let lower = sym.to_lowercase();
+    if lower.contains("water") || lower.contains("eau") { return Some("WATER"); }
+    if lower.contains("food") || lower.contains("ravitaillement") || lower.contains("restaurant") || lower.contains("apple") || lower.contains("fork") { return Some("FOOD"); }
+    if lower.contains("meeting") || lower.contains("rendez-vous") || lower.contains("rdv") || lower.contains("meeting point") { return Some("MEETING SPOT"); }
+    if lower.contains("danger") || lower.contains("alert") || lower.contains("warning") { return Some("DANGER"); }
+    if lower.contains("scenic") || lower.contains("view") || lower.contains("overlook") || lower.contains("camera") { return Some("OVERLOOK"); }
+    if lower.contains("toilet") || lower.contains("wc") || lower.contains("restroom") { return Some("TOILET"); }
+    if lower.contains("info") { return Some("INFO"); }
+    if lower.contains("summit") || lower.contains("peak") || lower.contains("mountain") || lower.contains("sommet") { return Some("SUMMIT"); }
+    if lower.contains("tunnel") { return Some("TUNNEL"); }
+    
+    // Exact match check for internal names
+    match sym.to_uppercase().as_str() {
+        "WATER" | "MEETING SPOT" | "DANGER" | "OVERLOOK" | "TOILET" | "INFO" | "SUMMIT" | "TUNNEL" | "FOOD" => Some(""), // Special value handled in caller
+        _ => None,
+    }
+}
+
 fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), String> {
     let xml_content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
     let re = Regex::new(r#"\s*xmlns(:\w+)?=\"[^\"]*\""#).unwrap();
@@ -926,6 +959,8 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
         first_point_lat: None,
         first_point_lon: None,
         link: None,
+        waypoints: Vec::new(),
+        unknown_waypoint_types: Vec::new(),
     };
     let mut track_points: Vec<Vec<f64>> = Vec::new();
 
@@ -935,6 +970,7 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
 
     let mut current_lat: Option<f64> = None;
     let mut current_lon: Option<f64> = None;
+    let mut current_wpt_name: Option<String> = None;
     let mut path: Vec<Vec<u8>> = Vec::new();
 
     loop {
@@ -1014,7 +1050,7 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                             }
                         }
                     }
-                    "gpx/trk/trkseg/trkpt" => {
+                    "gpx/trk/trkseg/trkpt" | "gpx/wpt" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 match attr.key.as_ref() {
@@ -1034,9 +1070,52 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                                 }
                             }
                         }
-                        if metadata.first_point_lat.is_none() && current_lat.is_some() {
-                            metadata.first_point_lat = current_lat;
-                            metadata.first_point_lon = current_lon;
+                        if current_path_str == "gpx/trk/trkseg/trkpt" {
+                            if metadata.first_point_lat.is_none() && current_lat.is_some() {
+                                metadata.first_point_lat = current_lat;
+                                metadata.first_point_lon = current_lon;
+                            }
+                        }
+                    }
+                    "gpx/wpt/name" => {
+                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
+                            if let Ok(name) = t.unescape() {
+                                current_wpt_name = Some(name.to_string());
+                            }
+                        }
+                    }
+                    "gpx/wpt/sym" | "gpx/wpt/type" => {
+                        if let Ok(Event::Text(t)) = reader.read_event_into(&mut buf) {
+                            if let (Some(lat), Some(lon)) = (current_lat, current_lon) {
+                                if let Ok(sym) = t.unescape() {
+                                    let sym_str = sym.to_string();
+                                    let mapped_type = map_gpx_symbol_to_type(&sym_str);
+                                    
+                                    if let Some(mut t_str) = mapped_type {
+                                        if t_str == "" {
+                                            t_str = Box::leak(sym_str.to_uppercase().into_boxed_str());
+                                        }
+                                        
+                                        let name = current_wpt_name.take().unwrap_or_else(|| "Point".to_string());
+                                        let truncated_name = if name.chars().count() > 15 {
+                                            name.chars().take(15).collect::<String>()
+                                        } else {
+                                            name
+                                        };
+                                        
+                                        metadata.waypoints.push(crate::variant_processor::VariantWaypoint {
+                                            lat,
+                                            lon,
+                                            name: truncated_name,
+                                            wp_type: t_str.to_string(),
+                                        });
+                                    } else {
+                                        if !metadata.unknown_waypoint_types.contains(&sym_str) {
+                                            metadata.unknown_waypoint_types.push(sym_str);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                     "gpx/trk/trkseg/trkpt/ele" => {
@@ -1091,7 +1170,7 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                             }
                         }
                     }
-                    "gpx/trk/trkseg/trkpt" => {
+                    "gpx/trk/trkseg/trkpt" | "gpx/wpt" => {
                         for attr in e.attributes() {
                             if let Ok(attr) = attr {
                                 match attr.key.as_ref() {
@@ -1111,16 +1190,19 @@ fn extract_gpx_data(file_path: &Path) -> Result<(GpxMetadata, Vec<Vec<f64>>), St
                                 }
                             }
                         }
-                        if metadata.first_point_lat.is_none() && current_lat.is_some() {
-                            metadata.first_point_lat = current_lat;
-                            metadata.first_point_lon = current_lon;
+                        if current_path_str == "gpx/trk/trkseg/trkpt" {
+                            if metadata.first_point_lat.is_none() && current_lat.is_some() {
+                                metadata.first_point_lat = current_lat;
+                                metadata.first_point_lon = current_lon;
+                            }
                         }
-                        // This is a self-closing trkpt, it won't have an ele child, so we might need to handle that if ele is an attribute.
-                        // Assuming ele is always a separate tag for now.
+                        if current_path_str == "gpx/wpt" {
+                            current_wpt_name = None;
+                        }
                     }
                     _ => {}
                 }
-                path.pop(); // Pop immediately for empty tags
+                path.pop();
             }
             Ok(Event::End(e)) => {
                 if !path.is_empty() && path.last().unwrap() == e.name().as_ref() {
