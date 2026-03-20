@@ -1087,7 +1087,7 @@ const handleConfirmExportGpx = async () => {
     try {
         await invoke('export_variant_gpx', {
             circuitId: props.circuit.circuitId,
-            variantId: exportingVariantId.value,
+            variantId: exportingVariantId.value || '',
             variantName: gpxExportName.value,
             defaultFilename: gpxExportFileName.value
         });

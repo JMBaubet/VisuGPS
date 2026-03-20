@@ -47,6 +47,7 @@ Corrections :
 ## Version 1.1.3
 
 Contient les fonctionnalités suivantes :
+- Ajout de la gestion des points d'intérêt depuis la vue variantes
 - Export des variantes au format GPX depuis la gestion des groupes
 - Affichage des horaires de départ des groupes depuis la vue globale en fin de visualisation
 - Ajout d'un bouton de fermeture de l'application avec confirmation

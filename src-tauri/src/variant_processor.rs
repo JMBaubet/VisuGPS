@@ -2513,16 +2513,16 @@ pub async fn save_variant_waypoints(
 /// Retourne le nom et le symbole GPX pour un type de waypoint
 fn waypoint_type_to_gpx(waypoint_type: &str) -> (&'static str, &'static str) {
     match waypoint_type {
-        "WATER"         => ("Eau potable",     "Drinking Water"),
-        "FOOD"          => ("Ravitaillement",  "Food"),
-        "MEETING SPOT"  => ("Point de rendez-vous", "Meeting Point"),
-        "DANGER"        => ("Danger",          "Danger"),
-        "OVERLOOK"      => ("Point de vue",    "Scenic Area"),
-        "TOILET"        => ("Toilettes",       "Toilets"),
-        "INFO"          => ("Information",     "Information"),
-        "SUMMIT"        => ("Sommet",          "Summit"),
-        "TUNNEL"        => ("Tunnel",          "Tunnel"),
-        _               => ("Point de passage", "Waypoint"),
+        "WATER"         => ("Eau potable",     "WATER"),
+        "FOOD"          => ("Ravitaillement",  "FOOD"),
+        "MEETING SPOT"  => ("Point de rendez-vous", "MEETING SPOT"),
+        "DANGER"        => ("Danger",          "DANGER"),
+        "OVERLOOK"      => ("Point de vue",    "SOVERLOOK"),
+        "TOILET"        => ("Toilettes",       "TOILET"),
+        "INFO"          => ("Information",     "INFO"),
+        "SUMMIT"        => ("Sommet",          "SUMMIT"),
+        "TUNNEL"        => ("Tunnel",          "TUNNEL"),
+        _               => ("Point de passage", "WAYPOINT"),
     }
 }
 
@@ -2590,10 +2590,10 @@ pub async fn export_variant_gpx(
 
     // Insérer les waypoints avant la trace
     for wp in &waypoints {
-        let (name, sym) = waypoint_type_to_gpx(&wp.wp_type);
+        let (_name, sym) = waypoint_type_to_gpx(&wp.wp_type);
         gpx_content.push_str(&format!("  <wpt lat=\"{}\" lon=\"{}\">\n", wp.lat, wp.lon));
         gpx_content.push_str(&format!("    <name>{}</name>\n", wp.name));
-        gpx_content.push_str(&format!("    <sym>{}</sym>\n", sym));
+        gpx_content.push_str(&format!("    <type>{}</type>\n", sym));
         gpx_content.push_str("  </wpt>\n");
     }
 
